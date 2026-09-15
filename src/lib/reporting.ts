@@ -14,11 +14,9 @@ import {
  * 指定した課税年度のDB上の取引をすべて読み出し、計算エンジンに渡して
  * 年間損益を算出する。
  *
- * 期首残高(前年繰越)は `CryptoOpeningBalance` / `InvestmentOpeningBalance`
- * に登録されている場合のみ反映される。未登録の銘柄は期首残高0として
- * 計算されるため、取引開始初年度から記録している場合はそのままでよいが、
- * 複数年にまたがる保有は `/import` の「繰越残高」タブで登録するか、
- * 前年分から自動で繰り越す必要がある。
+ * 前年繰越残高(期首残高)は CryptoOpeningBalance / InvestmentOpeningBalance
+ * テーブルに登録されている場合のみ加味される。取引開始初年度など、
+ * 繰越データが無い銘柄は期首残高0として計算する。
  */
 export async function buildYearReport(year: number): Promise<{
   crypto: CryptoPortfolioYearResult;
@@ -53,11 +51,15 @@ export async function buildYearReport(year: number): Promise<{
   const investmentOpeningMap: Record<string, InvestmentOpeningBalance> = {};
   const investmentNisaOpeningMap: Record<string, InvestmentOpeningBalance> = {};
   for (const o of investmentOpenings) {
-    const target = o.isNisa ? investmentNisaOpeningMap : investmentOpeningMap;
-    target[o.symbol] = {
+    const balance: InvestmentOpeningBalance = {
       quantity: o.quantity.toString(),
       costBasisJpy: o.costBasisJpy.toString(),
     };
+    if (o.isNisa) {
+      investmentNisaOpeningMap[o.symbol] = balance;
+    } else {
+      investmentOpeningMap[o.symbol] = balance;
+    }
   }
 
   const crypto = calculateCryptoPortfolioYear(
