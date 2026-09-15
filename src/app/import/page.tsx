@@ -7,6 +7,7 @@ import {
   deleteInvestmentOpeningBalance,
   deleteInvestmentTrade,
   importMoneyForwardCsv,
+  setCryptoCalculationMethod,
   setCryptoOpeningBalance,
   setInvestmentOpeningBalance,
 } from "@/app/actions";
@@ -96,6 +97,37 @@ export default async function ImportPage({
             className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
           >
             取り込む
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産の評価方法</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          総平均法は届出不要の法定算出方法です。移動平均法は税務署への届出により
+          選択できる方法で、取得の都度、保有数量・取得価額を更新した単価を用いて
+          計算するため、各取引の取引日時が計算順序に影響します。年分ごとに切り替え可能です。
+        </p>
+        <form
+          action={setCryptoCalculationMethod}
+          className="flex flex-wrap items-end gap-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="計算方法">
+            <select
+              name="cryptoCalculationMethod"
+              defaultValue={taxYear.cryptoCalculationMethod}
+              className={inputClass}
+            >
+              <option value="AVERAGE">総平均法</option>
+              <option value="MOVING_AVERAGE">移動平均法</option>
+            </select>
+          </Field>
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            変更する
           </button>
         </form>
       </section>

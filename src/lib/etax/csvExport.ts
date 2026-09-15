@@ -1,5 +1,5 @@
 import { Decimal } from "decimal.js";
-import type { CryptoSymbolYearResult } from "../crypto/calculator";
+import type { CryptoCalculationMethod, CryptoSymbolYearResult } from "../crypto/calculator";
 import type { InvestmentSymbolYearResult } from "../investment/calculator";
 import type { TaxFilingSummary } from "./summary";
 
@@ -33,7 +33,10 @@ export function buildTaxFilingDraftCsv(
   summary: TaxFilingSummary,
   cryptoDetail: CryptoSymbolYearResult[],
   investmentDetail: InvestmentSymbolYearResult[],
+  cryptoCalculationMethod: CryptoCalculationMethod = "AVERAGE",
 ): string {
+  const cryptoMethodLabel =
+    cryptoCalculationMethod === "MOVING_AVERAGE" ? "移動平均法" : "総平均法";
   const lines: string[] = [];
 
   lines.push(
@@ -69,7 +72,7 @@ export function buildTaxFilingDraftCsv(
   );
   lines.push("");
 
-  lines.push(toCsvLine(["■ 暗号資産 銘柄別内訳(総平均法)"]));
+  lines.push(toCsvLine([`■ 暗号資産 銘柄別内訳(${cryptoMethodLabel})`]));
   lines.push(
     toCsvLine([
       "銘柄",

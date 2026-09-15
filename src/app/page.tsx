@@ -65,7 +65,9 @@ export default async function Home({
         <SummaryCard
           title="雑所得(暗号資産)"
           value={summary ? yen(summary.cryptoMiscIncomeJpy) : "¥0"}
-          hint="総平均法による年間損益"
+          hint={`${
+            report?.cryptoCalculationMethod === "MOVING_AVERAGE" ? "移動平均法" : "総平均法"
+          }による年間損益`}
         />
         <SummaryCard
           title="譲渡所得(株式等)"
