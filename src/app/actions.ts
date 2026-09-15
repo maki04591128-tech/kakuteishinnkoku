@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
+import {
+  CRYPTO_EXCHANGE_LABELS,
+  parseCryptoExchangeCsv,
+  type CryptoExchangeId,
+} from "@/lib/crypto/exchanges";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildYearReport } from "@/lib/reporting";
 import {
@@ -74,6 +79,69 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
     );
   }
   redirect(`/import?year=${year}&imported=${rows.length}`);
+}
+
+const CRYPTO_EXCHANGE_IDS: readonly CryptoExchangeId[] = [
+  "bitflyer",
+  "coincheck",
+  "gmo_coin",
+];
+
+export async function importCryptoExchangeCsv(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const exchange = requireString(formData, "exchange") as CryptoExchangeId;
+  if (!CRYPTO_EXCHANGE_IDS.includes(exchange)) {
+    throw new Error(`未対応の取引所です: ${exchange}`);
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("CSVファイルを選択してください");
+  }
+
+  const text = await file.text();
+  const { rows, skippedRows } = parseCryptoExchangeCsv(exchange, text);
+
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.$transaction(async (tx) => {
+    const batch = await tx.importBatch.create({
+      data: {
+        taxYearId: taxYear.id,
+        sourceType: `crypto_csv_${exchange}`,
+        fileName: file.name,
+        rowCount: rows.length,
+      },
+    });
+
+    if (rows.length > 0) {
+      await tx.cryptoTrade.createMany({
+        data: rows.map((row) => ({
+          taxYearId: taxYear.id,
+          tradedAt: row.tradedAt,
+          symbol: row.symbol,
+          type: row.type,
+          quantity: row.quantity.toString(),
+          unitPriceJpy: row.unitPriceJpy.toString(),
+          feeJpy: row.feeJpy.toString(),
+          exchange: CRYPTO_EXCHANGE_LABELS[exchange],
+          memo: row.memo,
+          source: `crypto_csv_${exchange}`,
+          importBatchId: batch.id,
+        })),
+      });
+    }
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+
+  if (skippedRows.length > 0) {
+    redirect(
+      `/import?year=${year}&tab=crypto&imported=${rows.length}&skipped=${skippedRows.length}`,
+    );
+  }
+  redirect(`/import?year=${year}&tab=crypto&imported=${rows.length}`);
 }
 
 export async function addCryptoTrade(formData: FormData): Promise<void> {

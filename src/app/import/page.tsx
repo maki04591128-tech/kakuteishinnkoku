@@ -6,10 +6,12 @@ import {
   deleteCryptoTrade,
   deleteInvestmentOpeningBalance,
   deleteInvestmentTrade,
+  importCryptoExchangeCsv,
   importMoneyForwardCsv,
   setCryptoOpeningBalance,
   setInvestmentOpeningBalance,
 } from "@/app/actions";
+import { CRYPTO_EXCHANGE_LABELS } from "@/lib/crypto/exchanges";
 import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
@@ -84,6 +86,41 @@ export default async function ImportPage({
         </p>
         <form action={importMoneyForwardCsv} className="flex flex-wrap items-center gap-3">
           <input type="hidden" name="year" value={year} />
+          <input
+            type="file"
+            name="file"
+            accept=".csv,text/csv"
+            required
+            className="text-sm"
+          />
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            取り込む
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          bitFlyer・Coincheck・GMOコインの取引履歴CSVをそのまま取り込めます。
+          暗号資産同士の交換(ETH→BTCなど)は自動取込に対応していないため、
+          取り込み後に「形式不正のためスキップ」件数が出た場合は手動で追加してください。
+        </p>
+        <form action={importCryptoExchangeCsv} className="flex flex-wrap items-center gap-3">
+          <input type="hidden" name="year" value={year} />
+          <select name="exchange" required className={inputClass} defaultValue="">
+            <option value="" disabled>
+              取引所を選択
+            </option>
+            {Object.entries(CRYPTO_EXCHANGE_LABELS).map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
           <input
             type="file"
             name="file"
