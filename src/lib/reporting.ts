@@ -1,11 +1,7 @@
 import { prisma } from "./db";
 import {
   calculateCryptoPortfolioYear,
-<<<<<<< HEAD
-=======
   type CryptoCostMethod,
-  type CryptoOpeningBalance,
->>>>>>> origin/claude/wonderful-edison-xzm3zs
   type CryptoPortfolioYearResult,
 } from "./crypto/calculator";
 import {
@@ -56,12 +52,8 @@ export async function buildYearReport(year: number): Promise<{
       feeJpy: t.feeJpy.toString(),
       tradedAt: t.tradedAt,
     })),
-<<<<<<< HEAD
     openings.crypto,
-=======
-    cryptoOpeningMap,
     taxYear.cryptoCostMethod,
->>>>>>> origin/claude/wonderful-edison-xzm3zs
   );
 
   const investment = calculateInvestmentPortfolioYear(
