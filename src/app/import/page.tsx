@@ -105,10 +105,11 @@ export default async function ImportPage({
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
         <p className="mb-3 text-sm text-neutral-500">
-          取引所からダウンロードした取引履歴CSVを取り込みます。現物の売買・交換のみ対応し、
-          入出金(送付・受取)や証拠金取引、税務上の性質が一意に決まらない明細は自動では
-          取り込まず件数のみ表示します(取引所側のCSV仕様変更により解釈できない場合があります。
-          取り込み後は必ず一覧で内容を確認してください)。
+          bitFlyer・Coincheck・GMOコインの取引履歴CSVを取り込みます。現物の
+          売買・交換のみ対応し、入出金(送付・受取)や証拠金取引、税務上の性質が
+          一意に決まらない明細は自動では取り込まず件数のみ表示します(取引所側の
+          CSV仕様変更や列見出しの差異により解釈できない場合があります。取り込み後は
+          必ず一覧で内容を確認してください)。
         </p>
         <form
           action={importCryptoExchangeCsv}
