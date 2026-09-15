@@ -1,66 +1,47 @@
 import { prisma } from "./db";
 import {
   calculateCryptoPortfolioYear,
-  type CryptoOpeningBalance,
+  type CryptoCostMethod,
   type CryptoPortfolioYearResult,
 } from "./crypto/calculator";
 import {
   calculateInvestmentPortfolioYear,
-  type InvestmentOpeningBalance,
   type InvestmentPortfolioYearResult,
 } from "./investment/calculator";
+import {
+  deriveCarryForwardCandidates,
+  loadOpeningBalances,
+  type CarryForwardCandidate,
+} from "./openingBalance";
 
 /**
  * 指定した課税年度のDB上の取引をすべて読み出し、計算エンジンに渡して
  * 年間損益を算出する。
  *
- * 前年繰越残高(期首残高)は CryptoOpeningBalance / InvestmentOpeningBalance
- * テーブルに登録されている場合のみ加味される。取引開始初年度など、
- * 繰越データが無い銘柄は期首残高0として計算する。
+ * 前年繰越残高(期首残高)は OpeningBalance テーブルに手入力・繰り越し登録
+ * されたものを読み出して計算エンジンの opening 引数に渡す。未登録の銘柄は
+ * 期首残高0として扱われる(取引開始初年度からすべての取引を記録している
+ * 前提と同じ結果になる)。
  */
 export async function buildYearReport(year: number): Promise<{
   crypto: CryptoPortfolioYearResult;
   investment: InvestmentPortfolioYearResult;
+  cryptoCostMethod: CryptoCostMethod;
 } | null> {
   const taxYear = await prisma.taxYear.findUnique({ where: { year } });
   if (!taxYear) {
     return {
       crypto: calculateCryptoPortfolioYear([]),
       investment: calculateInvestmentPortfolioYear([]),
+      cryptoCostMethod: "AVERAGE",
     };
   }
 
-  const [cryptoTrades, investmentTrades, cryptoOpenings, investmentOpenings] =
-    await Promise.all([
-      prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
-      prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
-      prisma.cryptoOpeningBalance.findMany({ where: { taxYearId: taxYear.id } }),
-      prisma.investmentOpeningBalance.findMany({
-        where: { taxYearId: taxYear.id },
-      }),
-    ]);
-
-  const cryptoOpeningMap: Record<string, CryptoOpeningBalance> = {};
-  for (const o of cryptoOpenings) {
-    cryptoOpeningMap[o.symbol] = {
-      quantity: o.quantity.toString(),
-      costBasisJpy: o.costBasisJpy.toString(),
-    };
-  }
-
-  const investmentOpeningMap: Record<string, InvestmentOpeningBalance> = {};
-  const investmentNisaOpeningMap: Record<string, InvestmentOpeningBalance> = {};
-  for (const o of investmentOpenings) {
-    const balance: InvestmentOpeningBalance = {
-      quantity: o.quantity.toString(),
-      costBasisJpy: o.costBasisJpy.toString(),
-    };
-    if (o.isNisa) {
-      investmentNisaOpeningMap[o.symbol] = balance;
-    } else {
-      investmentOpeningMap[o.symbol] = balance;
-    }
-  }
+  const [cryptoTrades, investmentTrades, openings] = await Promise.all([
+    prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    loadOpeningBalances(taxYear.id),
+  ]);
 
   const crypto = calculateCryptoPortfolioYear(
     cryptoTrades.map((t) => ({
@@ -69,8 +50,10 @@ export async function buildYearReport(year: number): Promise<{
       quantity: t.quantity.toString(),
       unitPriceJpy: t.unitPriceJpy.toString(),
       feeJpy: t.feeJpy.toString(),
+      tradedAt: t.tradedAt,
     })),
-    cryptoOpeningMap,
+    openings.crypto,
+    taxYear.cryptoCostMethod,
   );
 
   const investment = calculateInvestmentPortfolioYear(
@@ -83,9 +66,21 @@ export async function buildYearReport(year: number): Promise<{
       feeJpy: t.feeJpy.toString(),
       isNisa: t.isNisa,
     })),
-    investmentOpeningMap,
-    investmentNisaOpeningMap,
+    openings.investment,
+    openings.investmentNisa,
   );
 
-  return { crypto, investment };
+  return { crypto, investment, cryptoCostMethod: taxYear.cryptoCostMethod };
+}
+
+/**
+ * 前年分の取引・期首残高から前年の期末残高を計算し、当年の期首残高候補として返す。
+ * 「前年から繰り越す」UIの一括登録に使う。
+ */
+export async function buildCarryForwardCandidates(
+  previousYear: number,
+): Promise<CarryForwardCandidate[]> {
+  const report = await buildYearReport(previousYear);
+  if (!report) return [];
+  return deriveCarryForwardCandidates(report.crypto, report.investment);
 }
