@@ -6,11 +6,7 @@ import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import { parseCryptoExchangeCsv } from "@/lib/crypto/exchangeCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
-import { buildYearReport } from "@/lib/reporting";
-import {
-  buildCryptoCarryForward,
-  buildInvestmentCarryForward,
-} from "@/lib/openingBalance";
+import { buildCarryForwardCandidates } from "@/lib/reporting";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -224,58 +220,36 @@ export async function deleteInvestmentTrade(formData: FormData): Promise<void> {
   redirect(`/import?year=${year}&tab=investment`);
 }
 
-export async function setCryptoOpeningBalance(formData: FormData): Promise<void> {
+export async function setOpeningBalance(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const taxYear = await getOrCreateTaxYear(year);
+  const assetClass = requireString(formData, "assetClass") as
+    | "CRYPTO"
+    | "INVESTMENT";
   const symbol = requireString(formData, "symbol").toUpperCase();
+  // NISA口座は投資のみ区分がある。暗号資産では常にfalseとして扱う。
+  const isNisa = assetClass === "INVESTMENT" && formData.get("isNisa") === "on";
+  const quantity = requireString(formData, "quantity");
+  const costBasisJpy = requireString(formData, "costBasisJpy");
 
-  await prisma.cryptoOpeningBalance.upsert({
-    where: { taxYearId_symbol: { taxYearId: taxYear.id, symbol } },
+  await prisma.openingBalance.upsert({
+    where: {
+      taxYearId_assetClass_symbol_isNisa: {
+        taxYearId: taxYear.id,
+        assetClass,
+        symbol,
+        isNisa,
+      },
+    },
     create: {
       taxYearId: taxYear.id,
-      symbol,
-      quantity: requireString(formData, "quantity"),
-      costBasisJpy: requireString(formData, "costBasisJpy"),
-    },
-    update: {
-      quantity: requireString(formData, "quantity"),
-      costBasisJpy: requireString(formData, "costBasisJpy"),
-    },
-  });
-
-  revalidatePath("/import");
-  revalidatePath("/");
-  redirect(`/import?year=${year}&tab=opening`);
-}
-
-export async function deleteCryptoOpeningBalance(formData: FormData): Promise<void> {
-  const id = Number(requireString(formData, "id"));
-  const year = Number(requireString(formData, "year"));
-  await prisma.cryptoOpeningBalance.delete({ where: { id } });
-  revalidatePath("/import");
-  revalidatePath("/");
-  redirect(`/import?year=${year}&tab=opening`);
-}
-
-export async function setInvestmentOpeningBalance(formData: FormData): Promise<void> {
-  const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
-  const symbol = requireString(formData, "symbol");
-  const isNisa = formData.get("isNisa") === "on";
-
-  await prisma.investmentOpeningBalance.upsert({
-    where: { taxYearId_symbol_isNisa: { taxYearId: taxYear.id, symbol, isNisa } },
-    create: {
-      taxYearId: taxYear.id,
+      assetClass,
       symbol,
       isNisa,
-      quantity: requireString(formData, "quantity"),
-      costBasisJpy: requireString(formData, "costBasisJpy"),
+      quantity,
+      costBasisJpy,
     },
-    update: {
-      quantity: requireString(formData, "quantity"),
-      costBasisJpy: requireString(formData, "costBasisJpy"),
-    },
+    update: { quantity, costBasisJpy },
   });
 
   revalidatePath("/import");
@@ -283,78 +257,52 @@ export async function setInvestmentOpeningBalance(formData: FormData): Promise<v
   redirect(`/import?year=${year}&tab=opening`);
 }
 
-export async function deleteInvestmentOpeningBalance(
-  formData: FormData,
-): Promise<void> {
+export async function deleteOpeningBalance(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.investmentOpeningBalance.delete({ where: { id } });
+  await prisma.openingBalance.delete({ where: { id } });
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=opening`);
 }
 
 /**
- * 前年分の期末残高(その年の取引を全て計算した結果の残り)を、
- * 当年分の期首残高として一括登録する。既存の当年分期首残高は上書きする。
+ * 前年の期末残高(取引と期首残高から再計算した結果)を、当年の期首残高として
+ * 一括登録する。既に当年の期首残高が登録されている銘柄は上書きしない。
  */
 export async function carryForwardOpeningBalances(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const previousYearReport = await buildYearReport(year - 1);
-
-  if (!previousYearReport) {
-    redirect(`/import?year=${year}&tab=opening`);
-  }
-
   const taxYear = await getOrCreateTaxYear(year);
-  const cryptoRows = buildCryptoCarryForward(previousYearReport.crypto);
-  const investmentRows = buildInvestmentCarryForward(previousYearReport.investment);
+  const candidates = await buildCarryForwardCandidates(year - 1);
 
-  await prisma.$transaction([
-    ...cryptoRows.map((row) =>
-      prisma.cryptoOpeningBalance.upsert({
-        where: { taxYearId_symbol: { taxYearId: taxYear.id, symbol: row.symbol } },
-        create: {
-          taxYearId: taxYear.id,
-          symbol: row.symbol,
-          quantity: row.quantity.toString(),
-          costBasisJpy: row.costBasisJpy.toString(),
-        },
-        update: {
-          quantity: row.quantity.toString(),
-          costBasisJpy: row.costBasisJpy.toString(),
-        },
-      }),
-    ),
-    ...investmentRows.map((row) =>
-      prisma.investmentOpeningBalance.upsert({
-        where: {
-          taxYearId_symbol_isNisa: {
-            taxYearId: taxYear.id,
-            symbol: row.symbol,
-            isNisa: row.isNisa,
-          },
-        },
-        create: {
-          taxYearId: taxYear.id,
-          symbol: row.symbol,
-          isNisa: row.isNisa,
-          quantity: row.quantity.toString(),
-          costBasisJpy: row.costBasisJpy.toString(),
-        },
-        update: {
-          quantity: row.quantity.toString(),
-          costBasisJpy: row.costBasisJpy.toString(),
-        },
-      }),
-    ),
-  ]);
+  const existing = await prisma.openingBalance.findMany({
+    where: { taxYearId: taxYear.id },
+    select: { assetClass: true, symbol: true, isNisa: true },
+  });
+  const existingKeys = new Set(
+    existing.map((e) => `${e.assetClass}:${e.symbol}:${e.isNisa}`),
+  );
+
+  const toCreate = candidates.filter(
+    (c) => !existingKeys.has(`${c.assetClass}:${c.symbol}:${c.isNisa}`),
+  );
+
+  if (toCreate.length > 0) {
+    await prisma.openingBalance.createMany({
+      data: toCreate.map((c) => ({
+        taxYearId: taxYear.id,
+        assetClass: c.assetClass,
+        symbol: c.symbol,
+        isNisa: c.isNisa,
+        quantity: c.quantity,
+        costBasisJpy: c.costBasisJpy,
+      })),
+    });
+  }
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(
-    `/import?year=${year}&tab=opening&carried=${cryptoRows.length + investmentRows.length}`,
-  );
+  redirect(`/import?year=${year}&tab=opening&carried=${toCreate.length}`);
 }
