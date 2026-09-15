@@ -28,6 +28,7 @@ function optionalString(formData: FormData, key: string): string | null {
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const method = requireString(formData, "cryptoCostMethod");
+  const tab = optionalString(formData, "tab");
   if (method !== "AVERAGE" && method !== "MOVING_AVERAGE") {
     throw new Error(`未対応の評価方法です: ${method}`);
   }
@@ -38,7 +39,11 @@ export async function setCryptoCostMethod(formData: FormData): Promise<void> {
     data: { cryptoCostMethod: method },
   });
 
+  revalidatePath("/import");
   revalidatePath("/");
+  if (tab) {
+    redirect(`/import?year=${year}&tab=${tab}`);
+  }
   redirect(`/?year=${year}`);
 }
 

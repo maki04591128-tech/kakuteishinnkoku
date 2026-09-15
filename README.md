@@ -143,6 +143,13 @@ bitFlyer(現物取引履歴CSV)・Coincheck(業界標準フォーマットCSV)�
 7. **認証・マルチユーザー対応** — 現状は単一ユーザーのローカル利用を想定。
    将来的にホスティングする場合はログイン機能が必要。
 
+### 完了済み
+
+- **前年繰越残高のUI対応**(`OpeningBalance`テーブル・`/import`の期首残高セクション・
+  「前年の期末残高から自動で繰り越す」ボタン)。
+- **移動平均法(暗号資産)への対応** — `calculateCryptoYearMovingAverage` /
+  `calculateCryptoPortfolioYearByMethod` を追加し、`TaxYear.cryptoCostMethod`
+  で年分ごとに総平均法/移動平均法を切り替えられるようにした。
 ## 免責事項
 
 本ツールは税額計算を補助するための個人開発ツールであり、税務署・国税庁の

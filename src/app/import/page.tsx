@@ -7,6 +7,7 @@ import {
   deleteOpeningBalance,
   importCryptoExchangeCsv,
   importMoneyForwardCsv,
+  setCryptoCostMethod,
   setOpeningBalance,
 } from "@/app/actions";
 import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
@@ -85,6 +86,43 @@ export default async function ImportPage({
             className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
           >
             取り込む
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産の計算方式</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          暗号資産の取得原価は、届出をしていない場合は法定算出方法である
+          <strong>総平均法</strong>(その年の期首残高+年間取得分を合算した
+          加重平均単価を、その年の全ての譲渡に適用)で計算する。届出により
+          <strong>移動平均法</strong>(取得の都度、平均単価を更新し、
+          譲渡時点の平均単価を取得原価とする)を選択している場合はこちらに
+          切り替えられる。
+          <strong className="text-neutral-700 dark:text-neutral-300">
+            一度いずれかの方式で確定申告した後に方式を変更するには、原則として
+            税務署への届出が必要
+          </strong>
+          なので、本設定はあくまで試算用途として扱うこと。
+        </p>
+        <form action={setCryptoCostMethod} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="year" value={year} />
+          <input type="hidden" name="tab" value="opening" />
+          <Field label="計算方式">
+            <select
+              name="cryptoCostMethod"
+              defaultValue={taxYear.cryptoCostMethod}
+              className={inputClass}
+            >
+              <option value="AVERAGE">総平均法(法定算出方法)</option>
+              <option value="MOVING_AVERAGE">移動平均法(届出が必要)</option>
+            </select>
+          </Field>
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            この年分に適用する
           </button>
         </form>
       </section>
