@@ -4,10 +4,11 @@ import { Decimal } from "decimal.js";
  * 暗号資産(仮想通貨)の年間損益計算。
  *
  * 国税庁「暗号資産に関する税務上の取扱いについて(FAQ)」に基づき、
- * 総平均法(その年の期首残高+年間取得分を合算した加重平均単価を
- * その年の全ての譲渡に適用する方法)で1単位あたりの取得価額を算出する。
- * 個人が届出により移動平均法を選択することも認められているが、
- * 未選択の場合は総平均法が法定算出方法となるため、まずはこちらを実装する。
+ * 未選択の場合は総平均法(その年の期首残高+年間取得分を合算した加重平均単価を
+ * その年の全ての譲渡に適用する方法)が法定算出方法となる。
+ * 「所得税の棚卸資産の評価方法の届出書」に準じた届出を行うことで、
+ * 移動平均法(取得の都度、保有分と合算して平均単価を更新し、譲渡時点の
+ * 平均単価を取得原価とする方法)を選択することもできるため、両方に対応する。
  */
 
 export type CryptoTradeType =
@@ -18,6 +19,8 @@ export type CryptoTradeType =
   | "INCOME"
   | "FEE";
 
+export type CryptoValuationMethod = "TOTAL_AVERAGE" | "MOVING_AVERAGE";
+
 export interface CryptoTradeInput {
   type: CryptoTradeType;
   /** 数量(必ず正の値) */
@@ -26,6 +29,8 @@ export interface CryptoTradeInput {
   unitPriceJpy: Decimal.Value;
   /** 日本円換算の手数料(円建てで支払われた場合)。暗号資産建て手数料は type: "FEE" の別取引として渡す。 */
   feeJpy?: Decimal.Value;
+  /** 取引日時。移動平均法(method: "MOVING_AVERAGE")では時系列順に処理するため必須。 */
+  tradedAt?: Date;
 }
 
 export interface CryptoOpeningBalance {
@@ -74,13 +79,20 @@ function toDecimal(value: Decimal.Value): Decimal {
 
 /**
  * 単一銘柄の1年分の取引から損益を計算する。
- * trades の順序は結果に影響しない(総平均法は年間合計でのみ決まるため)。
+ * method: "TOTAL_AVERAGE"(既定, 総平均法)では trades の順序は結果に影響しない。
+ * method: "MOVING_AVERAGE"(移動平均法)では取得の都度平均単価を更新するため、
+ * 各取引の tradedAt が必須になる。
  */
 export function calculateCryptoYear(
   symbol: string,
   trades: CryptoTradeInput[],
   opening?: CryptoOpeningBalance,
+  method: CryptoValuationMethod = "TOTAL_AVERAGE",
 ): CryptoSymbolYearResult {
+  if (method === "MOVING_AVERAGE") {
+    return calculateCryptoYearMovingAverage(symbol, trades, opening);
+  }
+
   const openingQuantity = opening ? toDecimal(opening.quantity) : new Decimal(0);
   const openingCostJpy = opening ? toDecimal(opening.costBasisJpy) : new Decimal(0);
 
@@ -160,6 +172,115 @@ export function calculateCryptoYear(
   };
 }
 
+/**
+ * 移動平均法での単一銘柄の1年分の損益計算。
+ * 取得(BUY/TRADE_IN/INCOME)の都度、その時点までの保有数量・取得価額と
+ * 合算して平均単価を更新し、譲渡(SELL/TRADE_OUT/FEE)にはその時点の
+ * 平均単価を取得原価として適用する(株式等の計算と同じ考え方)。
+ * 年をまたぐ計算順序に依存するため、tradedAt昇順で処理する。
+ */
+function calculateCryptoYearMovingAverage(
+  symbol: string,
+  trades: CryptoTradeInput[],
+  opening?: CryptoOpeningBalance,
+): CryptoSymbolYearResult {
+  const openingQuantity = opening ? toDecimal(opening.quantity) : new Decimal(0);
+  const openingCostJpy = opening ? toDecimal(opening.costBasisJpy) : new Decimal(0);
+
+  if (openingQuantity.isNegative() || openingCostJpy.isNegative()) {
+    throw new Error("期首残高の数量・取得価額は0以上である必要があります");
+  }
+
+  if (trades.some((t) => !t.tradedAt)) {
+    throw new Error(
+      `移動平均法での計算には各取引の取引日時(tradedAt)が必要です (symbol=${symbol})`,
+    );
+  }
+  const sorted = [...trades].sort(
+    (a, b) => a.tradedAt!.getTime() - b.tradedAt!.getTime(),
+  );
+
+  let holdingQuantity = openingQuantity;
+  let holdingCostJpy = openingCostJpy;
+
+  let acquiredQuantity = new Decimal(0);
+  let acquiredCostJpy = new Decimal(0);
+  let incomeJpy = new Decimal(0);
+  let disposedQuantity = new Decimal(0);
+  let proceedsJpy = new Decimal(0);
+  let costOfDisposedJpy = new Decimal(0);
+
+  for (const trade of sorted) {
+    const quantity = toDecimal(trade.quantity);
+    const unitPrice = toDecimal(trade.unitPriceJpy);
+    const fee = trade.feeJpy !== undefined ? toDecimal(trade.feeJpy) : new Decimal(0);
+
+    if (quantity.isNegative() || quantity.isZero()) {
+      throw new Error(`数量は正の値である必要があります (symbol=${symbol})`);
+    }
+    if (unitPrice.isNegative() || fee.isNegative()) {
+      throw new Error(`単価・手数料は0以上である必要があります (symbol=${symbol})`);
+    }
+
+    const grossValue = quantity.times(unitPrice);
+
+    if (ACQUIRE_TYPES.has(trade.type)) {
+      holdingQuantity = holdingQuantity.plus(quantity);
+      holdingCostJpy = holdingCostJpy.plus(grossValue).plus(fee);
+      acquiredQuantity = acquiredQuantity.plus(quantity);
+      acquiredCostJpy = acquiredCostJpy.plus(grossValue).plus(fee);
+      if (trade.type === "INCOME") {
+        incomeJpy = incomeJpy.plus(grossValue);
+      }
+    } else if (DISPOSE_TYPES.has(trade.type)) {
+      if (quantity.greaterThan(holdingQuantity)) {
+        throw new Error(
+          `保有数量(${holdingQuantity.toString()})を超える数量(${quantity.toString()})が譲渡されています (symbol=${symbol})`,
+        );
+      }
+      const currentUnitCost = holdingQuantity.isZero()
+        ? new Decimal(0)
+        : holdingCostJpy.dividedBy(holdingQuantity);
+      const costOfThisDisposal = currentUnitCost.times(quantity);
+
+      holdingQuantity = holdingQuantity.minus(quantity);
+      holdingCostJpy = holdingCostJpy.minus(costOfThisDisposal);
+      disposedQuantity = disposedQuantity.plus(quantity);
+      proceedsJpy = proceedsJpy.plus(grossValue).minus(fee);
+      costOfDisposedJpy = costOfDisposedJpy.plus(costOfThisDisposal);
+    } else {
+      throw new Error(`未対応の取引種別です: ${trade.type as string}`);
+    }
+  }
+
+  const disposalGainJpy = proceedsJpy.minus(costOfDisposedJpy);
+  const realizedGainJpy = disposalGainJpy.plus(incomeJpy);
+
+  // 移動平均法では単価が取引の都度変動するため、年間を通じた単一の
+  // 「平均単価」は存在しない。ここでは期末時点の単価(=期末取得価額/期末数量)を
+  // 参考値として返す(総平均法の averageUnitCostJpy と同様、closingCostJpy との
+  // 整合性が取れる値になる)。
+  const averageUnitCostJpy = holdingQuantity.isZero()
+    ? new Decimal(0)
+    : holdingCostJpy.dividedBy(holdingQuantity);
+
+  return {
+    symbol,
+    openingQuantity,
+    openingCostJpy,
+    acquiredQuantity,
+    acquiredCostJpy,
+    averageUnitCostJpy,
+    incomeJpy,
+    disposedQuantity,
+    proceedsJpy,
+    costOfDisposedJpy,
+    realizedGainJpy,
+    closingQuantity: holdingQuantity,
+    closingCostJpy: holdingCostJpy,
+  };
+}
+
 export interface CryptoPortfolioYearResult {
   bySymbol: CryptoSymbolYearResult[];
   /** 全銘柄合計の雑所得金額(暗号資産分) */
@@ -172,6 +293,7 @@ export interface CryptoPortfolioYearResult {
 export function calculateCryptoPortfolioYear(
   trades: (CryptoTradeInput & { symbol: string })[],
   openings?: Record<string, CryptoOpeningBalance>,
+  method: CryptoValuationMethod = "TOTAL_AVERAGE",
 ): CryptoPortfolioYearResult {
   const tradesBySymbol = new Map<string, CryptoTradeInput[]>();
   for (const trade of trades) {
@@ -191,7 +313,7 @@ export function calculateCryptoPortfolioYear(
 
   const bySymbol = Array.from(tradesBySymbol.entries())
     .map(([symbol, symbolTrades]) =>
-      calculateCryptoYear(symbol, symbolTrades, openings?.[symbol]),
+      calculateCryptoYear(symbol, symbolTrades, openings?.[symbol], method),
     )
     .sort((a, b) => a.symbol.localeCompare(b.symbol));
 

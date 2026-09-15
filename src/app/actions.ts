@@ -76,6 +76,28 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
   redirect(`/import?year=${year}&imported=${rows.length}`);
 }
 
+/**
+ * 暗号資産の評価方法(総平均法/移動平均法)を年分ごとに切り替える。
+ * 実務上、移動平均法を選択する場合は税務署への届出が必要な点に注意。
+ */
+export async function setCryptoValuationMethod(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const method = requireString(formData, "cryptoValuationMethod");
+  if (method !== "TOTAL_AVERAGE" && method !== "MOVING_AVERAGE") {
+    throw new Error("不正な評価方法です");
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.taxYear.update({
+    where: { id: taxYear.id },
+    data: { cryptoValuationMethod: method },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=crypto`);
+}
+
 export async function addCryptoTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const taxYear = await getOrCreateTaxYear(year);

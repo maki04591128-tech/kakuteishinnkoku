@@ -22,6 +22,11 @@ model TaxYear {
   year      Int      @unique
   createdAt DateTime @default(now())
 
+  /// 暗号資産の評価方法(総平均法 or 移動平均法)。年ごとに選択できる。
+  /// 移動平均法を選択する場合、実務上は税務署への届出(所得税の
+  /// 棚卸資産の評価方法の届出書に準じるもの)が必要。
+  cryptoValuationMethod CryptoValuationMethod @default(TOTAL_AVERAGE)
+
   cryptoTrades              CryptoTrade[]
   investmentTrades          InvestmentTrade[]
   importBatches             ImportBatch[]
@@ -131,6 +136,11 @@ enum CryptoTradeType {
   TRADE_OUT
   INCOME
   FEE
+}
+
+enum CryptoValuationMethod {
+  TOTAL_AVERAGE
+  MOVING_AVERAGE
 }
 
 /// 株式・投資信託・ETF等の売買履歴。

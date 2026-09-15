@@ -93,6 +93,132 @@ describe("calculateCryptoYear (総平均法)", () => {
   });
 });
 
+describe("calculateCryptoYear (移動平均法)", () => {
+  it("取得の都度平均単価を更新し、譲渡原価にその時点の単価を適用する", () => {
+    // 2BTCを2,000,000円/BTCで購入 → 平均単価2,000,000円
+    // その後1BTCを2,500,000円で売却 → 譲渡原価は購入時点の平均単価(2,000,000円)
+    // 続けて5BTCを900,000円/BTCで購入
+    //   → 保有: 1BTC@2,000,000 + 5BTC@900,000 = 1BTC@2,000,000 + 4,500,000円
+    //   → 新平均単価 = (2,000,000 + 4,500,000) / 6 = 1,083,333.33...
+    const result = calculateCryptoYear(
+      "BTC",
+      [
+        {
+          type: "BUY",
+          quantity: 2,
+          unitPriceJpy: 2_000_000,
+          tradedAt: new Date("2024-03-09"),
+        },
+        {
+          type: "SELL",
+          quantity: 1,
+          unitPriceJpy: 2_500_000,
+          tradedAt: new Date("2024-04-01"),
+        },
+        {
+          type: "BUY",
+          quantity: 5,
+          unitPriceJpy: 900_000,
+          tradedAt: new Date("2024-05-28"),
+        },
+      ],
+      undefined,
+      "MOVING_AVERAGE",
+    );
+
+    expect(result.costOfDisposedJpy.toNumber()).toBe(2_000_000);
+    expect(result.realizedGainJpy.toNumber()).toBe(500_000);
+    expect(result.closingQuantity.toNumber()).toBe(6);
+    // 期末単価(参考値) = (2,000,000 + 4,500,000) / 6
+    expect(result.averageUnitCostJpy.toDecimalPlaces(2).toNumber()).toBeCloseTo(
+      1_083_333.33,
+      1,
+    );
+  });
+
+  it("取引の入力順序に関わらず tradedAt の時系列順で計算する", () => {
+    const trades: Parameters<typeof calculateCryptoYear>[1] = [
+      {
+        type: "BUY",
+        quantity: 5,
+        unitPriceJpy: 900_000,
+        tradedAt: new Date("2024-05-28"),
+      },
+      {
+        type: "SELL",
+        quantity: 1,
+        unitPriceJpy: 2_500_000,
+        tradedAt: new Date("2024-04-01"),
+      },
+      {
+        type: "BUY",
+        quantity: 2,
+        unitPriceJpy: 2_000_000,
+        tradedAt: new Date("2024-03-09"),
+      },
+    ];
+
+    const result = calculateCryptoYear("BTC", trades, undefined, "MOVING_AVERAGE");
+    expect(result.costOfDisposedJpy.toNumber()).toBe(2_000_000);
+  });
+
+  it("期首残高を初期の保有プールとして扱う", () => {
+    const result = calculateCryptoYear(
+      "ETH",
+      [
+        {
+          type: "SELL",
+          quantity: 1,
+          unitPriceJpy: 300_000,
+          tradedAt: new Date("2024-06-01"),
+        },
+      ],
+      { quantity: 2, costBasisJpy: 400_000 },
+      "MOVING_AVERAGE",
+    );
+
+    expect(result.costOfDisposedJpy.toNumber()).toBe(200_000);
+    expect(result.realizedGainJpy.toNumber()).toBe(100_000);
+    expect(result.closingQuantity.toNumber()).toBe(1);
+    expect(result.closingCostJpy.toNumber()).toBe(200_000);
+  });
+
+  it("tradedAt が無い取引が混じっているとエラーになる", () => {
+    expect(() =>
+      calculateCryptoYear(
+        "BTC",
+        [{ type: "BUY", quantity: 1, unitPriceJpy: 100 }],
+        undefined,
+        "MOVING_AVERAGE",
+      ),
+    ).toThrow();
+  });
+
+  it("保有数量を超える譲渡はエラーになる", () => {
+    expect(() =>
+      calculateCryptoYear(
+        "BTC",
+        [
+          {
+            type: "BUY",
+            quantity: 1,
+            unitPriceJpy: 1_000_000,
+            tradedAt: new Date("2024-01-01"),
+          },
+          {
+            type: "SELL",
+            quantity: 2,
+            unitPriceJpy: 1_000_000,
+            tradedAt: new Date("2024-02-01"),
+          },
+        ],
+        undefined,
+        "MOVING_AVERAGE",
+      ),
+    ).toThrow();
+  });
+});
+
 describe("calculateCryptoPortfolioYear", () => {
   it("複数銘柄を混在させても銘柄別に正しく集計する", () => {
     const result = calculateCryptoPortfolioYear([
@@ -111,6 +237,33 @@ describe("calculateCryptoPortfolioYear", () => {
     expect(eth.realizedGainJpy.toNumber()).toBe(-100_000);
 
     expect(result.totalRealizedGainJpy.toNumber()).toBe(400_000);
+  });
+
+  it("method: MOVING_AVERAGE を指定すると全銘柄が移動平均法で計算される", () => {
+    const result = calculateCryptoPortfolioYear(
+      [
+        {
+          symbol: "BTC",
+          type: "BUY",
+          quantity: 2,
+          unitPriceJpy: 2_000_000,
+          tradedAt: new Date("2024-03-09"),
+        },
+        {
+          symbol: "BTC",
+          type: "SELL",
+          quantity: 1,
+          unitPriceJpy: 2_500_000,
+          tradedAt: new Date("2024-04-01"),
+        },
+      ],
+      undefined,
+      "MOVING_AVERAGE",
+    );
+
+    const btc = result.bySymbol.find((r) => r.symbol === "BTC")!;
+    expect(btc.costOfDisposedJpy.toNumber()).toBe(2_000_000);
+    expect(btc.realizedGainJpy.toNumber()).toBe(500_000);
   });
 
   it("当年取引が無くても期首残高がある銘柄は結果に含まれる", () => {

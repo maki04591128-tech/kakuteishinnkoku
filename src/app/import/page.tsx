@@ -8,6 +8,7 @@ import {
   deleteInvestmentTrade,
   importMoneyForwardCsv,
   setCryptoOpeningBalance,
+  setCryptoValuationMethod,
   setInvestmentOpeningBalance,
 } from "@/app/actions";
 import { prisma } from "@/lib/db";
@@ -251,6 +252,38 @@ export default async function ImportPage({
             </table>
           </div>
         )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産の評価方法({year}年分)</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          未選択の場合は<strong>総平均法</strong>(期首残高+年間取得分の加重平均単価を
+          全ての譲渡に適用)が法定の計算方法。<strong>移動平均法</strong>
+          (取得の都度、平均単価を更新する方法)を選ぶこともできるが、実務上は
+          税務署へ「所得税の棚卸資産の評価方法の届出書」に準じた届出が必要であり、
+          一度選択すると原則3年間は変更できない点に注意すること。
+        </p>
+        <form action={setCryptoValuationMethod} className="flex flex-wrap items-center gap-3">
+          <input type="hidden" name="year" value={year} />
+          <select
+            name="cryptoValuationMethod"
+            defaultValue={taxYear.cryptoValuationMethod}
+            className={inputClass}
+          >
+            <option value="TOTAL_AVERAGE">総平均法(既定)</option>
+            <option value="MOVING_AVERAGE">移動平均法</option>
+          </select>
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            この年分に適用する
+          </button>
+          <span className="text-sm text-neutral-500">
+            現在:{" "}
+            {taxYear.cryptoValuationMethod === "MOVING_AVERAGE" ? "移動平均法" : "総平均法"}
+          </span>
+        </form>
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">

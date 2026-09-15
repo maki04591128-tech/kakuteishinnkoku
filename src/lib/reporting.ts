@@ -3,6 +3,7 @@ import {
   calculateCryptoPortfolioYear,
   type CryptoOpeningBalance,
   type CryptoPortfolioYearResult,
+  type CryptoValuationMethod,
 } from "./crypto/calculator";
 import {
   calculateInvestmentPortfolioYear,
@@ -21,12 +22,14 @@ import {
 export async function buildYearReport(year: number): Promise<{
   crypto: CryptoPortfolioYearResult;
   investment: InvestmentPortfolioYearResult;
+  cryptoValuationMethod: CryptoValuationMethod;
 } | null> {
   const taxYear = await prisma.taxYear.findUnique({ where: { year } });
   if (!taxYear) {
     return {
       crypto: calculateCryptoPortfolioYear([]),
       investment: calculateInvestmentPortfolioYear([]),
+      cryptoValuationMethod: "TOTAL_AVERAGE",
     };
   }
 
@@ -69,8 +72,10 @@ export async function buildYearReport(year: number): Promise<{
       quantity: t.quantity.toString(),
       unitPriceJpy: t.unitPriceJpy.toString(),
       feeJpy: t.feeJpy.toString(),
+      tradedAt: t.tradedAt,
     })),
     cryptoOpeningMap,
+    taxYear.cryptoValuationMethod,
   );
 
   const investment = calculateInvestmentPortfolioYear(
@@ -87,5 +92,5 @@ export async function buildYearReport(year: number): Promise<{
     investmentNisaOpeningMap,
   );
 
-  return { crypto, investment };
+  return { crypto, investment, cryptoValuationMethod: taxYear.cryptoValuationMethod };
 }
