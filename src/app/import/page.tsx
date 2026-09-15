@@ -6,10 +6,12 @@ import {
   deleteCryptoTrade,
   deleteInvestmentOpeningBalance,
   deleteInvestmentTrade,
+  importCryptoExchangeCsv,
   importMoneyForwardCsv,
   setCryptoOpeningBalance,
   setInvestmentOpeningBalance,
 } from "@/app/actions";
+import { EXCHANGE_LABELS, SUPPORTED_CRYPTO_EXCHANGES } from "@/lib/crypto/exchangeImport";
 import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
@@ -251,6 +253,35 @@ export default async function ImportPage({
             </table>
           </div>
         )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産取引所のCSV取り込み</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          各取引所からダウンロードした取引履歴CSVを取り込めます(現物取引の円建て買い/売りのみ対応)。
+          暗号資産同士の交換・入出金・レバレッジ取引の行は自動的にスキップされるため、
+          必要であれば下の「暗号資産の取引を追加」から手入力してください。
+        </p>
+        <form
+          action={importCryptoExchangeCsv}
+          className="flex flex-wrap items-center gap-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <select name="exchange" className={inputClass} defaultValue={SUPPORTED_CRYPTO_EXCHANGES[0]}>
+            {SUPPORTED_CRYPTO_EXCHANGES.map((exchange) => (
+              <option key={exchange} value={exchange}>
+                {EXCHANGE_LABELS[exchange]}
+              </option>
+            ))}
+          </select>
+          <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            取り込む
+          </button>
+        </form>
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
