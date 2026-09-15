@@ -6,10 +6,12 @@ import {
   deleteCryptoTrade,
   deleteInvestmentOpeningBalance,
   deleteInvestmentTrade,
+  importCryptoExchangeCsv,
   importMoneyForwardCsv,
   setCryptoOpeningBalance,
   setInvestmentOpeningBalance,
 } from "@/app/actions";
+import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
 import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
@@ -84,6 +86,45 @@ export default async function ImportPage({
         </p>
         <form action={importMoneyForwardCsv} className="flex flex-wrap items-center gap-3">
           <input type="hidden" name="year" value={year} />
+          <input
+            type="file"
+            name="file"
+            accept=".csv,text/csv"
+            required
+            className="text-sm"
+          />
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            取り込む
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          取引所からダウンロードした取引履歴CSVを取り込みます。現物の売買・交換のみ対応し、
+          入出金(送付・受取)や証拠金取引、税務上の性質が一意に決まらない明細は自動では
+          取り込まず件数のみ表示します(取引所側のCSV仕様変更により解釈できない場合があります。
+          取り込み後は必ず一覧で内容を確認してください)。
+        </p>
+        <form
+          action={importCryptoExchangeCsv}
+          className="flex flex-wrap items-center gap-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <select name="preset" required className={inputClass} defaultValue="">
+            <option value="" disabled>
+              取引所を選択
+            </option>
+            {EXCHANGE_CSV_PRESETS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
           <input
             type="file"
             name="file"

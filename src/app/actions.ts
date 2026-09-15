@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
+import {
+  parseExchangeCsv,
+  type ExchangeCsvPreset,
+} from "@/lib/crypto/exchangeCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildYearReport } from "@/lib/reporting";
 import {
@@ -74,6 +78,59 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
     );
   }
   redirect(`/import?year=${year}&imported=${rows.length}`);
+}
+
+export async function importCryptoExchangeCsv(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const preset = requireString(formData, "preset") as ExchangeCsvPreset;
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("CSVファイルを選択してください");
+  }
+
+  const text = await file.text();
+  const { rows, skippedRows } = parseExchangeCsv(preset, text);
+
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.$transaction(async (tx) => {
+    const batch = await tx.importBatch.create({
+      data: {
+        taxYearId: taxYear.id,
+        sourceType: `crypto_csv_${preset}`,
+        fileName: file.name,
+        rowCount: rows.length,
+      },
+    });
+
+    if (rows.length > 0) {
+      await tx.cryptoTrade.createMany({
+        data: rows.map((row) => ({
+          taxYearId: taxYear.id,
+          importBatchId: batch.id,
+          tradedAt: row.tradedAt,
+          symbol: row.symbol,
+          type: row.type as never,
+          quantity: row.quantity.toString(),
+          unitPriceJpy: row.unitPriceJpy.toString(),
+          feeJpy: row.feeJpy.toString(),
+          exchange: row.exchange,
+          memo: row.memo,
+          source: `exchange_csv:${preset}`,
+        })),
+      });
+    }
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+
+  if (skippedRows.length > 0) {
+    redirect(
+      `/import?year=${year}&tab=crypto&imported=${rows.length}&skipped=${skippedRows.length}`,
+    );
+  }
+  redirect(`/import?year=${year}&tab=crypto&imported=${rows.length}`);
 }
 
 export async function addCryptoTrade(formData: FormData): Promise<void> {
