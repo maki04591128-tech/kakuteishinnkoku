@@ -1,6 +1,5 @@
 import { prisma } from "./db";
 import {
-  calculateCryptoPortfolioYear,
   calculateCryptoPortfolioYearByMethod,
   type CryptoCostMethod,
   type CryptoOpeningBalance,
@@ -28,9 +27,9 @@ export async function buildYearReport(year: number): Promise<{
   const taxYear = await prisma.taxYear.findUnique({ where: { year } });
   if (!taxYear) {
     return {
-      crypto: calculateCryptoPortfolioYear([]),
+      crypto: calculateCryptoPortfolioYearByMethod("AVERAGE", []),
       investment: calculateInvestmentPortfolioYear([]),
-      cryptoCostMethod: "TOTAL_AVERAGE",
+      cryptoCostMethod: "AVERAGE",
     };
   }
 

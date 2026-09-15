@@ -26,6 +26,28 @@ function optionalString(formData: FormData, key: string): string | null {
   return value;
 }
 
+export async function setCryptoCostMethod(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const method = requireString(formData, "cryptoCostMethod");
+  const tab = optionalString(formData, "tab");
+  if (method !== "AVERAGE" && method !== "MOVING_AVERAGE") {
+    throw new Error(`未対応の評価方法です: ${method}`);
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.taxYear.update({
+    where: { id: taxYear.id },
+    data: { cryptoCostMethod: method },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  if (tab) {
+    redirect(`/import?year=${year}&tab=${tab}`);
+  }
+  redirect(`/?year=${year}`);
+}
+
 export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const file = formData.get("file");
@@ -75,24 +97,6 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
     );
   }
   redirect(`/import?year=${year}&imported=${rows.length}`);
-}
-
-export async function setCryptoCostMethod(formData: FormData): Promise<void> {
-  const year = Number(requireString(formData, "year"));
-  const cryptoCostMethod = requireString(formData, "cryptoCostMethod");
-  if (cryptoCostMethod !== "TOTAL_AVERAGE" && cryptoCostMethod !== "MOVING_AVERAGE") {
-    throw new Error(`不明な計算方式です: ${cryptoCostMethod}`);
-  }
-
-  const taxYear = await getOrCreateTaxYear(year);
-  await prisma.taxYear.update({
-    where: { id: taxYear.id },
-    data: { cryptoCostMethod },
-  });
-
-  revalidatePath("/import");
-  revalidatePath("/");
-  redirect(`/import?year=${year}&tab=opening`);
 }
 
 const EXCHANGE_LABELS: Record<string, string> = {

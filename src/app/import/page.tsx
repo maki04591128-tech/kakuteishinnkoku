@@ -119,13 +119,14 @@ export default async function ImportPage({
         </p>
         <form action={setCryptoCostMethod} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="year" value={year} />
+          <input type="hidden" name="tab" value="opening" />
           <Field label="計算方式">
             <select
               name="cryptoCostMethod"
               defaultValue={taxYear.cryptoCostMethod}
               className={inputClass}
             >
-              <option value="TOTAL_AVERAGE">総平均法(法定算出方法)</option>
+              <option value="AVERAGE">総平均法(法定算出方法)</option>
               <option value="MOVING_AVERAGE">移動平均法(届出が必要)</option>
             </select>
           </Field>
