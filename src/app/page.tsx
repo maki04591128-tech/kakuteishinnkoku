@@ -2,6 +2,12 @@ import Link from "next/link";
 import { buildYearReport } from "@/lib/reporting";
 import { buildTaxFilingSummary } from "@/lib/etax/summary";
 import { listTaxYears } from "@/lib/taxYear";
+import { setCryptoCostMethod } from "./actions";
+
+const CRYPTO_COST_METHOD_LABEL: Record<string, string> = {
+  AVERAGE: "総平均法",
+  MOVING_AVERAGE: "移動平均法",
+};
 
 function yen(value: { toString(): string }): string {
   const n = Number(value.toString());
@@ -65,9 +71,7 @@ export default async function Home({
         <SummaryCard
           title="雑所得(暗号資産)"
           value={summary ? yen(summary.cryptoMiscIncomeJpy) : "¥0"}
-          hint={`${
-            report?.cryptoCalculationMethod === "MOVING_AVERAGE" ? "移動平均法" : "総平均法"
-          }による年間損益`}
+          hint={`${CRYPTO_COST_METHOD_LABEL[report?.cryptoCostMethod ?? "AVERAGE"]}による年間損益`}
         />
         <SummaryCard
           title="譲渡所得(株式等)"
@@ -94,6 +98,36 @@ export default async function Home({
         >
           申告書作成コーナー用の下書きCSVをダウンロード
         </a>
+        <Link
+          href={`/dividend-simulation?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          配当所得の課税方式をシミュレーションする
+        </Link>
+      </section>
+
+      <section className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+        <form action={setCryptoCostMethod} className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="year" value={year} />
+          <label htmlFor="cryptoCostMethod" className="text-sm text-neutral-500">
+            暗号資産の評価方法({year}年分)
+          </label>
+          <select
+            id="cryptoCostMethod"
+            name="cryptoCostMethod"
+            defaultValue={report?.cryptoCostMethod ?? "AVERAGE"}
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          >
+            <option value="AVERAGE">総平均法(届出不要・法定算出方法)</option>
+            <option value="MOVING_AVERAGE">移動平均法(税務署への届出が必要)</option>
+          </select>
+          <button
+            type="submit"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            変更
+          </button>
+        </form>
       </section>
 
       {report && report.crypto.bySymbol.length > 0 && (

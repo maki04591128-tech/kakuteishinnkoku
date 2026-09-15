@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     summary,
     report.crypto.bySymbol,
     report.investment.bySymbol,
-    report.cryptoCalculationMethod,
+    report.cryptoCostMethod,
   );
 
   return new NextResponse(UTF8_BOM + csv, {
