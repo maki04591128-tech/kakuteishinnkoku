@@ -13,7 +13,12 @@ export async function GET(request: NextRequest) {
   }
 
   const summary = buildTaxFilingSummary(year, report.crypto, report.investment);
-  const csv = buildTaxFilingDraftCsv(summary, report.crypto.bySymbol, report.investment.bySymbol);
+  const csv = buildTaxFilingDraftCsv(
+    summary,
+    report.crypto.bySymbol,
+    report.investment.bySymbol,
+    report.cryptoCostMethod,
+  );
 
   return new NextResponse(UTF8_BOM + csv, {
     headers: {
