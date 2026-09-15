@@ -10,6 +10,7 @@ import {
   setCryptoCostMethod,
   setOpeningBalance,
 } from "@/app/actions";
+import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
 import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
@@ -129,23 +130,26 @@ export default async function ImportPage({
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
         <p className="mb-3 text-sm text-neutral-500">
-          bitFlyer・Coincheck・GMOコイン等の「取引履歴」CSVを取り込めます。
-          日時・銘柄・売買種別・数量・単価(または合計金額)の列を見出し名から
-          自動判定するため、多少の表記違いには対応できますが、対応取引所でも
-          列見出しが一致せず取り込めない場合があります。現状は円建ての現物
-          売買(買い/売り)のみに対応しており、暗号資産同士の交換やマイニング等の
-          受取は手入力してください。
+          bitFlyer・Coincheck・GMOコインの取引履歴CSVを取り込みます。現物の
+          売買・交換のみ対応し、入出金(送付・受取)や証拠金取引、税務上の性質が
+          一意に決まらない明細は自動では取り込まず件数のみ表示します(取引所側の
+          CSV仕様変更や列見出しの差異により解釈できない場合があります。取り込み後は
+          必ず一覧で内容を確認してください)。
         </p>
         <form
           action={importCryptoExchangeCsv}
           className="flex flex-wrap items-center gap-3"
         >
           <input type="hidden" name="year" value={year} />
-          <select name="exchange" className={inputClass} defaultValue="bitflyer">
-            <option value="bitflyer">bitFlyer</option>
-            <option value="coincheck">Coincheck</option>
-            <option value="gmo_coin">GMOコイン</option>
-            <option value="other">その他</option>
+          <select name="preset" required className={inputClass} defaultValue="">
+            <option value="" disabled>
+              取引所を選択
+            </option>
+            {EXCHANGE_CSV_PRESETS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
           </select>
           <input
             type="file"
