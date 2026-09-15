@@ -1,5 +1,5 @@
 import { Decimal } from "decimal.js";
-import { parseCsvRows } from "./csv";
+import { parseCsvRows } from "@/lib/csv";
 
 /**
  * マネーフォワード ME の「家計簿」CSVエクスポート(収入・支出データ)のパーサー。

@@ -6,10 +6,12 @@ import {
   deleteCryptoTrade,
   deleteInvestmentOpeningBalance,
   deleteInvestmentTrade,
+  importCryptoExchangeCsv,
   importMoneyForwardCsv,
   setCryptoOpeningBalance,
   setInvestmentOpeningBalance,
 } from "@/app/actions";
+import { EXCHANGE_CSV_FORMATS } from "@/lib/crypto/exchanges";
 import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
@@ -98,6 +100,50 @@ export default async function ImportPage({
             取り込む
           </button>
         </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          各取引所からダウンロードした取引履歴CSVを、暗号資産の取引明細として取り込めます。
+          未対応の行(入出金・アルトコイン間ペア等)は自動でスキップされるため、
+          取り込み後に必ず件数と明細を確認してください。
+        </p>
+        <form
+          action={importCryptoExchangeCsv}
+          className="flex flex-wrap items-end gap-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="取引所">
+            <select name="exchange" required className={inputClass}>
+              {EXCHANGE_CSV_FORMATS.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <input
+            type="file"
+            name="file"
+            accept=".csv,text/csv"
+            required
+            className="text-sm"
+          />
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            取り込む
+          </button>
+        </form>
+        <ul className="mt-3 space-y-1 text-xs text-neutral-500">
+          {EXCHANGE_CSV_FORMATS.map((f) => (
+            <li key={f.id}>
+              <span className="font-medium">{f.label}:</span> {f.notes}
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
