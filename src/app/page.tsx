@@ -98,6 +98,12 @@ export default async function Home({
         >
           申告書作成コーナー用の下書きCSVをダウンロード
         </a>
+        <Link
+          href={`/dividend-simulation?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          配当所得の課税方式をシミュレーションする
+        </Link>
       </section>
 
       <section className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
