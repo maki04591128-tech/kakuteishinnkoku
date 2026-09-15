@@ -105,12 +105,14 @@ export default async function ImportPage({
         <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSVの取り込み</h2>
         <p className="mb-3 text-sm text-neutral-500">
           bitFlyer・Coincheck・GMOコイン等、取引所からダウンロードした取引履歴CSVを
-          そのまま取り込めます。取引所ごとに列名(ヘッダー)が異なるため、CSVファイルを
-          Excel等で開いて1行目のヘッダーを確認し、どの列が何を表すかを以下に入力してください。
+          取り込めます。よく使われる列見出しは自動判定しますが、列名が一致しない場合は
+          CSVファイルをExcel等で開いて1行目のヘッダーを確認し、以下の列名を指定してください。
           対応するのは現物の買い・売りのみです(暗号資産同士の交換や受取は取り込み後に手動で追加してください)。
         </p>
         <p className="mb-4 text-xs text-neutral-400">
-          例: Coincheckの「業界標準フォーマット」は 日付列=time / 銘柄列=trading_currency /
+          マッピング欄を1つでも入力した場合は、日付/銘柄/売買種別/「買い」を表す値/
+          「売り」を表す値/数量/単価 の全項目を入力してください。例: Coincheckの
+          「業界標準フォーマット」は 日付列=time / 銘柄列=trading_currency /
           売買種別列=operation(買い=buy, 売り=sell) / 数量列=amount / 単価列=price /
           手数料列=fee。bitFlyerの取引履歴CSVは 日付列=取引日時 / 銘柄列=通貨1 /
           売買種別列=取引種別(買い=買い, 売り=売り) / 数量列=通貨1数量 / 単価列=取引価格 /
@@ -121,29 +123,37 @@ export default async function ImportPage({
           className="grid grid-cols-2 gap-3 sm:grid-cols-3"
         >
           <input type="hidden" name="year" value={year} />
+          <Field label="取引所">
+            <select name="exchange" className={inputClass} defaultValue="other">
+              <option value="bitflyer">bitFlyer</option>
+              <option value="coincheck">Coincheck</option>
+              <option value="gmo_coin">GMOコイン</option>
+              <option value="other">その他</option>
+            </select>
+          </Field>
           <Field label="取引所名(任意)">
             <input type="text" name="exchangeName" placeholder="bitFlyer" className={inputClass} />
           </Field>
-          <Field label="日付列名">
-            <input type="text" name="dateColumn" required className={inputClass} />
+          <Field label="日付列名(任意)">
+            <input type="text" name="dateColumn" className={inputClass} />
           </Field>
-          <Field label="銘柄列名">
-            <input type="text" name="symbolColumn" required className={inputClass} />
+          <Field label="銘柄列名(任意)">
+            <input type="text" name="symbolColumn" className={inputClass} />
           </Field>
-          <Field label="売買種別列名">
-            <input type="text" name="typeColumn" required className={inputClass} />
+          <Field label="売買種別列名(任意)">
+            <input type="text" name="typeColumn" className={inputClass} />
           </Field>
-          <Field label="「買い」を表す値">
-            <input type="text" name="buyValue" required className={inputClass} />
+          <Field label="「買い」を表す値(任意)">
+            <input type="text" name="buyValue" className={inputClass} />
           </Field>
-          <Field label="「売り」を表す値">
-            <input type="text" name="sellValue" required className={inputClass} />
+          <Field label="「売り」を表す値(任意)">
+            <input type="text" name="sellValue" className={inputClass} />
           </Field>
-          <Field label="数量列名">
-            <input type="text" name="quantityColumn" required className={inputClass} />
+          <Field label="数量列名(任意)">
+            <input type="text" name="quantityColumn" className={inputClass} />
           </Field>
-          <Field label="単価(円)列名">
-            <input type="text" name="unitPriceColumn" required className={inputClass} />
+          <Field label="単価(円)列名(任意)">
+            <input type="text" name="unitPriceColumn" className={inputClass} />
           </Field>
           <Field label="手数料(円)列名(任意)">
             <input type="text" name="feeColumn" className={inputClass} />

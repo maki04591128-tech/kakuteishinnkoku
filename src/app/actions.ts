@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
-import { parseExchangeCsv, type ExchangeCsvMapping } from "@/lib/crypto/exchangeCsv";
+import {
+  parseCryptoExchangeCsv,
+  parseExchangeCsv,
+  type ExchangeCsvMapping,
+} from "@/lib/crypto/exchangeCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildYearReport } from "@/lib/reporting";
 import {
@@ -24,6 +28,11 @@ function optionalString(formData: FormData, key: string): string | null {
   const value = formData.get(key);
   if (typeof value !== "string" || value.trim() === "") return null;
   return value;
+}
+
+function hasStringValue(formData: FormData, key: string): boolean {
+  const value = formData.get(key);
+  return typeof value === "string" && value.trim() !== "";
 }
 
 export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
@@ -77,27 +86,47 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
   redirect(`/import?year=${year}&imported=${rows.length}`);
 }
 
+const EXCHANGE_LABELS: Record<string, string> = {
+  bitflyer: "bitFlyer",
+  coincheck: "Coincheck",
+  gmo_coin: "GMOコイン",
+  other: "その他",
+};
+
 export async function importCryptoExchangeCsv(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
+  const exchangeKey = optionalString(formData, "exchange") ?? "other";
+  const exchangeName = optionalString(formData, "exchangeName");
+  const exchangeLabel =
+    exchangeName ?? (exchangeKey === "other" ? null : EXCHANGE_LABELS[exchangeKey] ?? exchangeKey);
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("CSVファイルを選択してください");
   }
 
-  const mapping: ExchangeCsvMapping = {
-    dateColumn: requireString(formData, "dateColumn"),
-    symbolColumn: requireString(formData, "symbolColumn"),
-    typeColumn: requireString(formData, "typeColumn"),
-    buyValue: requireString(formData, "buyValue"),
-    sellValue: requireString(formData, "sellValue"),
-    quantityColumn: requireString(formData, "quantityColumn"),
-    unitPriceColumn: requireString(formData, "unitPriceColumn"),
-    feeColumn: optionalString(formData, "feeColumn") ?? undefined,
-  };
-  const exchangeName = optionalString(formData, "exchangeName");
-
   const text = await file.text();
-  const { rows, skippedRows } = parseExchangeCsv(text, mapping);
+  const hasManualMapping = [
+    "dateColumn",
+    "symbolColumn",
+    "typeColumn",
+    "buyValue",
+    "sellValue",
+    "quantityColumn",
+    "unitPriceColumn",
+    "feeColumn",
+  ].some((key) => hasStringValue(formData, key));
+  const { rows, skippedRows } = hasManualMapping
+    ? parseExchangeCsv(text, {
+        dateColumn: requireString(formData, "dateColumn"),
+        symbolColumn: requireString(formData, "symbolColumn"),
+        typeColumn: requireString(formData, "typeColumn"),
+        buyValue: requireString(formData, "buyValue"),
+        sellValue: requireString(formData, "sellValue"),
+        quantityColumn: requireString(formData, "quantityColumn"),
+        unitPriceColumn: requireString(formData, "unitPriceColumn"),
+        feeColumn: optionalString(formData, "feeColumn") ?? undefined,
+      } satisfies ExchangeCsvMapping)
+    : parseCryptoExchangeCsv(text);
 
   const taxYear = await getOrCreateTaxYear(year);
 
@@ -105,7 +134,7 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
     const batch = await tx.importBatch.create({
       data: {
         taxYearId: taxYear.id,
-        sourceType: "crypto_exchange_csv",
+        sourceType: `crypto_csv_${exchangeKey}`,
         fileName: file.name,
         rowCount: rows.length,
       },
@@ -115,15 +144,15 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
       await tx.cryptoTrade.createMany({
         data: rows.map((row) => ({
           taxYearId: taxYear.id,
+          importBatchId: batch.id,
           tradedAt: row.tradedAt,
           symbol: row.symbol,
           type: row.type,
           quantity: row.quantity.toString(),
           unitPriceJpy: row.unitPriceJpy.toString(),
           feeJpy: row.feeJpy.toString(),
-          exchange: exchangeName,
+          exchange: exchangeLabel,
           source: "csv",
-          importBatchId: batch.id,
         })),
       });
     }
