@@ -22,11 +22,23 @@ model TaxYear {
   year      Int      @unique
   createdAt DateTime @default(now())
 
+  /// 暗号資産の評価方法。所得税法上、届出が無い場合の法定算出方法は総平均法。
+  /// 移動平均法を選択する場合は税務署への届出(所得税の暗号資産の評価方法の
+  /// 届出書)が必要で、一度選択すると原則3年間変更できない点に注意。
+  cryptoCostMethod CryptoCostMethod @default(AVERAGE)
+
   cryptoTrades              CryptoTrade[]
   investmentTrades          InvestmentTrade[]
   importBatches             ImportBatch[]
   cryptoOpeningBalances     CryptoOpeningBalance[]
   investmentOpeningBalances InvestmentOpeningBalance[]
+}
+
+enum CryptoCostMethod {
+  /// 総平均法(届出が無い場合の法定算出方法)
+  AVERAGE
+  /// 移動平均法(税務署への届出により選択可能)
+  MOVING_AVERAGE
 }
 
 /// 暗号資産の前年繰越残高(期首残高)。銘柄ごとに1件。
