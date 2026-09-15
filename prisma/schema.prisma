@@ -27,11 +27,10 @@ model TaxYear {
   /// 届出書)が必要で、一度選択すると原則3年間変更できない点に注意。
   cryptoCostMethod CryptoCostMethod @default(AVERAGE)
 
-  cryptoTrades              CryptoTrade[]
-  investmentTrades          InvestmentTrade[]
-  importBatches             ImportBatch[]
-  cryptoOpeningBalances     CryptoOpeningBalance[]
-  investmentOpeningBalances InvestmentOpeningBalance[]
+  cryptoTrades     CryptoTrade[]
+  investmentTrades InvestmentTrade[]
+  importBatches    ImportBatch[]
+  openingBalances  OpeningBalance[]
 }
 
 enum CryptoCostMethod {
@@ -41,51 +40,39 @@ enum CryptoCostMethod {
   MOVING_AVERAGE
 }
 
-/// 暗号資産の前年繰越残高(期首残高)。銘柄ごとに1件。
-/// calculateCryptoYear の opening 引数に渡し、総平均法の計算に
-/// 前年以前からの保有分を合算するために使う。
-model CryptoOpeningBalance {
+/// 前年からの繰越残高(期首残高)。暗号資産・株式等の総平均法/移動平均法による
+/// 取得費計算は複数年にまたがるため、年初の保有数量と取得価額の合計を
+/// ここに保持し、当年の計算エンジンへ opening 引数として渡す。
+model OpeningBalance {
   id        Int     @id @default(autoincrement())
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
 
-  /// 銘柄シンボル (例: BTC, ETH)
+  assetClass OpeningBalanceAssetClass
+
+  /// 銘柄シンボル・銘柄コード(CryptoTrade.symbol / InvestmentTrade.symbol と対応)
   symbol String
 
-  /// 前年末時点の保有数量
-  quantity Decimal
-
-  /// 前年末時点の取得価額の合計(単価ではなく総額)
-  costBasisJpy Decimal
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([taxYearId, symbol])
-}
-
-/// 株式・投資信託等の前年繰越残高(期首残高)。
-/// 銘柄・NISA区分ごとに1件(課税口座とNISA口座は別ロットのため)。
-model InvestmentOpeningBalance {
-  id        Int     @id @default(autoincrement())
-  taxYearId Int
-  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
-
-  symbol String
-
-  /// true の場合NISA口座分の繰越残高(非課税・参考値)
+  /// 投資(INVESTMENT)のみ有効。NISA口座分の期首残高かどうか。
+  /// NISA口座は課税口座と別ロットのため、同一銘柄でも別レコードになる。
+  /// 暗号資産(CRYPTO)では常に false。
   isNisa Boolean @default(false)
 
-  /// 前年末時点の保有数量
+  /// 年初時点の保有数量
   quantity Decimal
 
-  /// 前年末時点の取得価額の合計(単価ではなく総額)
+  /// 年初時点の取得価額の合計(単価ではなく総額)
   costBasisJpy Decimal
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([taxYearId, symbol, isNisa])
+  @@unique([taxYearId, assetClass, symbol, isNisa])
+}
+
+enum OpeningBalanceAssetClass {
+  CRYPTO
+  INVESTMENT
 }
 
 /// 暗号資産の売買・交換・使用等の取引履歴。
