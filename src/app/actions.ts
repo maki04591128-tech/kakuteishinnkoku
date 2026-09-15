@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
+import { buildYearReport } from "@/lib/reporting";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -139,4 +140,137 @@ export async function deleteInvestmentTrade(formData: FormData): Promise<void> {
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=investment`);
+}
+
+export async function setCryptoOpeningBalance(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+  const symbol = requireString(formData, "symbol").toUpperCase();
+
+  await prisma.cryptoOpeningBalance.upsert({
+    where: { taxYearId_symbol: { taxYearId: taxYear.id, symbol } },
+    create: {
+      taxYearId: taxYear.id,
+      symbol,
+      quantity: requireString(formData, "quantity"),
+      costBasisJpy: requireString(formData, "costBasisJpy"),
+    },
+    update: {
+      quantity: requireString(formData, "quantity"),
+      costBasisJpy: requireString(formData, "costBasisJpy"),
+    },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening`);
+}
+
+export async function deleteCryptoOpeningBalance(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.cryptoOpeningBalance.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening`);
+}
+
+export async function setInvestmentOpeningBalance(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+  const symbol = requireString(formData, "symbol");
+  const isNisa = formData.get("isNisa") === "on";
+
+  await prisma.investmentOpeningBalance.upsert({
+    where: { taxYearId_symbol_isNisa: { taxYearId: taxYear.id, symbol, isNisa } },
+    create: {
+      taxYearId: taxYear.id,
+      symbol,
+      isNisa,
+      quantity: requireString(formData, "quantity"),
+      costBasisJpy: requireString(formData, "costBasisJpy"),
+    },
+    update: {
+      quantity: requireString(formData, "quantity"),
+      costBasisJpy: requireString(formData, "costBasisJpy"),
+    },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening`);
+}
+
+export async function deleteInvestmentOpeningBalance(
+  formData: FormData,
+): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.investmentOpeningBalance.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening`);
+}
+
+/**
+ * 前年分の計算結果(期末残高)を当年の期首残高としてコピーする。
+ * 前年分のデータが登録されていない場合は何もしない。
+ * 既存の当年期首残高は上書きされる。
+ */
+export async function carryForwardOpeningBalances(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const previousReport = await buildYearReport(year - 1);
+  const taxYear = await getOrCreateTaxYear(year);
+
+  if (previousReport) {
+    for (const r of previousReport.crypto.bySymbol) {
+      if (r.closingQuantity.isZero()) continue;
+      await prisma.cryptoOpeningBalance.upsert({
+        where: { taxYearId_symbol: { taxYearId: taxYear.id, symbol: r.symbol } },
+        create: {
+          taxYearId: taxYear.id,
+          symbol: r.symbol,
+          quantity: r.closingQuantity.toString(),
+          costBasisJpy: r.closingCostJpy.toString(),
+        },
+        update: {
+          quantity: r.closingQuantity.toString(),
+          costBasisJpy: r.closingCostJpy.toString(),
+        },
+      });
+    }
+
+    for (const r of previousReport.investment.bySymbol) {
+      if (!r.closingQuantity.isZero()) {
+        await prisma.investmentOpeningBalance.upsert({
+          where: {
+            taxYearId_symbol_isNisa: {
+              taxYearId: taxYear.id,
+              symbol: r.symbol,
+              isNisa: false,
+            },
+          },
+          create: {
+            taxYearId: taxYear.id,
+            symbol: r.symbol,
+            isNisa: false,
+            quantity: r.closingQuantity.toString(),
+            costBasisJpy: r.closingCostJpy.toString(),
+          },
+          update: {
+            quantity: r.closingQuantity.toString(),
+            costBasisJpy: r.closingCostJpy.toString(),
+          },
+        });
+      }
+      // NISA口座分は非課税のため参考値としての期末残高しか持たず、
+      // 取得費の税務上の追跡が不要(売却時課税自体が発生しない)なので繰り越さない。
+    }
+  }
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening`);
 }

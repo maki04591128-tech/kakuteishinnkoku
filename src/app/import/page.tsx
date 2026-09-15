@@ -1,9 +1,14 @@
 import {
   addCryptoTrade,
   addInvestmentTrade,
+  carryForwardOpeningBalances,
+  deleteCryptoOpeningBalance,
   deleteCryptoTrade,
+  deleteInvestmentOpeningBalance,
   deleteInvestmentTrade,
   importMoneyForwardCsv,
+  setCryptoOpeningBalance,
+  setInvestmentOpeningBalance,
 } from "@/app/actions";
 import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
@@ -29,16 +34,25 @@ export default async function ImportPage({
   const year = Number(params.year) || new Date().getFullYear();
   const taxYear = await getOrCreateTaxYear(year);
 
-  const [cryptoTrades, investmentTrades] = await Promise.all([
-    prisma.cryptoTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { tradedAt: "desc" },
-    }),
-    prisma.investmentTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { tradedAt: "desc" },
-    }),
-  ]);
+  const [cryptoTrades, investmentTrades, cryptoOpenings, investmentOpenings] =
+    await Promise.all([
+      prisma.cryptoTrade.findMany({
+        where: { taxYearId: taxYear.id },
+        orderBy: { tradedAt: "desc" },
+      }),
+      prisma.investmentTrade.findMany({
+        where: { taxYearId: taxYear.id },
+        orderBy: { tradedAt: "desc" },
+      }),
+      prisma.cryptoOpeningBalance.findMany({
+        where: { taxYearId: taxYear.id },
+        orderBy: { symbol: "asc" },
+      }),
+      prisma.investmentOpeningBalance.findMany({
+        where: { taxYearId: taxYear.id },
+        orderBy: { symbol: "asc" },
+      }),
+    ]);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 p-6 sm:p-10">
@@ -55,6 +69,168 @@ export default async function ImportPage({
           {params.skipped ? ` (${params.skipped}件は形式不正のためスキップしました)` : ""}
         </p>
       )}
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">
+            期首残高(前年繰越) — {year}年1/1時点
+          </h2>
+          <form action={carryForwardOpeningBalances}>
+            <input type="hidden" name="year" value={year} />
+            <button
+              type="submit"
+              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+            >
+              {year - 1}年分から繰り越す
+            </button>
+          </form>
+        </div>
+        <p className="mb-4 text-sm text-neutral-500">
+          複数年にまたがって保有している銘柄がある場合、{year}
+          年1/1時点の保有数量・取得価額の合計をここに登録すると、その年に
+          入力した取引だけでなく期首残高分も含めて損益が計算される。
+          「{year - 1}年分から繰り越す」を押すと、{year - 1}
+          年分の計算結果(期末残高)がそのままコピーされる(既存の登録は上書きされる。
+          NISA口座分は非課税のため繰り越し対象外)。
+        </p>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-400">
+              暗号資産
+            </h3>
+            <form
+              action={setCryptoOpeningBalance}
+              className="mb-3 grid grid-cols-3 gap-2"
+            >
+              <input type="hidden" name="year" value={year} />
+              <input
+                type="text"
+                name="symbol"
+                placeholder="銘柄 (BTC)"
+                required
+                className={inputClass}
+              />
+              <input
+                type="number"
+                step="any"
+                name="quantity"
+                placeholder="数量"
+                required
+                className={inputClass}
+              />
+              <input
+                type="number"
+                step="any"
+                name="costBasisJpy"
+                placeholder="取得価額合計(円)"
+                required
+                className={inputClass}
+              />
+              <button
+                type="submit"
+                className="col-span-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                登録・更新
+              </button>
+            </form>
+            {cryptoOpenings.length > 0 && (
+              <table className="w-full text-left text-sm">
+                <tbody>
+                  {cryptoOpenings.map((o) => (
+                    <tr
+                      key={o.id}
+                      className="border-t border-neutral-100 dark:border-neutral-800"
+                    >
+                      <td className="px-2 py-1.5">{o.symbol}</td>
+                      <td className="px-2 py-1.5">{o.quantity.toString()}</td>
+                      <td className="px-2 py-1.5">{yen(o.costBasisJpy)}</td>
+                      <td className="px-2 py-1.5">
+                        <form action={deleteCryptoOpeningBalance}>
+                          <input type="hidden" name="id" value={o.id} />
+                          <input type="hidden" name="year" value={year} />
+                          <button className="text-xs text-red-600 hover:underline">
+                            削除
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-400">
+              株式・投資信託等(課税口座)
+            </h3>
+            <form
+              action={setInvestmentOpeningBalance}
+              className="mb-3 grid grid-cols-3 gap-2"
+            >
+              <input type="hidden" name="year" value={year} />
+              <input
+                type="text"
+                name="symbol"
+                placeholder="銘柄コード"
+                required
+                className={inputClass}
+              />
+              <input
+                type="number"
+                step="any"
+                name="quantity"
+                placeholder="数量"
+                required
+                className={inputClass}
+              />
+              <input
+                type="number"
+                step="any"
+                name="costBasisJpy"
+                placeholder="取得価額合計(円)"
+                required
+                className={inputClass}
+              />
+              <button
+                type="submit"
+                className="col-span-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                登録・更新
+              </button>
+            </form>
+            {investmentOpenings.length > 0 && (
+              <table className="w-full text-left text-sm">
+                <tbody>
+                  {investmentOpenings.map((o) => (
+                    <tr
+                      key={o.id}
+                      className="border-t border-neutral-100 dark:border-neutral-800"
+                    >
+                      <td className="px-2 py-1.5">
+                        {o.symbol}
+                        {o.isNisa ? " (NISA)" : ""}
+                      </td>
+                      <td className="px-2 py-1.5">{o.quantity.toString()}</td>
+                      <td className="px-2 py-1.5">{yen(o.costBasisJpy)}</td>
+                      <td className="px-2 py-1.5">
+                        <form action={deleteInvestmentOpeningBalance}>
+                          <input type="hidden" name="id" value={o.id} />
+                          <input type="hidden" name="year" value={year} />
+                          <button className="text-xs text-red-600 hover:underline">
+                            削除
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="mb-3 text-lg font-semibold">マネーフォワード ME CSV取り込み</h2>
