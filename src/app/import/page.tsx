@@ -6,6 +6,7 @@ import {
   deleteCryptoTrade,
   deleteInvestmentOpeningBalance,
   deleteInvestmentTrade,
+  importCryptoExchangeCsv,
   importMoneyForwardCsv,
   setCryptoOpeningBalance,
   setCryptoValuationMethod,
@@ -85,6 +86,43 @@ export default async function ImportPage({
         </p>
         <form action={importMoneyForwardCsv} className="flex flex-wrap items-center gap-3">
           <input type="hidden" name="year" value={year} />
+          <input
+            type="file"
+            name="file"
+            accept=".csv,text/csv"
+            required
+            className="text-sm"
+          />
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            取り込む
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          bitFlyer・Coincheck・GMOコイン等の「取引履歴」CSVを取り込めます。
+          日時・銘柄・売買種別・数量・単価(または合計金額)の列を見出し名から
+          自動判定するため、多少の表記違いには対応できますが、対応取引所でも
+          列見出しが一致せず取り込めない場合があります。現状は円建ての現物
+          売買(買い/売り)のみに対応しており、暗号資産同士の交換やマイニング等の
+          受取は手入力してください。
+        </p>
+        <form
+          action={importCryptoExchangeCsv}
+          className="flex flex-wrap items-center gap-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <select name="exchange" className={inputClass} defaultValue="bitflyer">
+            <option value="bitflyer">bitFlyer</option>
+            <option value="coincheck">Coincheck</option>
+            <option value="gmo_coin">GMOコイン</option>
+            <option value="other">その他</option>
+          </select>
           <input
             type="file"
             name="file"
