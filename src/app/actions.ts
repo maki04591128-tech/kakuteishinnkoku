@@ -93,7 +93,6 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
   if (!CRYPTO_EXCHANGE_IDS.includes(exchange)) {
     throw new Error(`未対応の取引所です: ${exchange}`);
   }
-
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("CSVファイルを選択してください");
@@ -118,6 +117,7 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
       await tx.cryptoTrade.createMany({
         data: rows.map((row) => ({
           taxYearId: taxYear.id,
+          importBatchId: batch.id,
           tradedAt: row.tradedAt,
           symbol: row.symbol,
           type: row.type,
@@ -127,7 +127,6 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
           exchange: CRYPTO_EXCHANGE_LABELS[exchange],
           memo: row.memo,
           source: `crypto_csv_${exchange}`,
-          importBatchId: batch.id,
         })),
       });
     }
