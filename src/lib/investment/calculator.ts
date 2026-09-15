@@ -121,6 +121,10 @@ export interface InvestmentSymbolYearResult {
   nisaRealizedGainJpy: Decimal;
   /** 参考情報: NISA口座分の配当等 */
   nisaDividendJpy: Decimal;
+  /** 参考情報: NISA口座分の期末保有数量(翌年への繰越用) */
+  nisaClosingQuantity: Decimal;
+  /** 参考情報: NISA口座分の期末取得価額合計(翌年への繰越用) */
+  nisaClosingCostJpy: Decimal;
 }
 
 export function calculateInvestmentYear(
@@ -169,6 +173,8 @@ export function calculateInvestmentYear(
     closingCostJpy: taxablePool.costJpy,
     nisaRealizedGainJpy,
     nisaDividendJpy,
+    nisaClosingQuantity: nisaPool.quantity,
+    nisaClosingCostJpy: nisaPool.costJpy,
   };
 }
 

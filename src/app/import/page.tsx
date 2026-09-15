@@ -1,9 +1,12 @@
 import {
   addCryptoTrade,
   addInvestmentTrade,
+  carryForwardOpeningBalances,
   deleteCryptoTrade,
   deleteInvestmentTrade,
+  deleteOpeningBalance,
   importMoneyForwardCsv,
+  setOpeningBalance,
 } from "@/app/actions";
 import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
@@ -23,13 +26,14 @@ export default async function ImportPage({
     year?: string;
     imported?: string;
     skipped?: string;
+    carried?: string;
   }>;
 }) {
   const params = await searchParams;
   const year = Number(params.year) || new Date().getFullYear();
   const taxYear = await getOrCreateTaxYear(year);
 
-  const [cryptoTrades, investmentTrades] = await Promise.all([
+  const [cryptoTrades, investmentTrades, openingBalances] = await Promise.all([
     prisma.cryptoTrade.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { tradedAt: "desc" },
@@ -37,6 +41,10 @@ export default async function ImportPage({
     prisma.investmentTrade.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { tradedAt: "desc" },
+    }),
+    prisma.openingBalance.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
     }),
   ]);
 
@@ -77,6 +85,98 @@ export default async function ImportPage({
             取り込む
           </button>
         </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">期首残高(前年からの繰越)</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          総平均法・移動平均法による損益計算は複数年にまたがるため、年初時点で
+          保有していた数量と取得価額の合計をここで登録する。{year}
+          年より前から取引している場合は必ず登録すること。
+        </p>
+
+        {params.carried !== undefined && (
+          <p className="mb-3 rounded-md bg-green-50 px-4 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+            {Number(params.carried) > 0
+              ? `${params.carried}件の期首残高を${year - 1}年の期末残高から繰り越しました。`
+              : `${year - 1}年の期末残高からの繰越候補はありませんでした(既に登録済みか、保有数量が0です)。`}
+          </p>
+        )}
+
+        <form action={carryForwardOpeningBalances} className="mb-5">
+          <input type="hidden" name="year" value={year} />
+          <button
+            type="submit"
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            {year - 1}年の期末残高から自動で繰り越す
+          </button>
+        </form>
+
+        <form action={setOpeningBalance} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <input type="hidden" name="year" value={year} />
+          <Field label="区分">
+            <select name="assetClass" className={inputClass}>
+              <option value="CRYPTO">暗号資産</option>
+              <option value="INVESTMENT">株式・投資信託等</option>
+            </select>
+          </Field>
+          <Field label="銘柄">
+            <input type="text" name="symbol" placeholder="BTC / 7203" required className={inputClass} />
+          </Field>
+          <Field label="年初保有数量">
+            <input type="number" step="any" name="quantity" required className={inputClass} />
+          </Field>
+          <Field label="年初取得価額合計(円)">
+            <input type="number" step="any" name="costBasisJpy" required className={inputClass} />
+          </Field>
+          <label className="col-span-full flex items-center gap-2 text-sm">
+            <input type="checkbox" name="isNisa" /> NISA口座分(株式等の場合のみ有効)
+          </label>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              登録・更新
+            </button>
+          </div>
+        </form>
+
+        {openingBalances.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["区分", "銘柄", "数量", "取得価額合計", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {openingBalances.map((b) => (
+                  <tr key={b.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">
+                      {b.assetClass === "CRYPTO" ? "暗号資産" : b.isNisa ? "株式等(NISA)" : "株式等"}
+                    </td>
+                    <td className="px-3 py-2">{b.symbol}</td>
+                    <td className="px-3 py-2">{b.quantity.toString()}</td>
+                    <td className="px-3 py-2">{yen(b.costBasisJpy)}</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteOpeningBalance}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">

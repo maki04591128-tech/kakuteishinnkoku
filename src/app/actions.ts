@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
+import { buildCarryForwardCandidates } from "@/lib/reporting";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -139,4 +140,91 @@ export async function deleteInvestmentTrade(formData: FormData): Promise<void> {
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=investment`);
+}
+
+export async function setOpeningBalance(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+  const assetClass = requireString(formData, "assetClass") as
+    | "CRYPTO"
+    | "INVESTMENT";
+  const symbol = requireString(formData, "symbol").toUpperCase();
+  // NISA口座は投資のみ区分がある。暗号資産では常にfalseとして扱う。
+  const isNisa = assetClass === "INVESTMENT" && formData.get("isNisa") === "on";
+  const quantity = requireString(formData, "quantity");
+  const costBasisJpy = requireString(formData, "costBasisJpy");
+
+  await prisma.openingBalance.upsert({
+    where: {
+      taxYearId_assetClass_symbol_isNisa: {
+        taxYearId: taxYear.id,
+        assetClass,
+        symbol,
+        isNisa,
+      },
+    },
+    create: {
+      taxYearId: taxYear.id,
+      assetClass,
+      symbol,
+      isNisa,
+      quantity,
+      costBasisJpy,
+    },
+    update: { quantity, costBasisJpy },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening`);
+}
+
+export async function deleteOpeningBalance(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.openingBalance.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening`);
+}
+
+/**
+ * 前年の期末残高(取引と期首残高から再計算した結果)を、当年の期首残高として
+ * 一括登録する。既に当年の期首残高が登録されている銘柄は上書きしない。
+ */
+export async function carryForwardOpeningBalances(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+  const candidates = await buildCarryForwardCandidates(year - 1);
+
+  const existing = await prisma.openingBalance.findMany({
+    where: { taxYearId: taxYear.id },
+    select: { assetClass: true, symbol: true, isNisa: true },
+  });
+  const existingKeys = new Set(
+    existing.map((e) => `${e.assetClass}:${e.symbol}:${e.isNisa}`),
+  );
+
+  const toCreate = candidates.filter(
+    (c) => !existingKeys.has(`${c.assetClass}:${c.symbol}:${c.isNisa}`),
+  );
+
+  if (toCreate.length > 0) {
+    await prisma.openingBalance.createMany({
+      data: toCreate.map((c) => ({
+        taxYearId: taxYear.id,
+        assetClass: c.assetClass,
+        symbol: c.symbol,
+        isNisa: c.isNisa,
+        quantity: c.quantity,
+        costBasisJpy: c.costBasisJpy,
+      })),
+    });
+  }
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening&carried=${toCreate.length}`);
 }

@@ -25,6 +25,42 @@ model TaxYear {
   cryptoTrades     CryptoTrade[]
   investmentTrades InvestmentTrade[]
   importBatches    ImportBatch[]
+  openingBalances  OpeningBalance[]
+}
+
+/// 前年からの繰越残高(期首残高)。暗号資産・株式等の総平均法/移動平均法による
+/// 取得費計算は複数年にまたがるため、年初の保有数量と取得価額の合計を
+/// ここに保持し、当年の計算エンジンへ opening 引数として渡す。
+model OpeningBalance {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  assetClass OpeningBalanceAssetClass
+
+  /// 銘柄シンボル・銘柄コード(CryptoTrade.symbol / InvestmentTrade.symbol と対応)
+  symbol String
+
+  /// 投資(INVESTMENT)のみ有効。NISA口座分の期首残高かどうか。
+  /// NISA口座は課税口座と別ロットのため、同一銘柄でも別レコードになる。
+  /// 暗号資産(CRYPTO)では常に false。
+  isNisa Boolean @default(false)
+
+  /// 年初時点の保有数量
+  quantity Decimal
+
+  /// 年初時点の取得価額の合計(単価ではなく総額)
+  costBasisJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, assetClass, symbol, isNisa])
+}
+
+enum OpeningBalanceAssetClass {
+  CRYPTO
+  INVESTMENT
 }
 
 /// 暗号資産の売買・交換・使用等の取引履歴。
