@@ -109,6 +109,7 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
       await tx.cryptoTrade.createMany({
         data: rows.map((row) => ({
           taxYearId: taxYear.id,
+          importBatchId: batch.id,
           tradedAt: row.tradedAt,
           symbol: row.symbol,
           type: row.type,
@@ -118,7 +119,6 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
           exchange: format.label,
           memo: row.memo,
           source: `csv:${format.id}`,
-          importBatchId: batch.id,
         })),
       });
     }
