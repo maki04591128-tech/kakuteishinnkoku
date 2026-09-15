@@ -1,7 +1,12 @@
 import { Decimal } from "decimal.js";
-import type { CryptoSymbolYearResult } from "../crypto/calculator";
+import type { CryptoCostMethod, CryptoSymbolYearResult } from "../crypto/calculator";
 import type { InvestmentSymbolYearResult } from "../investment/calculator";
 import type { TaxFilingSummary } from "./summary";
+
+const CRYPTO_COST_METHOD_LABEL: Record<CryptoCostMethod, string> = {
+  TOTAL_AVERAGE: "総平均法",
+  MOVING_AVERAGE: "移動平均法",
+};
 
 /**
  * 「確定申告書等作成コーナー」への入力を補助するための集計CSVを生成する。
@@ -33,6 +38,7 @@ export function buildTaxFilingDraftCsv(
   summary: TaxFilingSummary,
   cryptoDetail: CryptoSymbolYearResult[],
   investmentDetail: InvestmentSymbolYearResult[],
+  cryptoCostMethod: CryptoCostMethod = "TOTAL_AVERAGE",
 ): string {
   const lines: string[] = [];
 
@@ -69,7 +75,9 @@ export function buildTaxFilingDraftCsv(
   );
   lines.push("");
 
-  lines.push(toCsvLine(["■ 暗号資産 銘柄別内訳(総平均法)"]));
+  lines.push(
+    toCsvLine([`■ 暗号資産 銘柄別内訳(${CRYPTO_COST_METHOD_LABEL[cryptoCostMethod]})`]),
+  );
   lines.push(
     toCsvLine([
       "銘柄",

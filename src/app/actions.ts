@@ -76,6 +76,24 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
   redirect(`/import?year=${year}&imported=${rows.length}`);
 }
 
+export async function setCryptoCostMethod(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const cryptoCostMethod = requireString(formData, "cryptoCostMethod");
+  if (cryptoCostMethod !== "TOTAL_AVERAGE" && cryptoCostMethod !== "MOVING_AVERAGE") {
+    throw new Error(`不明な計算方式です: ${cryptoCostMethod}`);
+  }
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.taxYear.update({
+    where: { id: taxYear.id },
+    data: { cryptoCostMethod },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=opening`);
+}
+
 export async function addCryptoTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const taxYear = await getOrCreateTaxYear(year);

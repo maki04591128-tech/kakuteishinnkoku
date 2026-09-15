@@ -26,7 +26,12 @@ export interface CryptoTradeInput {
   unitPriceJpy: Decimal.Value;
   /** 日本円換算の手数料(円建てで支払われた場合)。暗号資産建て手数料は type: "FEE" の別取引として渡す。 */
   feeJpy?: Decimal.Value;
+  /** 取引日時。移動平均法(calculateCryptoYearMovingAverage)では必須。総平均法では未使用。 */
+  tradedAt?: Date;
 }
+
+/** 暗号資産の取得原価の計算方式。国税庁FAQに基づき、届出が無い場合の法定算出方法は総平均法。 */
+export type CryptoCostMethod = "TOTAL_AVERAGE" | "MOVING_AVERAGE";
 
 export interface CryptoOpeningBalance {
   /** 前年末時点の保有数量 */
@@ -201,4 +206,162 @@ export function calculateCryptoPortfolioYear(
   );
 
   return { bySymbol, totalRealizedGainJpy };
+}
+
+/**
+ * 単一銘柄の1年分の取引から、移動平均法で損益を計算する。
+ *
+ * 総平均法(年間の取得を全て合算してから平均する)と異なり、取引が
+ * 発生する都度、それまでの保有数量・取得価額と合算して平均単価を
+ * 更新し、譲渡時点ではその時点の平均単価を取得原価として使う。
+ * そのため trades は tradedAt 順に並んでいる必要がある(本関数内で
+ * ソートするため、呼び出し側の順序は問わない)。同時刻の取引が
+ * 複数ある場合は入力順を維持する。
+ *
+ * 届出により移動平均法を選択している場合のみ使用できる方式であり、
+ * 一度選択すると税務署に届出をしない限り変更できない点に注意。
+ */
+export function calculateCryptoYearMovingAverage(
+  symbol: string,
+  trades: (CryptoTradeInput & { tradedAt: Date })[],
+  opening?: CryptoOpeningBalance,
+): CryptoSymbolYearResult {
+  const openingQuantity = opening ? toDecimal(opening.quantity) : new Decimal(0);
+  const openingCostJpy = opening ? toDecimal(opening.costBasisJpy) : new Decimal(0);
+
+  if (openingQuantity.isNegative() || openingCostJpy.isNegative()) {
+    throw new Error("期首残高の数量・取得価額は0以上である必要があります");
+  }
+
+  let poolQuantity = openingQuantity;
+  let poolCostJpy = openingCostJpy;
+
+  let acquiredQuantity = new Decimal(0);
+  let acquiredCostJpy = new Decimal(0);
+  let incomeJpy = new Decimal(0);
+  let disposedQuantity = new Decimal(0);
+  let proceedsJpy = new Decimal(0);
+  let costOfDisposedJpy = new Decimal(0);
+
+  const sorted = [...trades].sort((a, b) => a.tradedAt.getTime() - b.tradedAt.getTime());
+
+  for (const trade of sorted) {
+    const quantity = toDecimal(trade.quantity);
+    const unitPrice = toDecimal(trade.unitPriceJpy);
+    const fee = trade.feeJpy !== undefined ? toDecimal(trade.feeJpy) : new Decimal(0);
+
+    if (quantity.isNegative() || quantity.isZero()) {
+      throw new Error(`数量は正の値である必要があります (symbol=${symbol})`);
+    }
+    if (unitPrice.isNegative() || fee.isNegative()) {
+      throw new Error(`単価・手数料は0以上である必要があります (symbol=${symbol})`);
+    }
+
+    const grossValue = quantity.times(unitPrice);
+
+    if (ACQUIRE_TYPES.has(trade.type)) {
+      const cost = grossValue.plus(fee);
+      poolQuantity = poolQuantity.plus(quantity);
+      poolCostJpy = poolCostJpy.plus(cost);
+      acquiredQuantity = acquiredQuantity.plus(quantity);
+      acquiredCostJpy = acquiredCostJpy.plus(cost);
+      if (trade.type === "INCOME") {
+        incomeJpy = incomeJpy.plus(grossValue);
+      }
+    } else if (DISPOSE_TYPES.has(trade.type)) {
+      if (quantity.greaterThan(poolQuantity)) {
+        throw new Error(
+          `その時点の保有数量(${poolQuantity.toString()})を超える数量(${quantity.toString()})が譲渡されています (symbol=${symbol}, tradedAt=${trade.tradedAt.toISOString()})`,
+        );
+      }
+      const averageUnitCost = poolQuantity.isZero()
+        ? new Decimal(0)
+        : poolCostJpy.dividedBy(poolQuantity);
+      const costOfDisposed = averageUnitCost.times(quantity);
+      const proceeds = grossValue.minus(fee);
+
+      poolQuantity = poolQuantity.minus(quantity);
+      poolCostJpy = poolCostJpy.minus(costOfDisposed);
+      disposedQuantity = disposedQuantity.plus(quantity);
+      proceedsJpy = proceedsJpy.plus(proceeds);
+      costOfDisposedJpy = costOfDisposedJpy.plus(costOfDisposed);
+    } else {
+      throw new Error(`未対応の取引種別です: ${trade.type as string}`);
+    }
+  }
+
+  const disposalGainJpy = proceedsJpy.minus(costOfDisposedJpy);
+  const realizedGainJpy = disposalGainJpy.plus(incomeJpy);
+  const closingQuantity = poolQuantity;
+  const closingCostJpy = poolCostJpy;
+  const averageUnitCostJpy = closingQuantity.isZero()
+    ? new Decimal(0)
+    : closingCostJpy.dividedBy(closingQuantity);
+
+  return {
+    symbol,
+    openingQuantity,
+    openingCostJpy,
+    acquiredQuantity,
+    acquiredCostJpy,
+    averageUnitCostJpy,
+    incomeJpy,
+    disposedQuantity,
+    proceedsJpy,
+    costOfDisposedJpy,
+    realizedGainJpy,
+    closingQuantity,
+    closingCostJpy,
+  };
+}
+
+/**
+ * 複数銘柄が混在した取引一覧を銘柄別に集計し、移動平均法で
+ * 全体の雑所得合計を計算する。
+ */
+export function calculateCryptoPortfolioYearMovingAverage(
+  trades: (CryptoTradeInput & { symbol: string; tradedAt: Date })[],
+  openings?: Record<string, CryptoOpeningBalance>,
+): CryptoPortfolioYearResult {
+  const tradesBySymbol = new Map<string, (CryptoTradeInput & { tradedAt: Date })[]>();
+  for (const trade of trades) {
+    const list = tradesBySymbol.get(trade.symbol) ?? [];
+    list.push(trade);
+    tradesBySymbol.set(trade.symbol, list);
+  }
+
+  if (openings) {
+    for (const symbol of Object.keys(openings)) {
+      if (!tradesBySymbol.has(symbol)) {
+        tradesBySymbol.set(symbol, []);
+      }
+    }
+  }
+
+  const bySymbol = Array.from(tradesBySymbol.entries())
+    .map(([symbol, symbolTrades]) =>
+      calculateCryptoYearMovingAverage(symbol, symbolTrades, openings?.[symbol]),
+    )
+    .sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+  const totalRealizedGainJpy = bySymbol.reduce(
+    (sum, result) => sum.plus(result.realizedGainJpy),
+    new Decimal(0),
+  );
+
+  return { bySymbol, totalRealizedGainJpy };
+}
+
+/**
+ * cryptoCostMethod に応じて総平均法/移動平均法のいずれかで計算する。
+ * 移動平均法の場合は全取引に tradedAt が必要。
+ */
+export function calculateCryptoPortfolioYearByMethod(
+  method: CryptoCostMethod,
+  trades: (CryptoTradeInput & { symbol: string; tradedAt: Date })[],
+  openings?: Record<string, CryptoOpeningBalance>,
+): CryptoPortfolioYearResult {
+  return method === "MOVING_AVERAGE"
+    ? calculateCryptoPortfolioYearMovingAverage(trades, openings)
+    : calculateCryptoPortfolioYear(trades, openings);
 }
