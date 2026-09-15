@@ -1,0 +1,204 @@
+// 確定申告支援ツール データモデル
+//
+// 対象範囲(初期版):
+//  - 暗号資産(仮想通貨)取引 -> 雑所得の計算
+//  - 有価証券(株式・投資信託等)取引 -> 譲渡所得/配当所得の計算
+//  - マネーフォワード ME からインポートした取引明細
+//
+// 将来的に確定申告書等作成コーナーへの連携・e-Taxデータ出力を強化する。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// 課税年度(申告対象の暦年)。日本の所得税は暦年単位(1/1-12/31)で計算する。
+model TaxYear {
+  id        Int      @id @default(autoincrement())
+  year      Int      @unique
+  createdAt DateTime @default(now())
+
+  cryptoTrades     CryptoTrade[]
+  investmentTrades InvestmentTrade[]
+  importBatches    ImportBatch[]
+}
+
+/// 暗号資産の売買・交換・使用等の取引履歴。
+/// 国税庁「暗号資産に関する税務上の取扱いについて」に基づき、
+/// 総平均法(または移動平均法)で1単位あたりの取得価額を算出する。
+model CryptoTrade {
+  id        Int      @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear  @relation(fields: [taxYearId], references: [id])
+
+  /// 取引日時 (JST)
+  tradedAt DateTime
+
+  /// 銘柄シンボル (例: BTC, ETH)
+  symbol String
+
+  /// buy: 円などの法定通貨で購入 / sell: 法定通貨に売却
+  /// trade_in / trade_out: 暗号資産同士の交換(この取引で増える/減る側)
+  /// income: マイニング・ステーキング・エアドロップ等による取得(取得時時価で収入計上)
+  /// fee: 取引手数料(暗号資産建てで支払われた場合)
+  type CryptoTradeType
+
+  /// 数量(増減の絶対値)。取得数量 or 譲渡数量。
+  quantity Decimal
+
+  /// 単価(日本円換算)。income/tradeでは取得時の時価を入力する。
+  unitPriceJpy Decimal
+
+  /// 手数料(日本円換算、取得価額 or 譲渡価額の調整に使用)
+  feeJpy Decimal @default(0)
+
+  /// 取引所・ウォレット名
+  exchange String?
+
+  /// メモ
+  memo String?
+
+  /// インポート元(手動 / moneyforward / csv など)
+  source String @default("manual")
+
+  importBatchId Int?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taxYearId, symbol])
+  @@index([tradedAt])
+}
+
+enum CryptoTradeType {
+  BUY
+  SELL
+  TRADE_IN
+  TRADE_OUT
+  INCOME
+  FEE
+}
+
+/// 株式・投資信託・ETF等の売買履歴。
+/// 特定口座(源泉徴収あり/なし)・一般口座・NISA区分を保持し、
+/// 譲渡所得(申告分離課税)の計算に使う。
+model InvestmentTrade {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  tradedAt DateTime
+
+  /// 銘柄コード・ティッカー
+  symbol String
+
+  /// 銘柄名
+  name String?
+
+  assetType InvestmentAssetType
+
+  type InvestmentTradeType
+
+  quantity Decimal
+
+  /// 約定単価(円)
+  unitPriceJpy Decimal
+
+  /// 手数料(円)
+  feeJpy Decimal @default(0)
+
+  /// 口座区分
+  accountType InvestmentAccountType @default(SPECIFIC_WITHHOLDING)
+
+  /// NISA区分(該当する場合、非課税のため損益計算から除外)
+  isNisa Boolean @default(false)
+
+  broker String?
+  memo   String?
+
+  source        String   @default("manual")
+  importBatchId Int?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taxYearId, symbol])
+  @@index([tradedAt])
+}
+
+enum InvestmentAssetType {
+  STOCK
+  ETF
+  MUTUAL_FUND
+  BOND
+  FX
+  OTHER
+}
+
+enum InvestmentTradeType {
+  BUY
+  SELL
+  DIVIDEND
+}
+
+enum InvestmentAccountType {
+  SPECIFIC_WITHHOLDING
+  SPECIFIC_NO_WITHHOLDING
+  GENERAL
+  NISA
+}
+
+/// マネーフォワード ME 等からインポートしたCSVの取り込みバッチ。
+/// 生データを保持し、後から再取り込み・突合ができるようにする。
+model ImportBatch {
+  id        Int      @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear  @relation(fields: [taxYearId], references: [id])
+
+  /// moneyforward_cashflow / moneyforward_assets / crypto_csv / investment_csv
+  sourceType String
+
+  fileName   String
+  importedAt DateTime @default(now())
+  rowCount   Int      @default(0)
+
+  cryptoTrades     CryptoTrade[]
+  investmentTrades InvestmentTrade[]
+  cashflowEntries  CashflowEntry[]
+}
+
+/// マネーフォワード ME の家計簿(収支)データ。
+/// 事業所得・雑所得の経費按分や、暗号資産取引の見落とし検出などに利用する。
+model CashflowEntry {
+  id            Int          @id @default(autoincrement())
+  importBatchId Int
+  importBatch   ImportBatch  @relation(fields: [importBatchId], references: [id])
+
+  date        DateTime
+  content     String
+  amountJpy   Decimal
+  /// 収入 / 支出
+  direction   CashflowDirection
+  largeCategory String?
+  middleCategory String?
+  institution String?
+  memo        String?
+  /// マネーフォワード側の計算対象フラグ(集計除外の振替等を判別)
+  isCalculationTarget Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+  @@index([largeCategory, middleCategory])
+}
+
+enum CashflowDirection {
+  INCOME
+  EXPENSE
+}
