@@ -111,6 +111,8 @@ bitFlyer(現物取引履歴CSV)・Coincheck(業界標準フォーマットCSV)�
 - `TaxYear` — 課税年度(暦年)単位でデータを区切る
 - `CryptoTrade` — 暗号資産の取引明細
 - `InvestmentTrade` — 株式・投資信託等の取引明細(口座区分・NISA区分を保持)
+- `CryptoOpeningBalance` / `InvestmentOpeningBalance` — 各課税年度の期首残高
+  (前年繰越分の保有数量・取得価額)
 - `ImportBatch` / `CashflowEntry` — マネーフォワード等からの取り込みバッチと明細
 
 ## ロードマップ(次回以降のブラッシュアップ候補)
