@@ -1,58 +1,99 @@
-import { Decimal } from "decimal.js";
-import type { CryptoPortfolioYearResult } from "./crypto/calculator";
-import type { InvestmentPortfolioYearResult } from "./investment/calculator";
+import { prisma } from "./db";
+import type {
+  CryptoOpeningBalance,
+  CryptoPortfolioYearResult,
+} from "./crypto/calculator";
+import type {
+  InvestmentOpeningBalance,
+  InvestmentPortfolioYearResult,
+} from "./investment/calculator";
+
+export interface OpeningBalancesByYear {
+  crypto: Record<string, CryptoOpeningBalance>;
+  investment: Record<string, InvestmentOpeningBalance>;
+  investmentNisa: Record<string, InvestmentOpeningBalance>;
+}
 
 /**
- * 前年分の計算結果(期末残高)から、翌年分の期首残高として
- * DBに書き込むべきデータを組み立てる。
- *
- * 期末数量が0の銘柄(全て売却・使用済み)は翌年に持ち越す意味が
- * ないため除外する。
+ * 指定年のTaxYearに登録された期首残高(前年繰越)をDBから読み出し、
+ * 計算エンジンの opening 引数の形に整形する。
  */
+export async function loadOpeningBalances(
+  taxYearId: number,
+): Promise<OpeningBalancesByYear> {
+  const rows = await prisma.openingBalance.findMany({ where: { taxYearId } });
 
-export interface OpeningBalanceRow {
+  const crypto: Record<string, CryptoOpeningBalance> = {};
+  const investment: Record<string, InvestmentOpeningBalance> = {};
+  const investmentNisa: Record<string, InvestmentOpeningBalance> = {};
+
+  for (const row of rows) {
+    const value = {
+      quantity: row.quantity.toString(),
+      costBasisJpy: row.costBasisJpy.toString(),
+    };
+    if (row.assetClass === "CRYPTO") {
+      crypto[row.symbol] = value;
+    } else if (row.isNisa) {
+      investmentNisa[row.symbol] = value;
+    } else {
+      investment[row.symbol] = value;
+    }
+  }
+
+  return { crypto, investment, investmentNisa };
+}
+
+export interface CarryForwardCandidate {
+  assetClass: "CRYPTO" | "INVESTMENT";
   symbol: string;
-  quantity: Decimal;
-  costBasisJpy: Decimal;
-}
-
-export interface InvestmentOpeningBalanceRow extends OpeningBalanceRow {
   isNisa: boolean;
+  quantity: string;
+  costBasisJpy: string;
 }
 
-export function buildCryptoCarryForward(
-  previousYearReport: CryptoPortfolioYearResult,
-): OpeningBalanceRow[] {
-  return previousYearReport.bySymbol
-    .filter((r) => !r.closingQuantity.isZero())
-    .map((r) => ({
+/**
+ * ある年の損益計算結果(期末残高)から、翌年の期首残高候補を導出する。
+ * DBに依存しない純粋関数。数量が0の銘柄(その年のうちに全量売却済み等)は
+ * 繰り越す意味がないため除外する。
+ */
+export function deriveCarryForwardCandidates(
+  crypto: CryptoPortfolioYearResult,
+  investment: InvestmentPortfolioYearResult,
+): CarryForwardCandidate[] {
+  const candidates: CarryForwardCandidate[] = [];
+
+  for (const r of crypto.bySymbol) {
+    if (r.closingQuantity.isZero()) continue;
+    candidates.push({
+      assetClass: "CRYPTO",
       symbol: r.symbol,
-      quantity: r.closingQuantity,
-      costBasisJpy: r.closingCostJpy,
-    }));
-}
+      isNisa: false,
+      quantity: r.closingQuantity.toString(),
+      costBasisJpy: r.closingCostJpy.toString(),
+    });
+  }
 
-export function buildInvestmentCarryForward(
-  previousYearReport: InvestmentPortfolioYearResult,
-): InvestmentOpeningBalanceRow[] {
-  const rows: InvestmentOpeningBalanceRow[] = [];
-  for (const r of previousYearReport.bySymbol) {
+  for (const r of investment.bySymbol) {
     if (!r.closingQuantity.isZero()) {
-      rows.push({
+      candidates.push({
+        assetClass: "INVESTMENT",
         symbol: r.symbol,
         isNisa: false,
-        quantity: r.closingQuantity,
-        costBasisJpy: r.closingCostJpy,
+        quantity: r.closingQuantity.toString(),
+        costBasisJpy: r.closingCostJpy.toString(),
       });
     }
     if (!r.nisaClosingQuantity.isZero()) {
-      rows.push({
+      candidates.push({
+        assetClass: "INVESTMENT",
         symbol: r.symbol,
         isNisa: true,
-        quantity: r.nisaClosingQuantity,
-        costBasisJpy: r.nisaClosingCostJpy,
+        quantity: r.nisaClosingQuantity.toString(),
+        costBasisJpy: r.nisaClosingCostJpy.toString(),
       });
     }
   }
-  return rows;
+
+  return candidates;
 }
