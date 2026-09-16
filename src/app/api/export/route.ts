@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
     report.investment,
     report.lossCarryforward,
     report.cryptoMargin,
+    report.futures,
+    report.futuresLossCarryforward,
   );
   const csv = buildTaxFilingDraftCsv(
     summary,
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
     report.investment.bySymbol,
     report.cryptoCostMethod,
     report.cryptoMargin.bySymbol,
+    report.futures.bySymbol,
   );
 
   return new NextResponse(UTF8_BOM + csv, {

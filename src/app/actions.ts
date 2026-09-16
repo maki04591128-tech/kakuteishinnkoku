@@ -370,6 +370,105 @@ export async function deleteInvestmentTrade(formData: FormData): Promise<void> {
   redirect(`/import?year=${year}&tab=investment`);
 }
 
+export async function addFuturesTrade(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.futuresTrade.create({
+    data: {
+      taxYearId: taxYear.id,
+      settledAt: new Date(requireString(formData, "settledAt")),
+      symbol: requireString(formData, "symbol"),
+      realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
+      feeJpy: optionalString(formData, "feeJpy") ?? "0",
+      swapJpy: optionalString(formData, "swapJpy") ?? "0",
+      broker: optionalString(formData, "broker"),
+      memo: optionalString(formData, "memo"),
+      source: "manual",
+    },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=futures`);
+}
+
+export async function deleteFuturesTrade(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.futuresTrade.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=futures`);
+}
+
+export async function setFuturesLossCarryforward(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const originYear = Number(requireString(formData, "originYear"));
+  const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
+  if (!Number.isInteger(originYear) || originYear > year) {
+    throw new Error("損失の発生年は対象年分以前の年である必要があります");
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.futuresLossCarryforward.upsert({
+    where: {
+      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
+    },
+    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
+    update: { remainingAmountJpy },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=futuresLossCarryforward`);
+}
+
+export async function deleteFuturesLossCarryforward(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.futuresLossCarryforward.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=futuresLossCarryforward`);
+}
+
+/**
+ * 前年分の先物取引に係る雑所得等・繰越控除の計算結果から、翌年に繰り越す損失の
+ * 残高を一括登録する。既に当年分に発生年ごとの登録がある場合は上書きしない。
+ */
+export async function carryForwardFuturesLoss(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+  const previousReport = await buildYearReport(year - 1);
+  const candidates =
+    previousReport?.futuresLossCarryforward.carryforwardToNextYear ?? [];
+
+  const existing = await prisma.futuresLossCarryforward.findMany({
+    where: { taxYearId: taxYear.id },
+    select: { originYear: true },
+  });
+  const existingYears = new Set(existing.map((e) => e.originYear));
+
+  const toCreate = candidates.filter((c) => !existingYears.has(c.originYear));
+
+  if (toCreate.length > 0) {
+    await prisma.futuresLossCarryforward.createMany({
+      data: toCreate.map((c) => ({
+        taxYearId: taxYear.id,
+        originYear: c.originYear,
+        remainingAmountJpy: c.remainingAmountJpy.toString(),
+      })),
+    });
+  }
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(
+    `/import?year=${year}&tab=futuresLossCarryforward&futuresLossCarried=${toCreate.length}`,
+  );
+}
+
 export async function setBrokerAnnualReport(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const broker = requireString(formData, "broker");

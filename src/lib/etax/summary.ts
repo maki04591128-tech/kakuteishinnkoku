@@ -2,6 +2,7 @@ import { Decimal } from "decimal.js";
 import type { CryptoPortfolioYearResult } from "../crypto/calculator";
 import type { CryptoMarginPortfolioYearResult } from "../crypto/marginCalculator";
 import type { InvestmentPortfolioYearResult } from "../investment/calculator";
+import type { FuturesPortfolioYearResult } from "../investment/futuresIncome";
 import {
   calculateLossCarryforward,
   type LossCarryforwardResult,
@@ -36,6 +37,12 @@ export interface TaxFilingSummary {
   investmentDividendJpy: Decimal;
   /** 上場株式等の譲渡損失の繰越控除(3年間)の適用結果 */
   investmentLossCarryforward: LossCarryforwardResult;
+  /**
+   * 先物取引に係る雑所得等(FX・先物・CFD等)の繰越控除(3年間)の適用結果。
+   * 上場株式等の譲渡所得・暗号資産の雑所得とは別区分の申告分離課税のため、
+   * 損益通算・繰越控除は別プールで管理される。
+   */
+  futuresLossCarryforward: LossCarryforwardResult;
 }
 
 export function buildTaxFilingSummary(
@@ -44,8 +51,11 @@ export function buildTaxFilingSummary(
   investment: InvestmentPortfolioYearResult,
   lossCarryforward?: LossCarryforwardResult,
   cryptoMargin?: CryptoMarginPortfolioYearResult,
+  futures?: FuturesPortfolioYearResult,
+  futuresLossCarryforward?: LossCarryforwardResult,
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
+  const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
   return {
     year,
     cryptoMiscIncomeJpy: crypto.totalRealizedGainJpy.plus(cryptoMarginIncomeJpy),
@@ -56,5 +66,8 @@ export function buildTaxFilingSummary(
     investmentLossCarryforward:
       lossCarryforward ??
       calculateLossCarryforward(year, investment.totalRealizedGainJpy, []),
+    futuresLossCarryforward:
+      futuresLossCarryforward ??
+      calculateLossCarryforward(year, futuresRealizedGainJpy, []),
   };
 }

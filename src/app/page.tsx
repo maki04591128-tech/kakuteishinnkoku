@@ -32,6 +32,8 @@ export default async function Home({
         report.investment,
         report.lossCarryforward,
         report.cryptoMargin,
+        report.futures,
+        report.futuresLossCarryforward,
       )
     : null;
 
@@ -73,7 +75,7 @@ export default async function Home({
         </form>
       </header>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           title="雑所得(暗号資産)"
           value={summary ? yen(summary.cryptoMiscIncomeJpy) : "¥0"}
@@ -96,6 +98,15 @@ export default async function Home({
           title="配当所得"
           value={summary ? yen(summary.investmentDividendJpy) : "¥0"}
           hint="課税口座分(NISA分は非課税のため除外)"
+        />
+        <SummaryCard
+          title="先物取引に係る雑所得等(FX・先物)"
+          value={report ? yen(report.futuresLossCarryforward.taxableGainJpy) : "¥0"}
+          hint={
+            report && report.futuresLossCarryforward.totalUsedJpy.greaterThan(0)
+              ? `繰越損失控除${yen(report.futuresLossCarryforward.totalUsedJpy)}適用後・申告分離課税(株式等・暗号資産とは別プール)`
+              : "申告分離課税(株式等・暗号資産とは別プール)"
+          }
         />
       </section>
 
@@ -163,6 +174,24 @@ export default async function Home({
         <p className="rounded-md border border-dashed border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
           控除期限(3年)を超えて繰り越せなかった譲渡損失があります:{" "}
           {summary.investmentLossCarryforward.expiredByOriginYear
+            .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
+            .join(" / ")}
+        </p>
+      )}
+
+      {report && report.futuresLossCarryforward.newLossJpy.greaterThan(0) && (
+        <p className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          {year}年分は先物取引に係る雑所得等(FX・先物)の損失が
+          {yen(report.futuresLossCarryforward.newLossJpy)}発生しています。
+          確定申告で繰越控除の適用を受ける場合は申告書第四表の提出を忘れずに行い、
+          「データを取り込む」の先物取引の繰越控除セクションから翌年分に繰り越してください。
+        </p>
+      )}
+
+      {report && report.futuresLossCarryforward.expiredByOriginYear.length > 0 && (
+        <p className="rounded-md border border-dashed border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+          控除期限(3年)を超えて繰り越せなかった先物取引に係る雑所得等の損失があります:{" "}
+          {report.futuresLossCarryforward.expiredByOriginYear
             .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
             .join(" / ")}
         </p>
@@ -246,10 +275,26 @@ export default async function Home({
         />
       )}
 
+      {report && report.futures.bySymbol.length > 0 && (
+        <DetailTable
+          title="先物取引・FX 銘柄別内訳(先物取引に係る雑所得等)"
+          columns={["銘柄", "決済件数", "決済損益", "手数料", "スワップ", "雑所得算入額"]}
+          rows={report.futures.bySymbol.map((r) => [
+            r.symbol,
+            r.settlementCount,
+            yen(r.grossPnlJpy),
+            yen(r.feeJpy),
+            yen(r.swapJpy),
+            yen(r.realizedGainJpy),
+          ])}
+        />
+      )}
+
       {report &&
         report.crypto.bySymbol.length === 0 &&
         report.cryptoMargin.bySymbol.length === 0 &&
-        report.investment.bySymbol.length === 0 && (
+        report.investment.bySymbol.length === 0 &&
+        report.futures.bySymbol.length === 0 && (
           <p className="rounded-md border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500 dark:border-neutral-700">
             {year}年分の取引データがまだありません。「データを取り込む / 手入力する」から登録してください。
           </p>

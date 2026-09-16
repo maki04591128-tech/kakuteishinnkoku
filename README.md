@@ -280,6 +280,25 @@ calculator.ts`が自動集計し、`/foreign-tax-credit`を開いた時点の初
 また、NISA口座の買付のうち枠区分が未入力の取引は集計に含めず、金額を
 「未分類」として警告表示する。
 
+### 14. 先物取引・FXに係る雑所得等の分離計算 — `src/lib/investment/futuresIncome.ts`
+
+FX(店頭外国為替証拠金取引)・先物・CFD等の決済損益は、所得税法上
+「先物取引に係る雑所得等」として、上場株式等の譲渡所得や暗号資産の雑所得とは
+別区分の申告分離課税(一律20.315%)の対象になる。上場株式等の譲渡損失とは
+損益通算できず、繰越控除(3年間)も別プールで管理しなければならない。
+
+以前は`InvestmentTrade.assetType`に「FX」という選択肢があったが、内部的には
+株式等と同じ数量×単価の移動平均法(譲渡所得)としてしか計算されておらず、
+上場株式等の譲渡損益・NISA枠・繰越控除の集計にそのまま混入してしまう不具合
+だった。今回、`InvestmentTrade`とは独立した`FuturesTrade`テーブル・
+`src/lib/investment/futuresIncome.ts`を新設し、暗号資産の証拠金取引
+(`CryptoMarginTrade`)と同様に「建玉の決済(反対売買・差金決済)のたびに
+確定する損益をそのまま合算する」モデルで計算するようにした。繰越控除も
+`FuturesLossCarryforward`テーブルで上場株式等側(`InvestmentLossCarryforward`)
+とは別に保持し、`/import`の専用セクションから登録・自動繰り越しができる。
+`InvestmentAssetType`からは「FX」を削除した。CSV取り込みは未対応
+(今後の課題、ロードマップ参照)。
+
 ## データモデル
 
 `prisma/schema.prisma` を参照。主なテーブル:
@@ -290,9 +309,14 @@ calculator.ts`が自動集計し、`/foreign-tax-credit`を開いた時点の初
 - `InvestmentTrade` — 株式・投資信託等の取引明細(口座区分・NISA区分・
   NISA枠区分(nisaType)・国外源泉フラグ(isForeign)・
   外国所得税額(foreignTaxWithheldJpy)を保持)
+- `FuturesTrade` — FX・先物・CFD等(先物取引に係る雑所得等)の決済損益明細。
+  上場株式等の譲渡所得・暗号資産の雑所得とは別プールで計算する
 - `OpeningBalance` — 各課税年度の期首残高(前年繰越分の保有数量・取得価額)
 - `InvestmentLossCarryforward` — 上場株式等の譲渡損失の繰越控除残高
   (発生年ごとの、各課税年度初時点での未使用残高)
+- `FuturesLossCarryforward` — 先物取引に係る雑所得等(FX・先物・CFD等)の
+  損失の繰越控除残高(発生年ごとの、各課税年度初時点での未使用残高。
+  InvestmentLossCarryforwardとは別プール)
 - `BrokerAnnualReport` — 証券会社の特定口座年間取引報告書との突合用の
   年間サマリー数値(証券会社・口座区分ごとの収入金額・取得費・配当等の額)
 - `AssetBalanceSnapshot` — マネーフォワードの資産残高突合用の、金融機関・
@@ -333,9 +357,21 @@ calculator.ts`が自動集計し、`/foreign-tax-credit`を開いた時点の初
    までは対応した(機能11参照)。次の課題は、時価データを取得して評価額を
    取得原価ベースの保有数量と比較可能な形に変換するなど、より踏み込んだ
    数量・金額の突合の要否・実現性の検討。
+5. **FX・先物取引所CSVの取り込み** — `FuturesTrade`のモデル・計算エンジン・
+   手入力UIは対応した(機能14参照)が、CSV一括取り込みは未対応。DMM FX・
+   GMOクリック証券等の決済履歴CSVは業者ごとに様式が異なり未検証のため、
+   暗号資産の証拠金取引CSV(`src/lib/crypto/marginCsv.ts`)と同様、
+   列名を指定する汎用マッピング方式での取り込みを検討する。
 
 ### 完了済み
 
+- **先物取引・FXに係る雑所得等の分離計算**(`FuturesTrade`・
+  `FuturesLossCarryforward`テーブル・`src/lib/investment/futuresIncome.ts`・
+  `/import`の専用セクション・ダッシュボード・下書きCSV。機能14参照)。
+  以前`InvestmentTrade.assetType`にあった「FX」は、実際には上場株式等と
+  同じ移動平均法(譲渡所得)で計算され、譲渡損益・NISA枠・繰越控除の集計に
+  そのまま混入してしまう不具合だったため、暗号資産の証拠金取引と同様の
+  決済損益ベースの別モデル・別繰越控除プールとして独立させた。
 - **NISA年間投資枠の使用状況試算**(`InvestmentTrade.nisaType`・
   `src/lib/investment/nisaQuota.ts`・`/import`のNISA枠区分選択・
   ダッシュボードの「NISA年間投資枠の使用状況」)。つみたて投資枠(年120万円)・
