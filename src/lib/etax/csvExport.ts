@@ -2,6 +2,7 @@ import { Decimal } from "decimal.js";
 import type { CryptoCostMethod, CryptoSymbolYearResult } from "../crypto/calculator";
 import type { CryptoMarginSymbolYearResult } from "../crypto/marginCalculator";
 import type { InvestmentSymbolYearResult } from "../investment/calculator";
+import type { FuturesSymbolYearResult } from "../investment/futuresIncome";
 import type { TaxFilingSummary } from "./summary";
 
 const CRYPTO_COST_METHOD_LABEL: Record<CryptoCostMethod, string> = {
@@ -41,6 +42,7 @@ export function buildTaxFilingDraftCsv(
   investmentDetail: InvestmentSymbolYearResult[],
   cryptoCostMethod: CryptoCostMethod = "AVERAGE",
   cryptoMarginDetail: CryptoMarginSymbolYearResult[] = [],
+  futuresDetail: FuturesSymbolYearResult[] = [],
 ): string {
   const lines: string[] = [];
 
@@ -91,6 +93,13 @@ export function buildTaxFilingDraftCsv(
       "申告書第一表 配当所得 / 第二表 配当所得の内訳(課税方式の選択に注意)",
     ]),
   );
+  lines.push(
+    toCsvLine([
+      "先物取引に係る雑所得等(FX・先物・CFD等。繰越控除適用前)",
+      formatYen(summary.futuresLossCarryforward.grossRealizedGainJpy),
+      "申告書第三表(分離課税用) / 先物取引に係る雑所得等の金額の計算明細書",
+    ]),
+  );
   lines.push("");
 
   const carryforward = summary.investmentLossCarryforward;
@@ -134,6 +143,58 @@ export function buildTaxFilingDraftCsv(
       );
     }
     for (const e of carryforward.expiredByOriginYear) {
+      lines.push(
+        toCsvLine([
+          `${e.originYear}年分発生分(控除期限切れ)`,
+          formatYen(e.expiredAmountJpy),
+          "控除期限(3年)を超えたため繰越不可",
+        ]),
+      );
+    }
+    lines.push("");
+  }
+
+  const futuresCarryforward = summary.futuresLossCarryforward;
+  if (
+    futuresCarryforward.totalUsedJpy.greaterThan(0) ||
+    futuresCarryforward.newLossJpy.greaterThan(0) ||
+    futuresCarryforward.carryforwardToNextYear.length > 0 ||
+    futuresCarryforward.expiredByOriginYear.length > 0
+  ) {
+    lines.push(toCsvLine(["■ 先物取引に係る雑所得等の繰越控除(3年間・FX/先物/CFD等)"]));
+    lines.push(
+      toCsvLine([
+        "繰越控除の使用額(発生年の古い順に控除)",
+        formatYen(futuresCarryforward.totalUsedJpy),
+        "申告書第三表 / 第四表(損失申告用)",
+      ]),
+    );
+    lines.push(
+      toCsvLine([
+        "繰越控除後の課税対象額",
+        formatYen(futuresCarryforward.taxableGainJpy),
+        "申告書第三表(分離課税用)",
+      ]),
+    );
+    if (futuresCarryforward.newLossJpy.greaterThan(0)) {
+      lines.push(
+        toCsvLine([
+          `${summary.year}年分の新規損失(翌年以後3年間繰越可能)`,
+          formatYen(futuresCarryforward.newLossJpy),
+          "申告書第四表(損失申告用)",
+        ]),
+      );
+    }
+    for (const c of futuresCarryforward.carryforwardToNextYear) {
+      lines.push(
+        toCsvLine([
+          `${c.originYear}年分発生分の翌年繰越残高`,
+          formatYen(c.remainingAmountJpy),
+          `控除期限: ${c.originYear + 3}年分まで`,
+        ]),
+      );
+    }
+    for (const e of futuresCarryforward.expiredByOriginYear) {
       lines.push(
         toCsvLine([
           `${e.originYear}年分発生分(控除期限切れ)`,
@@ -226,6 +287,26 @@ export function buildTaxFilingDraftCsv(
         r.closingQuantity.toString(),
       ]),
     );
+  }
+
+  if (futuresDetail.length > 0) {
+    lines.push("");
+    lines.push(toCsvLine(["■ 先物取引・FX 銘柄別内訳(先物取引に係る雑所得等・決済損益)"]));
+    lines.push(
+      toCsvLine(["銘柄", "決済件数", "決済損益(円)", "手数料(円)", "スワップ等(円)", "雑所得算入額(円)"]),
+    );
+    for (const r of futuresDetail) {
+      lines.push(
+        toCsvLine([
+          r.symbol,
+          r.settlementCount,
+          formatYen(r.grossPnlJpy),
+          formatYen(r.feeJpy),
+          formatYen(r.swapJpy),
+          formatYen(r.realizedGainJpy),
+        ]),
+      );
+    }
   }
 
   // Excelで文字化けしないようUTF-8 BOM付きで返す(呼び出し側でファイル化する際に付与)

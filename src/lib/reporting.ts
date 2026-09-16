@@ -13,6 +13,10 @@ import {
   type InvestmentPortfolioYearResult,
 } from "./investment/calculator";
 import {
+  calculateFuturesPortfolioYear,
+  type FuturesPortfolioYearResult,
+} from "./investment/futuresIncome";
+import {
   calculateLossCarryforward,
   type LossCarryforwardResult,
 } from "./investment/lossCarryforward";
@@ -36,8 +40,10 @@ export async function buildYearReport(year: number): Promise<{
   crypto: CryptoPortfolioYearResult;
   cryptoMargin: CryptoMarginPortfolioYearResult;
   investment: InvestmentPortfolioYearResult;
+  futures: FuturesPortfolioYearResult;
   cryptoCostMethod: CryptoCostMethod;
   lossCarryforward: LossCarryforwardResult;
+  futuresLossCarryforward: LossCarryforwardResult;
   nisaQuota: NisaQuotaUsageResult;
 } | null> {
   const taxYear = await prisma.taxYear.findUnique({ where: { year } });
@@ -46,22 +52,35 @@ export async function buildYearReport(year: number): Promise<{
       crypto: calculateCryptoPortfolioYearByMethod("AVERAGE", []),
       cryptoMargin: calculateCryptoMarginPortfolioYear([]),
       investment: calculateInvestmentPortfolioYear([]),
+      futures: calculateFuturesPortfolioYear([]),
       cryptoCostMethod: "AVERAGE",
       lossCarryforward: calculateLossCarryforward(year, 0, []),
+      futuresLossCarryforward: calculateLossCarryforward(year, 0, []),
       nisaQuota: calculateNisaQuotaUsage([]),
     };
   }
 
-  const [cryptoTrades, cryptoMarginTrades, investmentTrades, openings, lossCarryforwardEntries] =
-    await Promise.all([
-      prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
-      prisma.cryptoMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
-      prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
-      loadOpeningBalances(taxYear.id),
-      prisma.investmentLossCarryforward.findMany({
-        where: { taxYearId: taxYear.id },
-      }),
-    ]);
+  const [
+    cryptoTrades,
+    cryptoMarginTrades,
+    investmentTrades,
+    futuresTrades,
+    openings,
+    lossCarryforwardEntries,
+    futuresLossCarryforwardEntries,
+  ] = await Promise.all([
+    prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    prisma.cryptoMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    prisma.futuresTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    loadOpeningBalances(taxYear.id),
+    prisma.investmentLossCarryforward.findMany({
+      where: { taxYearId: taxYear.id },
+    }),
+    prisma.futuresLossCarryforward.findMany({
+      where: { taxYearId: taxYear.id },
+    }),
+  ]);
 
   const crypto = calculateCryptoPortfolioYearByMethod(
     taxYear.cryptoCostMethod,
@@ -110,6 +129,24 @@ export async function buildYearReport(year: number): Promise<{
     })),
   );
 
+  const futures = calculateFuturesPortfolioYear(
+    futuresTrades.map((t) => ({
+      symbol: t.symbol,
+      realizedPnlJpy: t.realizedPnlJpy.toString(),
+      feeJpy: t.feeJpy.toString(),
+      swapJpy: t.swapJpy.toString(),
+    })),
+  );
+
+  const futuresLossCarryforward = calculateLossCarryforward(
+    year,
+    futures.totalRealizedGainJpy,
+    futuresLossCarryforwardEntries.map((e) => ({
+      originYear: e.originYear,
+      remainingAmountJpy: e.remainingAmountJpy.toString(),
+    })),
+  );
+
   const nisaQuota = calculateNisaQuotaUsage(
     investmentTrades.map((t) => ({
       type: t.type,
@@ -124,8 +161,10 @@ export async function buildYearReport(year: number): Promise<{
     crypto,
     cryptoMargin,
     investment,
+    futures,
     cryptoCostMethod: taxYear.cryptoCostMethod,
     lossCarryforward,
+    futuresLossCarryforward,
     nisaQuota,
   };
 }

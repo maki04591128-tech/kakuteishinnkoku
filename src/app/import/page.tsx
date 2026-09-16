@@ -2,7 +2,9 @@ import Link from "next/link";
 import {
   addCryptoMarginTrade,
   addCryptoTrade,
+  addFuturesTrade,
   addInvestmentTrade,
+  carryForwardFuturesLoss,
   carryForwardInvestmentLoss,
   carryForwardOpeningBalances,
   deleteAssetBalanceImportBatch,
@@ -12,6 +14,8 @@ import {
   deleteCryptoTrade,
   deleteForeignTaxCreditCarryforward,
   deleteForeignTaxCreditSpareLimitCarryforward,
+  deleteFuturesLossCarryforward,
+  deleteFuturesTrade,
   deleteInvestmentTrade,
   deleteLossCarryforward,
   deleteOpeningBalance,
@@ -25,6 +29,7 @@ import {
   setCryptoCostMethod,
   setForeignTaxCreditCarryforward,
   setForeignTaxCreditSpareLimitCarryforward,
+  setFuturesLossCarryforward,
   setLossCarryforward,
   setOpeningBalance,
 } from "@/app/actions";
@@ -67,6 +72,7 @@ export default async function ImportPage({
     skipped?: string;
     carried?: string;
     lossCarried?: string;
+    futuresLossCarried?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -77,8 +83,10 @@ export default async function ImportPage({
     cryptoTrades,
     cryptoMarginTrades,
     investmentTrades,
+    futuresTrades,
     openingBalances,
     lossCarryforwards,
+    futuresLossCarryforwards,
     foreignTaxCreditCarryforwards,
     foreignTaxCreditSpareLimitCarryforwards,
     brokerAnnualReports,
@@ -98,11 +106,19 @@ export default async function ImportPage({
       where: { taxYearId: taxYear.id },
       orderBy: { tradedAt: "desc" },
     }),
+    prisma.futuresTrade.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { settledAt: "desc" },
+    }),
     prisma.openingBalance.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
     }),
     prisma.investmentLossCarryforward.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { originYear: "asc" },
+    }),
+    prisma.futuresLossCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
     }),
@@ -1156,6 +1172,12 @@ export default async function ImportPage({
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="mb-3 text-lg font-semibold">株式・投資信託等の取引を追加</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          FX(店頭外国為替証拠金取引)・先物・CFD等は「先物取引に係る雑所得等」
+          として本区分(上場株式等の譲渡所得)とは別の申告分離課税・別の繰越控除
+          プールになるため、下の「先物取引・FX(先物取引に係る雑所得等)」の
+          セクションに登録すること。
+        </p>
         <form action={addInvestmentTrade} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <input type="hidden" name="year" value={year} />
           <Field label="取引日時">
@@ -1173,7 +1195,6 @@ export default async function ImportPage({
               <option value="ETF">ETF</option>
               <option value="MUTUAL_FUND">投資信託</option>
               <option value="BOND">債券</option>
-              <option value="FX">FX</option>
               <option value="OTHER">その他</option>
             </select>
           </Field>
@@ -1282,6 +1303,220 @@ export default async function ImportPage({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">
+          先物取引・FX(先物取引に係る雑所得等)
+        </h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          FX(店頭外国為替証拠金取引)・先物・CFD等の決済損益は、所得税法上
+          「先物取引に係る雑所得等」として、上場株式等の譲渡所得(暗号資産の
+          雑所得)とは別区分の申告分離課税(一律20.315%)の対象になる。
+          上場株式等の譲渡損失とは損益通算できず、繰越控除(3年間)も
+          別プールで管理されるため、上の「株式・投資信託等の取引を追加」とは
+          別にここへ登録する。暗号資産の証拠金取引と同様、数量×単価による
+          取得費の積み上げは行わず、建玉の決済(反対売買・差金決済)のたびに
+          確定する損益をそのまま合算する。CSV取り込みは未対応(今後の課題)。
+        </p>
+
+        <form action={addFuturesTrade} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <input type="hidden" name="year" value={year} />
+          <Field label="決済日時">
+            <input type="datetime-local" name="settledAt" required className={inputClass} />
+          </Field>
+          <Field label="銘柄・通貨ペア">
+            <input type="text" name="symbol" placeholder="USD/JPY" required className={inputClass} />
+          </Field>
+          <Field label="決済損益(円・損失は負の値)">
+            <input type="number" step="any" name="realizedPnlJpy" required className={inputClass} />
+          </Field>
+          <Field label="手数料(円)">
+            <input type="number" step="any" name="feeJpy" defaultValue={0} className={inputClass} />
+          </Field>
+          <Field label="スワップポイント等(円)">
+            <input type="number" step="any" name="swapJpy" defaultValue={0} className={inputClass} />
+          </Field>
+          <Field label="取引業者">
+            <input type="text" name="broker" className={inputClass} />
+          </Field>
+          <Field label="メモ">
+            <input type="text" name="memo" className={inputClass} />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              追加
+            </button>
+          </div>
+        </form>
+
+        {futuresTrades.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["決済日時", "銘柄", "決済損益", "手数料", "スワップ", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {futuresTrades.map((t) => (
+                  <tr key={t.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{dateInputValue(t.settledAt)}</td>
+                    <td className="px-3 py-2">{t.symbol}</td>
+                    <td className="px-3 py-2">{yen(t.realizedPnlJpy)}</td>
+                    <td className="px-3 py-2">{yen(t.feeJpy)}</td>
+                    <td className="px-3 py-2">{yen(t.swapJpy)}</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteFuturesTrade}>
+                        <input type="hidden" name="id" value={t.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {yearReport && !yearReport.futures.totalRealizedGainJpy.isZero() && (
+          <p className="mt-4 rounded-md bg-neutral-50 p-3 text-sm dark:bg-neutral-900">
+            {year}年分 先物取引に係る雑所得等の金額(繰越控除適用前):{" "}
+            {yen(yearReport.futures.totalRealizedGainJpy)}
+          </p>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">
+          先物取引に係る雑所得等の繰越控除(3年間)
+        </h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          確定申告により繰越控除の適用を受けたFX・先物・CFD等の損失は、発生した
+          年の翌年以後3年間、先物取引に係る雑所得等の金額から控除できる
+          (上場株式等の譲渡損失・暗号資産の損失とはプールが異なり流用できない)。
+          ここでは発生年ごとに、{year}年初時点でまだ使い切っていない繰越損失の
+          残高を登録する(過去の申告書「先物取引に係る雑所得等の金額の計算明細書」・
+          第四表を参照)。控除は発生年の古いものから優先して適用される。
+        </p>
+
+        {params.futuresLossCarried !== undefined && (
+          <p className="mb-3 rounded-md bg-green-50 px-4 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+            {Number(params.futuresLossCarried) > 0
+              ? `${params.futuresLossCarried}件の繰越損失を${year - 1}年分の計算結果から繰り越しました。`
+              : `${year - 1}年分からの繰越候補はありませんでした(既に登録済みか、繰り越す損失がありません)。`}
+          </p>
+        )}
+
+        <form action={carryForwardFuturesLoss} className="mb-5">
+          <input type="hidden" name="year" value={year} />
+          <button
+            type="submit"
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            {year - 1}年分の計算結果から自動で繰り越す
+          </button>
+        </form>
+
+        <form
+          action={setFuturesLossCarryforward}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="損失の発生年">
+            <input
+              type="number"
+              name="originYear"
+              defaultValue={year - 1}
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label={`${year}年初時点の残高(円)`}>
+            <input
+              type="number"
+              step="any"
+              name="remainingAmountJpy"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              登録・更新
+            </button>
+          </div>
+        </form>
+
+        {futuresLossCarryforwards.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["発生年", `${year}年初残高`, "控除期限", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {futuresLossCarryforwards.map((l) => (
+                  <tr key={l.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{l.originYear}年分</td>
+                    <td className="px-3 py-2">{yen(l.remainingAmountJpy)}</td>
+                    <td className="px-3 py-2">{l.originYear + 3}年分まで</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteFuturesLossCarryforward}>
+                        <input type="hidden" name="id" value={l.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {yearReport && (
+          <div className="mt-5 rounded-md bg-neutral-50 p-4 text-sm dark:bg-neutral-900">
+            <p>
+              {year}年分 先物取引に係る雑所得等(繰越控除前):{" "}
+              {yen(yearReport.futuresLossCarryforward.grossRealizedGainJpy)}
+            </p>
+            <p>繰越控除の使用額: {yen(yearReport.futuresLossCarryforward.totalUsedJpy)}</p>
+            <p>
+              控除後の課税対象額: {yen(yearReport.futuresLossCarryforward.taxableGainJpy)}
+            </p>
+            {yearReport.futuresLossCarryforward.newLossJpy.greaterThan(0) && (
+              <p>
+                {year}年分の新規損失(翌年以後3年間繰越可能):{" "}
+                {yen(yearReport.futuresLossCarryforward.newLossJpy)}
+              </p>
+            )}
+            {yearReport.futuresLossCarryforward.expiredByOriginYear.length > 0 && (
+              <p className="text-red-600">
+                控除期限切れで繰り越せなかった損失があります:{" "}
+                {yearReport.futuresLossCarryforward.expiredByOriginYear
+                  .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
+                  .join(" / ")}
+              </p>
+            )}
           </div>
         )}
       </section>

@@ -29,10 +29,12 @@ model TaxYear {
 
   cryptoTrades                            CryptoTrade[]
   cryptoMarginTrades                      CryptoMarginTrade[]
+  futuresTrades                           FuturesTrade[]
   investmentTrades                        InvestmentTrade[]
   importBatches                           ImportBatch[]
   openingBalances                         OpeningBalance[]
   investmentLossCarryforwards             InvestmentLossCarryforward[]
+  futuresLossCarryforwards                FuturesLossCarryforward[]
   brokerAnnualReports                     BrokerAnnualReport[]
   assetBalanceSnapshots                   AssetBalanceSnapshot[]
   foreignTaxCreditCarryforwards           ForeignTaxCreditCarryforward[]
@@ -88,6 +90,31 @@ enum OpeningBalanceAssetClass {
 /// 当年の譲渡益から控除し、期限(発生年+3年)を超えた分は自動的に無効とする。
 /// 暗号資産の損失(雑所得)は他の所得と損益通算・繰越ができないため対象外。
 model InvestmentLossCarryforward {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 損失が発生した年(暦年)
+  originYear Int
+
+  /// taxYearId の年初時点で残っている繰越控除可能な損失額
+  remainingAmountJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, originYear])
+}
+
+/// FX・先物・CFD等(「先物取引に係る雑所得等」)の損失の繰越控除(3年間)。
+/// InvestmentLossCarryforwardと同じ制度(発生年の翌年以後3年間、同区分の所得
+/// からのみ控除可能)だが、上場株式等の譲渡所得とはプールが完全に分かれており
+/// 相互に流用できないため、別テーブルとして保持する。taxYearId の年初時点で
+/// まだ使い切っていない残高を発生年(originYear)ごとに保持し、計算エンジン側
+/// (src/lib/investment/lossCarryforward.ts の calculateLossCarryforward を
+/// FuturesTrade分に対して再利用する)で発生年の古い順に当年の損益から控除し、
+/// 期限(発生年+3年)を超えた分は自動的に無効とする。
+model FuturesLossCarryforward {
   id        Int     @id @default(autoincrement())
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
@@ -254,6 +281,51 @@ model CryptoMarginTrade {
   @@index([settledAt])
 }
 
+/// FX(店頭外国為替証拠金取引)・先物・CFD等の決済損益。所得税法上「先物取引に
+/// 係る雑所得等」として、上場株式等の譲渡所得(InvestmentTrade)や暗号資産の
+/// 雑所得(CryptoTrade/CryptoMarginTrade)とは別区分の申告分離課税
+/// (一律20.315%)の対象になり、損益通算・繰越控除も他の所得区分とは
+/// プールを分けて計算しなければならない。CryptoMarginTradeと同様、建玉の
+/// 決済(反対売買・差金決済)のたびに確定する損益をそのまま合算するだけの
+/// シンプルなモデルとして保持する(数量×単価による取得費の積み上げは行わない)。
+model FuturesTrade {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 決済日時(反対売買・差金決済が成立した日時)
+  settledAt DateTime
+
+  /// 銘柄・通貨ペア名 (例: USD/JPY, 日経225先物)
+  symbol String
+
+  /// 決済損益(円)。建玉を閉じた際の損益で、損失の場合は負の値。
+  realizedPnlJpy Decimal
+
+  /// 取引手数料(円。決済損益から差し引く)
+  feeJpy Decimal @default(0)
+
+  /// スワップポイント等(円。FXのみ発生。損益に加算する。費用の場合は負の値)
+  swapJpy Decimal @default(0)
+
+  /// 取引業者名
+  broker String?
+
+  memo String?
+
+  /// インポート元(手動 / csv など)
+  source String @default("manual")
+
+  importBatchId Int?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taxYearId, symbol])
+  @@index([settledAt])
+}
+
 /// 株式・投資信託・ETF等の売買履歴。
 /// 特定口座(源泉徴収あり/なし)・一般口座・NISA区分を保持し、
 /// 譲渡所得(申告分離課税)の計算に使う。
@@ -323,7 +395,6 @@ enum InvestmentAssetType {
   ETF
   MUTUAL_FUND
   BOND
-  FX
   OTHER
 }
 
@@ -399,6 +470,7 @@ model ImportBatch {
 
   cryptoTrades          CryptoTrade[]
   cryptoMarginTrades    CryptoMarginTrade[]
+  futuresTrades         FuturesTrade[]
   investmentTrades      InvestmentTrade[]
   cashflowEntries       CashflowEntry[]
   assetBalanceSnapshots AssetBalanceSnapshot[]

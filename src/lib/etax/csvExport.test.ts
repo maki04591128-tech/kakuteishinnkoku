@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { calculateCryptoPortfolioYear } from "../crypto/calculator";
 import { calculateCryptoMarginPortfolioYear } from "../crypto/marginCalculator";
 import { calculateInvestmentPortfolioYear } from "../investment/calculator";
+import { calculateFuturesPortfolioYear } from "../investment/futuresIncome";
+import { calculateLossCarryforward } from "../investment/lossCarryforward";
 import { buildTaxFilingDraftCsv } from "./csvExport";
 import { buildTaxFilingSummary } from "./summary";
 
@@ -64,6 +66,60 @@ describe("buildTaxFilingDraftCsv", () => {
     expect(csv).toContain("699000"); // 合算後の雑所得
     expect(csv).toContain("199000"); // 証拠金取引分の内訳
     expect(csv).toContain("証拠金(レバレッジ)取引");
+  });
+
+  it("先物取引に係る雑所得等(FX・先物)を株式等の譲渡所得とは別区分で出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([
+      {
+        symbol: "7203",
+        tradedAt: new Date("2026-01-01"),
+        type: "BUY",
+        quantity: 100,
+        unitPriceJpy: 2000,
+      },
+      {
+        symbol: "7203",
+        tradedAt: new Date("2026-06-01"),
+        type: "SELL",
+        quantity: 100,
+        unitPriceJpy: 2500,
+      },
+    ]);
+    const futures = calculateFuturesPortfolioYear([
+      { symbol: "USD/JPY", realizedPnlJpy: 300_000, feeJpy: 1_000 },
+    ]);
+    const futuresLossCarryforward = calculateLossCarryforward(
+      2026,
+      futures.totalRealizedGainJpy,
+      [],
+    );
+
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined,
+      undefined,
+      futures,
+      futuresLossCarryforward,
+    );
+    // 株式等の譲渡所得(50,000円)とFX等の雑所得(299,000円)が混ざらないこと
+    expect(summary.investmentCapitalGainJpy.toNumber()).toBe(50_000);
+    expect(summary.futuresLossCarryforward.taxableGainJpy.toNumber()).toBe(299_000);
+
+    const csv = buildTaxFilingDraftCsv(
+      summary,
+      crypto.bySymbol,
+      investment.bySymbol,
+      "AVERAGE",
+      [],
+      futures.bySymbol,
+    );
+
+    expect(csv).toContain("先物取引に係る雑所得等");
+    expect(csv).toContain("299000");
+    expect(csv).toContain("USD/JPY");
   });
 
   it("カンマを含む値を正しくクォートする", () => {
