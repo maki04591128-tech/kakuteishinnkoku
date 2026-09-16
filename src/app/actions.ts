@@ -11,6 +11,7 @@ import {
   type ExchangeCsvPreset,
 } from "@/lib/crypto/exchangeCsv";
 import { parseCryptoMarginCsv, type MarginCsvMapping } from "@/lib/crypto/marginCsv";
+import { parseFuturesCsv, type FuturesCsvMapping } from "@/lib/investment/futuresCsv";
 import {
   parseMoneyForwardAssetBalanceCsv,
   type AssetBalanceCsvMapping,
@@ -400,6 +401,63 @@ export async function deleteFuturesTrade(formData: FormData): Promise<void> {
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=futures`);
+}
+
+export async function importFuturesCsv(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const brokerLabel = optionalString(formData, "brokerName");
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("CSVファイルを選択してください");
+  }
+
+  const text = await decodeCsvFile(file);
+  const { rows, skippedRows } = parseFuturesCsv(text, {
+    dateColumn: requireString(formData, "dateColumn"),
+    symbolColumn: requireString(formData, "symbolColumn"),
+    pnlColumn: requireString(formData, "pnlColumn"),
+    feeColumn: optionalString(formData, "feeColumn") ?? undefined,
+    swapColumn: optionalString(formData, "swapColumn") ?? undefined,
+  } satisfies FuturesCsvMapping);
+
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.$transaction(async (tx) => {
+    const batch = await tx.importBatch.create({
+      data: {
+        taxYearId: taxYear.id,
+        sourceType: "futures_csv",
+        fileName: file.name,
+        rowCount: rows.length,
+      },
+    });
+
+    if (rows.length > 0) {
+      await tx.futuresTrade.createMany({
+        data: rows.map((row) => ({
+          taxYearId: taxYear.id,
+          settledAt: row.settledAt,
+          symbol: row.symbol,
+          realizedPnlJpy: row.realizedPnlJpy.toString(),
+          feeJpy: row.feeJpy.toString(),
+          swapJpy: row.swapJpy.toString(),
+          broker: brokerLabel,
+          source: "futures_csv:manual",
+          importBatchId: batch.id,
+        })),
+      });
+    }
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+
+  if (skippedRows.length > 0) {
+    redirect(
+      `/import?year=${year}&tab=futures&imported=${rows.length}&skipped=${skippedRows.length}`,
+    );
+  }
+  redirect(`/import?year=${year}&tab=futures&imported=${rows.length}`);
 }
 
 export async function setFuturesLossCarryforward(formData: FormData): Promise<void> {
