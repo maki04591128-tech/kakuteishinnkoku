@@ -266,6 +266,16 @@ CSV取り込みにも対応する。ダッシュボードの「雑所得(暗号�
 
 ### 完了済み
 
+- **CSV取り込みのShift_JIS(CP932)対応**(`src/lib/csv.ts`の`decodeCsvFile`/
+  `decodeCsvBuffer`)。マネーフォワードの一部エクスポートや証券会社の
+  年間取引報告書CSV等、日本の金融系サービスにはShift_JISでCSVを出力する
+  ものが珍しくない。これまでは`File.text()`で常にUTF-8として読んでいたため、
+  Shift_JISのCSVを取り込むと文字化けしてヘッダー名が一致せず「必須カラムが
+  見つからない」等のエラーになっていた。まずUTF-8として厳密デコードを試み、
+  不正なバイト列で失敗した場合のみShift_JISとして読み直すことで、
+  ファイル形式を意識せずに取り込めるようにした(暗号資産取引所CSV・
+  マネーフォワードCSV・証券会社年間取引報告書CSV・資産残高CSV・証拠金
+  取引CSVの全ての取り込み経路に適用)。
 - **暗号資産取引所CSV手動マッピングの自動認識フォールバック**
   (`src/lib/crypto/exchangeCsv.ts`の`parseAutoDetectedExchangeCsv`)。
   既存プリセット(bitFlyer/Coincheck/GMOコイン/bitbank)に一致しない

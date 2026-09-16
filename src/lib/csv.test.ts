@@ -1,5 +1,6 @@
+import * as iconv from "iconv-lite";
 import { describe, expect, it } from "vitest";
-import { parseCsvRows } from "./csv";
+import { decodeCsvBuffer, parseCsvRows } from "./csv";
 
 describe("parseCsvRows", () => {
   it("単純なカンマ区切り行を分解する", () => {
@@ -33,5 +34,27 @@ describe("parseCsvRows", () => {
       ["a", "b"],
       ["c", "d"],
     ]);
+  });
+});
+
+describe("decodeCsvBuffer", () => {
+  it("UTF-8のバイト列をそのままデコードする", () => {
+    const text = "日付,銘柄\n2026/01/01,BTC";
+    const buffer = new TextEncoder().encode(text).buffer;
+    expect(decodeCsvBuffer(buffer)).toBe(text);
+  });
+
+  it("Shift_JIS(CP932)のバイト列を検出してデコードする", () => {
+    const text = "日付,銘柄,数量\n2026/01/01,ビットコイン,1.5";
+    const sjisBuffer = iconv.encode(text, "Shift_JIS");
+    const arrayBuffer = new Uint8Array(sjisBuffer).buffer;
+    expect(decodeCsvBuffer(arrayBuffer)).toBe(text);
+  });
+
+  it("UTF-8のBOM付きファイルもデコードできる(BOMはTextDecoderにより除去される)", () => {
+    const text = "日付,銘柄\n2026/01/01,BTC";
+    const withBom = "﻿" + text;
+    const buffer = new TextEncoder().encode(withBom).buffer;
+    expect(decodeCsvBuffer(buffer)).toBe(text);
   });
 });

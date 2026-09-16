@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
   parseExchangeCsv,
@@ -82,7 +83,7 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
     throw new Error("CSVファイルを選択してください");
   }
 
-  const text = await file.text();
+  const text = await decodeCsvFile(file);
   const { rows, skippedRows } = parseMoneyForwardCashflowCsv(text);
 
   const taxYear = await getOrCreateTaxYear(year);
@@ -137,7 +138,7 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
     throw new Error("CSVファイルを選択してください");
   }
 
-  const text = await file.text();
+  const text = await decodeCsvFile(file);
   const hasManualMapping = [
     "dateColumn",
     "symbolColumn",
@@ -308,7 +309,7 @@ export async function importCryptoMarginCsv(formData: FormData): Promise<void> {
     throw new Error("CSVファイルを選択してください");
   }
 
-  const text = await file.text();
+  const text = await decodeCsvFile(file);
   const { rows, skippedRows } = parseCryptoMarginCsv(text, {
     dateColumn: requireString(formData, "dateColumn"),
     symbolColumn: requireString(formData, "symbolColumn"),
@@ -421,7 +422,7 @@ export async function importBrokerAnnualReportCsv(formData: FormData): Promise<v
     dividendColumn: optionalString(formData, "dividendColumn") ?? undefined,
   };
 
-  const text = await file.text();
+  const text = await decodeCsvFile(file);
   const { rows, skippedRows } = parseBrokerAnnualReportCsv(text, mapping);
 
   const taxYear = await getOrCreateTaxYear(year);
@@ -625,7 +626,7 @@ export async function importAssetBalanceCsv(formData: FormData): Promise<void> {
     throw new Error("CSVファイルを選択してください");
   }
 
-  const text = await file.text();
+  const text = await decodeCsvFile(file);
   const { rows, skippedRows } = parseMoneyForwardAssetBalanceCsv(text, {
     institutionColumn: requireString(formData, "institutionColumn"),
     assetNameColumn: requireString(formData, "assetNameColumn"),
