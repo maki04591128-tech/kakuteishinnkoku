@@ -75,8 +75,12 @@ export default async function Home({
         />
         <SummaryCard
           title="譲渡所得(株式等)"
-          value={summary ? yen(summary.investmentCapitalGainJpy) : "¥0"}
-          hint="移動平均法・課税口座分・申告分離課税"
+          value={summary ? yen(summary.investmentLossCarryforward.taxableGainJpy) : "¥0"}
+          hint={
+            summary && summary.investmentLossCarryforward.totalUsedJpy.greaterThan(0)
+              ? `繰越損失控除${yen(summary.investmentLossCarryforward.totalUsedJpy)}適用後・課税口座分・申告分離課税`
+              : "移動平均法・課税口座分・申告分離課税"
+          }
         />
         <SummaryCard
           title="配当所得"
@@ -129,6 +133,24 @@ export default async function Home({
           </button>
         </form>
       </section>
+
+      {summary && summary.investmentLossCarryforward.newLossJpy.greaterThan(0) && (
+        <p className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          {year}年分は上場株式等の譲渡損失が
+          {yen(summary.investmentLossCarryforward.newLossJpy)}発生しています。
+          確定申告で繰越控除の適用を受ける場合は申告書第四表の提出を忘れずに行い、
+          「データを取り込む」の繰越控除セクションから翌年分に繰り越してください。
+        </p>
+      )}
+
+      {summary && summary.investmentLossCarryforward.expiredByOriginYear.length > 0 && (
+        <p className="rounded-md border border-dashed border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+          控除期限(3年)を超えて繰り越せなかった譲渡損失があります:{" "}
+          {summary.investmentLossCarryforward.expiredByOriginYear
+            .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
+            .join(" / ")}
+        </p>
+      )}
 
       {report && report.crypto.bySymbol.length > 0 && (
         <DetailTable
