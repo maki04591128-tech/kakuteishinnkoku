@@ -2,6 +2,8 @@ import Link from "next/link";
 import { buildYearReport } from "@/lib/reporting";
 import { buildTaxFilingSummary } from "@/lib/etax/summary";
 import { listTaxYears } from "@/lib/taxYear";
+import { isAuthEnabled } from "@/lib/auth/session";
+import { logout } from "./login/actions";
 import { setCryptoCostMethod } from "./actions";
 
 const CRYPTO_COST_METHOD_LABEL: Record<string, string> = {
@@ -73,6 +75,16 @@ export default async function Home({
             表示
           </button>
         </form>
+        {isAuthEnabled() && (
+          <form action={logout}>
+            <button
+              type="submit"
+              className="text-sm text-neutral-500 hover:underline"
+            >
+              ログアウト
+            </button>
+          </form>
+        )}
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
