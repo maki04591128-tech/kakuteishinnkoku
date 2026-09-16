@@ -141,7 +141,7 @@ export default async function ImportPage({
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSVの取り込み</h2>
         <p className="mb-3 text-sm text-neutral-500">
-          bitFlyer・Coincheck・GMOコイン等、取引所からダウンロードした取引履歴CSVを
+          bitFlyer・Coincheck・GMOコイン・bitbank等、取引所からダウンロードした取引履歴CSVを
           取り込めます。既知の取引所はプリセットで取り込めますが、列見出しが一致しない
           場合やその他の取引所CSVは、下のマッピング欄にCSVのヘッダー名を入力してください。
           入出金や証拠金取引、税務上の性質が一意に決まらない明細は自動では取り込まず

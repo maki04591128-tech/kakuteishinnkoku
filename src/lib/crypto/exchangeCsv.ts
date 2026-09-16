@@ -18,22 +18,31 @@ import type { CryptoTradeType } from "./calculator";
  *  - bitflyer: bitFlyer「お取引レポート」現物取引履歴CSV
  *  - coincheck: Coincheckの「業界標準フォーマット」CSV(JCBA参考フォーマット準拠)
  *  - gmo: GMOコイン取引履歴CSV(現物取引の行のみ。証拠金取引・入出金行は対象外)
+ *  - bitbank: bitbank「約定履歴」CSV(現物取引の行のみ。信用取引行は対象外)
  *  - other: 手動マッピング専用
+ *
+ * DMM Bitcoin/SBI VCトレードの取引報告書CSV(TRADE_RECORD_LIST)は証拠金
+ * (レバレッジ)取引専用で、決済時の「建玉損益」を課税所得とする方式のため、
+ * 本ツールの現物取引モデル(数量×単価で取得費を積み上げる総平均法/移動平均法)
+ * にはそのまま当てはめられない。誤った損益計算を避けるため現時点では未対応とし、
+ * 別方式での対応を今後検討する(README「ロードマップ」参照)。
  */
 
-export type ExchangeCsvPreset = "bitflyer" | "coincheck" | "gmo" | "other";
+export type ExchangeCsvPreset = "bitflyer" | "coincheck" | "gmo" | "bitbank" | "other";
 type KnownExchangeCsvPreset = Exclude<ExchangeCsvPreset, "other">;
 
 export const EXCHANGE_CSV_PRESETS: { value: KnownExchangeCsvPreset; label: string }[] = [
   { value: "bitflyer", label: "bitFlyer(現物取引履歴CSV)" },
   { value: "coincheck", label: "Coincheck(業界標準フォーマットCSV)" },
   { value: "gmo", label: "GMOコイン(取引履歴CSV・現物のみ)" },
+  { value: "bitbank", label: "bitbank(約定履歴CSV・現物のみ)" },
 ];
 
 const EXCHANGE_LABELS: Record<KnownExchangeCsvPreset, string> = {
   bitflyer: "bitFlyer",
   coincheck: "Coincheck",
   gmo: "GMOコイン",
+  bitbank: "bitbank",
 };
 
 export interface ExchangeCsvMapping {
@@ -146,6 +155,7 @@ const NON_TRADE_VALUES = new Set([
 const BITFLYER_REQUIRED = ["取引日時", "取引種別", "通貨1", "通貨1数量", "取引価格"];
 const COINCHECK_REQUIRED = ["取引日時", "増加通貨名", "減少通貨名"];
 const GMO_REQUIRED = ["日時", "取引区分", "銘柄名", "売買区分", "約定数量", "約定レート"];
+const BITBANK_REQUIRED = ["取引日時", "通貨ペア", "現物/信用", "売/買", "数量", "価格"];
 
 function isKnownExchangeCsvPreset(preset: ExchangeCsvPreset): preset is KnownExchangeCsvPreset {
   return preset in EXCHANGE_LABELS;
@@ -233,6 +243,8 @@ export function parseExchangeCsv(
         return parseCoincheckCsv(arg2);
       case "gmo":
         return parseGmoCoinCsv(arg2);
+      case "bitbank":
+        return parseBitbankCsv(arg2);
     }
   }
   return parseMappedExchangeCsv(arg1, arg2);
@@ -738,6 +750,90 @@ function parseGmoCoinCsv(csvText: string): ExchangeCsvParseResult {
       unitPriceJpy: new Decimal(priceStr).abs(),
       feeJpy: feeStr ? new Decimal(feeStr).abs() : new Decimal(0),
       exchange: EXCHANGE_LABELS.gmo,
+      memo: null,
+    });
+  }
+
+  return { rows, skippedRows };
+}
+
+/**
+ * bitbank「約定履歴」CSV(ファイル名例: user_spot_trades_*.csv)のパーサー。
+ *
+ * ヘッダー: 注文id,取引id,通貨ペア,現物/信用,タイプ,売/買,数量,価格,実現損益,
+ *           発生手数料,実現手数料,実現利息,m/t,取引日時
+ *
+ * 「現物/信用」が"現物"の行のみを対象にし、信用取引(レバレッジ)行は対象外とする。
+ * 手数料(発生手数料)はメイカー報酬で負値になることがあるため、負値は0円として扱う
+ * (メイカー報酬は本来雑所得の収入になるが、金額が小さく複雑になるため現状は
+ * 手動での追加調整を前提とする)。
+ */
+function parseBitbankCsv(csvText: string): ExchangeCsvParseResult {
+  const csvRows = parseCsvRows(csvText);
+  if (csvRows.length === 0) return { rows: [], skippedRows: [] };
+
+  const index = buildHeaderIndex(csvRows[0]);
+  const missing = BITBANK_REQUIRED.filter((h) => !index.has(h));
+  if (missing.length > 0) {
+    throw new Error(
+      `bitbankの約定履歴CSV形式として認識できませんでした。不足しているカラム: ${missing.join(", ")}`,
+    );
+  }
+
+  const rows: ExchangeCsvRow[] = [];
+  const skippedRows: ExchangeCsvSkip[] = [];
+
+  for (let i = 1; i < csvRows.length; i++) {
+    const cols = csvRows[i];
+    const lineNumber = i + 1;
+    const get = (h: string) => cell(cols, index, h);
+
+    const category = get("現物/信用") ?? "";
+    if (category !== "現物") {
+      skippedRows.push({
+        lineNumber,
+        reason: `現物取引以外(信用取引等)のため対象外です: "${category || "(空欄)"}"`,
+      });
+      continue;
+    }
+
+    const side = get("売/買") ?? "";
+    let type: CryptoTradeType;
+    if (side.includes("買")) {
+      type = "BUY";
+    } else if (side.includes("売")) {
+      type = "SELL";
+    } else {
+      skippedRows.push({ lineNumber, reason: `売買区分を解釈できません: "${side}"` });
+      continue;
+    }
+
+    const symbol = (get("通貨ペア") ?? "").toUpperCase().replace(/[-_/]?JPY$/i, "");
+    const quantityStr = normalizeNumericString(get("数量"));
+    const priceStr = normalizeNumericString(get("価格"));
+    const tradedAt = parseFlexibleDate(get("取引日時"));
+    if (!symbol || !quantityStr || !priceStr || !tradedAt) {
+      skippedRows.push({ lineNumber, reason: "日時・通貨ペア・数量・価格のいずれかを解釈できません" });
+      continue;
+    }
+
+    const quantity = new Decimal(quantityStr).abs();
+    if (quantity.isZero()) {
+      skippedRows.push({ lineNumber, reason: "数量が0です" });
+      continue;
+    }
+
+    const feeStr = normalizeNumericString(get("発生手数料"));
+    const fee = feeStr ? new Decimal(feeStr) : new Decimal(0);
+
+    rows.push({
+      tradedAt,
+      symbol,
+      type,
+      quantity,
+      unitPriceJpy: new Decimal(priceStr).abs(),
+      feeJpy: fee.isPositive() ? fee : new Decimal(0),
+      exchange: EXCHANGE_LABELS.bitbank,
       memo: null,
     });
   }
