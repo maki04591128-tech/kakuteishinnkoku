@@ -9,6 +9,10 @@ import {
   type InvestmentPortfolioYearResult,
 } from "./investment/calculator";
 import {
+  calculateLossCarryforward,
+  type LossCarryforwardResult,
+} from "./investment/lossCarryforward";
+import {
   deriveCarryForwardCandidates,
   loadOpeningBalances,
   type CarryForwardCandidate,
@@ -27,6 +31,7 @@ export async function buildYearReport(year: number): Promise<{
   crypto: CryptoPortfolioYearResult;
   investment: InvestmentPortfolioYearResult;
   cryptoCostMethod: CryptoCostMethod;
+  lossCarryforward: LossCarryforwardResult;
 } | null> {
   const taxYear = await prisma.taxYear.findUnique({ where: { year } });
   if (!taxYear) {
@@ -34,14 +39,19 @@ export async function buildYearReport(year: number): Promise<{
       crypto: calculateCryptoPortfolioYearByMethod("AVERAGE", []),
       investment: calculateInvestmentPortfolioYear([]),
       cryptoCostMethod: "AVERAGE",
+      lossCarryforward: calculateLossCarryforward(year, 0, []),
     };
   }
 
-  const [cryptoTrades, investmentTrades, openings] = await Promise.all([
-    prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
-    prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
-    loadOpeningBalances(taxYear.id),
-  ]);
+  const [cryptoTrades, investmentTrades, openings, lossCarryforwardEntries] =
+    await Promise.all([
+      prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
+      prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
+      loadOpeningBalances(taxYear.id),
+      prisma.investmentLossCarryforward.findMany({
+        where: { taxYearId: taxYear.id },
+      }),
+    ]);
 
   const crypto = calculateCryptoPortfolioYearByMethod(
     taxYear.cryptoCostMethod,
@@ -70,7 +80,21 @@ export async function buildYearReport(year: number): Promise<{
     openings.investmentNisa,
   );
 
-  return { crypto, investment, cryptoCostMethod: taxYear.cryptoCostMethod };
+  const lossCarryforward = calculateLossCarryforward(
+    year,
+    investment.totalRealizedGainJpy,
+    lossCarryforwardEntries.map((e) => ({
+      originYear: e.originYear,
+      remainingAmountJpy: e.remainingAmountJpy.toString(),
+    })),
+  );
+
+  return {
+    crypto,
+    investment,
+    cryptoCostMethod: taxYear.cryptoCostMethod,
+    lossCarryforward,
+  };
 }
 
 /**
