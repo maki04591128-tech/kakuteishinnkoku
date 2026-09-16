@@ -358,6 +358,24 @@ enum CashflowDirection {
   EXPENSE
 }
 
+/// マネーフォワードの資産名(例:「ビットコイン」)とアプリ側の銘柄シンボル
+/// (例:「BTC」。CryptoTrade.symbol / InvestmentTrade.symbol と対応)の
+/// 対応表。資産残高突合(assetBalanceReconciliation.ts)で、金融機関単位の
+/// 突合に加えて銘柄単位での突合まで踏み込むために使う。対応関係は年をまたいで
+/// 変わらないマスタデータのため、TaxYearには紐付けない全年共通のテーブルとする。
+model AssetSymbolMapping {
+  id Int @id @default(autoincrement())
+
+  /// マネーフォワード側の資産名表記(完全一致で対応付ける)
+  assetName String @unique
+
+  /// アプリ側の銘柄シンボル・銘柄コード
+  symbol String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// マネーフォワード ME の「資産の内訳」CSVから取り込んだ、ある時点の
 /// 金融機関・資産別の残高(評価額)。損益計算そのものには使わず、アプリに
 /// 登録済みの暗号資産・投資取引の金融機関(CryptoTrade.exchange /
