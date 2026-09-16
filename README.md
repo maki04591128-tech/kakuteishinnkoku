@@ -166,6 +166,7 @@ bitFlyer(現物取引履歴CSV)・Coincheck(業界標準フォーマットCSV)�
   `src/lib/investment/lossCarryforward.ts`・`/import`の繰越控除セクション・
   「前年分の計算結果から自動で繰り越す」ボタン)。ダッシュボードと下書きCSVの
   譲渡所得表示にも控除後の課税対象額を反映した。
+- **暗号資産取引所(bitFlyer/Coincheck/GMOコイン)のCSV取り込み**。
 
 ## 免責事項
 

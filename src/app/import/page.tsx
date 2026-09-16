@@ -147,10 +147,7 @@ export default async function ImportPage({
           CSV仕様変更や列見出しの差異により解釈できない場合があります。取り込み後は
           必ず一覧で内容を確認してください)。
         </p>
-        <form
-          action={importCryptoExchangeCsv}
-          className="flex flex-wrap items-center gap-3"
-        >
+        <form action={importCryptoExchangeCsv} className="flex flex-wrap items-center gap-3">
           <input type="hidden" name="year" value={year} />
           <select name="preset" required className={inputClass} defaultValue="">
             <option value="" disabled>
