@@ -19,6 +19,7 @@ import {
   deleteInvestmentTrade,
   deleteLossCarryforward,
   deleteOpeningBalance,
+  deleteOpeningBalanceByInstitution,
   importAssetBalanceCsv,
   importBrokerAnnualReportCsv,
   importCryptoExchangeCsv,
@@ -33,6 +34,7 @@ import {
   setFuturesLossCarryforward,
   setLossCarryforward,
   setOpeningBalance,
+  setOpeningBalanceByInstitution,
 } from "@/app/actions";
 import { cryptoTradeQuantityDelta } from "@/lib/crypto/calculator";
 import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
@@ -88,6 +90,7 @@ export default async function ImportPage({
     investmentTrades,
     futuresTrades,
     openingBalances,
+    openingBalancesByInstitution,
     lossCarryforwards,
     futuresLossCarryforwards,
     foreignTaxCreditCarryforwards,
@@ -116,6 +119,10 @@ export default async function ImportPage({
     prisma.openingBalance.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
+    }),
+    prisma.openingBalanceByInstitution.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: [{ symbol: "asc" }, { institution: "asc" }],
     }),
     prisma.investmentLossCarryforward.findMany({
       where: { taxYearId: taxYear.id },
@@ -183,7 +190,14 @@ export default async function ImportPage({
         quantityDelta: investmentTradeQuantityDelta(t.type, t.quantity.toString()),
       })),
     ],
-    openingBalances.map((o) => ({ symbol: o.symbol, quantity: o.quantity.toString() })),
+    [
+      ...openingBalances.map((o) => ({ symbol: o.symbol, quantity: o.quantity.toString() })),
+      ...openingBalancesByInstitution.map((o) => ({
+        symbol: o.symbol,
+        quantity: o.quantity.toString(),
+        institution: o.institution,
+      })),
+    ],
   );
 
   const brokerReconciliations = reconcileBrokerAnnualReports(
@@ -462,7 +476,10 @@ export default async function ImportPage({
                           </span>
                         )}
                         {r.quantityCheck.status === "SKIPPED_AMBIGUOUS_OPENING_BALANCE" && (
-                          <span className="rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+                          <span
+                            className="rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
+                            title="下の「期首残高の金融機関別内訳」にこの金融機関×銘柄の期首残高を登録すると判定できるようになります"
+                          >
                             判定不能(期首残高の按分不可)
                           </span>
                         )}
@@ -476,6 +493,89 @@ export default async function ImportPage({
               </table>
             </div>
           )}
+
+          <div className="mt-6 border-t border-dashed border-neutral-200 pt-6 dark:border-neutral-800">
+            <h3 className="mb-2 text-sm font-semibold">
+              期首残高の金融機関別内訳(任意)
+            </h3>
+            <p className="mb-3 text-sm text-neutral-500">
+              同一銘柄を複数の金融機関にまたがって保有している場合、上の
+              「数量突合」は期首残高をどちらに帰属させるべきか判定できず
+              「判定不能(期首残高の按分不可)」になる。その銘柄の期首残高が
+              その金融機関にいくらあったかをここに登録すると、その金融機関に
+              ついては数量突合できるようになる(登録の無い金融機関は引き続き
+              判定不能のまま)。年初時点の「期首残高(前年からの繰越)」欄の
+              銘柄合計とは別管理のため、両方を登録しても矛盾チェックは行わない。
+            </p>
+            <form
+              action={setOpeningBalanceByInstitution}
+              className="mb-4 flex flex-wrap items-end gap-3"
+            >
+              <input type="hidden" name="year" value={year} />
+              <Field label="資産区分">
+                <select name="assetClass" className={inputClass}>
+                  <option value="CRYPTO">暗号資産</option>
+                  <option value="INVESTMENT">株式等</option>
+                </select>
+              </Field>
+              <Field label="銘柄シンボル">
+                <input type="text" name="symbol" required className={inputClass} />
+              </Field>
+              <Field label="金融機関(取引所・証券会社)">
+                <input type="text" name="institution" required className={inputClass} />
+              </Field>
+              <Field label="期首数量">
+                <input
+                  type="text"
+                  name="quantity"
+                  required
+                  inputMode="decimal"
+                  className={inputClass}
+                />
+              </Field>
+              <button
+                type="submit"
+                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+              >
+                登録
+              </button>
+            </form>
+
+            {openingBalancesByInstitution.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-max text-left text-sm">
+                  <thead className="bg-neutral-50 dark:bg-neutral-900">
+                    <tr>
+                      {["資産区分", "銘柄", "金融機関", "期首数量", ""].map((h) => (
+                        <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {openingBalancesByInstitution.map((o) => (
+                      <tr key={o.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                        <td className="px-3 py-2">
+                          {o.assetClass === "CRYPTO" ? "暗号資産" : "株式等"}
+                        </td>
+                        <td className="px-3 py-2">{o.symbol}</td>
+                        <td className="px-3 py-2">{o.institution}</td>
+                        <td className="px-3 py-2">{o.quantity.toString()}</td>
+                        <td className="px-3 py-2">
+                          <form action={deleteOpeningBalanceByInstitution}>
+                            <input type="hidden" name="id" value={o.id} />
+                            <input type="hidden" name="year" value={year} />
+                            <button className="text-xs text-red-600 hover:underline">削除</button>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
 
         {assetBalanceImportBatches.length > 0 && (

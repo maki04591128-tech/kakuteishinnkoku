@@ -671,6 +671,56 @@ export async function deleteOpeningBalance(formData: FormData): Promise<void> {
 }
 
 /**
+ * 期首残高の金融機関別内訳を登録する。同一銘柄を複数の金融機関にまたがって
+ * 保有している場合に、マネーフォワード資産残高突合の数量チェックで
+ * 期首残高をどの金融機関に帰属させるべきか判定できるようにするための任意入力。
+ */
+export async function setOpeningBalanceByInstitution(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+  const assetClass = requireString(formData, "assetClass") as
+    | "CRYPTO"
+    | "INVESTMENT";
+  const symbol = requireString(formData, "symbol").trim().toUpperCase();
+  const institution = requireString(formData, "institution").trim();
+  const quantity = requireString(formData, "quantity");
+
+  await prisma.openingBalanceByInstitution.upsert({
+    where: {
+      taxYearId_assetClass_symbol_institution: {
+        taxYearId: taxYear.id,
+        assetClass,
+        symbol,
+        institution,
+      },
+    },
+    create: {
+      taxYearId: taxYear.id,
+      assetClass,
+      symbol,
+      institution,
+      quantity,
+    },
+    update: { quantity },
+  });
+
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=assetBalance`);
+}
+
+export async function deleteOpeningBalanceByInstitution(
+  formData: FormData,
+): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.openingBalanceByInstitution.delete({ where: { id } });
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=assetBalance`);
+}
+
+/**
  * 前年の期末残高(取引と期首残高から再計算した結果)を、当年の期首残高として
  * 一括登録する。既に当年の期首残高が登録されている銘柄は上書きしない。
  */

@@ -247,4 +247,54 @@ describe("reconcileAssetSymbolBalances", () => {
 
     expect(results[0].quantityCheck).toMatchObject({ status: "OK" });
   });
+
+  it("金融機関別の期首残高(OpeningBalanceByInstitution)を登録した金融機関は複数金融機関にまたがっていても数量突合できる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [
+        { institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000, quantity: 0.3 },
+        { institution: "Coincheck", assetName: "ビットコイン", balanceJpy: 750_000, quantity: 0.15 },
+      ],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [
+        { institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 },
+        { institution: "Coincheck", symbol: "BTC", quantityDelta: 0.05 },
+      ],
+      [
+        { symbol: "BTC", quantity: 0.2, institution: "bitFlyer" },
+        { symbol: "BTC", quantity: 0.1, institution: "Coincheck" },
+      ],
+    );
+
+    const bitflyer = results.find((r) => r.institution === "bitFlyer");
+    const coincheck = results.find((r) => r.institution === "Coincheck");
+    expect(bitflyer?.quantityCheck).toMatchObject({ status: "OK" });
+    expect(bitflyer?.quantityCheck.expectedQuantity?.toNumber()).toBe(0.3);
+    expect(coincheck?.quantityCheck).toMatchObject({ status: "OK" });
+    expect(coincheck?.quantityCheck.expectedQuantity?.toNumber()).toBe(0.15);
+  });
+
+  it("金融機関別の期首残高が未登録の金融機関は他の金融機関に登録があっても判定不能のまま", () => {
+    const results = reconcileAssetSymbolBalances(
+      [
+        { institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000, quantity: 0.3 },
+        { institution: "Coincheck", assetName: "ビットコイン", balanceJpy: 750_000, quantity: 0.2 },
+      ],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [
+        { institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 },
+        { institution: "Coincheck", symbol: "BTC", quantityDelta: 0.05 },
+      ],
+      [
+        { symbol: "BTC", quantity: 0.1 },
+        { symbol: "BTC", quantity: 0.2, institution: "bitFlyer" },
+      ],
+    );
+
+    const bitflyer = results.find((r) => r.institution === "bitFlyer");
+    const coincheck = results.find((r) => r.institution === "Coincheck");
+    expect(bitflyer?.quantityCheck).toMatchObject({ status: "OK" });
+    expect(coincheck?.quantityCheck).toMatchObject({
+      status: "SKIPPED_AMBIGUOUS_OPENING_BALANCE",
+    });
+  });
 });
