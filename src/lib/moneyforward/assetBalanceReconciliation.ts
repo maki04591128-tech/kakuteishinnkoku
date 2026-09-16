@@ -135,10 +135,17 @@ export interface AppSymbolHoldingEntry {
   quantityDelta?: Decimal.Value;
 }
 
-/** 銘柄ごとの期首残高数量。`OpeningBalance`から集計する(金融機関単位では管理していない)。 */
+/**
+ * 銘柄ごとの期首残高数量。`OpeningBalance`から集計する(金融機関単位では
+ * 管理していない)。`institution`を指定した場合は、`OpeningBalanceByInstitution`
+ * から集計した「その金融機関における」期首残高として扱われ、同一銘柄が
+ * 複数の金融機関にまたがっていてもその金融機関については按分不要で
+ * 数量突合に使える(詳細はAssetQuantityCheckStatusのコメント参照)。
+ */
 export interface OpeningQuantityEntry {
   symbol: string;
   quantity: Decimal.Value;
+  institution?: string | null;
 }
 
 export type AssetSymbolReconciliationStatus = "OK" | "MISSING_APP_TRADES" | "UNMAPPED";
@@ -148,9 +155,11 @@ export type AssetSymbolReconciliationStatus = "OK" | "MISSING_APP_TRADES" | "UNM
  * 突合できる場合は評価額よりも精度の高いチェックになる。
  *
  * - NOT_AVAILABLE: CSVに数量列が無い、または銘柄が未マッピングで判定できない
- * - SKIPPED_AMBIGUOUS_OPENING_BALANCE: 銘柄に期首残高があり、かつ当年その銘柄の
- *   取引が複数の金融機関にまたがっているため、期首残高をどの金融機関に按分すべきか
- *   本ツールのデータだけでは判定できず、突合を見送った
+ * - SKIPPED_AMBIGUOUS_OPENING_BALANCE: 銘柄に(金融機関を指定しない)期首残高が
+ *   あり、かつ当年その銘柄の取引が複数の金融機関にまたがっているため、期首残高を
+ *   どの金融機関に按分すべきか本ツールのデータだけでは判定できず、突合を見送った。
+ *   `OpeningBalanceByInstitution`でその金融機関の期首残高を個別登録すれば、
+ *   その金融機関については按分不要になり突合できるようになる
  * - OK: マネーフォワードの数量とアプリ側の期待数量(期首残高+当年の増減)が一致
  * - MISMATCH: 一致しない(取引の入力漏れ・入力ミスの可能性)
  */
@@ -212,7 +221,10 @@ function normalizeSymbol(value: string): string {
  * 場合は、`quantityCheck`で「期首残高+当年の増減」とマネーフォワード側の数量を
  * 比較する。期首残高は銘柄単位でしか管理していないため、同一銘柄を複数の
  * 金融機関で保有している場合はどちらに帰属するか判定できず、その場合は
- * SKIPPED_AMBIGUOUS_OPENING_BALANCEとして数量突合を見送る。
+ * SKIPPED_AMBIGUOUS_OPENING_BALANCEとして数量突合を見送る。ただし
+ * `openingQuantities`の要素に`institution`を指定した(=`OpeningBalanceByInstitution`
+ * に登録がある)金融機関×銘柄については、按分の必要が無いためその値を優先して
+ * 使い、他の金融機関が同じ銘柄を保有していても数量突合を行う。
  */
 export function reconcileAssetSymbolBalances(
   snapshots: AssetBalanceSnapshotWithNameEntry[],
@@ -252,14 +264,26 @@ export function reconcileAssetSymbolBalances(
   }
 
   const openingQuantityBySymbol = new Map<string, Decimal>();
+  const openingQuantityByInstitutionSymbol = new Map<string, Decimal>();
   for (const opening of openingQuantities) {
     const symbol = normalizeSymbol(opening.symbol);
     if (!symbol) continue;
     const quantity = new Decimal(opening.quantity);
-    openingQuantityBySymbol.set(
-      symbol,
-      (openingQuantityBySymbol.get(symbol) ?? new Decimal(0)).plus(quantity),
-    );
+    const institution = opening.institution
+      ? normalizeInstitution(opening.institution)
+      : "";
+    if (institution) {
+      const key = `${institution} ${symbol}`;
+      openingQuantityByInstitutionSymbol.set(
+        key,
+        (openingQuantityByInstitutionSymbol.get(key) ?? new Decimal(0)).plus(quantity),
+      );
+    } else {
+      openingQuantityBySymbol.set(
+        symbol,
+        (openingQuantityBySymbol.get(symbol) ?? new Decimal(0)).plus(quantity),
+      );
+    }
   }
 
   const balanceByKey = new Map<
@@ -310,9 +334,18 @@ export function reconcileAssetSymbolBalances(
     if (quantity === null) {
       quantityCheck = NOT_AVAILABLE_QUANTITY_CHECK;
     } else {
+      const delta = quantityDeltaByKey.get(`${institution} ${symbol}`) ?? new Decimal(0);
+      const institutionOpeningQuantity = openingQuantityByInstitutionSymbol.get(
+        `${institution} ${symbol}`,
+      );
       const institutionsForSymbol = institutionsBySymbol.get(symbol) ?? new Set<string>();
-      const openingQuantity = openingQuantityBySymbol.get(symbol) ?? new Decimal(0);
-      if (openingQuantity.greaterThan(0) && institutionsForSymbol.size > 1) {
+      const unassignedOpeningQuantity = openingQuantityBySymbol.get(symbol) ?? new Decimal(0);
+
+      if (
+        institutionOpeningQuantity === undefined &&
+        unassignedOpeningQuantity.greaterThan(0) &&
+        institutionsForSymbol.size > 1
+      ) {
         quantityCheck = {
           status: "SKIPPED_AMBIGUOUS_OPENING_BALANCE",
           snapshotQuantity: quantity,
@@ -320,7 +353,7 @@ export function reconcileAssetSymbolBalances(
           diff: null,
         };
       } else {
-        const delta = quantityDeltaByKey.get(`${institution} ${symbol}`) ?? new Decimal(0);
+        const openingQuantity = institutionOpeningQuantity ?? unassignedOpeningQuantity;
         const expectedQuantity = openingQuantity.plus(delta);
         const diff = quantity.minus(expectedQuantity);
         quantityCheck = {

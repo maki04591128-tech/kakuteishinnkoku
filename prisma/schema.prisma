@@ -33,6 +33,7 @@ model TaxYear {
   investmentTrades                        InvestmentTrade[]
   importBatches                           ImportBatch[]
   openingBalances                         OpeningBalance[]
+  openingBalancesByInstitution            OpeningBalanceByInstitution[]
   investmentLossCarryforwards             InvestmentLossCarryforward[]
   futuresLossCarryforwards                FuturesLossCarryforward[]
   brokerAnnualReports                     BrokerAnnualReport[]
@@ -76,6 +77,37 @@ model OpeningBalance {
   updatedAt DateTime @updatedAt
 
   @@unique([taxYearId, assetClass, symbol, isNisa])
+}
+
+/// 期首残高の金融機関別内訳(任意)。`OpeningBalance`は銘柄単位の合計しか
+/// 持たないため、同一銘柄を複数の金融機関(取引所・証券会社)にまたがって
+/// 保有している場合、マネーフォワード資産残高突合の数量チェック
+/// (`assetBalanceReconciliation.ts`)では期首残高をどの金融機関に帰属させる
+/// べきか判定できず「判定不能(期首残高の按分不可)」として見送られる。
+/// このテーブルに銘柄×金融機関ごとの期首数量を登録すると、その金融機関に
+/// ついてはここで登録した数量を使って数量突合ができるようになる
+/// (未登録の金融機関は従来通り判定不能のまま)。既存の`OpeningBalance`とは
+/// 独立した追加データのため、登録しなくても既存の計算・突合は変わらない。
+model OpeningBalanceByInstitution {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  assetClass OpeningBalanceAssetClass
+
+  /// 銘柄シンボル・銘柄コード(OpeningBalance.symbolと対応)
+  symbol String
+
+  /// 金融機関名(CryptoTrade.exchange / InvestmentTrade.broker と対応)
+  institution String
+
+  /// 年初時点の、この金融機関における保有数量
+  quantity Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, assetClass, symbol, institution])
 }
 
 enum OpeningBalanceAssetClass {
