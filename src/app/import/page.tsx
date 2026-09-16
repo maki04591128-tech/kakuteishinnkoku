@@ -1,13 +1,16 @@
 import {
+  addCryptoMarginTrade,
   addCryptoTrade,
   addInvestmentTrade,
   carryForwardInvestmentLoss,
   carryForwardOpeningBalances,
+  deleteCryptoMarginTrade,
   deleteCryptoTrade,
   deleteInvestmentTrade,
   deleteLossCarryforward,
   deleteOpeningBalance,
   importCryptoExchangeCsv,
+  importCryptoMarginCsv,
   importMoneyForwardCsv,
   setCryptoCostMethod,
   setLossCarryforward,
@@ -41,26 +44,36 @@ export default async function ImportPage({
   const year = Number(params.year) || new Date().getFullYear();
   const taxYear = await getOrCreateTaxYear(year);
 
-  const [cryptoTrades, investmentTrades, openingBalances, lossCarryforwards, yearReport] =
-    await Promise.all([
-      prisma.cryptoTrade.findMany({
-        where: { taxYearId: taxYear.id },
-        orderBy: { tradedAt: "desc" },
-      }),
-      prisma.investmentTrade.findMany({
-        where: { taxYearId: taxYear.id },
-        orderBy: { tradedAt: "desc" },
-      }),
-      prisma.openingBalance.findMany({
-        where: { taxYearId: taxYear.id },
-        orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
-      }),
-      prisma.investmentLossCarryforward.findMany({
-        where: { taxYearId: taxYear.id },
-        orderBy: { originYear: "asc" },
-      }),
-      buildYearReport(year),
-    ]);
+  const [
+    cryptoTrades,
+    cryptoMarginTrades,
+    investmentTrades,
+    openingBalances,
+    lossCarryforwards,
+    yearReport,
+  ] = await Promise.all([
+    prisma.cryptoTrade.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { tradedAt: "desc" },
+    }),
+    prisma.cryptoMarginTrade.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { settledAt: "desc" },
+    }),
+    prisma.investmentTrade.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { tradedAt: "desc" },
+    }),
+    prisma.openingBalance.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
+    }),
+    prisma.investmentLossCarryforward.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { originYear: "asc" },
+    }),
+    buildYearReport(year),
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 p-6 sm:p-10">
@@ -504,6 +517,136 @@ export default async function ImportPage({
               </tbody>
             </table>
           </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">
+          暗号資産の証拠金(レバレッジ)取引の決済損益
+        </h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          DMM Bitcoin・SBI VCトレード等の証拠金(レバレッジ)取引は、現物取引のように
+          数量×単価で取得費を積み上げる総平均法/移動平均法の対象にはならず、
+          決済(反対売買)のたびに確定する<strong>建玉損益</strong>
+          がそのまま雑所得の収入・損失になる。ここに登録した決済損益は、上の
+          「暗号資産の取引を追加」の現物取引分とは別に集計され、ダッシュボードでは
+          合算した金額を雑所得(暗号資産)として表示する。取引所ごとのCSV仕様の
+          差異が大きく未検証のため、専用プリセットは用意せず列名を指定する
+          汎用マッピング方式のみで取り込む。
+        </p>
+
+        <div className="mb-6 border-b border-dashed border-neutral-200 pb-6 dark:border-neutral-800">
+          <h3 className="mb-2 text-sm font-semibold">CSV取り込み(列名を指定)</h3>
+          <form
+            action={importCryptoMarginCsv}
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+          >
+            <input type="hidden" name="year" value={year} />
+            <Field label="取引所名(任意)">
+              <input type="text" name="exchangeName" placeholder="DMM Bitcoin" className={inputClass} />
+            </Field>
+            <Field label="決済日時列名">
+              <input type="text" name="dateColumn" required className={inputClass} />
+            </Field>
+            <Field label="銘柄列名">
+              <input type="text" name="symbolColumn" required className={inputClass} />
+            </Field>
+            <Field label="決済損益(円)列名">
+              <input type="text" name="pnlColumn" required className={inputClass} />
+            </Field>
+            <Field label="手数料(円)列名(任意)">
+              <input type="text" name="feeColumn" className={inputClass} />
+            </Field>
+            <Field label="スワップ等(円)列名(任意)">
+              <input type="text" name="swapColumn" className={inputClass} />
+            </Field>
+            <div className="col-span-full flex flex-wrap items-center gap-3">
+              <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
+              <button
+                type="submit"
+                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+              >
+                取り込む
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <form
+          action={addCryptoMarginTrade}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="決済日時">
+            <input type="datetime-local" name="settledAt" required className={inputClass} />
+          </Field>
+          <Field label="銘柄">
+            <input type="text" name="symbol" placeholder="BTC" required className={inputClass} />
+          </Field>
+          <Field label="決済損益(円・損失は負の値)">
+            <input type="number" step="any" name="realizedPnlJpy" required className={inputClass} />
+          </Field>
+          <Field label="手数料(円)">
+            <input type="number" step="any" name="feeJpy" defaultValue={0} className={inputClass} />
+          </Field>
+          <Field label="スワップ等(円)">
+            <input type="number" step="any" name="swapJpy" defaultValue={0} className={inputClass} />
+          </Field>
+          <Field label="取引所">
+            <input type="text" name="exchange" className={inputClass} />
+          </Field>
+          <Field label="メモ">
+            <input type="text" name="memo" className={inputClass} />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              追加
+            </button>
+          </div>
+        </form>
+
+        {cryptoMarginTrades.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["決済日時", "銘柄", "決済損益", "手数料", "スワップ", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cryptoMarginTrades.map((t) => (
+                  <tr key={t.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{dateInputValue(t.settledAt)}</td>
+                    <td className="px-3 py-2">{t.symbol}</td>
+                    <td className="px-3 py-2">{yen(t.realizedPnlJpy)}</td>
+                    <td className="px-3 py-2">{yen(t.feeJpy)}</td>
+                    <td className="px-3 py-2">{yen(t.swapJpy)}</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteCryptoMarginTrade}>
+                        <input type="hidden" name="id" value={t.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {yearReport && !yearReport.cryptoMargin.totalRealizedGainJpy.isZero() && (
+          <p className="mt-4 rounded-md bg-neutral-50 p-3 text-sm dark:bg-neutral-900">
+            {year}年分 証拠金取引の雑所得算入額(手数料控除・スワップ加算後):{" "}
+            {yen(yearReport.cryptoMargin.totalRealizedGainJpy)}
+          </p>
         )}
       </section>
 

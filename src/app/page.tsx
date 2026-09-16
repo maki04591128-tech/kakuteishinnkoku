@@ -26,7 +26,13 @@ export default async function Home({
 
   const report = await buildYearReport(year);
   const summary = report
-    ? buildTaxFilingSummary(year, report.crypto, report.investment)
+    ? buildTaxFilingSummary(
+        year,
+        report.crypto,
+        report.investment,
+        report.lossCarryforward,
+        report.cryptoMargin,
+      )
     : null;
 
   const yearOptions = Array.from(
@@ -71,7 +77,11 @@ export default async function Home({
         <SummaryCard
           title="雑所得(暗号資産)"
           value={summary ? yen(summary.cryptoMiscIncomeJpy) : "¥0"}
-          hint={`${CRYPTO_COST_METHOD_LABEL[report?.cryptoCostMethod ?? "AVERAGE"]}による年間損益`}
+          hint={
+            summary && !summary.cryptoMarginIncomeJpy.isZero()
+              ? `現物(${CRYPTO_COST_METHOD_LABEL[report?.cryptoCostMethod ?? "AVERAGE"]})${yen(summary.cryptoSpotIncomeJpy)} + 証拠金取引決済損益${yen(summary.cryptoMarginIncomeJpy)}`
+              : `${CRYPTO_COST_METHOD_LABEL[report?.cryptoCostMethod ?? "AVERAGE"]}による年間損益`
+          }
         />
         <SummaryCard
           title="譲渡所得(株式等)"
@@ -166,6 +176,21 @@ export default async function Home({
         />
       )}
 
+      {report && report.cryptoMargin.bySymbol.length > 0 && (
+        <DetailTable
+          title="暗号資産 証拠金(レバレッジ)取引 銘柄別内訳"
+          columns={["銘柄", "決済件数", "決済損益", "手数料", "スワップ", "雑所得算入額"]}
+          rows={report.cryptoMargin.bySymbol.map((r) => [
+            r.symbol,
+            r.settlementCount,
+            yen(r.grossPnlJpy),
+            yen(r.feeJpy),
+            yen(r.swapJpy),
+            yen(r.realizedGainJpy),
+          ])}
+        />
+      )}
+
       {report && report.investment.bySymbol.length > 0 && (
         <DetailTable
           title="株式等 銘柄別内訳"
@@ -182,6 +207,7 @@ export default async function Home({
 
       {report &&
         report.crypto.bySymbol.length === 0 &&
+        report.cryptoMargin.bySymbol.length === 0 &&
         report.investment.bySymbol.length === 0 && (
           <p className="rounded-md border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500 dark:border-neutral-700">
             {year}年分の取引データがまだありません。「データを取り込む / 手入力する」から登録してください。

@@ -28,6 +28,7 @@ model TaxYear {
   cryptoCostMethod CryptoCostMethod @default(AVERAGE)
 
   cryptoTrades                CryptoTrade[]
+  cryptoMarginTrades          CryptoMarginTrade[]
   investmentTrades            InvestmentTrade[]
   importBatches               ImportBatch[]
   openingBalances             OpeningBalance[]
@@ -156,6 +157,49 @@ enum CryptoTradeType {
   FEE
 }
 
+/// 暗号資産の証拠金(レバレッジ)取引の決済損益。DMM Bitcoin・SBI VCトレード等の
+/// 証拠金取引は、現物取引のように数量×単価で取得費を積み上げる総平均法/移動
+/// 平均法の計算モデルにはあてはまらず、決済(反対売買)のたびに確定する
+/// 建玉損益がそのまま雑所得の収入・損失になる。そのため CryptoTrade とは別に、
+/// 決済ごとの損益をそのまま合算するだけのシンプルなモデルとして保持する。
+model CryptoMarginTrade {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 決済日時(反対売買が成立した日時)
+  settledAt DateTime
+
+  /// 銘柄シンボル (例: BTC, ETH)
+  symbol String
+
+  /// 決済損益(円)。建玉を閉じた際の損益で、損失の場合は負の値。
+  realizedPnlJpy Decimal
+
+  /// 取引手数料(円。決済損益から差し引く)
+  feeJpy Decimal @default(0)
+
+  /// スワップポイント・建玉管理料等(円)。損益に加算する(費用の場合は負の値)。
+  swapJpy Decimal @default(0)
+
+  /// 取引所名
+  exchange String?
+
+  memo String?
+
+  /// インポート元(手動 / csv など)
+  source String @default("manual")
+
+  importBatchId Int?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taxYearId, symbol])
+  @@index([settledAt])
+}
+
 /// 株式・投資信託・ETF等の売買履歴。
 /// 特定口座(源泉徴収あり/なし)・一般口座・NISA区分を保持し、
 /// 譲渡所得(申告分離課税)の計算に使う。
@@ -240,9 +284,10 @@ model ImportBatch {
   importedAt DateTime @default(now())
   rowCount   Int      @default(0)
 
-  cryptoTrades     CryptoTrade[]
-  investmentTrades InvestmentTrade[]
-  cashflowEntries  CashflowEntry[]
+  cryptoTrades       CryptoTrade[]
+  cryptoMarginTrades CryptoMarginTrade[]
+  investmentTrades   InvestmentTrade[]
+  cashflowEntries    CashflowEntry[]
 }
 
 /// マネーフォワード ME の家計簿(収支)データ。
