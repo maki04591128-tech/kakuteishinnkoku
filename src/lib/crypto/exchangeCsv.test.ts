@@ -1,5 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { parseExchangeCsv } from "./exchangeCsv";
+import {
+  parseCryptoExchangeCsv,
+  parseExchangeCsv,
+  type ExchangeCsvMapping,
+} from "./exchangeCsv";
+
+const COINCHECK_MAPPING: ExchangeCsvMapping = {
+  dateColumn: "time",
+  symbolColumn: "trading_currency",
+  typeColumn: "operation",
+  buyValue: "buy",
+  sellValue: "sell",
+  quantityColumn: "amount",
+  unitPriceColumn: "price",
+  feeColumn: "fee",
+};
+
+const COINCHECK_CSV = [
+  "id,time,operation,amount,trading_currency,price,original_currency,fee,comment",
+  "1,2026/1/10 10:00:00,buy,0.1,BTC,5000000,JPY,0,",
+  "2,2026/3/5 12:30:00,sell,0.05,BTC,6000000,JPY,0,",
+  "3,2026/4/1 09:00:00,deposit,1,JPY,1,JPY,0,入金",
+].join("\n");
+
+const BITFLYER_MAPPING: ExchangeCsvMapping = {
+  dateColumn: "取引日時",
+  symbolColumn: "通貨1",
+  typeColumn: "取引種別",
+  buyValue: "買い",
+  sellValue: "売り",
+  quantityColumn: "通貨1数量",
+  unitPriceColumn: "取引価格",
+  feeColumn: "手数料",
+};
+
+const BITFLYER_CSV = [
+  "取引日時,通貨,取引種別,取引価格,通貨1,通貨1数量,手数料",
+  "2026/2/1 08:00:00,BTC/JPY,買い,5100000,BTC,0.2,0",
+  "2026/2/15 08:00:00,BTC/JPY,売り,5300000,BTC,0.1,100",
+  "2026/2/20 08:00:00,BTC/JPY,入金,0,BTC,0.5,0",
+].join("\n");
 
 describe("parseExchangeCsv - bitflyer", () => {
   const header =
@@ -15,23 +55,19 @@ describe("parseExchangeCsv - bitflyer", () => {
     const { rows, skippedRows } = parseExchangeCsv("bitflyer", csv);
     expect(skippedRows).toHaveLength(0);
     expect(rows).toHaveLength(2);
-
     expect(rows[0].type).toBe("BUY");
     expect(rows[0].symbol).toBe("BTC");
     expect(rows[0].quantity.toString()).toBe("0.1");
     expect(rows[0].unitPriceJpy.toString()).toBe("5000000");
     expect(rows[0].feeJpy.toString()).toBe("0");
-
     expect(rows[1].type).toBe("SELL");
-    // 手数料0.0001 BTC * 対円レート6,000,000円 = 600円
     expect(rows[1].feeJpy.toString()).toBe("600");
   });
 
   it("買い/売り以外の取引種別はスキップする", () => {
-    const csv = [
-      header,
-      "2024/03/01 10:00:00,BTC,入金,0,BTC,0.1,0,5000000,JPY,0,,ORDER3,",
-    ].join("\n");
+    const csv = [header, '2024/03/01 10:00:00,BTC,入金,0,BTC,0.1,0,5000000,JPY,0,,ORDER3,'].join(
+      "\n",
+    );
 
     const { rows, skippedRows } = parseExchangeCsv("bitflyer", csv);
     expect(rows).toHaveLength(0);
@@ -83,8 +119,8 @@ describe("parseExchangeCsv - coincheck (業界標準フォーマット)", () => 
     const { rows, skippedRows } = parseExchangeCsv("coincheck", csv);
     expect(skippedRows).toHaveLength(0);
     expect(rows).toHaveLength(2);
-    const tradeOut = rows.find((r) => r.type === "TRADE_OUT")!;
-    const tradeIn = rows.find((r) => r.type === "TRADE_IN")!;
+    const tradeOut = rows.find((row) => row.type === "TRADE_OUT")!;
+    const tradeIn = rows.find((row) => row.type === "TRADE_IN")!;
     expect(tradeOut.symbol).toBe("BTC");
     expect(tradeOut.quantity.toString()).toBe("0.05");
     expect(tradeIn.symbol).toBe("ETH");
@@ -92,10 +128,7 @@ describe("parseExchangeCsv - coincheck (業界標準フォーマット)", () => 
   });
 
   it("送付元・送付先アドレスがある行(入出金)はスキップする", () => {
-    const csv = [
-      header,
-      "2024/04/10 09:00:00,送付,現物,,,,,BTC,0.1,,,,,0x1234,,,",
-    ].join("\n");
+    const csv = [header, "2024/04/10 09:00:00,送付,現物,,,,,BTC,0.1,,,,,0x1234,,,"].join("\n");
 
     const { rows, skippedRows } = parseExchangeCsv("coincheck", csv);
     expect(rows).toHaveLength(0);
@@ -104,10 +137,7 @@ describe("parseExchangeCsv - coincheck (業界標準フォーマット)", () => 
   });
 
   it("増加のみ・減少のみの行はスキップする", () => {
-    const csv = [
-      header,
-      "2024/05/10 09:00:00,報酬,現物,,BTC,0.001,,,,,,,,,,,",
-    ].join("\n");
+    const csv = [header, "2024/05/10 09:00:00,報酬,現物,,BTC,0.001,,,,,,,,,,,"].join("\n");
 
     const { rows, skippedRows } = parseExchangeCsv("coincheck", csv);
     expect(rows).toHaveLength(0);
@@ -147,5 +177,81 @@ describe("parseExchangeCsv - GMOコイン", () => {
 
   it("必須カラムが無い場合はエラーを投げる", () => {
     expect(() => parseExchangeCsv("gmo", "a,b\n1,2")).toThrow();
+  });
+});
+
+describe("parseCryptoExchangeCsv", () => {
+  it("bitFlyer風(通貨ペア・約定レート)のCSVを解析する", () => {
+    const csv = [
+      "約定日時,商品,売買,約定数量,約定レート,手数料",
+      "2026/1/10 12:00:00,BTC_JPY,買い,0.1,5000000,0",
+      "2026/3/5 09:30:00,BTC_JPY,売り,0.05,6000000,100",
+    ].join("\n");
+
+    const result = parseCryptoExchangeCsv(csv);
+    expect(result.skippedRows).toEqual([]);
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0].symbol).toBe("BTC");
+    expect(result.rows[0].type).toBe("BUY");
+    expect(result.rows[1].feeJpy.toNumber()).toBe(100);
+  });
+
+  it("Coincheck風(通貨のみ・合計金額から単価を逆算)のCSVを解析する", () => {
+    const csv = ["日時,通貨,取引種別,数量,合計金額,手数料", "2026/2/1 10:00:00,BTC,購入,0.2,1000000,0"].join(
+      "\n",
+    );
+
+    const result = parseCryptoExchangeCsv(csv);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].unitPriceJpy.toNumber()).toBe(5000000);
+  });
+});
+
+describe("parseExchangeCsv - manual mapping", () => {
+  it("Coincheck業界標準フォーマットのbuy/sellを取り込み、それ以外はスキップする", () => {
+    const result = parseExchangeCsv(COINCHECK_CSV, COINCHECK_MAPPING);
+    expect(result.rows).toHaveLength(2);
+    expect(result.skippedRows).toHaveLength(1);
+    expect(result.skippedRows[0].lineNumber).toBe(4);
+    expect(result.rows[0].type).toBe("BUY");
+    expect(result.rows[1].type).toBe("SELL");
+  });
+
+  it("bitFlyer形式の列指定でも買い/売りを取り込み、非対応の取引種別はスキップする", () => {
+    const result = parseExchangeCsv(BITFLYER_CSV, BITFLYER_MAPPING);
+    expect(result.rows).toHaveLength(2);
+    expect(result.skippedRows).toHaveLength(1);
+    expect(result.skippedRows[0].reason).toContain("入金");
+    expect(result.rows[1].feeJpy.toNumber()).toBe(100);
+  });
+
+  it("指定した列名がCSVに存在しない場合はエラーを投げる", () => {
+    expect(() =>
+      parseExchangeCsv("a,b,c\n1,2,3", { ...COINCHECK_MAPPING, dateColumn: "存在しない列" }),
+    ).toThrow(/存在しない列/);
+  });
+
+  it("壊れた行はスキップし処理を継続する", () => {
+    const csv = [
+      "time,trading_currency,operation,amount,price",
+      "invalid-date,BTC,buy,0.1,5000000",
+      "2026/1/1,BTC,buy,not-a-number,5000000",
+      "2026/1/1,BTC,buy,0.1,not-a-number",
+      "2026/1/2,BTC,buy,0.1,5000000",
+    ].join("\n");
+
+    const mapping: ExchangeCsvMapping = {
+      dateColumn: "time",
+      symbolColumn: "trading_currency",
+      typeColumn: "operation",
+      buyValue: "buy",
+      sellValue: "sell",
+      quantityColumn: "amount",
+      unitPriceColumn: "price",
+    };
+
+    const result = parseExchangeCsv(csv, mapping);
+    expect(result.rows).toHaveLength(1);
+    expect(result.skippedRows).toHaveLength(3);
   });
 });

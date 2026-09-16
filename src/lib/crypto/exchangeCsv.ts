@@ -1,5 +1,5 @@
 import { Decimal } from "decimal.js";
-import { parseCsvRows, normalizeNumericString, parseFlexibleDateTime } from "../csv";
+import { normalizeNumericString, parseCsvRows, parseFlexibleDateTime } from "../csv";
 import type { CryptoTradeType } from "./calculator";
 
 /**
@@ -11,25 +11,41 @@ import type { CryptoTradeType } from "./calculator";
  * 一意に決まらない行(入出金・証拠金取引・増減の組み合わせが不明瞭な行など)は
  * 誤って課税イベントとして取り込むより、スキップして手動確認を促す方が安全。
  *
- * 対応取引所(2026年時点で確認できた仕様に基づく。現物取引のみ):
+ * そのうえで、既知の取引所CSV向けプリセットに加えて、列名が一致しないCSV向けに
+ * ユーザーがヘッダー名を指定する汎用マッピング方式も提供する。
+ *
+ * 対応取引所(2026年時点で確認できた仕様に基づく):
  *  - bitflyer: bitFlyer「お取引レポート」現物取引履歴CSV
  *  - coincheck: Coincheckの「業界標準フォーマット」CSV(JCBA参考フォーマット準拠)
  *  - gmo: GMOコイン取引履歴CSV(現物取引の行のみ。証拠金取引・入出金行は対象外)
+ *  - other: 手動マッピング専用
  */
 
-export type ExchangeCsvPreset = "bitflyer" | "coincheck" | "gmo";
+export type ExchangeCsvPreset = "bitflyer" | "coincheck" | "gmo" | "other";
+type KnownExchangeCsvPreset = Exclude<ExchangeCsvPreset, "other">;
 
-export const EXCHANGE_CSV_PRESETS: { value: ExchangeCsvPreset; label: string }[] = [
+export const EXCHANGE_CSV_PRESETS: { value: KnownExchangeCsvPreset; label: string }[] = [
   { value: "bitflyer", label: "bitFlyer(現物取引履歴CSV)" },
   { value: "coincheck", label: "Coincheck(業界標準フォーマットCSV)" },
   { value: "gmo", label: "GMOコイン(取引履歴CSV・現物のみ)" },
 ];
 
-const EXCHANGE_LABELS: Record<ExchangeCsvPreset, string> = {
+const EXCHANGE_LABELS: Record<KnownExchangeCsvPreset, string> = {
   bitflyer: "bitFlyer",
   coincheck: "Coincheck",
   gmo: "GMOコイン",
 };
+
+export interface ExchangeCsvMapping {
+  dateColumn: string;
+  symbolColumn: string;
+  typeColumn: string;
+  buyValue: string;
+  sellValue: string;
+  quantityColumn: string;
+  unitPriceColumn: string;
+  feeColumn?: string;
+}
 
 export interface ExchangeCsvRow {
   tradedAt: Date;
@@ -38,8 +54,8 @@ export interface ExchangeCsvRow {
   quantity: Decimal;
   unitPriceJpy: Decimal;
   feeJpy: Decimal;
-  exchange: string;
-  memo: string | null;
+  exchange?: string | null;
+  memo?: string | null;
 }
 
 export interface ExchangeCsvSkip {
@@ -47,9 +63,92 @@ export interface ExchangeCsvSkip {
   reason: string;
 }
 
+export type ExchangeCsvParseSkip = ExchangeCsvSkip;
+
 export interface ExchangeCsvParseResult {
   rows: ExchangeCsvRow[];
   skippedRows: ExchangeCsvSkip[];
+}
+
+type LogicalField =
+  | "date"
+  | "pair"
+  | "side"
+  | "quantity"
+  | "unitPrice"
+  | "totalValue"
+  | "fee";
+
+const HEADER_ALIASES: Record<string, LogicalField> = {
+  約定日時: "date",
+  取引日時: "date",
+  日時: "date",
+  日付: "date",
+  "Trade Date": "date",
+  Date: "date",
+  商品: "pair",
+  銘柄: "pair",
+  通貨ペア: "pair",
+  ペア: "pair",
+  通貨: "pair",
+  Product: "pair",
+  Pair: "pair",
+  Currency: "pair",
+  売買: "side",
+  取引種別: "side",
+  種別: "side",
+  注文タイプ: "side",
+  取引区分: "side",
+  Side: "side",
+  "Trade Type": "side",
+  約定数量: "quantity",
+  数量: "quantity",
+  量: "quantity",
+  Amount: "quantity",
+  Quantity: "quantity",
+  約定レート: "unitPrice",
+  約定価格: "unitPrice",
+  約定単価: "unitPrice",
+  単価: "unitPrice",
+  レート: "unitPrice",
+  Price: "unitPrice",
+  Rate: "unitPrice",
+  約定代金: "totalValue",
+  合計: "totalValue",
+  合計金額: "totalValue",
+  受渡金額: "totalValue",
+  Total: "totalValue",
+  手数料: "fee",
+  支払手数料: "fee",
+  取引手数料: "fee",
+  Fee: "fee",
+};
+
+const REQUIRED_FIELDS: LogicalField[] = ["date", "pair", "side", "quantity"];
+const JPY_SYMBOL = "JPY";
+
+const BUY_VALUES = new Set(["買い", "買", "購入", "現物買", "buy", "BUY", "Buy"]);
+const SELL_VALUES = new Set(["売り", "売", "売却", "現物売", "sell", "SELL", "Sell"]);
+const NON_TRADE_VALUES = new Set([
+  "入金",
+  "出金",
+  "預入",
+  "送付",
+  "受取",
+  "貸付",
+  "貸付解除",
+  "deposit",
+  "withdrawal",
+  "Deposit",
+  "Withdrawal",
+]);
+
+const BITFLYER_REQUIRED = ["取引日時", "取引種別", "通貨1", "通貨1数量", "取引価格"];
+const COINCHECK_REQUIRED = ["取引日時", "増加通貨名", "減少通貨名"];
+const GMO_REQUIRED = ["日時", "取引区分", "銘柄名", "売買区分", "約定数量", "約定レート"];
+
+function isKnownExchangeCsvPreset(preset: ExchangeCsvPreset): preset is KnownExchangeCsvPreset {
+  return preset in EXCHANGE_LABELS;
 }
 
 function buildHeaderIndex(headerRow: string[]): Map<string, number> {
@@ -67,29 +166,311 @@ function cell(cols: string[], index: Map<string, number>, header: string): strin
   return cols[i]?.trim();
 }
 
+function parseFlexibleDate(value: string | undefined): Date | null {
+  const parsed = parseFlexibleDateTime(value);
+  if (parsed) return parsed;
+  if (!value) return null;
+  const fallback = new Date(value.trim());
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function parseDecimalStrict(value: string | undefined): Decimal | null {
+  const normalized = normalizeNumericString(value);
+  return normalized ? new Decimal(normalized) : null;
+}
+
+function parseDecimalAbs(value: string | undefined): Decimal | null {
+  const parsed = parseDecimalStrict(value);
+  return parsed ? parsed.abs() : value?.trim() === "" ? new Decimal(0) : null;
+}
+
+function parseSide(raw: string): "BUY" | "SELL" | "NON_TRADE" | null {
+  const trimmed = raw.trim();
+  if (BUY_VALUES.has(trimmed)) return "BUY";
+  if (SELL_VALUES.has(trimmed)) return "SELL";
+  if (NON_TRADE_VALUES.has(trimmed)) return "NON_TRADE";
+  return null;
+}
+
+function extractJpySymbol(raw: string): string | null {
+  const trimmed = raw.trim().toUpperCase();
+  if (!trimmed) return null;
+
+  const parts = trimmed.split(/[_/\-]/).filter((p) => p.length > 0);
+  if (parts.length === 1) {
+    return parts[0] === JPY_SYMBOL ? null : parts[0];
+  }
+  if (parts.length === 2) {
+    const [a, b] = parts;
+    if (a === JPY_SYMBOL && b !== JPY_SYMBOL) return b;
+    if (b === JPY_SYMBOL && a !== JPY_SYMBOL) return a;
+    return null;
+  }
+  return null;
+}
+
 export function parseExchangeCsv(
   preset: ExchangeCsvPreset,
   csvText: string,
+): ExchangeCsvParseResult;
+export function parseExchangeCsv(
+  csvText: string,
+  mapping: ExchangeCsvMapping,
+): ExchangeCsvParseResult;
+export function parseExchangeCsv(
+  arg1: string,
+  arg2: string | ExchangeCsvMapping,
 ): ExchangeCsvParseResult {
-  switch (preset) {
-    case "bitflyer":
-      return parseBitflyerCsv(csvText);
-    case "coincheck":
-      return parseCoincheckCsv(csvText);
-    case "gmo":
-      return parseGmoCoinCsv(csvText);
+  if (typeof arg2 === "string") {
+    const preset = arg1 as ExchangeCsvPreset;
+    if (!isKnownExchangeCsvPreset(preset)) {
+      throw new Error("このプリセットでは取り込めません。列名を指定して手動マッピングしてください");
+    }
+    switch (preset) {
+      case "bitflyer":
+        return parseBitflyerCsv(arg2);
+      case "coincheck":
+        return parseCoincheckCsv(arg2);
+      case "gmo":
+        return parseGmoCoinCsv(arg2);
+    }
   }
+  return parseMappedExchangeCsv(arg1, arg2);
 }
 
-// ---------------------------------------------------------------------------
-// bitFlyer
-// ---------------------------------------------------------------------------
-// ヘッダー: 取引日時,通貨,取引種別,取引価格,通貨1,通貨1数量,手数料,
-//           通貨1の対円レート,通貨2,通貨2数量,自己・媒介,注文ID,備考
-// 取引種別が「買い」「売り」の行のみ現物売買として取り込む。
-// 手数料は通貨1(暗号資産)建てで請求されるため、対円レートで円換算する。
+function parseMappedExchangeCsv(
+  csvText: string,
+  mapping: ExchangeCsvMapping,
+): ExchangeCsvParseResult {
+  const csvRows = parseCsvRows(csvText);
+  if (csvRows.length === 0) {
+    return { rows: [], skippedRows: [] };
+  }
 
-const BITFLYER_REQUIRED = ["取引日時", "取引種別", "通貨1", "通貨1数量", "取引価格"];
+  const headerRow = csvRows[0];
+  const fieldIndex = buildHeaderIndex(headerRow);
+  const requiredColumns: [string, string][] = [
+    ["日付", mapping.dateColumn],
+    ["銘柄", mapping.symbolColumn],
+    ["売買種別", mapping.typeColumn],
+    ["数量", mapping.quantityColumn],
+    ["単価", mapping.unitPriceColumn],
+  ];
+  const missing = requiredColumns.filter(([, column]) => !fieldIndex.has(column.trim()));
+  if (missing.length > 0) {
+    throw new Error(
+      `指定された列名がCSVに見つかりませんでした: ${missing
+        .map(([label, column]) => `${label}=「${column}」`)
+        .join(", ")}`,
+    );
+  }
+
+  const dateIndex = fieldIndex.get(mapping.dateColumn.trim())!;
+  const symbolIndex = fieldIndex.get(mapping.symbolColumn.trim())!;
+  const typeIndex = fieldIndex.get(mapping.typeColumn.trim())!;
+  const quantityIndex = fieldIndex.get(mapping.quantityColumn.trim())!;
+  const unitPriceIndex = fieldIndex.get(mapping.unitPriceColumn.trim())!;
+  const feeIndex = mapping.feeColumn ? fieldIndex.get(mapping.feeColumn.trim()) : undefined;
+
+  const buyValue = mapping.buyValue.trim().toLowerCase();
+  const sellValue = mapping.sellValue.trim().toLowerCase();
+  const rows: ExchangeCsvRow[] = [];
+  const skippedRows: ExchangeCsvSkip[] = [];
+
+  for (let i = 1; i < csvRows.length; i++) {
+    const cols = csvRows[i];
+    const lineNumber = i + 1;
+    const rawDate = cols[dateIndex];
+    const rawSymbol = cols[symbolIndex];
+    const rawType = cols[typeIndex];
+    const rawQuantity = cols[quantityIndex];
+    const rawUnitPrice = cols[unitPriceIndex];
+
+    if (!rawDate || !rawSymbol || !rawType || !rawQuantity || !rawUnitPrice) {
+      skippedRows.push({ lineNumber, reason: "必須項目が空です" });
+      continue;
+    }
+
+    const tradedAt = parseFlexibleDate(rawDate);
+    if (!tradedAt) {
+      skippedRows.push({ lineNumber, reason: `日付を解釈できません: "${rawDate}"` });
+      continue;
+    }
+
+    const normalizedType = rawType.trim().toLowerCase();
+    let type: "BUY" | "SELL";
+    if (normalizedType === buyValue) {
+      type = "BUY";
+    } else if (normalizedType === sellValue) {
+      type = "SELL";
+    } else {
+      skippedRows.push({
+        lineNumber,
+        reason: `売買種別を解釈できません(買い="${mapping.buyValue}"/売り="${mapping.sellValue}"と一致しません): "${rawType}"`,
+      });
+      continue;
+    }
+
+    const quantity = parseDecimalStrict(rawQuantity);
+    if (!quantity || quantity.isZero()) {
+      skippedRows.push({ lineNumber, reason: `数量を解釈できません: "${rawQuantity}"` });
+      continue;
+    }
+
+    const unitPriceJpy = parseDecimalStrict(rawUnitPrice);
+    if (!unitPriceJpy) {
+      skippedRows.push({ lineNumber, reason: `単価を解釈できません: "${rawUnitPrice}"` });
+      continue;
+    }
+
+    let feeJpy = new Decimal(0);
+    if (feeIndex !== undefined) {
+      const rawFee = cols[feeIndex];
+      if (rawFee && rawFee.trim() !== "") {
+        const parsedFee = parseDecimalStrict(rawFee);
+        if (parsedFee === null) {
+          skippedRows.push({ lineNumber, reason: `手数料を解釈できません: "${rawFee}"` });
+          continue;
+        }
+        feeJpy = parsedFee.abs();
+      }
+    }
+
+    rows.push({
+      tradedAt,
+      symbol: rawSymbol.trim().toUpperCase(),
+      type,
+      quantity: quantity.abs(),
+      unitPriceJpy: unitPriceJpy.abs(),
+      feeJpy,
+      memo: null,
+    });
+  }
+
+  return { rows, skippedRows };
+}
+
+export function parseCryptoExchangeCsv(csvText: string): ExchangeCsvParseResult {
+  const csvRows = parseCsvRows(csvText);
+  if (csvRows.length === 0) {
+    return { rows: [], skippedRows: [] };
+  }
+
+  const headerRow = csvRows[0];
+  const fieldIndex = new Map<LogicalField, number>();
+  headerRow.forEach((header, index) => {
+    const key = HEADER_ALIASES[header.trim()];
+    if (key && !fieldIndex.has(key)) fieldIndex.set(key, index);
+  });
+
+  const missingRequired = REQUIRED_FIELDS.filter((field) => !fieldIndex.has(field));
+  if (missingRequired.length > 0) {
+    throw new Error(
+      `取引所CSVの形式として認識できませんでした。不足しているカラム: ${missingRequired.join(", ")}`,
+    );
+  }
+  if (!fieldIndex.has("unitPrice") && !fieldIndex.has("totalValue")) {
+    throw new Error(
+      "取引所CSVの形式として認識できませんでした。単価または合計金額のカラムが見つかりません",
+    );
+  }
+
+  const get = (cols: string[], key: LogicalField): string | undefined => {
+    const index = fieldIndex.get(key);
+    if (index === undefined) return undefined;
+    return cols[index];
+  };
+
+  const rows: ExchangeCsvRow[] = [];
+  const skippedRows: ExchangeCsvSkip[] = [];
+
+  for (let i = 1; i < csvRows.length; i++) {
+    const cols = csvRows[i];
+    const lineNumber = i + 1;
+
+    const rawDate = get(cols, "date");
+    const rawPair = get(cols, "pair");
+    const rawSide = get(cols, "side");
+    const rawQuantity = get(cols, "quantity");
+    if (!rawDate || !rawPair || !rawSide || !rawQuantity) {
+      skippedRows.push({
+        lineNumber,
+        reason: "必須項目(日時/銘柄/売買種別/数量)が空です",
+      });
+      continue;
+    }
+
+    const side = parseSide(rawSide);
+    if (side === null) {
+      skippedRows.push({ lineNumber, reason: `売買種別を解釈できません: "${rawSide}"` });
+      continue;
+    }
+    if (side === "NON_TRADE") {
+      skippedRows.push({
+        lineNumber,
+        reason: `入出金など取引以外の行は未対応のためスキップしました: "${rawSide}"`,
+      });
+      continue;
+    }
+
+    const tradedAt = parseFlexibleDate(rawDate);
+    if (!tradedAt) {
+      skippedRows.push({ lineNumber, reason: `日時を解釈できません: "${rawDate}"` });
+      continue;
+    }
+
+    const symbol = extractJpySymbol(rawPair);
+    if (!symbol) {
+      skippedRows.push({
+        lineNumber,
+        reason: `円建て以外の通貨ペアは現状未対応です: "${rawPair}"`,
+      });
+      continue;
+    }
+
+    const quantity = parseDecimalAbs(rawQuantity);
+    if (!quantity || quantity.isZero()) {
+      skippedRows.push({ lineNumber, reason: `数量を解釈できません: "${rawQuantity}"` });
+      continue;
+    }
+
+    const rawFee = get(cols, "fee");
+    const feeJpy = rawFee !== undefined ? parseDecimalAbs(rawFee) : new Decimal(0);
+    if (feeJpy === null) {
+      skippedRows.push({ lineNumber, reason: `手数料を解釈できません: "${rawFee}"` });
+      continue;
+    }
+
+    const rawUnitPrice = get(cols, "unitPrice");
+    let unitPriceJpy: Decimal | null = null;
+    if (rawUnitPrice !== undefined && rawUnitPrice.trim() !== "") {
+      unitPriceJpy = parseDecimalAbs(rawUnitPrice);
+      if (!unitPriceJpy) {
+        skippedRows.push({ lineNumber, reason: `単価を解釈できません: "${rawUnitPrice}"` });
+        continue;
+      }
+    } else {
+      const total = parseDecimalAbs(get(cols, "totalValue"));
+      if (!total) {
+        skippedRows.push({ lineNumber, reason: "単価・合計金額のいずれも解釈できません" });
+        continue;
+      }
+      unitPriceJpy = total.dividedBy(quantity);
+    }
+
+    rows.push({
+      tradedAt,
+      symbol,
+      type: side,
+      quantity,
+      unitPriceJpy,
+      feeJpy,
+      memo: null,
+    });
+  }
+
+  return { rows, skippedRows };
+}
 
 function parseBitflyerCsv(csvText: string): ExchangeCsvParseResult {
   const csvRows = parseCsvRows(csvText);
@@ -128,9 +509,8 @@ function parseBitflyerCsv(csvText: string): ExchangeCsvParseResult {
     const symbol = (get("通貨1") ?? "").toUpperCase();
     const quantityStr = normalizeNumericString(get("通貨1数量"));
     const priceStr = normalizeNumericString(get("取引価格"));
-    const dateValue = parseFlexibleDateTime(get("取引日時"));
-
-    if (!symbol || !quantityStr || !priceStr || !dateValue) {
+    const tradedAt = parseFlexibleDate(get("取引日時"));
+    if (!symbol || !quantityStr || !priceStr || !tradedAt) {
       skippedRows.push({ lineNumber, reason: "日時・銘柄・数量・単価のいずれかを解釈できません" });
       continue;
     }
@@ -151,7 +531,7 @@ function parseBitflyerCsv(csvText: string): ExchangeCsvParseResult {
     }
 
     rows.push({
-      tradedAt: dateValue,
+      tradedAt,
       symbol,
       type,
       quantity,
@@ -164,22 +544,6 @@ function parseBitflyerCsv(csvText: string): ExchangeCsvParseResult {
 
   return { rows, skippedRows };
 }
-
-// ---------------------------------------------------------------------------
-// Coincheck (業界標準フォーマット / JCBA参考フォーマット準拠)
-// ---------------------------------------------------------------------------
-// ヘッダー: 取引日時,取引種別,取引形態,通貨ペア,増加通貨名,増加数量,
-//           減少通貨名,減少数量,約定代金,約定価格,手数料通貨,手数料数量,
-//           送付元アドレス,送付先アドレス,登録番号,社名,備考
-//
-// 「増加通貨/減少通貨」の組み合わせで売買・交換を判別する一般的なフォーマット。
-// 送付元/送付先アドレスが入っている行は入出金(送付・受取)であり課税イベントの
-// 売買ではないため対象外とする。増加・減少の一方しか無い行(手数料のみ・
-// 報酬受取など)は税務上の性質を一意に判定できないため、安全側に倒して
-// 取り込み対象外とし、利用者に手動登録を促す。
-
-const COINCHECK_REQUIRED = ["取引日時", "増加通貨名", "減少通貨名"];
-const JPY_SYMBOL = "JPY";
 
 function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
   const csvRows = parseCsvRows(csvText);
@@ -208,7 +572,7 @@ function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
       continue;
     }
 
-    const dateValue = parseFlexibleDateTime(get("取引日時"));
+    const tradedAt = parseFlexibleDate(get("取引日時"));
     const increaseSymbol = (get("増加通貨名") ?? "").toUpperCase() || null;
     const decreaseSymbol = (get("減少通貨名") ?? "").toUpperCase() || null;
     const increaseQtyStr = normalizeNumericString(get("増加数量"));
@@ -216,8 +580,11 @@ function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
     const settlementStr = normalizeNumericString(get("約定代金"));
     const priceStr = normalizeNumericString(get("約定価格"));
 
-    if (!dateValue) {
-      skippedRows.push({ lineNumber, reason: `取引日時を解釈できません: "${get("取引日時") ?? ""}"` });
+    if (!tradedAt) {
+      skippedRows.push({
+        lineNumber,
+        reason: `取引日時を解釈できません: "${get("取引日時") ?? ""}"`,
+      });
       continue;
     }
 
@@ -236,10 +603,9 @@ function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
     const memo = get("備考") || null;
 
     if (increaseSymbol === JPY_SYMBOL && decreaseSymbol !== JPY_SYMBOL) {
-      // 暗号資産を売却して日本円を得た
       const unitPrice = priceStr ? new Decimal(priceStr).abs() : increaseQty.dividedBy(decreaseQty);
       rows.push({
-        tradedAt: dateValue,
+        tradedAt,
         symbol: decreaseSymbol,
         type: "SELL",
         quantity: decreaseQty,
@@ -249,10 +615,9 @@ function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
         memo,
       });
     } else if (decreaseSymbol === JPY_SYMBOL && increaseSymbol !== JPY_SYMBOL) {
-      // 日本円を支払って暗号資産を購入した
       const unitPrice = priceStr ? new Decimal(priceStr).abs() : decreaseQty.dividedBy(increaseQty);
       rows.push({
-        tradedAt: dateValue,
+        tradedAt,
         symbol: increaseSymbol,
         type: "BUY",
         quantity: increaseQty,
@@ -262,7 +627,6 @@ function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
         memo,
       });
     } else if (increaseSymbol !== JPY_SYMBOL && decreaseSymbol !== JPY_SYMBOL) {
-      // 暗号資産同士の交換。円換算額(約定代金)を両建てのレートとして使う。
       const jpyValue = settlement ?? (priceStr ? new Decimal(priceStr).abs().times(decreaseQty) : null);
       if (!jpyValue) {
         skippedRows.push({
@@ -272,7 +636,7 @@ function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
         continue;
       }
       rows.push({
-        tradedAt: dateValue,
+        tradedAt,
         symbol: decreaseSymbol,
         type: "TRADE_OUT",
         quantity: decreaseQty,
@@ -282,7 +646,7 @@ function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
         memo,
       });
       rows.push({
-        tradedAt: dateValue,
+        tradedAt,
         symbol: increaseSymbol,
         type: "TRADE_IN",
         quantity: increaseQty,
@@ -292,7 +656,6 @@ function parseCoincheckCsv(csvText: string): ExchangeCsvParseResult {
         memo,
       });
     } else {
-      // 増加通貨=減少通貨=JPY等、想定外の組み合わせ
       skippedRows.push({ lineNumber, reason: "増加・減少通貨の組み合わせを解釈できません" });
     }
   }
@@ -307,27 +670,9 @@ function resolveCoincheckFeeJpy(
   if (!index.has("手数料通貨") || !index.has("手数料数量")) return new Decimal(0);
   const feeCurrency = (get("手数料通貨") ?? "").toUpperCase();
   const feeQtyStr = normalizeNumericString(get("手数料数量"));
-  if (!feeQtyStr) return new Decimal(0);
-  // 手数料が暗号資産建ての場合は円換算レートが無く安全に換算できないため、
-  // 円建て(JPY)の手数料のみを取り込む。暗号資産建て手数料は無視される
-  // (雑所得の計算上わずかな差異が生じ得るため、正確を期す場合は手動調整のこと)。
-  if (feeCurrency !== JPY_SYMBOL) return new Decimal(0);
+  if (!feeQtyStr || feeCurrency !== JPY_SYMBOL) return new Decimal(0);
   return new Decimal(feeQtyStr).abs();
 }
-
-// ---------------------------------------------------------------------------
-// GMOコイン
-// ---------------------------------------------------------------------------
-// ヘッダー(現物・証拠金・入出金が1ファイルに混在): 日時,精算区分,
-//   日本円受渡金額,注文ID,約定ID,建玉ID,銘柄名,注文タイプ,取引区分,
-//   売買区分,執行条件,約定数量,約定レート,約定金額,注文手数料,
-//   レバレッジ手数料,入出金区分,入出金金額,授受区分,数量,送付手数料,
-//   送付先/送付元,トランザクションID
-//
-// 取引区分が「現物」の行のみを現物売買として取り込む。証拠金取引・
-// 入出金・送付の行は対象外とする。
-
-const GMO_REQUIRED = ["日時", "取引区分", "銘柄名", "売買区分", "約定数量", "約定レート"];
 
 function parseGmoCoinCsv(csvText: string): ExchangeCsvParseResult {
   const csvRows = parseCsvRows(csvText);
@@ -372,9 +717,8 @@ function parseGmoCoinCsv(csvText: string): ExchangeCsvParseResult {
     const symbol = (get("銘柄名") ?? "").toUpperCase().replace(/_?JPY$/, "");
     const quantityStr = normalizeNumericString(get("約定数量"));
     const priceStr = normalizeNumericString(get("約定レート"));
-    const dateValue = parseFlexibleDateTime(get("日時"));
-
-    if (!symbol || !quantityStr || !priceStr || !dateValue) {
+    const tradedAt = parseFlexibleDate(get("日時"));
+    if (!symbol || !quantityStr || !priceStr || !tradedAt) {
       skippedRows.push({ lineNumber, reason: "日時・銘柄・数量・単価のいずれかを解釈できません" });
       continue;
     }
@@ -386,9 +730,8 @@ function parseGmoCoinCsv(csvText: string): ExchangeCsvParseResult {
     }
 
     const feeStr = normalizeNumericString(get("注文手数料"));
-
     rows.push({
-      tradedAt: dateValue,
+      tradedAt,
       symbol,
       type,
       quantity,

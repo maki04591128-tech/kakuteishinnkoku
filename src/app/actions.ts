@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
   parseExchangeCsv,
+  type ExchangeCsvMapping,
   type ExchangeCsvPreset,
 } from "@/lib/crypto/exchangeCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
@@ -23,6 +24,23 @@ function optionalString(formData: FormData, key: string): string | null {
   const value = formData.get(key);
   if (typeof value !== "string" || value.trim() === "") return null;
   return value;
+}
+
+function hasStringValue(formData: FormData, key: string): boolean {
+  const value = formData.get(key);
+  return typeof value === "string" && value.trim() !== "";
+}
+
+const EXCHANGE_LABELS: Record<Exclude<ExchangeCsvPreset, "other">, string> = {
+  bitflyer: "bitFlyer",
+  coincheck: "Coincheck",
+  gmo: "GMOコイン",
+};
+
+function isKnownExchangeCsvPreset(
+  preset: ExchangeCsvPreset,
+): preset is Exclude<ExchangeCsvPreset, "other"> {
+  return preset in EXCHANGE_LABELS;
 }
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
@@ -100,14 +118,38 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
 
 export async function importCryptoExchangeCsv(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const preset = requireString(formData, "preset") as ExchangeCsvPreset;
+  const preset = (optionalString(formData, "preset") ?? "other") as ExchangeCsvPreset;
+  const exchangeName = optionalString(formData, "exchangeName");
+  const exchangeLabel =
+    exchangeName ?? (isKnownExchangeCsvPreset(preset) ? EXCHANGE_LABELS[preset] : null);
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("CSVファイルを選択してください");
   }
 
   const text = await file.text();
-  const { rows, skippedRows } = parseExchangeCsv(preset, text);
+  const hasManualMapping = [
+    "dateColumn",
+    "symbolColumn",
+    "typeColumn",
+    "buyValue",
+    "sellValue",
+    "quantityColumn",
+    "unitPriceColumn",
+    "feeColumn",
+  ].some((key) => hasStringValue(formData, key));
+  const { rows, skippedRows } = hasManualMapping
+    ? parseExchangeCsv(text, {
+        dateColumn: requireString(formData, "dateColumn"),
+        symbolColumn: requireString(formData, "symbolColumn"),
+        typeColumn: requireString(formData, "typeColumn"),
+        buyValue: requireString(formData, "buyValue"),
+        sellValue: requireString(formData, "sellValue"),
+        quantityColumn: requireString(formData, "quantityColumn"),
+        unitPriceColumn: requireString(formData, "unitPriceColumn"),
+        feeColumn: optionalString(formData, "feeColumn") ?? undefined,
+      } satisfies ExchangeCsvMapping)
+    : parseExchangeCsv(preset, text);
 
   const taxYear = await getOrCreateTaxYear(year);
 
@@ -131,9 +173,9 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
           quantity: row.quantity.toString(),
           unitPriceJpy: row.unitPriceJpy.toString(),
           feeJpy: row.feeJpy.toString(),
-          exchange: row.exchange,
-          memo: row.memo,
-          source: `exchange_csv:${preset}`,
+          exchange: row.exchange ?? exchangeLabel,
+          memo: row.memo ?? null,
+          source: hasManualMapping ? `exchange_csv:${preset}:manual` : `exchange_csv:${preset}`,
           importBatchId: batch.id,
         })),
       });

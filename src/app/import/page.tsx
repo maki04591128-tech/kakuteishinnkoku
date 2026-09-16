@@ -139,39 +139,74 @@ export default async function ImportPage({
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
-        <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
+        <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSVの取り込み</h2>
         <p className="mb-3 text-sm text-neutral-500">
-          bitFlyer・Coincheck・GMOコインの取引履歴CSVを取り込みます。現物の
-          売買・交換のみ対応し、入出金(送付・受取)や証拠金取引、税務上の性質が
-          一意に決まらない明細は自動では取り込まず件数のみ表示します(取引所側の
-          CSV仕様変更や列見出しの差異により解釈できない場合があります。取り込み後は
-          必ず一覧で内容を確認してください)。
+          bitFlyer・Coincheck・GMOコイン等、取引所からダウンロードした取引履歴CSVを
+          取り込めます。既知の取引所はプリセットで取り込めますが、列見出しが一致しない
+          場合やその他の取引所CSVは、下のマッピング欄にCSVのヘッダー名を入力してください。
+          入出金や証拠金取引、税務上の性質が一意に決まらない明細は自動では取り込まず
+          件数のみ表示します。取り込み後は必ず一覧で内容を確認してください。
         </p>
-        <form action={importCryptoExchangeCsv} className="flex flex-wrap items-center gap-3">
+        <p className="mb-4 text-xs text-neutral-400">
+          マッピング欄を1つでも入力した場合は、日付/銘柄/売買種別/「買い」を表す値/
+          「売り」を表す値/数量/単価 の全項目を入力してください。例: Coincheckの
+          「業界標準フォーマット」は 日付列=time / 銘柄列=trading_currency /
+          売買種別列=operation(買い=buy, 売り=sell) / 数量列=amount / 単価列=price /
+          手数料列=fee。bitFlyerの取引履歴CSVは 日付列=取引日時 / 銘柄列=通貨1 /
+          売買種別列=取引種別(買い=買い, 売り=売り) / 数量列=通貨1数量 / 単価列=取引価格 /
+          手数料列=手数料。取引所の仕様変更等で列名が異なる場合は、実際のCSVに合わせて入力してください。
+        </p>
+        <form
+          action={importCryptoExchangeCsv}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
           <input type="hidden" name="year" value={year} />
-          <select name="preset" required className={inputClass} defaultValue="">
-            <option value="" disabled>
-              取引所を選択
-            </option>
-            {EXCHANGE_CSV_PRESETS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="file"
-            name="file"
-            accept=".csv,text/csv"
-            required
-            className="text-sm"
-          />
-          <button
-            type="submit"
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-          >
-            取り込む
-          </button>
+          <Field label="プリセット">
+            <select name="preset" className={inputClass} defaultValue="other">
+              <option value="other">その他 / 手動マッピング</option>
+              {EXCHANGE_CSV_PRESETS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="取引所名(任意)">
+            <input type="text" name="exchangeName" placeholder="bitFlyer" className={inputClass} />
+          </Field>
+          <Field label="日付列名(任意)">
+            <input type="text" name="dateColumn" className={inputClass} />
+          </Field>
+          <Field label="銘柄列名(任意)">
+            <input type="text" name="symbolColumn" className={inputClass} />
+          </Field>
+          <Field label="売買種別列名(任意)">
+            <input type="text" name="typeColumn" className={inputClass} />
+          </Field>
+          <Field label="「買い」を表す値(任意)">
+            <input type="text" name="buyValue" className={inputClass} />
+          </Field>
+          <Field label="「売り」を表す値(任意)">
+            <input type="text" name="sellValue" className={inputClass} />
+          </Field>
+          <Field label="数量列名(任意)">
+            <input type="text" name="quantityColumn" className={inputClass} />
+          </Field>
+          <Field label="単価(円)列名(任意)">
+            <input type="text" name="unitPriceColumn" className={inputClass} />
+          </Field>
+          <Field label="手数料(円)列名(任意)">
+            <input type="text" name="feeColumn" className={inputClass} />
+          </Field>
+          <div className="col-span-full flex flex-wrap items-center gap-3">
+            <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              取り込む
+            </button>
+          </div>
         </form>
       </section>
 
