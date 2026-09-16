@@ -354,6 +354,46 @@ export async function deleteInvestmentTrade(formData: FormData): Promise<void> {
   redirect(`/import?year=${year}&tab=investment`);
 }
 
+export async function setBrokerAnnualReport(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const broker = requireString(formData, "broker");
+  const accountType = requireString(formData, "accountType");
+  const proceedsJpy = requireString(formData, "proceedsJpy");
+  const acquisitionCostJpy = requireString(formData, "acquisitionCostJpy");
+  const dividendJpy = optionalString(formData, "dividendJpy") ?? "0";
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.brokerAnnualReport.upsert({
+    where: {
+      taxYearId_broker_accountType: {
+        taxYearId: taxYear.id,
+        broker,
+        accountType: accountType as never,
+      },
+    },
+    create: {
+      taxYearId: taxYear.id,
+      broker,
+      accountType: accountType as never,
+      proceedsJpy,
+      acquisitionCostJpy,
+      dividendJpy,
+    },
+    update: { proceedsJpy, acquisitionCostJpy, dividendJpy },
+  });
+
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=brokerReport`);
+}
+
+export async function deleteBrokerAnnualReport(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.brokerAnnualReport.delete({ where: { id } });
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=brokerReport`);
+}
+
 export async function setOpeningBalance(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const taxYear = await getOrCreateTaxYear(year);
