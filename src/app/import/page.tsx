@@ -45,6 +45,11 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   NISA: "NISA口座",
 };
 
+const NISA_TYPE_LABEL: Record<string, string> = {
+  TSUMITATE: "つみたて投資枠",
+  GROWTH: "成長投資枠",
+};
+
 function yen(value: { toString(): string }): string {
   return `¥${Number(value.toString()).toLocaleString("ja-JP")}`;
 }
@@ -1211,6 +1216,13 @@ export default async function ImportPage({
           <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isNisa" /> NISA口座での取引(非課税として損益計算から除外)
           </label>
+          <Field label="NISA枠区分(NISA口座の買付の場合のみ。年間投資枠の使用状況試算に使用)">
+            <select name="nisaType" defaultValue="" className={inputClass}>
+              <option value="">未選択</option>
+              <option value="TSUMITATE">つみたて投資枠(年120万円)</option>
+              <option value="GROWTH">成長投資枠(年240万円)</option>
+            </select>
+          </Field>
           <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isForeign" /> 国外で発行された株式・投資信託等(米国株等。
             配当・分配金の場合は外国税額控除の試算画面の国外所得金額・外国所得税額に、
@@ -1231,7 +1243,7 @@ export default async function ImportPage({
             <table className="w-full min-w-max text-left text-sm">
               <thead className="bg-neutral-50 dark:bg-neutral-900">
                 <tr>
-                  {["日時", "銘柄", "種別", "数量", "単価", "口座", "国外源泉", ""].map((h) => (
+                  {["日時", "銘柄", "種別", "数量", "単価", "口座", "NISA枠", "国外源泉", ""].map((h) => (
                     <th key={h} className="px-3 py-2 font-medium text-neutral-500">
                       {h}
                     </th>
@@ -1247,6 +1259,11 @@ export default async function ImportPage({
                     <td className="px-3 py-2">{t.quantity.toString()}</td>
                     <td className="px-3 py-2">{yen(t.unitPriceJpy)}</td>
                     <td className="px-3 py-2">{t.isNisa ? "NISA" : t.accountType}</td>
+                    <td className="px-3 py-2">
+                      {t.isNisa && t.type === "BUY"
+                        ? (NISA_TYPE_LABEL[t.nisaType ?? ""] ?? "未分類")
+                        : "-"}
+                    </td>
                     <td className="px-3 py-2">
                       {t.isForeign
                         ? t.type === "DIVIDEND"

@@ -21,6 +21,7 @@ import {
   loadOpeningBalances,
   type CarryForwardCandidate,
 } from "./openingBalance";
+import { calculateNisaQuotaUsage, type NisaQuotaUsageResult } from "./investment/nisaQuota";
 
 /**
  * 指定した課税年度のDB上の取引をすべて読み出し、計算エンジンに渡して
@@ -37,6 +38,7 @@ export async function buildYearReport(year: number): Promise<{
   investment: InvestmentPortfolioYearResult;
   cryptoCostMethod: CryptoCostMethod;
   lossCarryforward: LossCarryforwardResult;
+  nisaQuota: NisaQuotaUsageResult;
 } | null> {
   const taxYear = await prisma.taxYear.findUnique({ where: { year } });
   if (!taxYear) {
@@ -46,6 +48,7 @@ export async function buildYearReport(year: number): Promise<{
       investment: calculateInvestmentPortfolioYear([]),
       cryptoCostMethod: "AVERAGE",
       lossCarryforward: calculateLossCarryforward(year, 0, []),
+      nisaQuota: calculateNisaQuotaUsage([]),
     };
   }
 
@@ -107,12 +110,23 @@ export async function buildYearReport(year: number): Promise<{
     })),
   );
 
+  const nisaQuota = calculateNisaQuotaUsage(
+    investmentTrades.map((t) => ({
+      type: t.type,
+      isNisa: t.isNisa,
+      nisaType: t.nisaType,
+      quantity: t.quantity.toString(),
+      unitPriceJpy: t.unitPriceJpy.toString(),
+    })),
+  );
+
   return {
     crypto,
     cryptoMargin,
     investment,
     cryptoCostMethod: taxYear.cryptoCostMethod,
     lossCarryforward,
+    nisaQuota,
   };
 }
 

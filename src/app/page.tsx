@@ -168,6 +168,41 @@ export default async function Home({
         </p>
       )}
 
+      {report &&
+        (report.nisaQuota.tsumitateUsedJpy.greaterThan(0) ||
+          report.nisaQuota.growthUsedJpy.greaterThan(0) ||
+          report.nisaQuota.unclassifiedBuyJpy.greaterThan(0)) && (
+          <section>
+            <h2 className="mb-2 text-lg font-semibold">NISA年間投資枠の使用状況(試算)</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <NisaQuotaCard
+                title="つみたて投資枠"
+                limitJpy={report.nisaQuota.tsumitateLimitJpy}
+                usedJpy={report.nisaQuota.tsumitateUsedJpy}
+                remainingJpy={report.nisaQuota.tsumitateRemainingJpy}
+              />
+              <NisaQuotaCard
+                title="成長投資枠"
+                limitJpy={report.nisaQuota.growthLimitJpy}
+                usedJpy={report.nisaQuota.growthUsedJpy}
+                remainingJpy={report.nisaQuota.growthRemainingJpy}
+              />
+            </div>
+            <p className="mt-2 text-xs text-neutral-400">
+              その年にアプリへ登録したNISA口座の買付(取得価額ベース)のみを集計した年間投資枠の試算。
+              生涯非課税限度額(総枠1,800万円)は売却による枠の再利用等が絡み本ツールのデータのみでは
+              正確に追えないため対象外。
+            </p>
+            {report.nisaQuota.unclassifiedBuyJpy.greaterThan(0) && (
+              <p className="mt-2 rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                NISA枠区分(つみたて/成長)が未入力の買付が
+                {yen(report.nisaQuota.unclassifiedBuyJpy)}あります。上記の集計に含まれていないため、
+                「データを取り込む」で該当取引を削除し、NISA枠区分を指定して登録し直してください。
+              </p>
+            )}
+          </section>
+        )}
+
       {report && report.crypto.bySymbol.length > 0 && (
         <DetailTable
           title="暗号資産 銘柄別内訳"
@@ -237,6 +272,33 @@ function SummaryCard({
       <p className="text-sm text-neutral-500">{title}</p>
       <p className="mt-1 text-2xl font-semibold">{value}</p>
       <p className="mt-1 text-xs text-neutral-400">{hint}</p>
+    </div>
+  );
+}
+
+function NisaQuotaCard({
+  title,
+  limitJpy,
+  usedJpy,
+  remainingJpy,
+}: {
+  title: string;
+  limitJpy: { toString(): string };
+  usedJpy: { toString(): string };
+  remainingJpy: { toString(): string };
+}) {
+  const exceeded = Number(remainingJpy.toString()) < 0;
+  return (
+    <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+      <p className="text-sm text-neutral-500">
+        {title}(年間上限{yen(limitJpy)})
+      </p>
+      <p className="mt-1 text-2xl font-semibold">{yen(usedJpy)}</p>
+      <p
+        className={`mt-1 text-xs ${exceeded ? "font-medium text-red-600 dark:text-red-400" : "text-neutral-400"}`}
+      >
+        {exceeded ? `上限超過 ${yen(remainingJpy)}` : `残枠 ${yen(remainingJpy)}`}
+      </p>
     </div>
   );
 }
