@@ -75,11 +75,59 @@ export function buildTaxFilingDraftCsv(
   );
   lines.push("");
 
-  lines.push(
-    toCsvLine([
-      `■ 暗号資産 銘柄別内訳(${CRYPTO_COST_METHOD_LABEL[cryptoCostMethod]})`,
-    ]),
-  );
+  const carryforward = summary.investmentLossCarryforward;
+  if (
+    carryforward.totalUsedJpy.greaterThan(0) ||
+    carryforward.newLossJpy.greaterThan(0) ||
+    carryforward.carryforwardToNextYear.length > 0 ||
+    carryforward.expiredByOriginYear.length > 0
+  ) {
+    lines.push(toCsvLine(["■ 上場株式等の譲渡損失の繰越控除(3年間)"]));
+    lines.push(
+      toCsvLine([
+        "繰越控除の使用額(発生年の古い順に控除)",
+        formatYen(carryforward.totalUsedJpy),
+        "申告書第三表 / 第四表(損失申告用)",
+      ]),
+    );
+    lines.push(
+      toCsvLine([
+        "繰越控除後の譲渡所得(課税対象額)",
+        formatYen(carryforward.taxableGainJpy),
+        "申告書第三表(分離課税用)",
+      ]),
+    );
+    if (carryforward.newLossJpy.greaterThan(0)) {
+      lines.push(
+        toCsvLine([
+          `${summary.year}年分の新規譲渡損失(翌年以後3年間繰越可能)`,
+          formatYen(carryforward.newLossJpy),
+          "申告書第四表(損失申告用)",
+        ]),
+      );
+    }
+    for (const c of carryforward.carryforwardToNextYear) {
+      lines.push(
+        toCsvLine([
+          `${c.originYear}年分発生分の翌年繰越残高`,
+          formatYen(c.remainingAmountJpy),
+          `控除期限: ${c.originYear + 3}年分まで`,
+        ]),
+      );
+    }
+    for (const e of carryforward.expiredByOriginYear) {
+      lines.push(
+        toCsvLine([
+          `${e.originYear}年分発生分(控除期限切れ)`,
+          formatYen(e.expiredAmountJpy),
+          "控除期限(3年)を超えたため繰越不可",
+        ]),
+      );
+    }
+    lines.push("");
+  }
+
+  lines.push(toCsvLine([`■ 暗号資産 銘柄別内訳(${CRYPTO_COST_METHOD_LABEL[cryptoCostMethod]})`]));
   lines.push(
     toCsvLine([
       "銘柄",

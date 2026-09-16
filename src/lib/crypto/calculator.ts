@@ -198,7 +198,7 @@ function toSortableTime(value: Date | string | undefined, symbol: string): numbe
   return time;
 }
 
-function calculateCryptoYearMovingAverage(
+export function calculateCryptoYearMovingAverage(
   symbol: string,
   trades: CryptoTradeInput[],
   opening?: CryptoOpeningBalance,
@@ -334,4 +334,23 @@ export function calculateCryptoPortfolioYear(
   );
 
   return { bySymbol, totalRealizedGainJpy };
+}
+
+export function calculateCryptoPortfolioYearMovingAverage(
+  trades: (CryptoTradeInput & { symbol: string; tradedAt?: Date | string })[],
+  openings?: Record<string, CryptoOpeningBalance>,
+): CryptoPortfolioYearResult {
+  return calculateCryptoPortfolioYear(trades, openings, "MOVING_AVERAGE");
+}
+
+/**
+ * cryptoCostMethod に応じて総平均法/移動平均法のいずれかで計算する。
+ * 移動平均法の場合は全取引に tradedAt が必要。
+ */
+export function calculateCryptoPortfolioYearByMethod(
+  method: CryptoCostMethod,
+  trades: (CryptoTradeInput & { symbol: string; tradedAt?: Date | string })[],
+  openings?: Record<string, CryptoOpeningBalance>,
+): CryptoPortfolioYearResult {
+  return calculateCryptoPortfolioYear(trades, openings, method);
 }
