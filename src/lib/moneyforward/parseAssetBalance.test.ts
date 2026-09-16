@@ -91,4 +91,54 @@ describe("parseMoneyForwardAssetBalanceCsv", () => {
     expect(rows).toEqual([]);
     expect(skippedRows).toEqual([]);
   });
+
+  it("数量列を指定すると保有数量を取り込める", () => {
+    const csv = [
+      "金融機関,資産名,残高,数量",
+      "bitFlyer,ビットコイン,1500000,0.1",
+    ].join("\n");
+    const { rows, skippedRows } = parseMoneyForwardAssetBalanceCsv(csv, {
+      institutionColumn: "金融機関",
+      assetNameColumn: "資産名",
+      balanceColumn: "残高",
+      quantityColumn: "数量",
+    });
+
+    expect(skippedRows).toEqual([]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].quantity?.toNumber()).toBe(0.1);
+  });
+
+  it("数量列を指定しない場合は quantity=null になる", () => {
+    const { rows } = parseMoneyForwardAssetBalanceCsv(CSV, MAPPING);
+    expect(rows[0].quantity).toBeNull();
+  });
+
+  it("数量列を指定してもセルが空欄なら quantity=null になる", () => {
+    const csv = ["金融機関,資産名,残高,数量", "bitFlyer,ビットコイン,1500000,"].join("\n");
+    const { rows, skippedRows } = parseMoneyForwardAssetBalanceCsv(csv, {
+      institutionColumn: "金融機関",
+      assetNameColumn: "資産名",
+      balanceColumn: "残高",
+      quantityColumn: "数量",
+    });
+
+    expect(skippedRows).toEqual([]);
+    expect(rows[0].quantity).toBeNull();
+  });
+
+  it("数量列を指定して解釈できない値が入っている場合はスキップして理由を報告する", () => {
+    const csv = ["金融機関,資産名,残高,数量", "bitFlyer,ビットコイン,1500000,不正な数値"].join(
+      "\n",
+    );
+    const { rows, skippedRows } = parseMoneyForwardAssetBalanceCsv(csv, {
+      institutionColumn: "金融機関",
+      assetNameColumn: "資産名",
+      balanceColumn: "残高",
+      quantityColumn: "数量",
+    });
+
+    expect(rows).toHaveLength(0);
+    expect(skippedRows[0].reason).toMatch(/数量/);
+  });
 });

@@ -34,9 +34,11 @@ import {
   setLossCarryforward,
   setOpeningBalance,
 } from "@/app/actions";
+import { cryptoTradeQuantityDelta } from "@/lib/crypto/calculator";
 import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
 import { prisma } from "@/lib/db";
 import { reconcileBrokerAnnualReports } from "@/lib/investment/annualReportReconciliation";
+import { investmentTradeQuantityDelta } from "@/lib/investment/calculator";
 import {
   reconcileAssetBalances,
   reconcileAssetSymbolBalances,
@@ -166,12 +168,22 @@ export default async function ImportPage({
       institution: s.institution,
       assetName: s.assetName,
       balanceJpy: s.balanceJpy.toString(),
+      quantity: s.quantity?.toString() ?? null,
     })),
     assetSymbolMappings.map((m) => ({ assetName: m.assetName, symbol: m.symbol })),
     [
-      ...cryptoTrades.map((t) => ({ institution: t.exchange, symbol: t.symbol })),
-      ...investmentTrades.map((t) => ({ institution: t.broker, symbol: t.symbol })),
+      ...cryptoTrades.map((t) => ({
+        institution: t.exchange,
+        symbol: t.symbol,
+        quantityDelta: cryptoTradeQuantityDelta(t.type, t.quantity.toString()),
+      })),
+      ...investmentTrades.map((t) => ({
+        institution: t.broker,
+        symbol: t.symbol,
+        quantityDelta: investmentTradeQuantityDelta(t.type, t.quantity.toString()),
+      })),
     ],
+    openingBalances.map((o) => ({ symbol: o.symbol, quantity: o.quantity.toString() })),
   );
 
   const brokerReconciliations = reconcileBrokerAnnualReports(
@@ -245,9 +257,11 @@ export default async function ImportPage({
           として一覧表示する。逆に、アプリには取引明細があるのにマネーフォワード
           側の資産残高に見当たらない金融機関も参考情報として表示する(資産の
           移管やマネーフォワード未連携の口座でも起こりうるため、こちらは
-          計上漏れとは限らない)。銘柄ごとの数量・評価額までは自動比較しない
-          (資産名と銘柄シンボルの対応判定・時価の扱いが自動化できないため)。
-          金融機関名は、アプリ側の取引所名・証券会社名の入力(取引の
+          計上漏れとは限らない)。銘柄ごとの評価額は時価に左右されるため自動比較
+          しないが、CSVに数量列がある場合は下の「銘柄マッピング」欄で数量列名を
+          指定すると、評価額とは異なり時価に左右されない「保有数量」そのものの
+          突合(期首残高+当年の取引による増減とマネーフォワード側の数量が一致するか)
+          も行える。金融機関名は、アプリ側の取引所名・証券会社名の入力(取引の
           「取引所」「証券会社」欄)と完全一致で突き合わせるため、表記を揃えて
           登録すること。CSVの列見出しは公開情報から確認できておらず未検証のため、
           列名を指定する汎用マッピング方式のみ提供する。
@@ -272,6 +286,9 @@ export default async function ImportPage({
           </Field>
           <Field label="残高(評価額・円)列名">
             <input type="text" name="balanceColumn" required className={inputClass} />
+          </Field>
+          <Field label="数量列名(任意・数量突合に使用)">
+            <input type="text" name="quantityColumn" className={inputClass} />
           </Field>
           <div className="col-span-full flex flex-wrap items-center gap-3">
             <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
@@ -396,7 +413,7 @@ export default async function ImportPage({
               <table className="w-full min-w-max text-left text-sm">
                 <thead className="bg-neutral-50 dark:bg-neutral-900">
                   <tr>
-                    {["金融機関", "資産名", "銘柄", "MF資産残高", "判定"].map((h) => (
+                    {["金融機関", "資産名", "銘柄", "MF資産残高", "判定", "数量突合"].map((h) => (
                       <th key={h} className="px-3 py-2 font-medium text-neutral-500">
                         {h}
                       </th>
@@ -428,6 +445,29 @@ export default async function ImportPage({
                           <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
                             未マッピング
                           </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {r.quantityCheck.status === "OK" && (
+                          <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
+                            数量一致
+                          </span>
+                        )}
+                        {r.quantityCheck.status === "MISMATCH" && (
+                          <span
+                            className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300"
+                            title={`MF: ${r.quantityCheck.snapshotQuantity?.toString()} / アプリ側期待値: ${r.quantityCheck.expectedQuantity?.toString()}`}
+                          >
+                            数量不一致
+                          </span>
+                        )}
+                        {r.quantityCheck.status === "SKIPPED_AMBIGUOUS_OPENING_BALANCE" && (
+                          <span className="rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+                            判定不能(期首残高の按分不可)
+                          </span>
+                        )}
+                        {r.quantityCheck.status === "NOT_AVAILABLE" && (
+                          <span className="text-xs text-neutral-400">-</span>
                         )}
                       </td>
                     </tr>

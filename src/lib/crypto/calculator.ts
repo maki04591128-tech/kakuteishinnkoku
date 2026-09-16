@@ -83,6 +83,19 @@ function toDecimal(value: Decimal.Value): Decimal {
 }
 
 /**
+ * 取引種別に応じた保有数量の増減(取得は+、譲渡・使用は-)。
+ * マネーフォワード資産残高突合(assetBalanceReconciliation.ts)で、期間内の
+ * 取引から当年の数量変化だけを取り出すために使う。
+ */
+export function cryptoTradeQuantityDelta(
+  type: CryptoTradeType,
+  quantity: Decimal.Value,
+): Decimal {
+  const value = toDecimal(quantity);
+  return ACQUIRE_TYPES.has(type) ? value : value.negated();
+}
+
+/**
  * 単一銘柄の1年分の取引から損益を計算する。
  *
  * method: "AVERAGE"(既定・総平均法)の場合、trades の順序は結果に影響しない
