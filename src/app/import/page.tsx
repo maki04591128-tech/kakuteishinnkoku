@@ -12,6 +12,7 @@ import {
   deleteLossCarryforward,
   deleteOpeningBalance,
   importAssetBalanceCsv,
+  importBrokerAnnualReportCsv,
   importCryptoExchangeCsv,
   importCryptoMarginCsv,
   importMoneyForwardCsv,
@@ -955,6 +956,47 @@ export default async function ImportPage({
           平均単価で計算するため前提が異なる(自動突合はせず、差引金額の参考
           表示のみ行う)。
         </p>
+
+        <div className="mb-6 border-b border-dashed border-neutral-200 pb-6 dark:border-neutral-800">
+          <h3 className="mb-2 text-sm font-semibold">CSV取り込み(列名を指定)</h3>
+          <p className="mb-3 text-sm text-neutral-500">
+            証券会社・口座区分ごとの年間サマリー数値を1行にまとめたCSVを取り込める。
+            年間取引報告書自体はPDFで発行される証券会社が多く、CSVの様式は
+            証券会社ごとに異なり未検証のため、専用プリセットは用意せず列名を
+            指定する汎用マッピング方式のみで取り込む。同じ証券会社・口座区分の
+            行は上書きされる。
+          </p>
+          <form
+            action={importBrokerAnnualReportCsv}
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+          >
+            <input type="hidden" name="year" value={year} />
+            <Field label="証券会社列名">
+              <input type="text" name="brokerColumn" required className={inputClass} />
+            </Field>
+            <Field label="口座区分列名">
+              <input type="text" name="accountTypeColumn" required className={inputClass} />
+            </Field>
+            <Field label="譲渡の対価の額(収入金額)列名">
+              <input type="text" name="proceedsColumn" required className={inputClass} />
+            </Field>
+            <Field label="取得費及び譲渡費用の額等列名">
+              <input type="text" name="acquisitionCostColumn" required className={inputClass} />
+            </Field>
+            <Field label="配当等の額列名(任意)">
+              <input type="text" name="dividendColumn" className={inputClass} />
+            </Field>
+            <div className="col-span-full flex flex-wrap items-center gap-3">
+              <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
+              <button
+                type="submit"
+                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+              >
+                取り込む
+              </button>
+            </div>
+          </form>
+        </div>
 
         <form
           action={setBrokerAnnualReport}
