@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
 import { ForeignTaxCreditForm } from "./ForeignTaxCreditForm";
 
@@ -14,7 +15,7 @@ export default async function ForeignTaxCreditPage({
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
 
   const taxYear = await getOrCreateTaxYear(year);
-  const [carryforwards, spareLimitCarryforwards] = await Promise.all([
+  const [carryforwards, spareLimitCarryforwards, report] = await Promise.all([
     prisma.foreignTaxCreditCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
@@ -23,7 +24,13 @@ export default async function ForeignTaxCreditPage({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
     }),
+    buildYearReport(year),
   ]);
+
+  const autoForeignSourceIncomeJpy =
+    report?.investment.totalForeignSourceDividendJpy.toString() ?? "0";
+  const autoForeignIncomeTaxPaidJpy =
+    report?.investment.totalForeignTaxWithheldJpy.toString() ?? "0";
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -66,6 +73,8 @@ export default async function ForeignTaxCreditPage({
           originYear: c.originYear,
           remainingAmountJpy: c.remainingAmountJpy.toString(),
         }))}
+        autoForeignSourceIncomeJpy={autoForeignSourceIncomeJpy}
+        autoForeignIncomeTaxPaidJpy={autoForeignIncomeTaxPaidJpy}
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
@@ -73,6 +82,14 @@ export default async function ForeignTaxCreditPage({
           「所得税額」「所得総額(総所得金額等)」は、本ツールが集計する暗号資産・投資の
           損益だけでなく、給与所得など他のすべての所得を合算した確定申告書全体の金額を
           入力する必要がある(本ツールは給与所得等を管理していないため自動計算できない)。
+        </p>
+        <p>
+          「国外所得金額」「外国所得税額」は、`/import`
+          で株式等の取引に「国外で発行された株式・投資信託等」のチェックを付けて配当・
+          分配金を登録すると、その課税口座分(NISA口座は国内非課税のため対象外)を
+          自動集計して初期値に反映する(取得後も手入力で上書き可能)。国外株式の
+          譲渡益や、取引登録していない国外所得は自動集計されないため、その場合は
+          引き続き手入力すること。
         </p>
         <p>
           繰越控除限度超過額・繰越控除余裕額はいずれも発生年ごとに

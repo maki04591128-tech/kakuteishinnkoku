@@ -249,6 +249,8 @@ export async function addInvestmentTrade(formData: FormData): Promise<void> {
       feeJpy: optionalString(formData, "feeJpy") ?? "0",
       accountType: requireString(formData, "accountType") as never,
       isNisa: formData.get("isNisa") === "on",
+      isForeign: formData.get("isForeign") === "on",
+      foreignTaxWithheldJpy: optionalString(formData, "foreignTaxWithheldJpy") ?? "0",
       broker: optionalString(formData, "broker"),
       memo: optionalString(formData, "memo"),
       source: "manual",

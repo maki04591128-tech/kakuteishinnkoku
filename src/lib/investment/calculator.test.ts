@@ -68,6 +68,43 @@ describe("calculateInvestmentYear (移動平均法)", () => {
     expect(result.closingQuantity.toNumber()).toBe(100);
   });
 
+  it("国外源泉の配当は外国所得税額とあわせて別集計される", () => {
+    const result = calculateInvestmentYear("VOO", [
+      { tradedAt: d("2026-01-10"), type: "BUY", quantity: 10, unitPriceJpy: 50_000 },
+      {
+        tradedAt: d("2026-03-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 10_000,
+        isForeign: true,
+        foreignTaxWithheldJpy: 1000,
+      },
+      { tradedAt: d("2026-06-01"), type: "DIVIDEND", quantity: 1, unitPriceJpy: 5000 },
+    ]);
+
+    expect(result.dividendJpy.toNumber()).toBe(15_000);
+    expect(result.foreignSourceDividendJpy.toNumber()).toBe(10_000);
+    expect(result.foreignTaxWithheldJpy.toNumber()).toBe(1000);
+  });
+
+  it("NISA口座の国外源泉配当は非課税のため外国税額控除の自動集計対象にならない", () => {
+    const result = calculateInvestmentYear("VOO", [
+      {
+        tradedAt: d("2026-03-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 10_000,
+        isNisa: true,
+        isForeign: true,
+        foreignTaxWithheldJpy: 1000,
+      },
+    ]);
+
+    expect(result.nisaDividendJpy.toNumber()).toBe(10_000);
+    expect(result.foreignSourceDividendJpy.toNumber()).toBe(0);
+    expect(result.foreignTaxWithheldJpy.toNumber()).toBe(0);
+  });
+
   it("NISA口座の取引は課税口座と分離され、非課税枠として別集計される", () => {
     const result = calculateInvestmentYear("7203", [
       { tradedAt: d("2026-01-10"), type: "BUY", quantity: 100, unitPriceJpy: 2000, isNisa: true },
@@ -102,5 +139,33 @@ describe("calculateInvestmentPortfolioYear", () => {
     expect(result.totalRealizedGainJpy.toNumber()).toBe(50_000 - 10_000);
     expect(result.totalDividendJpy.toNumber()).toBe(3000);
     expect(result.bySymbol).toHaveLength(2);
+  });
+
+  it("複数銘柄の国外源泉配当・外国所得税額を合算する", () => {
+    const result = calculateInvestmentPortfolioYear([
+      {
+        symbol: "VOO",
+        tradedAt: d("2026-03-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 10_000,
+        isForeign: true,
+        foreignTaxWithheldJpy: 1000,
+      },
+      {
+        symbol: "VT",
+        tradedAt: d("2026-06-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 5000,
+        isForeign: true,
+        foreignTaxWithheldJpy: 500,
+      },
+      { symbol: "7203", tradedAt: d("2026-06-01"), type: "DIVIDEND", quantity: 1, unitPriceJpy: 3000 },
+    ]);
+
+    expect(result.totalForeignSourceDividendJpy.toNumber()).toBe(15_000);
+    expect(result.totalForeignTaxWithheldJpy.toNumber()).toBe(1500);
+    expect(result.totalDividendJpy.toNumber()).toBe(18_000);
   });
 });

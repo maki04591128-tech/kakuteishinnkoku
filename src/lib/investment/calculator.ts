@@ -30,6 +30,10 @@ export interface InvestmentTradeInput {
   feeJpy?: Decimal.Value;
   /** true の場合、非課税(NISA)口座の取引として損益計算から除外する */
   isNisa?: boolean;
+  /** 国外で発行された株式・投資信託等かどうか(外国税額控除の対象判定に使用) */
+  isForeign?: boolean;
+  /** type="DIVIDEND"の場合、現地で源泉徴収された外国所得税額(円換算) */
+  foreignTaxWithheldJpy?: Decimal.Value;
 }
 
 export interface InvestmentOpeningBalance {
@@ -115,6 +119,16 @@ export interface InvestmentSymbolYearResult {
   realizedGainJpy: Decimal;
   /** 配当等の受取額(課税口座分) */
   dividendJpy: Decimal;
+  /**
+   * 配当等の受取額のうち、国外で発行された株式・投資信託等(isForeign=true)からの
+   * 分(課税口座分のみ)。外国税額控除の国外所得金額の自動集計に使う。
+   */
+  foreignSourceDividendJpy: Decimal;
+  /**
+   * 国外源泉の配当等につき源泉徴収された外国所得税額の合計(課税口座分のみ)。
+   * NISA口座分は日本国内で非課税のため外国税額控除の対象外(集計しない)。
+   */
+  foreignTaxWithheldJpy: Decimal;
   closingQuantity: Decimal;
   closingCostJpy: Decimal;
   /** 参考情報: NISA口座分の譲渡損益(非課税のため申告不要・損益通算不可) */
@@ -137,6 +151,8 @@ export function calculateInvestmentYear(
   const nisaPool = newPoolState(nisaOpening);
   let dividendJpy = new Decimal(0);
   let nisaDividendJpy = new Decimal(0);
+  let foreignSourceDividendJpy = new Decimal(0);
+  let foreignTaxWithheldJpy = new Decimal(0);
 
   const sorted = [...trades].sort(
     (a, b) => a.tradedAt.getTime() - b.tradedAt.getTime(),
@@ -149,6 +165,13 @@ export function calculateInvestmentYear(
         nisaDividendJpy = nisaDividendJpy.plus(amount);
       } else {
         dividendJpy = dividendJpy.plus(amount);
+        // NISA口座分は国内非課税のため外国税額控除の対象外(集計は課税口座分のみ)
+        if (trade.isForeign) {
+          foreignSourceDividendJpy = foreignSourceDividendJpy.plus(amount);
+          foreignTaxWithheldJpy = foreignTaxWithheldJpy.plus(
+            new Decimal(trade.foreignTaxWithheldJpy ?? 0),
+          );
+        }
       }
       continue;
     }
@@ -169,6 +192,8 @@ export function calculateInvestmentYear(
     costOfSoldJpy: taxablePool.costOfSoldJpy,
     realizedGainJpy,
     dividendJpy,
+    foreignSourceDividendJpy,
+    foreignTaxWithheldJpy,
     closingQuantity: taxablePool.quantity,
     closingCostJpy: taxablePool.costJpy,
     nisaRealizedGainJpy,
@@ -183,6 +208,10 @@ export interface InvestmentPortfolioYearResult {
   /** 課税口座合計の譲渡所得(申告分離課税の対象額。損失の場合は負値) */
   totalRealizedGainJpy: Decimal;
   totalDividendJpy: Decimal;
+  /** 課税口座合計の国外源泉配当等の受取額(外国税額控除の国外所得金額の自動集計に使用) */
+  totalForeignSourceDividendJpy: Decimal;
+  /** 課税口座合計の外国所得税額(外国税額控除の外国所得税額の自動集計に使用) */
+  totalForeignTaxWithheldJpy: Decimal;
 }
 
 export function calculateInvestmentPortfolioYear(
@@ -225,6 +254,20 @@ export function calculateInvestmentPortfolioYear(
     (sum, r) => sum.plus(r.dividendJpy),
     new Decimal(0),
   );
+  const totalForeignSourceDividendJpy = bySymbol.reduce(
+    (sum, r) => sum.plus(r.foreignSourceDividendJpy),
+    new Decimal(0),
+  );
+  const totalForeignTaxWithheldJpy = bySymbol.reduce(
+    (sum, r) => sum.plus(r.foreignTaxWithheldJpy),
+    new Decimal(0),
+  );
 
-  return { bySymbol, totalRealizedGainJpy, totalDividendJpy };
+  return {
+    bySymbol,
+    totalRealizedGainJpy,
+    totalDividendJpy,
+    totalForeignSourceDividendJpy,
+    totalForeignTaxWithheldJpy,
+  };
 }

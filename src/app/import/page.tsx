@@ -1199,8 +1199,21 @@ export default async function ImportPage({
           <Field label="証券会社">
             <input type="text" name="broker" className={inputClass} />
           </Field>
+          <Field label="外国所得税額(円・配当が国外源泉の場合のみ)">
+            <input
+              type="number"
+              step="any"
+              name="foreignTaxWithheldJpy"
+              defaultValue={0}
+              className={inputClass}
+            />
+          </Field>
           <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isNisa" /> NISA口座での取引(非課税として損益計算から除外)
+          </label>
+          <label className="col-span-full flex items-center gap-2 text-sm">
+            <input type="checkbox" name="isForeign" /> 国外で発行された株式・投資信託等(米国株等。
+            配当・分配金の場合、外国税額控除の試算画面の国外所得金額・外国所得税額に自動集計される)
           </label>
           <div className="col-span-full">
             <button
@@ -1217,7 +1230,7 @@ export default async function ImportPage({
             <table className="w-full min-w-max text-left text-sm">
               <thead className="bg-neutral-50 dark:bg-neutral-900">
                 <tr>
-                  {["日時", "銘柄", "種別", "数量", "単価", "口座", ""].map((h) => (
+                  {["日時", "銘柄", "種別", "数量", "単価", "口座", "国外源泉", ""].map((h) => (
                     <th key={h} className="px-3 py-2 font-medium text-neutral-500">
                       {h}
                     </th>
@@ -1233,6 +1246,13 @@ export default async function ImportPage({
                     <td className="px-3 py-2">{t.quantity.toString()}</td>
                     <td className="px-3 py-2">{yen(t.unitPriceJpy)}</td>
                     <td className="px-3 py-2">{t.isNisa ? "NISA" : t.accountType}</td>
+                    <td className="px-3 py-2">
+                      {t.isForeign
+                        ? t.type === "DIVIDEND"
+                          ? `国外 (源泉税 ${yen(t.foreignTaxWithheldJpy)})`
+                          : "国外"
+                        : "-"}
+                    </td>
                     <td className="px-3 py-2">
                       <form action={deleteInvestmentTrade}>
                         <input type="hidden" name="id" value={t.id} />
