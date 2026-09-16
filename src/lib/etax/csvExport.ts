@@ -75,11 +75,7 @@ export function buildTaxFilingDraftCsv(
   );
   lines.push("");
 
-  lines.push(
-    toCsvLine([
-      `■ 暗号資産 銘柄別内訳(${CRYPTO_COST_METHOD_LABEL[cryptoCostMethod]})`,
-    ]),
-  );
+  lines.push(toCsvLine([`■ 暗号資産 銘柄別内訳(${CRYPTO_COST_METHOD_LABEL[cryptoCostMethod]})`]));
   lines.push(
     toCsvLine([
       "銘柄",
