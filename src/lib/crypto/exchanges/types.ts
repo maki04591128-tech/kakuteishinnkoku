@@ -1,4 +1,5 @@
 import { Decimal } from "decimal.js";
+<<<<<<< HEAD
 import type { CryptoTradeType } from "../calculator";
 
 /**
@@ -12,6 +13,17 @@ import type { CryptoTradeType } from "../calculator";
  */
 export interface ExchangeTradeRow {
   tradedAt: Date;
+=======
+import type { CryptoTradeType } from "@/lib/crypto/calculator";
+
+/**
+ * 暗号資産取引所からエクスポートされた取引履歴CSVを、
+ * CryptoTrade(手入力フォームと同じ形)に変換した結果の1行。
+ */
+export interface ExchangeCryptoTradeRow {
+  tradedAt: Date;
+  /** 銘柄シンボル (例: BTC) */
+>>>>>>> origin/claude/wonderful-edison-xzm3zs
   symbol: string;
   type: CryptoTradeType;
   quantity: Decimal;
@@ -20,11 +32,16 @@ export interface ExchangeTradeRow {
   memo: string | null;
 }
 
+<<<<<<< HEAD
 export interface ExchangeCsvParseSkip {
+=======
+export interface ExchangeParseSkip {
+>>>>>>> origin/claude/wonderful-edison-xzm3zs
   lineNumber: number;
   reason: string;
 }
 
+<<<<<<< HEAD
 export interface ExchangeCsvParseResult {
   rows: ExchangeTradeRow[];
   skippedRows: ExchangeCsvParseSkip[];
@@ -41,3 +58,20 @@ export interface ExchangeCsvFormat {
   notes: string;
   parse: ExchangeCsvParser;
 }
+=======
+export interface ExchangeParseResult {
+  rows: ExchangeCryptoTradeRow[];
+  skippedRows: ExchangeParseSkip[];
+}
+
+export type CryptoExchangeId = "bitflyer" | "coincheck" | "gmo_coin";
+
+export const CRYPTO_EXCHANGE_LABELS: Record<CryptoExchangeId, string> = {
+  bitflyer: "bitFlyer",
+  coincheck: "Coincheck",
+  gmo_coin: "GMOコイン",
+};
+
+/** 法定通貨とみなすシンボル(この通貨との売買は円建て取引として扱う) */
+export const FIAT_SYMBOL = "JPY";
+>>>>>>> origin/claude/wonderful-edison-xzm3zs
