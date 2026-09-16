@@ -1,4 +1,10 @@
 import { Decimal } from "decimal.js";
+import {
+  RESIDENT_TAX_RATE,
+  SEPARATE_NATIONAL_TAX_RATE,
+  SEPARATE_RESIDENT_TAX_RATE,
+  nationalIncomeTaxWithSurtaxJpy,
+} from "../incomeTax";
 
 /**
  * 上場株式等の配当所得は、確定申告にあたり次の3つの課税方式から
@@ -66,24 +72,6 @@ export interface DividendTaxSimulationResult {
   notes: string[];
 }
 
-// 所得税の速算表(令和年分。復興特別所得税を含まない所得税本体の税率・控除額)
-const INCOME_TAX_BRACKETS: { minJpy: number; rate: number; deductionJpy: number }[] = [
-  { minJpy: 0, rate: 0.05, deductionJpy: 0 },
-  { minJpy: 1_950_000, rate: 0.1, deductionJpy: 97_500 },
-  { minJpy: 3_300_000, rate: 0.2, deductionJpy: 427_500 },
-  { minJpy: 6_950_000, rate: 0.23, deductionJpy: 636_000 },
-  { minJpy: 9_000_000, rate: 0.33, deductionJpy: 1_536_000 },
-  { minJpy: 18_000_000, rate: 0.4, deductionJpy: 2_796_000 },
-  { minJpy: 40_000_000, rate: 0.45, deductionJpy: 4_796_000 },
-];
-
-// 復興特別所得税(令和19年分まで、所得税額に対して2.1%)
-const RECONSTRUCTION_SURTAX_RATE = 0.021;
-// 住民税(配当割・所得割相当)は所得に関わらず一律10%として扱う(均等割は考慮しない)
-const RESIDENT_TAX_RATE = 0.1;
-// 申告分離課税の税率(所得税15%×1.021の復興特別所得税+住民税5% = 20.315%)
-const SEPARATE_NATIONAL_TAX_RATE = 0.15 * (1 + RECONSTRUCTION_SURTAX_RATE);
-const SEPARATE_RESIDENT_TAX_RATE = 0.05;
 // 配当控除の適用対象となる合計所得金額の閾値(これを超える部分は控除率が半減)
 const DIVIDEND_CREDIT_THRESHOLD_JPY = new Decimal(10_000_000);
 
@@ -91,23 +79,6 @@ function requireNonNegative(value: Decimal, label: string): void {
   if (value.isNegative()) {
     throw new Error(`${label}は0以上である必要があります`);
   }
-}
-
-/** 課税所得金額に速算表を適用し、所得税額(復興特別所得税を含まない)を計算する */
-function nationalIncomeTaxBaseJpy(taxableIncomeJpy: Decimal): Decimal {
-  const income = Decimal.max(taxableIncomeJpy, 0);
-  let bracket = INCOME_TAX_BRACKETS[0];
-  for (const b of INCOME_TAX_BRACKETS) {
-    if (income.greaterThanOrEqualTo(b.minJpy)) {
-      bracket = b;
-    }
-  }
-  return Decimal.max(income.times(bracket.rate).minus(bracket.deductionJpy), 0);
-}
-
-/** 復興特別所得税を含めた所得税額(住民税を含まない) */
-function nationalIncomeTaxWithSurtaxJpy(taxableIncomeJpy: Decimal): Decimal {
-  return nationalIncomeTaxBaseJpy(taxableIncomeJpy).times(1 + RECONSTRUCTION_SURTAX_RATE);
 }
 
 /**
