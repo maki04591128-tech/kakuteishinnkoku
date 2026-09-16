@@ -35,6 +35,7 @@ const EXCHANGE_LABELS: Record<Exclude<ExchangeCsvPreset, "other">, string> = {
   bitflyer: "bitFlyer",
   coincheck: "Coincheck",
   gmo: "GMOコイン",
+  bitbank: "bitbank",
 };
 
 function isKnownExchangeCsvPreset(

@@ -180,6 +180,53 @@ describe("parseExchangeCsv - GMOコイン", () => {
   });
 });
 
+describe("parseExchangeCsv - bitbank", () => {
+  const header =
+    "注文id,取引id,通貨ペア,現物/信用,タイプ,売/買,数量,価格,実現損益,発生手数料,実現手数料,実現利息,m/t,取引日時";
+
+  it("現物の買い/売りを取り込む", () => {
+    const csv = [
+      header,
+      "1,1,btc_jpy,現物,指値,買,0.1,5000000,,0,0,,taker,2024/01/05 08:00:00",
+      "2,2,btc_jpy,現物,成行,売,0.05,6000000,,300,300,,taker,2024/02/05 08:00:00",
+    ].join("\n");
+
+    const { rows, skippedRows } = parseExchangeCsv("bitbank", csv);
+    expect(skippedRows).toHaveLength(0);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ type: "BUY", symbol: "BTC" });
+    expect(rows[0].feeJpy.toString()).toBe("0");
+    expect(rows[1]).toMatchObject({ type: "SELL", symbol: "BTC" });
+    expect(rows[1].feeJpy.toString()).toBe("300");
+  });
+
+  it("信用取引の行はスキップする", () => {
+    const csv = [
+      header,
+      "3,3,btc_jpy,信用,指値,買,0.1,5000000,0,500,500,0,taker,2024/01/05 08:00:00",
+    ].join("\n");
+
+    const { rows, skippedRows } = parseExchangeCsv("bitbank", csv);
+    expect(rows).toHaveLength(0);
+    expect(skippedRows).toHaveLength(1);
+    expect(skippedRows[0].reason).toContain("信用取引");
+  });
+
+  it("メイカー報酬(マイナス手数料)は0円として扱う", () => {
+    const csv = [
+      header,
+      "4,4,btc_jpy,現物,指値,買,0.1,5000000,,-50,-50,,maker,2024/01/05 08:00:00",
+    ].join("\n");
+
+    const { rows } = parseExchangeCsv("bitbank", csv);
+    expect(rows[0].feeJpy.toString()).toBe("0");
+  });
+
+  it("必須カラムが無い場合はエラーを投げる", () => {
+    expect(() => parseExchangeCsv("bitbank", "a,b\n1,2")).toThrow();
+  });
+});
+
 describe("parseCryptoExchangeCsv", () => {
   it("bitFlyer風(通貨ペア・約定レート)のCSVを解析する", () => {
     const csv = [
