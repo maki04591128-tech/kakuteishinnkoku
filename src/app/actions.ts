@@ -709,3 +709,74 @@ export async function deleteAssetSymbolMapping(formData: FormData): Promise<void
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=assetBalance`);
 }
+
+export async function setForeignTaxCreditCarryforward(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const originYear = Number(requireString(formData, "originYear"));
+  const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
+  if (!Number.isInteger(originYear) || originYear > year) {
+    throw new Error("控除限度超過額の発生年は対象年分以前の年である必要があります");
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.foreignTaxCreditCarryforward.upsert({
+    where: {
+      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
+    },
+    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
+    update: { remainingAmountJpy },
+  });
+
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=foreignTaxCredit`);
+}
+
+export async function deleteForeignTaxCreditCarryforward(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.foreignTaxCreditCarryforward.delete({ where: { id } });
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=foreignTaxCredit`);
+}
+
+/**
+ * 外国税額控除シミュレーター(/foreign-tax-credit)の当年分の計算結果のうち、
+ * 翌年以後に繰り越す控除限度超過額(発生年ごと)を、翌年分の
+ * ForeignTaxCreditCarryforward としてまとめて登録する。
+ *
+ * 損失の繰越控除(carryForwardInvestmentLoss)と異なり、外国税額控除の計算に
+ * 必要な所得税額・所得総額等はDBに保存されない都度入力のため、前年分を
+ * サーバー側で再計算することはできない。そのため、シミュレーターの計算結果を
+ * 画面から直接この年の翌年分として保存する方式にしている
+ * (既に翌年分に同じ発生年の登録がある場合は上書きしない)。
+ */
+export async function carryForwardForeignTaxCreditExcess(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const entriesJson = requireString(formData, "carryforwardToNextYearJson");
+  const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
+
+  const nextTaxYear = await getOrCreateTaxYear(year + 1);
+  const existing = await prisma.foreignTaxCreditCarryforward.findMany({
+    where: { taxYearId: nextTaxYear.id },
+    select: { originYear: true },
+  });
+  const existingYears = new Set(existing.map((e) => e.originYear));
+  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
+
+  if (toCreate.length > 0) {
+    await prisma.foreignTaxCreditCarryforward.createMany({
+      data: toCreate.map((e) => ({
+        taxYearId: nextTaxYear.id,
+        originYear: e.originYear,
+        remainingAmountJpy: e.remainingAmountJpy,
+      })),
+    });
+  }
+
+  revalidatePath("/import");
+  redirect(
+    `/foreign-tax-credit?year=${year}&excessCarried=${toCreate.length}`,
+  );
+}
