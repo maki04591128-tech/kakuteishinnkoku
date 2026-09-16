@@ -21,17 +21,41 @@ import { Decimal } from "decimal.js";
  * 控除しきれない外国所得税額(控除限度超過額)は翌年以後3年間、また当年
  * 限度額が余った場合(控除余裕額)も翌年以後3年間繰り越せるが、このモジュールは
  * 限度超過額側の繰越のみを扱う(余裕額側の繰越は今後の課題。ロードマップ参照)。
- * 繰越額は発生年ごとの3年以内という期限管理をこのモジュールでは行わず、
- * 呼び出し側が繰り越す残高を単純な合計値として渡す簡略化とした
- * (上場株式等の譲渡損失の繰越控除のような発生年ごとの自動繰越・期限切れ管理は
- * 今後の課題)。
+ * 繰越控除限度超過額は`InvestmentLossCarryforward`(上場株式等の譲渡損失の
+ * 繰越控除)と同様、発生年(originYear)ごとにDB(`ForeignTaxCreditCarryforward`)へ
+ * 永続化し、発生年から3年以内のものだけを古い順に当年の限度額の余りへ充当する。
  */
 
+const CARRYFORWARD_YEARS = 3;
 const RECONSTRUCTION_SURTAX_RATE = 0.021;
 // 住民税(道府県民税12%+市町村民税18%)の控除限度額は、所得税の控除限度額の30%
 const RESIDENT_TAX_LIMIT_RATIO = 0.3;
 
+export interface ForeignTaxCreditCarryforwardEntry {
+  /** 控除限度超過額が発生した年(暦年) */
+  originYear: number;
+  /** 計算対象年の年初時点で残っている繰越控除可能な限度超過額 */
+  remainingAmountJpy: Decimal.Value;
+}
+
+export interface ForeignTaxCreditCarryforwardUsage {
+  originYear: number;
+  usedAmountJpy: Decimal;
+}
+
+export interface ForeignTaxCreditCarryforwardExpiry {
+  originYear: number;
+  expiredAmountJpy: Decimal;
+}
+
+export interface ForeignTaxCreditCarryforwardBalance {
+  originYear: number;
+  remainingAmountJpy: Decimal;
+}
+
 export interface ForeignTaxCreditInput {
+  /** 計算対象年(暦年)。繰越控除限度超過額の期限判定に使う */
+  currentYear: number;
   /** その年分の所得税額(他の税額控除適用前、復興特別所得税を含まない) */
   incomeTaxJpy: Decimal.Value;
   /** その年分の所得税の計算の基礎となる所得総額(総所得金額等) */
@@ -40,8 +64,8 @@ export interface ForeignTaxCreditInput {
   foreignSourceIncomeJpy: Decimal.Value;
   /** その年に課された外国所得税額(日本円換算後の年間合計) */
   foreignIncomeTaxPaidJpy: Decimal.Value;
-  /** 前年以前3年以内から繰り越された控除限度超過額の残高(合計値、手入力)。省略時は0 */
-  carriedForwardExcessForeignTaxJpy?: Decimal.Value;
+  /** 前年以前から繰り越された控除限度超過額(発生年ごと)。省略時は繰越無し */
+  carryforwardEntries?: ForeignTaxCreditCarryforwardEntry[];
 }
 
 export interface ForeignTaxCreditResult {
@@ -55,14 +79,18 @@ export interface ForeignTaxCreditResult {
   totalLimitJpy: Decimal;
   /** 当年発生分の外国所得税額のうち、当年の限度額から控除できた額 */
   creditFromCurrentYearJpy: Decimal;
-  /** 当年の限度額に余りがあり、繰越控除限度超過額の充当に使えた額 */
+  /** 当年の限度額に余りがあり、繰越控除限度超過額の充当に使えた額(発生年ごとの内訳。古い順に充当) */
+  usedCarryforwardByOriginYear: ForeignTaxCreditCarryforwardUsage[];
+  /** 繰越控除限度超過額の充当額の合計 */
   creditFromCarryforwardJpy: Decimal;
   /** その年の確定申告で外国税額控除として使える合計額 */
   totalCreditJpy: Decimal;
   /** 当年新たに発生し、翌年以後3年間繰り越す控除限度超過額 */
   newExcessForeignTaxJpy: Decimal;
-  /** 繰り越されてきた控除限度超過額のうち、当年使い切れず残った額(引き続き繰越) */
-  unusedCarriedForwardExcessJpy: Decimal;
+  /** 控除期限(発生年から3年)を過ぎて当年は使用できなかった繰越控除限度超過額 */
+  expiredCarryforwardByOriginYear: ForeignTaxCreditCarryforwardExpiry[];
+  /** 翌年に繰り越す控除限度超過額の残高(発生年ごと。当年新規発生分を含む) */
+  carryforwardToNextYear: ForeignTaxCreditCarryforwardBalance[];
 }
 
 function requireNonNegative(value: Decimal, label: string): void {
@@ -81,15 +109,38 @@ export function calculateForeignTaxCredit(
   const totalIncomeJpy = new Decimal(input.totalIncomeJpy);
   const foreignSourceIncomeJpy = new Decimal(input.foreignSourceIncomeJpy);
   const foreignIncomeTaxPaidJpy = new Decimal(input.foreignIncomeTaxPaidJpy);
-  const carriedForwardExcessForeignTaxJpy = input.carriedForwardExcessForeignTaxJpy
-    ? new Decimal(input.carriedForwardExcessForeignTaxJpy)
-    : new Decimal(0);
 
   requireNonNegative(incomeTaxJpy, "所得税額");
   requireNonNegative(totalIncomeJpy, "所得総額");
   requireNonNegative(foreignSourceIncomeJpy, "国外所得金額");
   requireNonNegative(foreignIncomeTaxPaidJpy, "外国所得税額");
-  requireNonNegative(carriedForwardExcessForeignTaxJpy, "繰越控除限度超過額");
+
+  const currentYear = input.currentYear;
+  const sortedEntries = (input.carryforwardEntries ?? [])
+    .map((e) => ({
+      originYear: e.originYear,
+      remainingAmountJpy: new Decimal(e.remainingAmountJpy),
+    }))
+    .filter((e) => e.remainingAmountJpy.greaterThan(0))
+    .sort((a, b) => a.originYear - b.originYear);
+
+  for (const e of sortedEntries) {
+    requireNonNegative(e.remainingAmountJpy, "繰越控除限度超過額");
+  }
+
+  const expiredCarryforwardByOriginYear: ForeignTaxCreditCarryforwardExpiry[] = [];
+  const usableCarryforward: ForeignTaxCreditCarryforwardBalance[] = [];
+  for (const e of sortedEntries) {
+    // originYear の限度超過額は originYear+1 〜 originYear+3 の3年間のみ控除に使える
+    if (currentYear > e.originYear + CARRYFORWARD_YEARS) {
+      expiredCarryforwardByOriginYear.push({
+        originYear: e.originYear,
+        expiredAmountJpy: e.remainingAmountJpy,
+      });
+    } else {
+      usableCarryforward.push(e);
+    }
+  }
 
   // 調整国外所得金額は所得総額を上限とする
   const adjustedForeignSourceIncomeJpy = Decimal.min(foreignSourceIncomeJpy, totalIncomeJpy);
@@ -107,16 +158,41 @@ export function calculateForeignTaxCredit(
   const creditFromCurrentYearJpy = Decimal.min(foreignIncomeTaxPaidJpy, totalLimitJpy);
   const newExcessForeignTaxJpy = foreignIncomeTaxPaidJpy.minus(creditFromCurrentYearJpy);
 
-  const remainingLimitJpy = totalLimitJpy.minus(creditFromCurrentYearJpy);
-  const creditFromCarryforwardJpy = Decimal.min(
-    carriedForwardExcessForeignTaxJpy,
-    remainingLimitJpy,
-  );
-  const unusedCarriedForwardExcessJpy = carriedForwardExcessForeignTaxJpy.minus(
-    creditFromCarryforwardJpy,
-  );
+  let remainingLimitJpy = totalLimitJpy.minus(creditFromCurrentYearJpy);
+  const usedCarryforwardByOriginYear: ForeignTaxCreditCarryforwardUsage[] = [];
+  const carryforwardToNextYear: ForeignTaxCreditCarryforwardBalance[] = [];
 
+  for (const e of usableCarryforward) {
+    if (remainingLimitJpy.isZero()) {
+      carryforwardToNextYear.push(e);
+      continue;
+    }
+    const used = Decimal.min(remainingLimitJpy, e.remainingAmountJpy);
+    if (used.greaterThan(0)) {
+      usedCarryforwardByOriginYear.push({ originYear: e.originYear, usedAmountJpy: used });
+    }
+    remainingLimitJpy = remainingLimitJpy.minus(used);
+    const remaining = e.remainingAmountJpy.minus(used);
+    if (remaining.greaterThan(0)) {
+      carryforwardToNextYear.push({
+        originYear: e.originYear,
+        remainingAmountJpy: remaining,
+      });
+    }
+  }
+
+  const creditFromCarryforwardJpy = usedCarryforwardByOriginYear.reduce(
+    (sum, u) => sum.plus(u.usedAmountJpy),
+    new Decimal(0),
+  );
   const totalCreditJpy = creditFromCurrentYearJpy.plus(creditFromCarryforwardJpy);
+
+  if (newExcessForeignTaxJpy.greaterThan(0)) {
+    carryforwardToNextYear.push({
+      originYear: currentYear,
+      remainingAmountJpy: newExcessForeignTaxJpy,
+    });
+  }
 
   return {
     incomeTaxLimitJpy,
@@ -124,9 +200,13 @@ export function calculateForeignTaxCredit(
     residentTaxLimitJpy,
     totalLimitJpy,
     creditFromCurrentYearJpy,
+    usedCarryforwardByOriginYear,
     creditFromCarryforwardJpy,
     totalCreditJpy,
     newExcessForeignTaxJpy,
-    unusedCarriedForwardExcessJpy,
+    expiredCarryforwardByOriginYear,
+    carryforwardToNextYear: carryforwardToNextYear.sort(
+      (a, b) => a.originYear - b.originYear,
+    ),
   };
 }

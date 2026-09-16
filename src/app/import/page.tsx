@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   addCryptoMarginTrade,
   addCryptoTrade,
@@ -9,6 +10,7 @@ import {
   deleteBrokerAnnualReport,
   deleteCryptoMarginTrade,
   deleteCryptoTrade,
+  deleteForeignTaxCreditCarryforward,
   deleteInvestmentTrade,
   deleteLossCarryforward,
   deleteOpeningBalance,
@@ -20,6 +22,7 @@ import {
   setAssetSymbolMapping,
   setBrokerAnnualReport,
   setCryptoCostMethod,
+  setForeignTaxCreditCarryforward,
   setLossCarryforward,
   setOpeningBalance,
 } from "@/app/actions";
@@ -69,6 +72,7 @@ export default async function ImportPage({
     investmentTrades,
     openingBalances,
     lossCarryforwards,
+    foreignTaxCreditCarryforwards,
     brokerAnnualReports,
     assetBalanceImportBatches,
     assetSymbolMappings,
@@ -91,6 +95,10 @@ export default async function ImportPage({
       orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
     }),
     prisma.investmentLossCarryforward.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { originYear: "asc" },
+    }),
+    prisma.foreignTaxCreditCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
     }),
@@ -757,6 +765,88 @@ export default async function ImportPage({
                   .join(" / ")}
               </p>
             )}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">
+          外国税額控除の繰越控除限度超過額(3年間)
+        </h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          外国所得税額のうちその年の控除限度額を超えて控除しきれなかった額
+          (控除限度超過額)は、発生した年の翌年以後3年間繰り越して、限度額に
+          余りが生じた年の控除に充当できる。ここでは発生年ごとに、{year}
+          年初時点でまだ使い切っていない繰越残高を登録する(
+          <Link href="/foreign-tax-credit" className="underline">
+            外国税額控除の試算
+          </Link>
+          ページで計算した「翌年以後に繰り越す額」を登録する場合は、そちらの
+          画面から直接登録できる)。控除は発生年の古いものから優先して適用される。
+        </p>
+
+        <form
+          action={setForeignTaxCreditCarryforward}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="控除限度超過額の発生年">
+            <input
+              type="number"
+              name="originYear"
+              defaultValue={year - 1}
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label={`${year}年初時点の残高(円)`}>
+            <input
+              type="number"
+              step="any"
+              name="remainingAmountJpy"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              登録・更新
+            </button>
+          </div>
+        </form>
+
+        {foreignTaxCreditCarryforwards.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["発生年", `${year}年初残高`, "控除期限", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {foreignTaxCreditCarryforwards.map((f) => (
+                  <tr key={f.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{f.originYear}年分</td>
+                    <td className="px-3 py-2">{yen(f.remainingAmountJpy)}</td>
+                    <td className="px-3 py-2">{f.originYear + 3}年分まで</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteForeignTaxCreditCarryforward}>
+                        <input type="hidden" name="id" value={f.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

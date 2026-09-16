@@ -27,14 +27,15 @@ model TaxYear {
   /// 届出書)が必要で、一度選択すると原則3年間変更できない点に注意。
   cryptoCostMethod CryptoCostMethod @default(AVERAGE)
 
-  cryptoTrades                CryptoTrade[]
-  cryptoMarginTrades          CryptoMarginTrade[]
-  investmentTrades            InvestmentTrade[]
-  importBatches               ImportBatch[]
-  openingBalances             OpeningBalance[]
-  investmentLossCarryforwards InvestmentLossCarryforward[]
-  brokerAnnualReports         BrokerAnnualReport[]
-  assetBalanceSnapshots       AssetBalanceSnapshot[]
+  cryptoTrades                  CryptoTrade[]
+  cryptoMarginTrades            CryptoMarginTrade[]
+  investmentTrades              InvestmentTrade[]
+  importBatches                 ImportBatch[]
+  openingBalances               OpeningBalance[]
+  investmentLossCarryforwards   InvestmentLossCarryforward[]
+  brokerAnnualReports           BrokerAnnualReport[]
+  assetBalanceSnapshots         AssetBalanceSnapshot[]
+  foreignTaxCreditCarryforwards ForeignTaxCreditCarryforward[]
 }
 
 enum CryptoCostMethod {
@@ -102,13 +103,38 @@ model InvestmentLossCarryforward {
   @@unique([taxYearId, originYear])
 }
 
+/// 外国税額控除(所得税法95条)の繰越控除限度超過額。国外所得税額のうち、
+/// その年の控除限度額を超えて控除しきれなかった額は、発生した年分の翌年以後
+/// 3年間繰り越して、限度額に余りが生じた年の控除に充当できる。
+/// InvestmentLossCarryforward と同様、taxYearId の年初時点でまだ使い切って
+/// いない残高を発生年(originYear)ごとに保持し、計算エンジン側
+/// (src/lib/investment/foreignTaxCredit.ts)で発生年の古い順に当年の限度額の
+/// 余りへ充当し、期限(発生年+3年)を超えた分は自動的に無効とする。
+/// 限度額に余りが生じた場合の「控除余裕額」側の繰越は対象外(今後の課題)。
+model ForeignTaxCreditCarryforward {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 控除限度超過額が発生した年(暦年)
+  originYear Int
+
+  /// taxYearId の年初時点で残っている繰越控除可能な限度超過額
+  remainingAmountJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, originYear])
+}
+
 /// 暗号資産の売買・交換・使用等の取引履歴。
 /// 国税庁「暗号資産に関する税務上の取扱いについて」に基づき、
 /// 総平均法(または移動平均法)で1単位あたりの取得価額を算出する。
 model CryptoTrade {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   taxYearId Int
-  taxYear   TaxYear  @relation(fields: [taxYearId], references: [id])
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
 
   /// 取引日時 (JST)
   tradedAt DateTime
@@ -239,7 +265,7 @@ model InvestmentTrade {
   broker String?
   memo   String?
 
-  source        String   @default("manual")
+  source        String       @default("manual")
   importBatchId Int?
   importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
 
@@ -310,9 +336,9 @@ model BrokerAnnualReport {
 /// マネーフォワード ME 等からインポートしたCSVの取り込みバッチ。
 /// 生データを保持し、後から再取り込み・突合ができるようにする。
 model ImportBatch {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   taxYearId Int
-  taxYear   TaxYear  @relation(fields: [taxYearId], references: [id])
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
 
   /// moneyforward_cashflow / moneyforward_assets / crypto_csv / investment_csv
   sourceType String
@@ -331,21 +357,21 @@ model ImportBatch {
 /// マネーフォワード ME の家計簿(収支)データ。
 /// 事業所得・雑所得の経費按分や、暗号資産取引の見落とし検出などに利用する。
 model CashflowEntry {
-  id            Int          @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   importBatchId Int
-  importBatch   ImportBatch  @relation(fields: [importBatchId], references: [id])
+  importBatch   ImportBatch @relation(fields: [importBatchId], references: [id])
 
-  date        DateTime
-  content     String
-  amountJpy   Decimal
+  date                DateTime
+  content             String
+  amountJpy           Decimal
   /// 収入 / 支出
-  direction   CashflowDirection
-  largeCategory String?
-  middleCategory String?
-  institution String?
-  memo        String?
+  direction           CashflowDirection
+  largeCategory       String?
+  middleCategory      String?
+  institution         String?
+  memo                String?
   /// マネーフォワード側の計算対象フラグ(集計除外の振替等を判別)
-  isCalculationTarget Boolean @default(true)
+  isCalculationTarget Boolean           @default(true)
 
   createdAt DateTime @default(now())
 
