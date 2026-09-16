@@ -677,3 +677,30 @@ export async function deleteAssetBalanceImportBatch(formData: FormData): Promise
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=assetBalance`);
 }
+
+/**
+ * マネーフォワードの資産名(例:「ビットコイン」)とアプリの銘柄シンボル
+ * (例:「BTC」)の対応を登録する。年に紐付かない全年共通のマスタデータ。
+ */
+export async function setAssetSymbolMapping(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const assetName = requireString(formData, "assetName").trim();
+  const symbol = requireString(formData, "symbol").trim().toUpperCase();
+
+  await prisma.assetSymbolMapping.upsert({
+    where: { assetName },
+    create: { assetName, symbol },
+    update: { symbol },
+  });
+
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=assetBalance`);
+}
+
+export async function deleteAssetSymbolMapping(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.assetSymbolMapping.delete({ where: { id } });
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=assetBalance`);
+}

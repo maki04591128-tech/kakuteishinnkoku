@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reconcileAssetBalances } from "./assetBalanceReconciliation";
+import { reconcileAssetBalances, reconcileAssetSymbolBalances } from "./assetBalanceReconciliation";
 
 describe("reconcileAssetBalances", () => {
   it("両方に存在する金融機関はOKになる", () => {
@@ -77,5 +77,90 @@ describe("reconcileAssetBalances", () => {
     );
 
     expect(results).toEqual([]);
+  });
+});
+
+describe("reconcileAssetSymbolBalances", () => {
+  it("マッピング済みで金融機関×銘柄の取引明細がある場合はOK", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC" }],
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      institution: "bitFlyer",
+      assetName: "ビットコイン",
+      symbol: "BTC",
+      hasAppTrades: true,
+      status: "OK",
+    });
+  });
+
+  it("マッピング済みだが同じ金融機関に該当銘柄の取引明細が無い場合はMISSING_APP_TRADES", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "SBI証券", assetName: "ビットコイン", balanceJpy: 500_000 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "SBI証券", symbol: "ETH" }],
+    );
+
+    expect(results[0].status).toBe("MISSING_APP_TRADES");
+    expect(results[0].hasAppTrades).toBe(false);
+  });
+
+  it("同じ銘柄でも金融機関が違えば取引明細ありとは判定しない", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "SBI証券", assetName: "ビットコイン", balanceJpy: 500_000 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC" }],
+    );
+
+    expect(results[0].status).toBe("MISSING_APP_TRADES");
+  });
+
+  it("マッピングが無い資産名はUNMAPPEDになる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "楽天証券", assetName: "全世界株式ファンド", balanceJpy: 100_000 }],
+      [],
+      [],
+    );
+
+    expect(results[0].status).toBe("UNMAPPED");
+    expect(results[0].symbol).toBeNull();
+  });
+
+  it("残高が0以下の場合はマッピング済みでも計上漏れとして扱わない", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 0 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [],
+    );
+
+    expect(results[0].status).toBe("OK");
+  });
+
+  it("同一金融機関×資産名の複数行は残高を合算する", () => {
+    const results = reconcileAssetSymbolBalances(
+      [
+        { institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 100_000 },
+        { institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 200_000 },
+      ],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC" }],
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].moneyForwardBalanceJpy.toNumber()).toBe(300_000);
+  });
+
+  it("symbolの大文字小文字は正規化して同一視する", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 100 }],
+      [{ assetName: "ビットコイン", symbol: "btc" }],
+      [{ institution: "bitFlyer", symbol: "BTC" }],
+    );
+
+    expect(results[0].status).toBe("OK");
   });
 });

@@ -5,6 +5,7 @@ import {
   carryForwardInvestmentLoss,
   carryForwardOpeningBalances,
   deleteAssetBalanceImportBatch,
+  deleteAssetSymbolMapping,
   deleteBrokerAnnualReport,
   deleteCryptoMarginTrade,
   deleteCryptoTrade,
@@ -16,6 +17,7 @@ import {
   importCryptoExchangeCsv,
   importCryptoMarginCsv,
   importMoneyForwardCsv,
+  setAssetSymbolMapping,
   setBrokerAnnualReport,
   setCryptoCostMethod,
   setLossCarryforward,
@@ -24,7 +26,10 @@ import {
 import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
 import { prisma } from "@/lib/db";
 import { reconcileBrokerAnnualReports } from "@/lib/investment/annualReportReconciliation";
-import { reconcileAssetBalances } from "@/lib/moneyforward/assetBalanceReconciliation";
+import {
+  reconcileAssetBalances,
+  reconcileAssetSymbolBalances,
+} from "@/lib/moneyforward/assetBalanceReconciliation";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
@@ -66,6 +71,7 @@ export default async function ImportPage({
     lossCarryforwards,
     brokerAnnualReports,
     assetBalanceImportBatches,
+    assetSymbolMappings,
     yearReport,
   ] = await Promise.all([
     prisma.cryptoTrade.findMany({
@@ -101,6 +107,7 @@ export default async function ImportPage({
         },
       },
     }),
+    prisma.assetSymbolMapping.findMany({ orderBy: { assetName: "asc" } }),
     buildYearReport(year),
   ]);
 
@@ -115,6 +122,18 @@ export default async function ImportPage({
     [
       ...cryptoTrades.map((t) => ({ institution: t.exchange })),
       ...investmentTrades.map((t) => ({ institution: t.broker })),
+    ],
+  );
+  const assetSymbolReconciliations = reconcileAssetSymbolBalances(
+    assetBalanceSnapshots.map((s) => ({
+      institution: s.institution,
+      assetName: s.assetName,
+      balanceJpy: s.balanceJpy.toString(),
+    })),
+    assetSymbolMappings.map((m) => ({ assetName: m.assetName, symbol: m.symbol })),
+    [
+      ...cryptoTrades.map((t) => ({ institution: t.exchange, symbol: t.symbol })),
+      ...investmentTrades.map((t) => ({ institution: t.broker, symbol: t.symbol })),
     ],
   );
 
@@ -271,6 +290,116 @@ export default async function ImportPage({
             </table>
           </div>
         )}
+
+        <div className="mb-6 border-t border-dashed border-neutral-200 pt-6 dark:border-neutral-800">
+          <h3 className="mb-2 text-sm font-semibold">
+            銘柄マッピング(資産名 → 銘柄シンボル)
+          </h3>
+          <p className="mb-3 text-sm text-neutral-500">
+            マネーフォワードの資産名(例:「ビットコイン」)とアプリの銘柄
+            シンボル(例:「BTC」。取引入力時の「銘柄」欄と同じ表記)の対応を
+            登録すると、下の「銘柄単位の突合」で金融機関だけでなく銘柄まで
+            踏み込んだ計上漏れチェックができる。対応関係は年をまたいで
+            変わらないマスタデータのため、登録は年を問わず共通で使われる。
+            未登録の資産名は「未マッピング」として判定不能のまま表示される。
+          </p>
+          <form
+            action={setAssetSymbolMapping}
+            className="mb-4 flex flex-wrap items-end gap-3"
+          >
+            <input type="hidden" name="year" value={year} />
+            <Field label="資産名(マネーフォワード側の表記)">
+              <input type="text" name="assetName" required className={inputClass} />
+            </Field>
+            <Field label="銘柄シンボル">
+              <input type="text" name="symbol" required className={inputClass} />
+            </Field>
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              登録
+            </button>
+          </form>
+
+          {assetSymbolMappings.length > 0 && (
+            <div className="mb-6 overflow-x-auto">
+              <table className="w-full min-w-max text-left text-sm">
+                <thead className="bg-neutral-50 dark:bg-neutral-900">
+                  <tr>
+                    {["資産名", "銘柄シンボル", ""].map((h) => (
+                      <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {assetSymbolMappings.map((m) => (
+                    <tr key={m.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                      <td className="px-3 py-2">{m.assetName}</td>
+                      <td className="px-3 py-2">{m.symbol}</td>
+                      <td className="px-3 py-2">
+                        <form action={deleteAssetSymbolMapping}>
+                          <input type="hidden" name="id" value={m.id} />
+                          <input type="hidden" name="year" value={year} />
+                          <button className="text-xs text-red-600 hover:underline">削除</button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {assetSymbolReconciliations.length > 0 && (
+            <div className="overflow-x-auto">
+              <h4 className="mb-2 text-sm font-semibold">銘柄単位の突合</h4>
+              <table className="w-full min-w-max text-left text-sm">
+                <thead className="bg-neutral-50 dark:bg-neutral-900">
+                  <tr>
+                    {["金融機関", "資産名", "銘柄", "MF資産残高", "判定"].map((h) => (
+                      <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {assetSymbolReconciliations.map((r) => (
+                    <tr
+                      key={`${r.institution}:${r.assetName}`}
+                      className="border-t border-neutral-100 dark:border-neutral-800"
+                    >
+                      <td className="px-3 py-2">{r.institution}</td>
+                      <td className="px-3 py-2">{r.assetName}</td>
+                      <td className="px-3 py-2">{r.symbol ?? "-"}</td>
+                      <td className="px-3 py-2">{yen(r.moneyForwardBalanceJpy)}</td>
+                      <td className="px-3 py-2">
+                        {r.status === "OK" && (
+                          <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
+                            一致
+                          </span>
+                        )}
+                        {r.status === "MISSING_APP_TRADES" && (
+                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+                            計上漏れの疑い
+                          </span>
+                        )}
+                        {r.status === "UNMAPPED" && (
+                          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                            未マッピング
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {assetBalanceImportBatches.length > 0 && (
           <div className="overflow-x-auto">
