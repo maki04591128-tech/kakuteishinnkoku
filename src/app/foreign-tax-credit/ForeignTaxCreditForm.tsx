@@ -2,7 +2,10 @@
 
 import { Decimal } from "decimal.js";
 import { useMemo, useState } from "react";
-import { carryForwardForeignTaxCreditExcess } from "@/app/actions";
+import {
+  carryForwardForeignTaxCreditExcess,
+  carryForwardForeignTaxCreditSpareLimit,
+} from "@/app/actions";
 import { calculateForeignTaxCredit } from "@/lib/investment/foreignTaxCredit";
 
 function yen(value: { toString(): string }): string {
@@ -13,9 +16,11 @@ function yen(value: { toString(): string }): string {
 export function ForeignTaxCreditForm({
   year,
   carryforwardEntries,
+  spareLimitCarryforwardEntries,
 }: {
   year: number;
   carryforwardEntries: { originYear: number; remainingAmountJpy: string }[];
+  spareLimitCarryforwardEntries: { originYear: number; remainingAmountJpy: string }[];
 }) {
   const [incomeTaxJpy, setIncomeTaxJpy] = useState("300000");
   const [totalIncomeJpy, setTotalIncomeJpy] = useState("5000000");
@@ -23,6 +28,10 @@ export function ForeignTaxCreditForm({
   const [foreignIncomeTaxPaidJpy, setForeignIncomeTaxPaidJpy] = useState("30000");
 
   const totalCarriedForwardJpy = carryforwardEntries.reduce(
+    (sum, e) => sum + Number(e.remainingAmountJpy),
+    0,
+  );
+  const totalSpareLimitCarriedForwardJpy = spareLimitCarryforwardEntries.reduce(
     (sum, e) => sum + Number(e.remainingAmountJpy),
     0,
   );
@@ -36,6 +45,7 @@ export function ForeignTaxCreditForm({
         foreignSourceIncomeJpy: foreignSourceIncomeJpy === "" ? 0 : foreignSourceIncomeJpy,
         foreignIncomeTaxPaidJpy: foreignIncomeTaxPaidJpy === "" ? 0 : foreignIncomeTaxPaidJpy,
         carryforwardEntries,
+        spareLimitCarryforwardEntries,
       });
     } catch {
       return null;
@@ -47,6 +57,7 @@ export function ForeignTaxCreditForm({
     foreignSourceIncomeJpy,
     foreignIncomeTaxPaidJpy,
     carryforwardEntries,
+    spareLimitCarryforwardEntries,
   ]);
 
   return (
@@ -75,18 +86,34 @@ export function ForeignTaxCreditForm({
       </div>
 
       <div className="rounded-md bg-neutral-50 p-3 text-xs text-neutral-500 dark:bg-neutral-900">
-        {year}年初時点の繰越控除限度超過額(発生年ごとの登録はデータ取り込み画面):{" "}
-        {yen(totalCarriedForwardJpy)}
-        {carryforwardEntries.length > 0 && (
-          <span>
-            {" "}
-            (
-            {carryforwardEntries
-              .map((e) => `${e.originYear}年分 ${yen(Number(e.remainingAmountJpy))}`)
-              .join(" / ")}
-            )
-          </span>
-        )}
+        <p>
+          {year}年初時点の繰越控除限度超過額(発生年ごとの登録はデータ取り込み画面):{" "}
+          {yen(totalCarriedForwardJpy)}
+          {carryforwardEntries.length > 0 && (
+            <span>
+              {" "}
+              (
+              {carryforwardEntries
+                .map((e) => `${e.originYear}年分 ${yen(Number(e.remainingAmountJpy))}`)
+                .join(" / ")}
+              )
+            </span>
+          )}
+        </p>
+        <p className="mt-1">
+          {year}年初時点の繰越控除余裕額(発生年ごとの登録はデータ取り込み画面):{" "}
+          {yen(totalSpareLimitCarriedForwardJpy)}
+          {spareLimitCarryforwardEntries.length > 0 && (
+            <span>
+              {" "}
+              (
+              {spareLimitCarryforwardEntries
+                .map((e) => `${e.originYear}年分 ${yen(Number(e.remainingAmountJpy))}`)
+                .join(" / ")}
+              )
+            </span>
+          )}
+        </p>
       </div>
 
       {result === null ? (
@@ -107,26 +134,37 @@ export function ForeignTaxCreditForm({
             <p className="mt-1 text-2xl font-semibold">{yen(result.totalLimitJpy)}</p>
           </div>
 
+          <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+            <p className="text-sm text-neutral-500">外国税額控除として使える合計額</p>
+            <p className="mt-1 text-2xl font-semibold">{yen(result.totalCreditJpy)}</p>
+            <p className="mt-1 text-xs text-neutral-400">
+              当年発生分から{yen(result.creditFromCurrentYearJpy)}
+              {result.creditFromCarryforwardJpy.greaterThan(0) &&
+                ` + 繰越控除限度超過額から${yen(result.creditFromCarryforwardJpy)}`}
+              {result.creditFromSpareLimitCarryforwardJpy.greaterThan(0) &&
+                ` + 繰越控除余裕額から${yen(result.creditFromSpareLimitCarryforwardJpy)}`}
+            </p>
+            {result.usedCarryforwardByOriginYear.length > 0 && (
+              <p className="mt-1 text-xs text-neutral-400">
+                繰越控除限度超過額の内訳:{" "}
+                {result.usedCarryforwardByOriginYear
+                  .map((u) => `${u.originYear}年分 ${yen(u.usedAmountJpy)}`)
+                  .join(" / ")}
+              </p>
+            )}
+            {result.usedSpareLimitCarryforwardByOriginYear.length > 0 && (
+              <p className="mt-1 text-xs text-neutral-400">
+                繰越控除余裕額の内訳:{" "}
+                {result.usedSpareLimitCarryforwardByOriginYear
+                  .map((u) => `${u.originYear}年分 ${yen(u.usedAmountJpy)}`)
+                  .join(" / ")}
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-              <p className="text-sm text-neutral-500">外国税額控除として使える合計額</p>
-              <p className="mt-1 text-2xl font-semibold">{yen(result.totalCreditJpy)}</p>
-              <p className="mt-1 text-xs text-neutral-400">
-                当年発生分から{yen(result.creditFromCurrentYearJpy)}
-                {result.creditFromCarryforwardJpy.greaterThan(0) &&
-                  ` + 繰越分から${yen(result.creditFromCarryforwardJpy)}`}
-              </p>
-              {result.usedCarryforwardByOriginYear.length > 0 && (
-                <p className="mt-1 text-xs text-neutral-400">
-                  繰越分の内訳:{" "}
-                  {result.usedCarryforwardByOriginYear
-                    .map((u) => `${u.originYear}年分 ${yen(u.usedAmountJpy)}`)
-                    .join(" / ")}
-                </p>
-              )}
-            </div>
-            <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-              <p className="text-sm text-neutral-500">翌年以後に繰り越す額</p>
+              <p className="text-sm text-neutral-500">翌年以後に繰り越す控除限度超過額</p>
               <p className="mt-1 text-2xl font-semibold">
                 {yen(
                   result.carryforwardToNextYear.reduce(
@@ -142,39 +180,84 @@ export function ForeignTaxCreditForm({
                     .join(" / ")}
                 </p>
               )}
+              {result.expiredCarryforwardByOriginYear.length > 0 && (
+                <p className="mt-2 text-xs text-red-600">
+                  控除期限切れで使用できなかった繰越控除限度超過額:{" "}
+                  {result.expiredCarryforwardByOriginYear
+                    .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
+                    .join(" / ")}
+                </p>
+              )}
+              {result.carryforwardToNextYear.length > 0 && (
+                <form action={carryForwardForeignTaxCreditExcess} className="mt-3">
+                  <input type="hidden" name="year" value={year} />
+                  <input
+                    type="hidden"
+                    name="carryforwardToNextYearJson"
+                    value={JSON.stringify(
+                      result.carryforwardToNextYear.map((c) => ({
+                        originYear: c.originYear,
+                        remainingAmountJpy: c.remainingAmountJpy.toString(),
+                      })),
+                    )}
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+                  >
+                    {year + 1}年分として登録する
+                  </button>
+                </form>
+              )}
+            </div>
+            <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+              <p className="text-sm text-neutral-500">翌年以後に繰り越す控除余裕額</p>
+              <p className="mt-1 text-2xl font-semibold">
+                {yen(
+                  result.spareLimitCarryforwardToNextYear.reduce(
+                    (sum, c) => sum.plus(c.remainingAmountJpy),
+                    new Decimal(0),
+                  ),
+                )}
+              </p>
+              {result.spareLimitCarryforwardToNextYear.length > 0 && (
+                <p className="mt-1 text-xs text-neutral-400">
+                  {result.spareLimitCarryforwardToNextYear
+                    .map((c) => `${c.originYear}年分 ${yen(c.remainingAmountJpy)}`)
+                    .join(" / ")}
+                </p>
+              )}
+              {result.expiredSpareLimitCarryforwardByOriginYear.length > 0 && (
+                <p className="mt-2 text-xs text-red-600">
+                  控除期限切れで使用できなかった繰越控除余裕額:{" "}
+                  {result.expiredSpareLimitCarryforwardByOriginYear
+                    .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
+                    .join(" / ")}
+                </p>
+              )}
+              {result.spareLimitCarryforwardToNextYear.length > 0 && (
+                <form action={carryForwardForeignTaxCreditSpareLimit} className="mt-3">
+                  <input type="hidden" name="year" value={year} />
+                  <input
+                    type="hidden"
+                    name="spareLimitCarryforwardToNextYearJson"
+                    value={JSON.stringify(
+                      result.spareLimitCarryforwardToNextYear.map((c) => ({
+                        originYear: c.originYear,
+                        remainingAmountJpy: c.remainingAmountJpy.toString(),
+                      })),
+                    )}
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+                  >
+                    {year + 1}年分として登録する
+                  </button>
+                </form>
+              )}
             </div>
           </div>
-
-          {result.expiredCarryforwardByOriginYear.length > 0 && (
-            <p className="text-sm text-red-600">
-              控除期限切れで使用できなかった繰越控除限度超過額があります:{" "}
-              {result.expiredCarryforwardByOriginYear
-                .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
-                .join(" / ")}
-            </p>
-          )}
-
-          {result.carryforwardToNextYear.length > 0 && (
-            <form action={carryForwardForeignTaxCreditExcess}>
-              <input type="hidden" name="year" value={year} />
-              <input
-                type="hidden"
-                name="carryforwardToNextYearJson"
-                value={JSON.stringify(
-                  result.carryforwardToNextYear.map((c) => ({
-                    originYear: c.originYear,
-                    remainingAmountJpy: c.remainingAmountJpy.toString(),
-                  })),
-                )}
-              />
-              <button
-                type="submit"
-                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
-              >
-                翌年以後に繰り越す額を{year + 1}年分として登録する
-              </button>
-            </form>
-          )}
         </>
       )}
     </div>
