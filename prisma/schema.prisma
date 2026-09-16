@@ -27,10 +27,11 @@ model TaxYear {
   /// 届出書)が必要で、一度選択すると原則3年間変更できない点に注意。
   cryptoCostMethod CryptoCostMethod @default(AVERAGE)
 
-  cryptoTrades     CryptoTrade[]
-  investmentTrades InvestmentTrade[]
-  importBatches    ImportBatch[]
-  openingBalances  OpeningBalance[]
+  cryptoTrades                CryptoTrade[]
+  investmentTrades            InvestmentTrade[]
+  importBatches               ImportBatch[]
+  openingBalances             OpeningBalance[]
+  investmentLossCarryforwards InvestmentLossCarryforward[]
 }
 
 enum CryptoCostMethod {
@@ -73,6 +74,29 @@ model OpeningBalance {
 enum OpeningBalanceAssetClass {
   CRYPTO
   INVESTMENT
+}
+
+/// 上場株式等の譲渡損失の繰越控除(3年間)。確定申告により繰越控除の適用を
+/// 受けた損失のうち、taxYearId の年初時点でまだ使い切っていない残高を
+/// 発生年(originYear)ごとに保持する。控除は発生年の翌年以後3年間のみ有効で、
+/// 計算エンジン側(src/lib/investment/lossCarryforward.ts)で発生年の古い順に
+/// 当年の譲渡益から控除し、期限(発生年+3年)を超えた分は自動的に無効とする。
+/// 暗号資産の損失(雑所得)は他の所得と損益通算・繰越ができないため対象外。
+model InvestmentLossCarryforward {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 損失が発生した年(暦年)
+  originYear Int
+
+  /// taxYearId の年初時点で残っている繰越控除可能な損失額
+  remainingAmountJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, originYear])
 }
 
 /// 暗号資産の売買・交換・使用等の取引履歴。

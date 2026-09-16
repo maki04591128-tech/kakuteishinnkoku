@@ -1,16 +1,21 @@
 import {
   addCryptoTrade,
   addInvestmentTrade,
+  carryForwardInvestmentLoss,
   carryForwardOpeningBalances,
   deleteCryptoTrade,
   deleteInvestmentTrade,
+  deleteLossCarryforward,
   deleteOpeningBalance,
   importCryptoExchangeCsv,
   importMoneyForwardCsv,
+  setCryptoCostMethod,
+  setLossCarryforward,
   setOpeningBalance,
 } from "@/app/actions";
-import { EXCHANGE_LABELS, SUPPORTED_CRYPTO_EXCHANGES } from "@/lib/crypto/exchangeImport";
+import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
 import { prisma } from "@/lib/db";
+import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
 function yen(value: { toString(): string }): string {
@@ -29,26 +34,33 @@ export default async function ImportPage({
     imported?: string;
     skipped?: string;
     carried?: string;
+    lossCarried?: string;
   }>;
 }) {
   const params = await searchParams;
   const year = Number(params.year) || new Date().getFullYear();
   const taxYear = await getOrCreateTaxYear(year);
 
-  const [cryptoTrades, investmentTrades, openingBalances] = await Promise.all([
-    prisma.cryptoTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { tradedAt: "desc" },
-    }),
-    prisma.investmentTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { tradedAt: "desc" },
-    }),
-    prisma.openingBalance.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
-    }),
-  ]);
+  const [cryptoTrades, investmentTrades, openingBalances, lossCarryforwards, yearReport] =
+    await Promise.all([
+      prisma.cryptoTrade.findMany({
+        where: { taxYearId: taxYear.id },
+        orderBy: { tradedAt: "desc" },
+      }),
+      prisma.investmentTrade.findMany({
+        where: { taxYearId: taxYear.id },
+        orderBy: { tradedAt: "desc" },
+      }),
+      prisma.openingBalance.findMany({
+        where: { taxYearId: taxYear.id },
+        orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
+      }),
+      prisma.investmentLossCarryforward.findMany({
+        where: { taxYearId: taxYear.id },
+        orderBy: { originYear: "asc" },
+      }),
+      buildYearReport(year),
+    ]);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 p-6 sm:p-10">
@@ -90,25 +102,65 @@ export default async function ImportPage({
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産の計算方式</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          暗号資産の取得原価は、届出をしていない場合は法定算出方法である
+          <strong>総平均法</strong>(その年の期首残高+年間取得分を合算した
+          加重平均単価を、その年の全ての譲渡に適用)で計算する。届出により
+          <strong>移動平均法</strong>(取得の都度、平均単価を更新し、
+          譲渡時点の平均単価を取得原価とする)を選択している場合はこちらに
+          切り替えられる。
+          <strong className="text-neutral-700 dark:text-neutral-300">
+            一度いずれかの方式で確定申告した後に方式を変更するには、原則として
+            税務署への届出が必要
+          </strong>
+          なので、本設定はあくまで試算用途として扱うこと。
+        </p>
+        <form action={setCryptoCostMethod} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="year" value={year} />
+          <input type="hidden" name="tab" value="opening" />
+          <Field label="計算方式">
+            <select
+              name="cryptoCostMethod"
+              defaultValue={taxYear.cryptoCostMethod}
+              className={inputClass}
+            >
+              <option value="AVERAGE">総平均法(法定算出方法)</option>
+              <option value="MOVING_AVERAGE">移動平均法(届出が必要)</option>
+            </select>
+          </Field>
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          >
+            この年分に適用する
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
         <p className="mb-3 text-sm text-neutral-500">
-          bitFlyer・Coincheck・GMOコイン等の「取引履歴」CSVを取り込めます。
-          日時・銘柄・売買種別・数量・単価(または合計金額)の列を見出し名から
-          自動判定するため、多少の表記違いには対応できますが、対応取引所でも
-          列見出しが一致せず取り込めない場合があります。現状は円建ての現物
-          売買(買い/売り)のみに対応しており、暗号資産同士の交換やマイニング等の
-          受取は手入力してください。
+          bitFlyer・Coincheck・GMOコインの取引履歴CSVを取り込みます。現物の
+          売買・交換のみ対応し、入出金(送付・受取)や証拠金取引、税務上の性質が
+          一意に決まらない明細は自動では取り込まず件数のみ表示します(取引所側の
+          CSV仕様変更や列見出しの差異により解釈できない場合があります。取り込み後は
+          必ず一覧で内容を確認してください)。
         </p>
         <form
           action={importCryptoExchangeCsv}
           className="flex flex-wrap items-center gap-3"
         >
           <input type="hidden" name="year" value={year} />
-          <select name="exchange" className={inputClass} defaultValue="bitflyer">
-            <option value="bitflyer">bitFlyer</option>
-            <option value="coincheck">Coincheck</option>
-            <option value="gmo_coin">GMOコイン</option>
-            <option value="other">その他</option>
+          <select name="preset" required className={inputClass} defaultValue="">
+            <option value="" disabled>
+              取引所を選択
+            </option>
+            {EXCHANGE_CSV_PRESETS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
           </select>
           <input
             type="file"
@@ -219,32 +271,127 @@ export default async function ImportPage({
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
-        <h2 className="mb-3 text-lg font-semibold">暗号資産取引所のCSV取り込み</h2>
+        <h2 className="mb-3 text-lg font-semibold">
+          上場株式等の譲渡損失の繰越控除(3年間)
+        </h2>
         <p className="mb-3 text-sm text-neutral-500">
-          各取引所からダウンロードした取引履歴CSVを取り込めます(現物取引の円建て買い/売りのみ対応)。
-          暗号資産同士の交換・入出金・レバレッジ取引の行は自動的にスキップされるため、
-          必要であれば下の「暗号資産の取引を追加」から手入力してください。
+          確定申告により繰越控除の適用を受けた上場株式等の譲渡損失は、発生した
+          年の翌年以後3年間、上場株式等の譲渡所得等の金額から控除できる
+          (暗号資産の損失は雑所得のため対象外)。ここでは発生年ごとに、
+          {year}年初時点でまだ使い切っていない繰越損失の残高を登録する
+          (過去の申告書「株式等に係る譲渡所得等の金額の計算明細書」・第四表を参照)。
+          控除は発生年の古いものから優先して適用される。
         </p>
-        <form
-          action={importCryptoExchangeCsv}
-          className="flex flex-wrap items-center gap-3"
-        >
+
+        {params.lossCarried !== undefined && (
+          <p className="mb-3 rounded-md bg-green-50 px-4 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+            {Number(params.lossCarried) > 0
+              ? `${params.lossCarried}件の繰越損失を${year - 1}年分の計算結果から繰り越しました。`
+              : `${year - 1}年分からの繰越候補はありませんでした(既に登録済みか、繰り越す損失がありません)。`}
+          </p>
+        )}
+
+        <form action={carryForwardInvestmentLoss} className="mb-5">
           <input type="hidden" name="year" value={year} />
-          <select name="exchange" className={inputClass} defaultValue={SUPPORTED_CRYPTO_EXCHANGES[0]}>
-            {SUPPORTED_CRYPTO_EXCHANGES.map((exchange) => (
-              <option key={exchange} value={exchange}>
-                {EXCHANGE_LABELS[exchange]}
-              </option>
-            ))}
-          </select>
-          <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
           >
-            取り込む
+            {year - 1}年分の計算結果から自動で繰り越す
           </button>
         </form>
+
+        <form
+          action={setLossCarryforward}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="損失の発生年">
+            <input
+              type="number"
+              name="originYear"
+              defaultValue={year - 1}
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label={`${year}年初時点の残高(円)`}>
+            <input
+              type="number"
+              step="any"
+              name="remainingAmountJpy"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              登録・更新
+            </button>
+          </div>
+        </form>
+
+        {lossCarryforwards.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["発生年", `${year}年初残高`, "控除期限", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lossCarryforwards.map((l) => (
+                  <tr key={l.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{l.originYear}年分</td>
+                    <td className="px-3 py-2">{yen(l.remainingAmountJpy)}</td>
+                    <td className="px-3 py-2">{l.originYear + 3}年分まで</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteLossCarryforward}>
+                        <input type="hidden" name="id" value={l.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {yearReport && (
+          <div className="mt-5 rounded-md bg-neutral-50 p-4 text-sm dark:bg-neutral-900">
+            <p>
+              {year}年分 譲渡損益(繰越控除前):{" "}
+              {yen(yearReport.lossCarryforward.grossRealizedGainJpy)}
+            </p>
+            <p>繰越控除の使用額: {yen(yearReport.lossCarryforward.totalUsedJpy)}</p>
+            <p>
+              控除後の課税対象譲渡所得: {yen(yearReport.lossCarryforward.taxableGainJpy)}
+            </p>
+            {yearReport.lossCarryforward.newLossJpy.greaterThan(0) && (
+              <p>
+                {year}年分の新規譲渡損失(翌年以後3年間繰越可能):{" "}
+                {yen(yearReport.lossCarryforward.newLossJpy)}
+              </p>
+            )}
+            {yearReport.lossCarryforward.expiredByOriginYear.length > 0 && (
+              <p className="text-red-600">
+                控除期限切れで繰り越せなかった損失があります:{" "}
+                {yearReport.lossCarryforward.expiredByOriginYear
+                  .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
+                  .join(" / ")}
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
