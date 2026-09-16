@@ -570,6 +570,10 @@ model AssetBalanceSnapshot {
   /// 残高・評価額(円)
   balanceJpy Decimal
 
+  /// 保有数量(任意)。列を指定しない/CSVに無い場合はnull。
+  /// アプリ内取引明細から計算した数量との突合(quantityの整合性チェック)に使う。
+  quantity Decimal?
+
   importBatchId Int?
   importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
 

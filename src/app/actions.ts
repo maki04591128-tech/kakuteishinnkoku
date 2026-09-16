@@ -793,6 +793,7 @@ export async function importAssetBalanceCsv(formData: FormData): Promise<void> {
     balanceColumn: requireString(formData, "balanceColumn"),
     dateColumn: optionalString(formData, "dateColumn") ?? undefined,
     categoryColumn: optionalString(formData, "categoryColumn") ?? undefined,
+    quantityColumn: optionalString(formData, "quantityColumn") ?? undefined,
   } satisfies AssetBalanceCsvMapping);
 
   const taxYear = await getOrCreateTaxYear(year);
@@ -816,6 +817,7 @@ export async function importAssetBalanceCsv(formData: FormData): Promise<void> {
           institution: row.institution,
           assetName: row.assetName,
           balanceJpy: row.balanceJpy.toString(),
+          quantity: row.quantity ? row.quantity.toString() : null,
           importBatchId: batch.id,
         })),
       });

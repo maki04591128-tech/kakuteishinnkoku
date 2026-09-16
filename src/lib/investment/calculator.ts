@@ -114,6 +114,20 @@ function applyTrade(
   return undefined;
 }
 
+/**
+ * 取引種別に応じた保有数量の増減(買付は+、売却は-、配当は数量に影響しないため0)。
+ * マネーフォワード資産残高突合(assetBalanceReconciliation.ts)で、期間内の
+ * 取引から当年の数量変化だけを取り出すために使う。
+ */
+export function investmentTradeQuantityDelta(
+  type: InvestmentTradeType,
+  quantity: Decimal.Value,
+): Decimal {
+  if (type === "BUY") return new Decimal(quantity);
+  if (type === "SELL") return new Decimal(quantity).negated();
+  return new Decimal(0);
+}
+
 export interface InvestmentSymbolYearResult {
   symbol: string;
   openingQuantity: Decimal;

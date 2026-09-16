@@ -26,6 +26,12 @@ export interface AssetBalanceCsvMapping {
   dateColumn?: string;
   /** 大分類・種類の列名(任意) */
   categoryColumn?: string;
+  /**
+   * 保有数量の列名(任意)。指定するとアプリ内取引明細から計算した数量との
+   * 突合(assetBalanceReconciliation.tsの数量整合性チェック)が行える。
+   * 評価額(balanceColumn)と異なり時価に左右されないため、突合の精度が高い。
+   */
+  quantityColumn?: string;
 }
 
 export interface AssetBalanceCsvRow {
@@ -35,6 +41,8 @@ export interface AssetBalanceCsvRow {
   assetName: string;
   category: string;
   balanceJpy: Decimal;
+  /** quantityColumn未指定、またはそのセルが空欄の場合はnull */
+  quantity: Decimal | null;
 }
 
 export interface AssetBalanceCsvSkip {
@@ -99,6 +107,9 @@ export function parseMoneyForwardAssetBalanceCsv(
   const categoryIndex = mapping.categoryColumn
     ? fieldIndex.get(mapping.categoryColumn.trim())
     : undefined;
+  const quantityIndex = mapping.quantityColumn
+    ? fieldIndex.get(mapping.quantityColumn.trim())
+    : undefined;
 
   const rows: AssetBalanceCsvRow[] = [];
   const skippedRows: AssetBalanceCsvSkip[] = [];
@@ -133,12 +144,26 @@ export function parseMoneyForwardAssetBalanceCsv(
       }
     }
 
+    let quantity: Decimal | null = null;
+    if (quantityIndex !== undefined) {
+      const rawQuantity = cols[quantityIndex];
+      if (rawQuantity?.trim()) {
+        const normalizedQuantity = normalizeNumericString(rawQuantity);
+        if (!normalizedQuantity) {
+          skippedRows.push({ lineNumber, reason: `数量を解釈できません: "${rawQuantity}"` });
+          continue;
+        }
+        quantity = new Decimal(normalizedQuantity);
+      }
+    }
+
     rows.push({
       snapshotDate,
       institution: rawInstitution.trim(),
       assetName: rawAssetName.trim(),
       category: categoryIndex !== undefined ? cols[categoryIndex]?.trim() || "" : "",
       balanceJpy: new Decimal(normalizedBalance),
+      quantity,
     });
   }
 

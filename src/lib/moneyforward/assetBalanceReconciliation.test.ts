@@ -163,4 +163,88 @@ describe("reconcileAssetSymbolBalances", () => {
 
     expect(results[0].status).toBe("OK");
   });
+
+  it("数量列が無い場合はquantityCheck.statusがNOT_AVAILABLEになる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 }],
+    );
+
+    expect(results[0].quantityCheck).toMatchObject({
+      status: "NOT_AVAILABLE",
+      snapshotQuantity: null,
+      expectedQuantity: null,
+    });
+  });
+
+  it("未マッピングの資産名はquantityCheck.statusがNOT_AVAILABLEになる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [
+        {
+          institution: "楽天証券",
+          assetName: "全世界株式ファンド",
+          balanceJpy: 100_000,
+          quantity: 10,
+        },
+      ],
+      [],
+      [],
+    );
+
+    expect(results[0].quantityCheck.status).toBe("NOT_AVAILABLE");
+  });
+
+  it("期首残高+当年増減がマネーフォワードの数量と一致すればOK", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000, quantity: 0.3 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 }],
+      [{ symbol: "BTC", quantity: 0.2 }],
+    );
+
+    expect(results[0].quantityCheck).toMatchObject({ status: "OK" });
+    expect(results[0].quantityCheck.expectedQuantity?.toNumber()).toBe(0.3);
+  });
+
+  it("数量が一致しない場合はMISMATCHになる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000, quantity: 0.5 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 }],
+    );
+
+    expect(results[0].quantityCheck.status).toBe("MISMATCH");
+    expect(results[0].quantityCheck.diff?.toNumber()).toBe(0.4);
+  });
+
+  it("期首残高があり複数金融機関にまたがる銘柄は数量突合を見送る", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000, quantity: 0.3 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [
+        { institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 },
+        { institution: "Coincheck", symbol: "BTC", quantityDelta: 0.05 },
+      ],
+      [{ symbol: "BTC", quantity: 0.2 }],
+    );
+
+    expect(results[0].quantityCheck).toMatchObject({
+      status: "SKIPPED_AMBIGUOUS_OPENING_BALANCE",
+      expectedQuantity: null,
+    });
+  });
+
+  it("期首残高が0なら複数金融機関にまたがっていても当年増減だけで突合できる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000, quantity: 0.1 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [
+        { institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 },
+        { institution: "Coincheck", symbol: "BTC", quantityDelta: 0.05 },
+      ],
+    );
+
+    expect(results[0].quantityCheck).toMatchObject({ status: "OK" });
+  });
 });
