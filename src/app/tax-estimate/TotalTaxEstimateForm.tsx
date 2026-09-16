@@ -168,9 +168,26 @@ export function TotalTaxEstimateForm({
             />
           </div>
 
+          <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+            <p className="text-sm text-neutral-500">
+              ふるさと納税(寄附金控除)の年間上限額の目安(自己負担2,000円)
+            </p>
+            <p className="mt-1 text-xl font-semibold">
+              {yen(result.furusatoNozei.fullDeductionDonationLimitJpy)}
+            </p>
+            <p className="mt-1 text-xs text-neutral-400">
+              住民税所得割額(概算) {yen(result.furusatoNozei.residentTaxIncomeLeviedJpy)} ・
+              所得税の限界税率{" "}
+              {result.furusatoNozei.marginalIncomeTaxRate.times(100).toNumber()}%
+            </p>
+          </div>
+
           <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-500">
             {result.notes.map((note, i) => (
               <li key={i}>{note}</li>
+            ))}
+            {result.furusatoNozei.notes.map((note, i) => (
+              <li key={`furusato-${i}`}>{note}</li>
             ))}
           </ul>
         </>
