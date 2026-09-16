@@ -42,6 +42,11 @@ yarn-error.log*
 next-env.d.ts
 
 # prisma
+# DATABASE_URL="file:./dev.db" は実行時のカレントディレクトリ(リポジトリ直下)を
+# 基準に解決されるため、prisma/配下ではなくリポジトリ直下にファイルが作成される。
+/dev.db
+/*.db
+/*.db-journal
 /prisma/dev.db
 /prisma/*.db
 /prisma/*.db-journal

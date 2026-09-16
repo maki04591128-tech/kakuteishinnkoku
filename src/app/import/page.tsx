@@ -4,6 +4,7 @@ import {
   addInvestmentTrade,
   carryForwardInvestmentLoss,
   carryForwardOpeningBalances,
+  deleteBrokerAnnualReport,
   deleteCryptoMarginTrade,
   deleteCryptoTrade,
   deleteInvestmentTrade,
@@ -12,14 +13,23 @@ import {
   importCryptoExchangeCsv,
   importCryptoMarginCsv,
   importMoneyForwardCsv,
+  setBrokerAnnualReport,
   setCryptoCostMethod,
   setLossCarryforward,
   setOpeningBalance,
 } from "@/app/actions";
 import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
 import { prisma } from "@/lib/db";
+import { reconcileBrokerAnnualReports } from "@/lib/investment/annualReportReconciliation";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
+
+const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
+  SPECIFIC_NO_WITHHOLDING: "特定口座(源泉徴収なし)",
+  GENERAL: "一般口座",
+  NISA: "NISA口座",
+};
 
 function yen(value: { toString(): string }): string {
   return `¥${Number(value.toString()).toLocaleString("ja-JP")}`;
@@ -50,6 +60,7 @@ export default async function ImportPage({
     investmentTrades,
     openingBalances,
     lossCarryforwards,
+    brokerAnnualReports,
     yearReport,
   ] = await Promise.all([
     prisma.cryptoTrade.findMany({
@@ -72,8 +83,33 @@ export default async function ImportPage({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
     }),
+    prisma.brokerAnnualReport.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: [{ broker: "asc" }, { accountType: "asc" }],
+    }),
     buildYearReport(year),
   ]);
+
+  const brokerReconciliations = reconcileBrokerAnnualReports(
+    brokerAnnualReports.map((r) => ({
+      broker: r.broker,
+      accountType: r.accountType,
+      proceedsJpy: r.proceedsJpy.toString(),
+      acquisitionCostJpy: r.acquisitionCostJpy.toString(),
+      dividendJpy: r.dividendJpy.toString(),
+    })),
+    investmentTrades.map((t) => ({
+      broker: t.broker,
+      accountType: t.accountType,
+      type: t.type,
+      quantity: t.quantity.toString(),
+      unitPriceJpy: t.unitPriceJpy.toString(),
+      feeJpy: t.feeJpy.toString(),
+    })),
+  );
+  const brokerReconciliationById = new Map(
+    brokerAnnualReports.map((r, i) => [r.id, brokerReconciliations[i]]),
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 p-6 sm:p-10">
@@ -745,6 +781,173 @@ export default async function ImportPage({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">
+          証券会社の特定口座年間取引報告書との突合
+        </h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          証券会社が発行する「特定口座年間取引報告書」の
+          <strong>「譲渡の対価の額(収入金額)」</strong>と
+          <strong>「配当等の額」</strong>
+          をここに入力すると、同じ証券会社・口座区分でアプリに登録済みの
+          売却・配当の取引明細から計算した金額と自動で突き合わせ、差額があれば
+          表示する。差額がある場合、その証券会社の取引に計上漏れ・入力ミスがある
+          可能性が高い。「取得費及び譲渡に要した費用の額等」は証券会社側が口座
+          ごとに個別管理する取得原価であり、本ツールは銘柄単位・全口座合算の
+          平均単価で計算するため前提が異なる(自動突合はせず、差引金額の参考
+          表示のみ行う)。
+        </p>
+
+        <form
+          action={setBrokerAnnualReport}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="証券会社">
+            <input
+              type="text"
+              name="broker"
+              placeholder="SBI証券"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label="口座区分">
+            <select name="accountType" className={inputClass}>
+              <option value="SPECIFIC_WITHHOLDING">特定口座(源泉徴収あり)</option>
+              <option value="SPECIFIC_NO_WITHHOLDING">特定口座(源泉徴収なし)</option>
+              <option value="GENERAL">一般口座</option>
+            </select>
+          </Field>
+          <Field label="譲渡の対価の額(収入金額・円)">
+            <input
+              type="number"
+              step="any"
+              name="proceedsJpy"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label="取得費及び譲渡費用の額等(円)">
+            <input
+              type="number"
+              step="any"
+              name="acquisitionCostJpy"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label="配当等の額(円・任意)">
+            <input
+              type="number"
+              step="any"
+              name="dividendJpy"
+              defaultValue={0}
+              className={inputClass}
+            />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              登録・更新(同じ証券会社・口座区分は上書き)
+            </button>
+          </div>
+        </form>
+
+        {brokerAnnualReports.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {[
+                    "証券会社",
+                    "口座区分",
+                    "収入金額(報告書/計算/差額)",
+                    "配当等(報告書/計算/差額)",
+                    "判定",
+                    "",
+                  ].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {brokerAnnualReports.map((r) => {
+                  const rec = brokerReconciliationById.get(r.id);
+                  return (
+                    <tr key={r.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                      <td className="px-3 py-2">{r.broker}</td>
+                      <td className="px-3 py-2">
+                        {ACCOUNT_TYPE_LABELS[r.accountType] ?? r.accountType}
+                      </td>
+                      <td className="px-3 py-2">
+                        {rec && (
+                          <>
+                            {yen(rec.reportProceedsJpy)} / {yen(rec.calculatedProceedsJpy)}{" "}
+                            <span
+                              className={
+                                rec.proceedsDiffJpy.abs().greaterThan(1)
+                                  ? "text-red-600"
+                                  : "text-neutral-400"
+                              }
+                            >
+                              (差額 {yen(rec.proceedsDiffJpy)})
+                            </span>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {rec && (
+                          <>
+                            {yen(rec.reportDividendJpy)} / {yen(rec.calculatedDividendJpy)}{" "}
+                            <span
+                              className={
+                                rec.dividendDiffJpy.abs().greaterThan(1)
+                                  ? "text-red-600"
+                                  : "text-neutral-400"
+                              }
+                            >
+                              (差額 {yen(rec.dividendDiffJpy)})
+                            </span>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {rec?.hasDiscrepancy ? (
+                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+                            不一致
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
+                            一致
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <form action={deleteBrokerAnnualReport}>
+                          <input type="hidden" name="id" value={r.id} />
+                          <input type="hidden" name="year" value={year} />
+                          <button className="text-xs text-red-600 hover:underline">削除</button>
+                        </form>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="mt-3 text-xs text-neutral-400">
+              収入金額・配当等は「報告書の値 / アプリ計算値」の順に表示する。
+              差額は報告書の値からアプリ計算値を引いた金額(プラスは計上漏れの
+              可能性、マイナスは重複計上・入力額の誤りの可能性がある)。
+            </p>
           </div>
         )}
       </section>

@@ -33,6 +33,7 @@ model TaxYear {
   importBatches               ImportBatch[]
   openingBalances             OpeningBalance[]
   investmentLossCarryforwards InvestmentLossCarryforward[]
+  brokerAnnualReports         BrokerAnnualReport[]
 }
 
 enum CryptoCostMethod {
@@ -268,6 +269,41 @@ enum InvestmentAccountType {
   SPECIFIC_NO_WITHHOLDING
   GENERAL
   NISA
+}
+
+/// 証券会社が発行する「特定口座年間取引報告書」の年間サマリー数値。
+/// 損益計算そのものには使わず、アプリ内でInvestmentTradeから計算した
+/// 証券会社・口座区分ごとの譲渡収入金額・配当等の額と突き合わせて、
+/// 取引の入力漏れ・入力ミスを検知するための参照データとして保持する。
+/// 取得費は証券会社が口座ごとに管理する取得原価(本ツールが銘柄単位・
+/// 全口座合算で計算する平均単価とは前提が異なる)のため自動突合の対象にはせず、
+/// 参考値として登録するのみとする。
+model BrokerAnnualReport {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 証券会社名(InvestmentTrade.broker と同じ表記で入力する想定)
+  broker String
+
+  /// 口座区分。年間取引報告書が発行されるのは通常、特定口座(源泉徴収あり/なし)。
+  accountType InvestmentAccountType
+
+  /// 年間取引報告書「譲渡の対価の額(収入金額)」の合計
+  proceedsJpy Decimal
+
+  /// 年間取引報告書「取得費及び譲渡に要した費用の額等」の合計(参考値。自動突合の対象外)
+  acquisitionCostJpy Decimal
+
+  /// 年間取引報告書「配当等の額」の合計(任意)
+  dividendJpy Decimal @default(0)
+
+  memo String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, broker, accountType])
 }
 
 /// マネーフォワード ME 等からインポートしたCSVの取り込みバッチ。
