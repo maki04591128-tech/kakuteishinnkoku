@@ -2,7 +2,10 @@ import { Decimal } from "decimal.js";
 import { describe, expect, it } from "vitest";
 import {
   calculateCryptoPortfolioYear,
+  calculateCryptoPortfolioYearByMethod,
+  calculateCryptoPortfolioYearMovingAverage,
   calculateCryptoYear,
+  calculateCryptoYearMovingAverage,
 } from "./calculator";
 
 describe("calculateCryptoYear (総平均法)", () => {
@@ -227,5 +230,107 @@ describe("calculateCryptoPortfolioYear", () => {
 
     const btc = result.bySymbol.find((r) => r.symbol === "BTC")!;
     expect(btc.realizedGainJpy.toNumber()).toBe(500_000);
+  });
+});
+
+describe("calculateCryptoYearMovingAverage (移動平均法)", () => {
+  it("取得の都度、平均単価を更新して譲渡損益を計算する", () => {
+    // 1/10 2BTCを2,000,000円/BTCで購入 (取得原価4,000,000円、平均単価2,000,000円)
+    // 3/1  1BTCを3,000,000円で売却 (原価2,000,000円、利益1,000,000円。残1BTC/2,000,000円)
+    // 6/1  3BTCを1,000,000円/BTCで購入 (取得原価3,000,000円。残高4BTC/5,000,000円、平均単価1,250,000円)
+    // 9/1  2BTCを1,500,000円/BTCで売却 (原価2,500,000円、利益500,000円。残2BTC/2,500,000円)
+    const result = calculateCryptoYearMovingAverage("BTC", [
+      { type: "BUY", quantity: 2, unitPriceJpy: 2_000_000, tradedAt: new Date("2026-01-10") },
+      { type: "SELL", quantity: 1, unitPriceJpy: 3_000_000, tradedAt: new Date("2026-03-01") },
+      { type: "BUY", quantity: 3, unitPriceJpy: 1_000_000, tradedAt: new Date("2026-06-01") },
+      { type: "SELL", quantity: 2, unitPriceJpy: 1_500_000, tradedAt: new Date("2026-09-01") },
+    ]);
+
+    expect(result.disposedQuantity.toNumber()).toBe(3);
+    expect(result.proceedsJpy.toNumber()).toBe(6_000_000);
+    expect(result.costOfDisposedJpy.toNumber()).toBe(4_500_000);
+    expect(result.realizedGainJpy.toNumber()).toBe(1_500_000);
+    expect(result.closingQuantity.toNumber()).toBe(2);
+    expect(result.closingCostJpy.toNumber()).toBe(2_500_000);
+    expect(result.averageUnitCostJpy.toNumber()).toBe(1_250_000);
+  });
+
+  it("総平均法とは異なる損益になる(同じ取引でも計算方式で結果が変わる例)", () => {
+    const trades = [
+      { type: "BUY" as const, quantity: 2, unitPriceJpy: 2_000_000, tradedAt: new Date("2026-01-10") },
+      { type: "SELL" as const, quantity: 1, unitPriceJpy: 3_000_000, tradedAt: new Date("2026-03-01") },
+      { type: "BUY" as const, quantity: 3, unitPriceJpy: 1_000_000, tradedAt: new Date("2026-06-01") },
+      { type: "SELL" as const, quantity: 2, unitPriceJpy: 1_500_000, tradedAt: new Date("2026-09-01") },
+    ];
+
+    const moving = calculateCryptoYearMovingAverage("BTC", trades);
+    const total = calculateCryptoYear("BTC", trades);
+
+    expect(moving.realizedGainJpy.toNumber()).toBe(1_500_000);
+    // 総平均単価 = (4,000,000+3,000,000)/(2+3) = 1,400,000。原価=1,400,000*3=4,200,000。損益=6,000,000-4,200,000
+    expect(total.realizedGainJpy.toNumber()).toBe(1_800_000);
+    expect(moving.realizedGainJpy.toNumber()).not.toBe(total.realizedGainJpy.toNumber());
+  });
+
+  it("入力順が前後していても tradedAt でソートして計算する", () => {
+    const inOrder = calculateCryptoYearMovingAverage("BTC", [
+      { type: "BUY", quantity: 2, unitPriceJpy: 2_000_000, tradedAt: new Date("2026-01-10") },
+      { type: "SELL", quantity: 1, unitPriceJpy: 3_000_000, tradedAt: new Date("2026-03-01") },
+    ]);
+    const shuffled = calculateCryptoYearMovingAverage("BTC", [
+      { type: "SELL", quantity: 1, unitPriceJpy: 3_000_000, tradedAt: new Date("2026-03-01") },
+      { type: "BUY", quantity: 2, unitPriceJpy: 2_000_000, tradedAt: new Date("2026-01-10") },
+    ]);
+
+    expect(shuffled.realizedGainJpy.toString()).toBe(inOrder.realizedGainJpy.toString());
+  });
+
+  it("期首残高を合算した上で、取得の都度平均単価を更新する", () => {
+    const result = calculateCryptoYearMovingAverage(
+      "ETH",
+      [{ type: "SELL", quantity: 1, unitPriceJpy: 300_000, tradedAt: new Date("2026-05-01") }],
+      { quantity: 2, costBasisJpy: 400_000 },
+    );
+
+    expect(result.realizedGainJpy.toNumber()).toBe(100_000);
+    expect(result.closingQuantity.toNumber()).toBe(1);
+    expect(result.closingCostJpy.toNumber()).toBe(200_000);
+  });
+
+  it("年内であっても、その時点の保有数量を超える譲渡はエラーになる(後で購入しても遡って相殺できない)", () => {
+    expect(() =>
+      calculateCryptoYearMovingAverage("BTC", [
+        { type: "SELL", quantity: 3, unitPriceJpy: 1_000_000, tradedAt: new Date("2026-01-01") },
+        { type: "BUY", quantity: 5, unitPriceJpy: 1_000_000, tradedAt: new Date("2026-06-01") },
+      ]),
+    ).toThrow();
+  });
+});
+
+describe("calculateCryptoPortfolioYearMovingAverage / calculateCryptoPortfolioYearByMethod", () => {
+  it("複数銘柄を銘柄別に移動平均法で集計する", () => {
+    const result = calculateCryptoPortfolioYearMovingAverage([
+      { symbol: "BTC", type: "BUY", quantity: 1, unitPriceJpy: 3_000_000, tradedAt: new Date("2026-01-01") },
+      { symbol: "BTC", type: "SELL", quantity: 1, unitPriceJpy: 3_500_000, tradedAt: new Date("2026-02-01") },
+      { symbol: "ETH", type: "BUY", quantity: 10, unitPriceJpy: 200_000, tradedAt: new Date("2026-01-01") },
+    ]);
+
+    expect(result.bySymbol.map((r) => r.symbol)).toEqual(["BTC", "ETH"]);
+    expect(result.totalRealizedGainJpy.toNumber()).toBe(500_000);
+  });
+
+  it("cryptoCostMethod に応じて総平均法/移動平均法を切り替える", () => {
+    const trades = [
+      { symbol: "BTC", type: "BUY" as const, quantity: 2, unitPriceJpy: 2_000_000, tradedAt: new Date("2026-01-10") },
+      { symbol: "BTC", type: "SELL" as const, quantity: 1, unitPriceJpy: 3_000_000, tradedAt: new Date("2026-03-01") },
+      { symbol: "BTC", type: "BUY" as const, quantity: 3, unitPriceJpy: 1_000_000, tradedAt: new Date("2026-06-01") },
+      { symbol: "BTC", type: "SELL" as const, quantity: 2, unitPriceJpy: 1_500_000, tradedAt: new Date("2026-09-01") },
+    ];
+
+    const moving = calculateCryptoPortfolioYearByMethod("MOVING_AVERAGE", trades);
+    const total = calculateCryptoPortfolioYearByMethod("AVERAGE", trades);
+
+    expect(moving.totalRealizedGainJpy.toNumber()).toBe(1_500_000);
+    expect(total.totalRealizedGainJpy.toNumber()).toBe(1_800_000);
   });
 });
