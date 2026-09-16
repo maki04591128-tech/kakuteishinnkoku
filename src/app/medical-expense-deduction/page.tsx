@@ -1,0 +1,66 @@
+import Link from "next/link";
+import { buildYearReport } from "@/lib/reporting";
+import { buildTaxFilingSummary } from "@/lib/etax/summary";
+import { listTaxYears } from "@/lib/taxYear";
+import { MedicalExpenseDeductionForm } from "./MedicalExpenseDeductionForm";
+
+export default async function MedicalExpenseDeductionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>;
+}) {
+  const params = await searchParams;
+  const availableYears = await listTaxYears();
+  const currentCalendarYear = new Date().getFullYear();
+  const year = Number(params.year) || availableYears[0] || currentCalendarYear;
+
+  const report = await buildYearReport(year);
+  const summary = report
+    ? buildTaxFilingSummary(
+        year,
+        report.crypto,
+        report.investment,
+        report.lossCarryforward,
+        report.cryptoMargin,
+        report.futures,
+        report.futuresLossCarryforward,
+      )
+    : null;
+
+  // 給与所得等(本ツールが管理しない部分)は概算試算と同じ既定値(500万円)を仮定し、
+  // 暗号資産・株式等・配当・先物の当年集計値を合算して総所得金額等の初期値とする
+  const defaultTotalIncomeJpy =
+    5_000_000 +
+    (summary?.cryptoMiscIncomeJpy.toNumber() ?? 0) +
+    (summary?.investmentLossCarryforward.taxableGainJpy.toNumber() ?? 0) +
+    (summary?.investmentDividendJpy.toNumber() ?? 0) +
+    (report?.futuresLossCarryforward.taxableGainJpy.toNumber() ?? 0);
+
+  return (
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
+      <header>
+        <Link href="/" className="text-sm text-neutral-500 hover:underline">
+          ← ダッシュボードに戻る
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight">
+          医療費控除額の試算({year}年分)
+        </h1>
+        <p className="mt-1 text-sm text-neutral-500">
+          年間に支払った医療費と保険金等の補填額から、所得税法上の医療費控除額を試算する。
+          総所得金額等はこの年の暗号資産・株式等・配当・先物の集計値と、給与所得等の
+          仮定値(500万円)を合算した金額を初期値として表示している。
+        </p>
+      </header>
+
+      <MedicalExpenseDeductionForm defaultTotalIncomeJpy={defaultTotalIncomeJpy} />
+
+      <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
+        国税庁の医療費控除の計算式による概算値であり、実際の申告には医療費控除の明細書の
+        作成が必要。セルフメディケーション税制(特定一般用医薬品等購入費控除)とは
+        選択制で併用できないため対象外(通常の医療費控除のみ試算する)。ここで求めた
+        控除額は、他の試算画面の「給与所得等の課税所得金額」等に入力する前に、
+        本ツールが管理していない所得金額から別途差し引くこと。
+      </p>
+    </div>
+  );
+}
