@@ -87,6 +87,43 @@ describe("calculateInvestmentYear (移動平均法)", () => {
     expect(result.foreignTaxWithheldJpy.toNumber()).toBe(1000);
   });
 
+  it("国外源泉株式等の譲渡益は外国税額控除の国外所得金額として別集計される(為替差損益を含む)", () => {
+    const result = calculateInvestmentYear("VOO", [
+      { tradedAt: d("2026-01-10"), type: "BUY", quantity: 10, unitPriceJpy: 50_000, isForeign: true },
+      {
+        tradedAt: d("2026-06-01"),
+        type: "SELL",
+        quantity: 10,
+        unitPriceJpy: 60_000,
+        isForeign: true,
+      },
+      { tradedAt: d("2026-07-01"), type: "BUY", quantity: 100, unitPriceJpy: 2000 },
+      { tradedAt: d("2026-08-01"), type: "SELL", quantity: 100, unitPriceJpy: 2500 },
+    ]);
+
+    // 国外源泉分の譲渡益(60,000-50,000)*10 = 100,000のみが集計され、
+    // 国内株式(9984ではなく同一結果内の別ロット)の譲渡益は含まれない
+    expect(result.realizedGainJpy.toNumber()).toBe(100_000 + 50_000);
+    expect(result.foreignSourceCapitalGainJpy.toNumber()).toBe(100_000);
+  });
+
+  it("NISA口座の国外源泉株式等の譲渡益は非課税のため外国税額控除の自動集計対象にならない", () => {
+    const result = calculateInvestmentYear("VOO", [
+      { tradedAt: d("2026-01-10"), type: "BUY", quantity: 10, unitPriceJpy: 50_000, isNisa: true, isForeign: true },
+      {
+        tradedAt: d("2026-06-01"),
+        type: "SELL",
+        quantity: 10,
+        unitPriceJpy: 60_000,
+        isNisa: true,
+        isForeign: true,
+      },
+    ]);
+
+    expect(result.nisaRealizedGainJpy.toNumber()).toBe(100_000);
+    expect(result.foreignSourceCapitalGainJpy.toNumber()).toBe(0);
+  });
+
   it("NISA口座の国外源泉配当は非課税のため外国税額控除の自動集計対象にならない", () => {
     const result = calculateInvestmentYear("VOO", [
       {
@@ -167,5 +204,39 @@ describe("calculateInvestmentPortfolioYear", () => {
     expect(result.totalForeignSourceDividendJpy.toNumber()).toBe(15_000);
     expect(result.totalForeignTaxWithheldJpy.toNumber()).toBe(1500);
     expect(result.totalDividendJpy.toNumber()).toBe(18_000);
+  });
+
+  it("国外源泉の配当と譲渡益を合算した金額が国外所得金額の自動集計値になる", () => {
+    const result = calculateInvestmentPortfolioYear([
+      {
+        symbol: "VOO",
+        tradedAt: d("2026-01-10"),
+        type: "BUY",
+        quantity: 10,
+        unitPriceJpy: 50_000,
+        isForeign: true,
+      },
+      {
+        symbol: "VOO",
+        tradedAt: d("2026-06-01"),
+        type: "SELL",
+        quantity: 10,
+        unitPriceJpy: 60_000,
+        isForeign: true,
+      },
+      {
+        symbol: "VOO",
+        tradedAt: d("2026-03-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 10_000,
+        isForeign: true,
+        foreignTaxWithheldJpy: 1000,
+      },
+    ]);
+
+    expect(result.totalForeignSourceCapitalGainJpy.toNumber()).toBe(100_000);
+    expect(result.totalForeignSourceDividendJpy.toNumber()).toBe(10_000);
+    expect(result.totalForeignSourceIncomeJpy.toNumber()).toBe(110_000);
   });
 });

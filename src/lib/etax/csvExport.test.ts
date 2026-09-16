@@ -76,6 +76,8 @@ describe("buildTaxFilingDraftCsv", () => {
         totalDividendJpy: new Decimal(0),
         totalForeignSourceDividendJpy: new Decimal(0),
         totalForeignTaxWithheldJpy: new Decimal(0),
+        totalForeignSourceCapitalGainJpy: new Decimal(0),
+        totalForeignSourceIncomeJpy: new Decimal(0),
       },
     );
     const csv = buildTaxFilingDraftCsv(summary, [], []);
