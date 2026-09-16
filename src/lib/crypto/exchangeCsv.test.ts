@@ -254,6 +254,27 @@ describe("parseCryptoExchangeCsv", () => {
   });
 });
 
+describe("parseExchangeCsv - preset『other』(自動認識フォールバック)", () => {
+  it("よく使われる列見出しのCSVは手動マッピング無しでも自動認識して取り込める", () => {
+    const csv = [
+      "約定日時,商品,売買,約定数量,約定レート,手数料",
+      "2026/1/10 12:00:00,BTC_JPY,買い,0.1,5000000,0",
+      "2026/3/5 09:30:00,BTC_JPY,売り,0.05,6000000,100",
+    ].join("\n");
+
+    const result = parseExchangeCsv("other", csv);
+    expect(result.skippedRows).toEqual([]);
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0].symbol).toBe("BTC");
+    expect(result.rows[0].type).toBe("BUY");
+  });
+
+  it("自動認識できない列見出しの場合は手動マッピングへ誘導するエラーを投げる", () => {
+    const csv = ["foo,bar,baz", "1,2,3"].join("\n");
+    expect(() => parseExchangeCsv("other", csv)).toThrow(/マッピング欄/);
+  });
+});
+
 describe("parseExchangeCsv - manual mapping", () => {
   it("Coincheck業界標準フォーマットのbuy/sellを取り込み、それ以外はスキップする", () => {
     const result = parseExchangeCsv(COINCHECK_CSV, COINCHECK_MAPPING);
