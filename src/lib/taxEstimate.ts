@@ -3,6 +3,7 @@ import {
   RESIDENT_TAX_RATE,
   SEPARATE_NATIONAL_TAX_RATE,
   SEPARATE_RESIDENT_TAX_RATE,
+  marginalIncomeTaxRate,
   nationalIncomeTaxWithSurtaxJpy,
 } from "./incomeTax";
 import {
@@ -11,6 +12,7 @@ import {
   type DividendTaxMethodResult,
   type DividendTaxSimulationResult,
 } from "./investment/dividendTaxSimulation";
+import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./furusatoNozei";
 
 /**
  * ダッシュボードの各所得区分(暗号資産の雑所得・株式等の譲渡所得・配当所得・
@@ -78,6 +80,8 @@ export interface TotalTaxEstimateResult {
   totalResidentTaxJpy: Decimal;
   /** 合計税額(所得税・復興特別所得税・住民税の合計) */
   totalTaxJpy: Decimal;
+  /** ふるさと納税(寄附金控除)の年間上限額の試算(自己負担2,000円になる目安) */
+  furusatoNozei: FurusatoNozeiLimitResult;
   notes: string[];
 }
 
@@ -157,6 +161,19 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     );
   }
 
+  // ふるさと納税の上限額計算で使う所得税の限界税率は、超過累進税率が適用される
+  // 総合課税分の課税所得金額(配当所得を総合課税で選んだ場合はそれも上乗せした金額)に
+  // 対応する速算表の税率を用いる(申告分離課税分は税率が別建てのため含めない)。
+  const comprehensiveTaxableIncomeForMarginalRateJpy =
+    dividendMethodUsed === "COMPREHENSIVE"
+      ? comprehensiveTaxableIncomeExcludingDividendJpy.plus(dividendResult.taxableDividendJpy)
+      : comprehensiveTaxableIncomeExcludingDividendJpy;
+  const totalTaxJpy = totalNationalTaxJpy.plus(totalResidentTaxJpy);
+  const furusatoNozei = estimateFurusatoNozeiLimit({
+    residentTaxIncomeLeviedJpy: totalResidentTaxJpy,
+    marginalIncomeTaxRate: marginalIncomeTaxRate(comprehensiveTaxableIncomeForMarginalRateJpy),
+  });
+
   return {
     comprehensiveTaxableIncomeExcludingDividendJpy,
     dividend,
@@ -170,7 +187,8 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     futuresResidentTaxJpy,
     totalNationalTaxJpy,
     totalResidentTaxJpy,
-    totalTaxJpy: totalNationalTaxJpy.plus(totalResidentTaxJpy),
+    totalTaxJpy,
+    furusatoNozei,
     notes,
   };
 }

@@ -29,8 +29,7 @@ export const RESIDENT_TAX_RATE = 0.1;
 export const SEPARATE_NATIONAL_TAX_RATE = 0.15 * (1 + RECONSTRUCTION_SURTAX_RATE);
 export const SEPARATE_RESIDENT_TAX_RATE = 0.05;
 
-/** 課税所得金額に速算表を適用し、所得税額(復興特別所得税を含まない)を計算する */
-export function nationalIncomeTaxBaseJpy(taxableIncomeJpy: Decimal): Decimal {
+function bracketForTaxableIncome(taxableIncomeJpy: Decimal): (typeof INCOME_TAX_BRACKETS)[number] {
   const income = Decimal.max(taxableIncomeJpy, 0);
   let bracket = INCOME_TAX_BRACKETS[0];
   for (const b of INCOME_TAX_BRACKETS) {
@@ -38,7 +37,23 @@ export function nationalIncomeTaxBaseJpy(taxableIncomeJpy: Decimal): Decimal {
       bracket = b;
     }
   }
+  return bracket;
+}
+
+/** 課税所得金額に速算表を適用し、所得税額(復興特別所得税を含まない)を計算する */
+export function nationalIncomeTaxBaseJpy(taxableIncomeJpy: Decimal): Decimal {
+  const income = Decimal.max(taxableIncomeJpy, 0);
+  const bracket = bracketForTaxableIncome(income);
   return Decimal.max(income.times(bracket.rate).minus(bracket.deductionJpy), 0);
+}
+
+/**
+ * 課税所得金額に対応する所得税の限界税率(速算表の税率。復興特別所得税を含まない)。
+ * ふるさと納税(寄附金控除)の上限額試算等、超過累進税率のうち最上位の
+ * 適用税率のみが必要な場面で使う。
+ */
+export function marginalIncomeTaxRate(taxableIncomeJpy: Decimal): Decimal {
+  return new Decimal(bracketForTaxableIncome(taxableIncomeJpy).rate);
 }
 
 /** 復興特別所得税を含めた所得税額(住民税を含まない) */
