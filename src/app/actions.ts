@@ -10,6 +10,10 @@ import {
   type ExchangeCsvPreset,
 } from "@/lib/crypto/exchangeCsv";
 import { parseCryptoMarginCsv, type MarginCsvMapping } from "@/lib/crypto/marginCsv";
+import {
+  parseMoneyForwardAssetBalanceCsv,
+  type AssetBalanceCsvMapping,
+} from "@/lib/moneyforward/parseAssetBalance";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 
@@ -547,4 +551,68 @@ export async function carryForwardInvestmentLoss(
   redirect(
     `/import?year=${year}&tab=lossCarryforward&lossCarried=${toCreate.length}`,
   );
+}
+
+export async function importAssetBalanceCsv(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("CSVファイルを選択してください");
+  }
+
+  const text = await file.text();
+  const { rows, skippedRows } = parseMoneyForwardAssetBalanceCsv(text, {
+    institutionColumn: requireString(formData, "institutionColumn"),
+    assetNameColumn: requireString(formData, "assetNameColumn"),
+    balanceColumn: requireString(formData, "balanceColumn"),
+    dateColumn: optionalString(formData, "dateColumn") ?? undefined,
+    categoryColumn: optionalString(formData, "categoryColumn") ?? undefined,
+  } satisfies AssetBalanceCsvMapping);
+
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.$transaction(async (tx) => {
+    const batch = await tx.importBatch.create({
+      data: {
+        taxYearId: taxYear.id,
+        sourceType: "moneyforward_assets",
+        fileName: file.name,
+        rowCount: rows.length,
+      },
+    });
+
+    if (rows.length > 0) {
+      await tx.assetBalanceSnapshot.createMany({
+        data: rows.map((row) => ({
+          taxYearId: taxYear.id,
+          ...(row.snapshotDate ? { snapshotDate: row.snapshotDate } : {}),
+          category: row.category,
+          institution: row.institution,
+          assetName: row.assetName,
+          balanceJpy: row.balanceJpy.toString(),
+          importBatchId: batch.id,
+        })),
+      });
+    }
+  });
+
+  revalidatePath("/import");
+
+  if (skippedRows.length > 0) {
+    redirect(
+      `/import?year=${year}&tab=assetBalance&imported=${rows.length}&skipped=${skippedRows.length}`,
+    );
+  }
+  redirect(`/import?year=${year}&tab=assetBalance&imported=${rows.length}`);
+}
+
+export async function deleteAssetBalanceImportBatch(formData: FormData): Promise<void> {
+  const importBatchId = Number(requireString(formData, "importBatchId"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.$transaction([
+    prisma.assetBalanceSnapshot.deleteMany({ where: { importBatchId } }),
+    prisma.importBatch.delete({ where: { id: importBatchId } }),
+  ]);
+  revalidatePath("/import");
+  redirect(`/import?year=${year}&tab=assetBalance`);
 }
