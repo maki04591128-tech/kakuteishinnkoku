@@ -17,15 +17,25 @@ export function ForeignTaxCreditForm({
   year,
   carryforwardEntries,
   spareLimitCarryforwardEntries,
+  autoForeignSourceIncomeJpy,
+  autoForeignIncomeTaxPaidJpy,
 }: {
   year: number;
   carryforwardEntries: { originYear: number; remainingAmountJpy: string }[];
   spareLimitCarryforwardEntries: { originYear: number; remainingAmountJpy: string }[];
+  /** `/import`に登録済みの国外源泉配当等から自動集計した国外所得金額(課税口座分) */
+  autoForeignSourceIncomeJpy: string;
+  /** `/import`に登録済みの国外源泉配当等から自動集計した外国所得税額(課税口座分) */
+  autoForeignIncomeTaxPaidJpy: string;
 }) {
   const [incomeTaxJpy, setIncomeTaxJpy] = useState("300000");
   const [totalIncomeJpy, setTotalIncomeJpy] = useState("5000000");
-  const [foreignSourceIncomeJpy, setForeignSourceIncomeJpy] = useState("300000");
-  const [foreignIncomeTaxPaidJpy, setForeignIncomeTaxPaidJpy] = useState("30000");
+  const [foreignSourceIncomeJpy, setForeignSourceIncomeJpy] = useState(
+    autoForeignSourceIncomeJpy !== "0" ? autoForeignSourceIncomeJpy : "300000",
+  );
+  const [foreignIncomeTaxPaidJpy, setForeignIncomeTaxPaidJpy] = useState(
+    autoForeignIncomeTaxPaidJpy !== "0" ? autoForeignIncomeTaxPaidJpy : "30000",
+  );
 
   const totalCarriedForwardJpy = carryforwardEntries.reduce(
     (sum, e) => sum + Number(e.remainingAmountJpy),
@@ -74,12 +84,16 @@ export function ForeignTaxCreditForm({
           onChange={setTotalIncomeJpy}
         />
         <Field
-          label="国外所得金額(外国株式配当等、控除対象の国外所得の合計)"
+          label={`国外所得金額(外国株式配当等、控除対象の国外所得の合計。自動集計値: ${yen(
+            Number(autoForeignSourceIncomeJpy),
+          )})`}
           value={foreignSourceIncomeJpy}
           onChange={setForeignSourceIncomeJpy}
         />
         <Field
-          label="外国所得税額(現地で源泉徴収された税額の年間合計・円換算)"
+          label={`外国所得税額(現地で源泉徴収された税額の年間合計・円換算。自動集計値: ${yen(
+            Number(autoForeignIncomeTaxPaidJpy),
+          )})`}
           value={foreignIncomeTaxPaidJpy}
           onChange={setForeignIncomeTaxPaidJpy}
         />

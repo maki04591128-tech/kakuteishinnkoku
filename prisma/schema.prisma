@@ -288,6 +288,16 @@ model InvestmentTrade {
   /// NISA区分(該当する場合、非課税のため損益計算から除外)
   isNisa Boolean @default(false)
 
+  /// 国外で発行された株式・投資信託等かどうか。米国株等の配当は現地でも
+  /// 源泉徴収されることが多く、外国税額控除(所得税法95条)の対象となる
+  /// 国外所得金額の自動集計に使う(type=DIVIDENDのレコードのみ対象)。
+  isForeign Boolean @default(false)
+
+  /// 配当・分配金(type=DIVIDEND)につき現地で源泉徴収された外国所得税額
+  /// (日本円換算、isForeign=trueの場合のみ入力する想定)。
+  /// `/foreign-tax-credit`の外国所得税額の自動集計に使う。
+  foreignTaxWithheldJpy Decimal @default(0)
+
   broker String?
   memo   String?
 

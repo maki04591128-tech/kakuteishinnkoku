@@ -70,7 +70,13 @@ describe("buildTaxFilingDraftCsv", () => {
     const summary = buildTaxFilingSummary(
       2026,
       { bySymbol: [], totalRealizedGainJpy: new Decimal(0) },
-      { bySymbol: [], totalRealizedGainJpy: new Decimal(0), totalDividendJpy: new Decimal(0) },
+      {
+        bySymbol: [],
+        totalRealizedGainJpy: new Decimal(0),
+        totalDividendJpy: new Decimal(0),
+        totalForeignSourceDividendJpy: new Decimal(0),
+        totalForeignTaxWithheldJpy: new Decimal(0),
+      },
     );
     const csv = buildTaxFilingDraftCsv(summary, [], []);
     // ヘッダーコメント行自体にカンマは無いが、区切りが崩れていないことを確認
