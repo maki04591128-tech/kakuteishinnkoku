@@ -14,6 +14,10 @@ import {
   parseMoneyForwardAssetBalanceCsv,
   type AssetBalanceCsvMapping,
 } from "@/lib/moneyforward/parseAssetBalance";
+import {
+  parseBrokerAnnualReportCsv,
+  type AnnualReportCsvMapping,
+} from "@/lib/investment/annualReportCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 
@@ -396,6 +400,63 @@ export async function deleteBrokerAnnualReport(formData: FormData): Promise<void
   await prisma.brokerAnnualReport.delete({ where: { id } });
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=brokerReport`);
+}
+
+export async function importBrokerAnnualReportCsv(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("CSVファイルを選択してください");
+  }
+
+  const mapping: AnnualReportCsvMapping = {
+    brokerColumn: requireString(formData, "brokerColumn"),
+    accountTypeColumn: requireString(formData, "accountTypeColumn"),
+    proceedsColumn: requireString(formData, "proceedsColumn"),
+    acquisitionCostColumn: requireString(formData, "acquisitionCostColumn"),
+    dividendColumn: optionalString(formData, "dividendColumn") ?? undefined,
+  };
+
+  const text = await file.text();
+  const { rows, skippedRows } = parseBrokerAnnualReportCsv(text, mapping);
+
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.$transaction(
+    rows.map((row) =>
+      prisma.brokerAnnualReport.upsert({
+        where: {
+          taxYearId_broker_accountType: {
+            taxYearId: taxYear.id,
+            broker: row.broker,
+            accountType: row.accountType,
+          },
+        },
+        create: {
+          taxYearId: taxYear.id,
+          broker: row.broker,
+          accountType: row.accountType,
+          proceedsJpy: row.proceedsJpy.toString(),
+          acquisitionCostJpy: row.acquisitionCostJpy.toString(),
+          dividendJpy: row.dividendJpy.toString(),
+        },
+        update: {
+          proceedsJpy: row.proceedsJpy.toString(),
+          acquisitionCostJpy: row.acquisitionCostJpy.toString(),
+          dividendJpy: row.dividendJpy.toString(),
+        },
+      }),
+    ),
+  );
+
+  revalidatePath("/import");
+
+  if (skippedRows.length > 0) {
+    redirect(
+      `/import?year=${year}&tab=brokerReport&imported=${rows.length}&skipped=${skippedRows.length}`,
+    );
+  }
+  redirect(`/import?year=${year}&tab=brokerReport&imported=${rows.length}`);
 }
 
 export async function setOpeningBalance(formData: FormData): Promise<void> {
