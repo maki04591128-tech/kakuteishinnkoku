@@ -9,6 +9,7 @@ import {
   type ExchangeCsvMapping,
   type ExchangeCsvPreset,
 } from "@/lib/crypto/exchangeCsv";
+import { parseCryptoMarginCsv, type MarginCsvMapping } from "@/lib/crypto/marginCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 
@@ -253,6 +254,95 @@ export async function deleteCryptoTrade(formData: FormData): Promise<void> {
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=crypto`);
+}
+
+export async function addCryptoMarginTrade(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.cryptoMarginTrade.create({
+    data: {
+      taxYearId: taxYear.id,
+      settledAt: new Date(requireString(formData, "settledAt")),
+      symbol: requireString(formData, "symbol").toUpperCase(),
+      realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
+      feeJpy: optionalString(formData, "feeJpy") ?? "0",
+      swapJpy: optionalString(formData, "swapJpy") ?? "0",
+      exchange: optionalString(formData, "exchange"),
+      memo: optionalString(formData, "memo"),
+      source: "manual",
+    },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=cryptoMargin`);
+}
+
+export async function deleteCryptoMarginTrade(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.cryptoMarginTrade.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=cryptoMargin`);
+}
+
+export async function importCryptoMarginCsv(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const exchangeLabel = optionalString(formData, "exchangeName");
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("CSVファイルを選択してください");
+  }
+
+  const text = await file.text();
+  const { rows, skippedRows } = parseCryptoMarginCsv(text, {
+    dateColumn: requireString(formData, "dateColumn"),
+    symbolColumn: requireString(formData, "symbolColumn"),
+    pnlColumn: requireString(formData, "pnlColumn"),
+    feeColumn: optionalString(formData, "feeColumn") ?? undefined,
+    swapColumn: optionalString(formData, "swapColumn") ?? undefined,
+  } satisfies MarginCsvMapping);
+
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.$transaction(async (tx) => {
+    const batch = await tx.importBatch.create({
+      data: {
+        taxYearId: taxYear.id,
+        sourceType: "crypto_margin_csv",
+        fileName: file.name,
+        rowCount: rows.length,
+      },
+    });
+
+    if (rows.length > 0) {
+      await tx.cryptoMarginTrade.createMany({
+        data: rows.map((row) => ({
+          taxYearId: taxYear.id,
+          settledAt: row.settledAt,
+          symbol: row.symbol,
+          realizedPnlJpy: row.realizedPnlJpy.toString(),
+          feeJpy: row.feeJpy.toString(),
+          swapJpy: row.swapJpy.toString(),
+          exchange: exchangeLabel,
+          source: "crypto_margin_csv:manual",
+          importBatchId: batch.id,
+        })),
+      });
+    }
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+
+  if (skippedRows.length > 0) {
+    redirect(
+      `/import?year=${year}&tab=cryptoMargin&imported=${rows.length}&skipped=${skippedRows.length}`,
+    );
+  }
+  redirect(`/import?year=${year}&tab=cryptoMargin&imported=${rows.length}`);
 }
 
 export async function deleteInvestmentTrade(formData: FormData): Promise<void> {

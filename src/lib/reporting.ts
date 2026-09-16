@@ -5,6 +5,10 @@ import {
   type CryptoPortfolioYearResult,
 } from "./crypto/calculator";
 import {
+  calculateCryptoMarginPortfolioYear,
+  type CryptoMarginPortfolioYearResult,
+} from "./crypto/marginCalculator";
+import {
   calculateInvestmentPortfolioYear,
   type InvestmentPortfolioYearResult,
 } from "./investment/calculator";
@@ -29,6 +33,7 @@ import {
  */
 export async function buildYearReport(year: number): Promise<{
   crypto: CryptoPortfolioYearResult;
+  cryptoMargin: CryptoMarginPortfolioYearResult;
   investment: InvestmentPortfolioYearResult;
   cryptoCostMethod: CryptoCostMethod;
   lossCarryforward: LossCarryforwardResult;
@@ -37,15 +42,17 @@ export async function buildYearReport(year: number): Promise<{
   if (!taxYear) {
     return {
       crypto: calculateCryptoPortfolioYearByMethod("AVERAGE", []),
+      cryptoMargin: calculateCryptoMarginPortfolioYear([]),
       investment: calculateInvestmentPortfolioYear([]),
       cryptoCostMethod: "AVERAGE",
       lossCarryforward: calculateLossCarryforward(year, 0, []),
     };
   }
 
-  const [cryptoTrades, investmentTrades, openings, lossCarryforwardEntries] =
+  const [cryptoTrades, cryptoMarginTrades, investmentTrades, openings, lossCarryforwardEntries] =
     await Promise.all([
       prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
+      prisma.cryptoMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
       prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
       loadOpeningBalances(taxYear.id),
       prisma.investmentLossCarryforward.findMany({
@@ -64,6 +71,15 @@ export async function buildYearReport(year: number): Promise<{
       tradedAt: t.tradedAt,
     })),
     openings.crypto,
+  );
+
+  const cryptoMargin = calculateCryptoMarginPortfolioYear(
+    cryptoMarginTrades.map((t) => ({
+      symbol: t.symbol,
+      realizedPnlJpy: t.realizedPnlJpy.toString(),
+      feeJpy: t.feeJpy.toString(),
+      swapJpy: t.swapJpy.toString(),
+    })),
   );
 
   const investment = calculateInvestmentPortfolioYear(
@@ -91,6 +107,7 @@ export async function buildYearReport(year: number): Promise<{
 
   return {
     crypto,
+    cryptoMargin,
     investment,
     cryptoCostMethod: taxYear.cryptoCostMethod,
     lossCarryforward,

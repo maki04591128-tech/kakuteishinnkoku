@@ -1,5 +1,6 @@
 import { Decimal } from "decimal.js";
 import type { CryptoCostMethod, CryptoSymbolYearResult } from "../crypto/calculator";
+import type { CryptoMarginSymbolYearResult } from "../crypto/marginCalculator";
 import type { InvestmentSymbolYearResult } from "../investment/calculator";
 import type { TaxFilingSummary } from "./summary";
 
@@ -39,6 +40,7 @@ export function buildTaxFilingDraftCsv(
   cryptoDetail: CryptoSymbolYearResult[],
   investmentDetail: InvestmentSymbolYearResult[],
   cryptoCostMethod: CryptoCostMethod = "AVERAGE",
+  cryptoMarginDetail: CryptoMarginSymbolYearResult[] = [],
 ): string {
   const lines: string[] = [];
 
@@ -54,11 +56,27 @@ export function buildTaxFilingDraftCsv(
   lines.push(toCsvLine(["区分", "金額(円)", "申告書での主な記載箇所"]));
   lines.push(
     toCsvLine([
-      "雑所得(暗号資産)",
+      "雑所得(暗号資産・現物+証拠金取引の合計)",
       formatYen(summary.cryptoMiscIncomeJpy),
       "申告書第一表 雑所得(業務・その他) / 第二表 雑所得の内訳",
     ]),
   );
+  if (!summary.cryptoMarginIncomeJpy.isZero()) {
+    lines.push(
+      toCsvLine([
+        "  内訳: 現物取引分",
+        formatYen(summary.cryptoSpotIncomeJpy),
+        "",
+      ]),
+    );
+    lines.push(
+      toCsvLine([
+        "  内訳: 証拠金(レバレッジ)取引の決済損益分",
+        formatYen(summary.cryptoMarginIncomeJpy),
+        "",
+      ]),
+    );
+  }
   lines.push(
     toCsvLine([
       "譲渡所得(上場株式等・申告分離課税)",
@@ -159,6 +177,26 @@ export function buildTaxFilingDraftCsv(
     );
   }
   lines.push("");
+
+  if (cryptoMarginDetail.length > 0) {
+    lines.push(toCsvLine(["■ 暗号資産 証拠金(レバレッジ)取引 銘柄別内訳(決済損益)"]));
+    lines.push(
+      toCsvLine(["銘柄", "決済件数", "決済損益(円)", "手数料(円)", "スワップ等(円)", "雑所得算入額(円)"]),
+    );
+    for (const r of cryptoMarginDetail) {
+      lines.push(
+        toCsvLine([
+          r.symbol,
+          r.settlementCount,
+          formatYen(r.grossPnlJpy),
+          formatYen(r.feeJpy),
+          formatYen(r.swapJpy),
+          formatYen(r.realizedGainJpy),
+        ]),
+      );
+    }
+    lines.push("");
+  }
 
   lines.push(toCsvLine(["■ 株式等 銘柄別内訳(移動平均法・課税口座分)"]));
   lines.push(

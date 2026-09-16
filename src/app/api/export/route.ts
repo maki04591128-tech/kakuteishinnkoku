@@ -12,12 +12,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "指定された年分のデータがありません" }, { status: 404 });
   }
 
-  const summary = buildTaxFilingSummary(year, report.crypto, report.investment);
+  const summary = buildTaxFilingSummary(
+    year,
+    report.crypto,
+    report.investment,
+    report.lossCarryforward,
+    report.cryptoMargin,
+  );
   const csv = buildTaxFilingDraftCsv(
     summary,
     report.crypto.bySymbol,
     report.investment.bySymbol,
     report.cryptoCostMethod,
+    report.cryptoMargin.bySymbol,
   );
 
   return new NextResponse(UTF8_BOM + csv, {

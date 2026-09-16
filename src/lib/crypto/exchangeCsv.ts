@@ -24,8 +24,9 @@ import type { CryptoTradeType } from "./calculator";
  * DMM Bitcoin/SBI VCトレードの取引報告書CSV(TRADE_RECORD_LIST)は証拠金
  * (レバレッジ)取引専用で、決済時の「建玉損益」を課税所得とする方式のため、
  * 本ツールの現物取引モデル(数量×単価で取得費を積み上げる総平均法/移動平均法)
- * にはそのまま当てはめられない。誤った損益計算を避けるため現時点では未対応とし、
- * 別方式での対応を今後検討する(README「ロードマップ」参照)。
+ * にはそのまま当てはめられない。誤った損益計算を避けるためこのモジュールでは
+ * 対応せず、決済損益をそのまま合算する別モデル(`../crypto/marginCalculator.ts`
+ * ・`../crypto/marginCsv.ts`)で取り扱う。
  */
 
 export type ExchangeCsvPreset = "bitflyer" | "coincheck" | "gmo" | "bitbank" | "other";
