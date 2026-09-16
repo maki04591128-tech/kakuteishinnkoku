@@ -5,12 +5,12 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
-  parseCryptoExchangeCsv,
   parseExchangeCsv,
   type ExchangeCsvMapping,
+  type ExchangeCsvPreset,
 } from "@/lib/crypto/exchangeCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
-import { buildCarryForwardCandidates } from "@/lib/reporting";
+import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -31,9 +31,22 @@ function hasStringValue(formData: FormData, key: string): boolean {
   return typeof value === "string" && value.trim() !== "";
 }
 
+const EXCHANGE_LABELS: Record<Exclude<ExchangeCsvPreset, "other">, string> = {
+  bitflyer: "bitFlyer",
+  coincheck: "Coincheck",
+  gmo: "GMOコイン",
+};
+
+function isKnownExchangeCsvPreset(
+  preset: ExchangeCsvPreset,
+): preset is Exclude<ExchangeCsvPreset, "other"> {
+  return preset in EXCHANGE_LABELS;
+}
+
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const method = requireString(formData, "cryptoCostMethod");
+  const tab = optionalString(formData, "tab");
   if (method !== "AVERAGE" && method !== "MOVING_AVERAGE") {
     throw new Error(`未対応の評価方法です: ${method}`);
   }
@@ -43,8 +56,12 @@ export async function setCryptoCostMethod(formData: FormData): Promise<void> {
     where: { id: taxYear.id },
     data: { cryptoCostMethod: method },
   });
+
+  revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/?year=${year}`);
+  if (tab) {
+    redirect(`/import?year=${year}&tab=${tab}`);
+  }
   redirect(`/?year=${year}`);
 }
 
@@ -99,19 +116,12 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
   redirect(`/import?year=${year}&imported=${rows.length}`);
 }
 
-const EXCHANGE_LABELS: Record<string, string> = {
-  bitflyer: "bitFlyer",
-  coincheck: "Coincheck",
-  gmo_coin: "GMOコイン",
-  other: "その他",
-};
-
 export async function importCryptoExchangeCsv(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const exchangeKey = optionalString(formData, "exchange") ?? "other";
+  const preset = (optionalString(formData, "preset") ?? "other") as ExchangeCsvPreset;
   const exchangeName = optionalString(formData, "exchangeName");
   const exchangeLabel =
-    exchangeName ?? (exchangeKey === "other" ? null : EXCHANGE_LABELS[exchangeKey] ?? exchangeKey);
+    exchangeName ?? (isKnownExchangeCsvPreset(preset) ? EXCHANGE_LABELS[preset] : null);
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("CSVファイルを選択してください");
@@ -139,7 +149,7 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
         unitPriceColumn: requireString(formData, "unitPriceColumn"),
         feeColumn: optionalString(formData, "feeColumn") ?? undefined,
       } satisfies ExchangeCsvMapping)
-    : parseCryptoExchangeCsv(text);
+    : parseExchangeCsv(preset, text);
 
   const taxYear = await getOrCreateTaxYear(year);
 
@@ -147,7 +157,7 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
     const batch = await tx.importBatch.create({
       data: {
         taxYearId: taxYear.id,
-        sourceType: `crypto_csv_${exchangeKey}`,
+        sourceType: `crypto_csv_${preset}`,
         fileName: file.name,
         rowCount: rows.length,
       },
@@ -160,12 +170,13 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
           importBatchId: batch.id,
           tradedAt: row.tradedAt,
           symbol: row.symbol,
-          type: row.type,
+          type: row.type as never,
           quantity: row.quantity.toString(),
           unitPriceJpy: row.unitPriceJpy.toString(),
           feeJpy: row.feeJpy.toString(),
-          exchange: exchangeLabel,
-          source: "csv",
+          exchange: row.exchange ?? exchangeLabel,
+          memo: row.memo ?? null,
+          source: hasManualMapping ? `exchange_csv:${preset}:manual` : `exchange_csv:${preset}`,
         })),
       });
     }
@@ -337,4 +348,72 @@ export async function carryForwardOpeningBalances(
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=opening&carried=${toCreate.length}`);
+}
+
+export async function setLossCarryforward(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const originYear = Number(requireString(formData, "originYear"));
+  const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
+  if (!Number.isInteger(originYear) || originYear > year) {
+    throw new Error("損失の発生年は対象年分以前の年である必要があります");
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.investmentLossCarryforward.upsert({
+    where: {
+      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
+    },
+    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
+    update: { remainingAmountJpy },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=lossCarryforward`);
+}
+
+export async function deleteLossCarryforward(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.investmentLossCarryforward.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=lossCarryforward`);
+}
+
+/**
+ * 前年分の譲渡損益・繰越控除の計算結果から、翌年に繰り越す譲渡損失の残高を
+ * 一括登録する。既に当年分に発生年ごとの登録がある場合は上書きしない。
+ */
+export async function carryForwardInvestmentLoss(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+  const previousReport = await buildYearReport(year - 1);
+  const candidates = previousReport?.lossCarryforward.carryforwardToNextYear ?? [];
+
+  const existing = await prisma.investmentLossCarryforward.findMany({
+    where: { taxYearId: taxYear.id },
+    select: { originYear: true },
+  });
+  const existingYears = new Set(existing.map((e) => e.originYear));
+
+  const toCreate = candidates.filter((c) => !existingYears.has(c.originYear));
+
+  if (toCreate.length > 0) {
+    await prisma.investmentLossCarryforward.createMany({
+      data: toCreate.map((c) => ({
+        taxYearId: taxYear.id,
+        originYear: c.originYear,
+        remainingAmountJpy: c.remainingAmountJpy.toString(),
+      })),
+    });
+  }
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(
+    `/import?year=${year}&tab=lossCarryforward&lossCarried=${toCreate.length}`,
+  );
 }
