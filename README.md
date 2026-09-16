@@ -125,8 +125,7 @@ bitFlyer(現物取引履歴CSV)・Coincheck(業界標準フォーマットCSV)�
 - `TaxYear` — 課税年度(暦年)単位でデータを区切る
 - `CryptoTrade` — 暗号資産の取引明細
 - `InvestmentTrade` — 株式・投資信託等の取引明細(口座区分・NISA区分を保持)
-- `CryptoOpeningBalance` / `InvestmentOpeningBalance` — 各課税年度の期首残高
-  (前年繰越分の保有数量・取得価額)
+- `OpeningBalance` — 各課税年度の期首残高(前年繰越分の保有数量・取得価額)
 - `InvestmentLossCarryforward` — 上場株式等の譲渡損失の繰越控除残高
   (発生年ごとの、各課税年度初時点での未使用残高)
 - `ImportBatch` / `CashflowEntry` — マネーフォワード等からの取り込みバッチと明細
@@ -161,12 +160,13 @@ bitFlyer(現物取引履歴CSV)・Coincheck(業界標準フォーマットCSV)�
 - **移動平均法(暗号資産)への対応** — `calculateCryptoYearMovingAverage` /
   `calculateCryptoPortfolioYearByMethod` を追加し、`TaxYear.cryptoCostMethod`
   で年分ごとに総平均法/移動平均法を切り替えられるようにした。
-- **配当所得の課税方式シミュレーション**(`src/lib/investment/dividendTaxSimulation.ts`・
-  `/dividend-simulation`ページ)。
+- **配当所得の課税方式シミュレーション** — `/dividend-simulation` と
+  `src/lib/investment/dividendTaxSimulation.ts` を追加した。
 - **上場株式等の譲渡損失の繰越控除(3年間)**(`InvestmentLossCarryforward`テーブル・
   `src/lib/investment/lossCarryforward.ts`・`/import`の繰越控除セクション・
   「前年分の計算結果から自動で繰り越す」ボタン)。ダッシュボードと下書きCSVの
   譲渡所得表示にも控除後の課税対象額を反映した。
+
 ## 免責事項
 
 本ツールは税額計算を補助するための個人開発ツールであり、税務署・国税庁の
