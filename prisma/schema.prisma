@@ -524,6 +524,22 @@ model AssetSymbolMapping {
   updatedAt DateTime @updatedAt
 }
 
+/// パスワード認証のログイン失敗試行(ブルートフォース対策)。IPアドレス単位で
+/// 直近の失敗回数を数え、一定回数を超えたら一時的にログインを拒否する
+/// (src/lib/auth/loginRateLimit.ts)。TaxYearに紐付かない全年共通のテーブル。
+/// 成功時はそのIPアドレス分のレコードを削除し、期限切れレコードも都度削除する
+/// ため、長期間肥大化しない。
+model LoginAttempt {
+  id Int @id @default(autoincrement())
+
+  /// 失敗した接続元のIPアドレス(X-Forwarded-For等から取得。取得できない場合は"unknown")
+  ipAddress String
+
+  createdAt DateTime @default(now())
+
+  @@index([ipAddress, createdAt])
+}
+
 /// マネーフォワード ME の「資産の内訳」CSVから取り込んだ、ある時点の
 /// 金融機関・資産別の残高(評価額)。損益計算そのものには使わず、アプリに
 /// 登録済みの暗号資産・投資取引の金融機関(CryptoTrade.exchange /

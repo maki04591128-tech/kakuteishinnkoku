@@ -5,7 +5,7 @@ import { login } from "./actions";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; minutes?: string }>;
 }) {
   if (!isAuthEnabled()) {
     redirect("/");
@@ -22,7 +22,13 @@ export default async function LoginPage({
         </p>
       </div>
 
-      {params.error && (
+      {params.error === "locked" && (
+        <p className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          ログイン試行回数が上限を超えました。約{params.minutes ?? "15"}分後に
+          再度お試しください。
+        </p>
+      )}
+      {params.error === "1" && (
         <p className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
           パスワードが違います。
         </p>
