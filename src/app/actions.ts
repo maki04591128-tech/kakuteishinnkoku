@@ -185,7 +185,11 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
           feeJpy: row.feeJpy.toString(),
           exchange: row.exchange ?? exchangeLabel,
           memo: row.memo ?? null,
-          source: hasManualMapping ? `exchange_csv:${preset}:manual` : `exchange_csv:${preset}`,
+          source: hasManualMapping
+            ? `exchange_csv:${preset}:manual`
+            : isKnownExchangeCsvPreset(preset)
+              ? `exchange_csv:${preset}`
+              : `exchange_csv:${preset}:auto`,
           importBatchId: batch.id,
         })),
       });

@@ -19,7 +19,9 @@ import type { CryptoTradeType } from "./calculator";
  *  - coincheck: Coincheckの「業界標準フォーマット」CSV(JCBA参考フォーマット準拠)
  *  - gmo: GMOコイン取引履歴CSV(現物取引の行のみ。証拠金取引・入出金行は対象外)
  *  - bitbank: bitbank「約定履歴」CSV(現物取引の行のみ。信用取引行は対象外)
- *  - other: 手動マッピング専用
+ *  - other: 上記以外の取引所向け。まず`HEADER_ALIASES`による列名の自動認識
+ *    (`parseCryptoExchangeCsv`)を試み、認識できなかった場合のみ列名を
+ *    ユーザーが指定する手動マッピング(`parseMappedExchangeCsv`)にフォールバックする
  *
  * DMM Bitcoin/SBI VCトレードの取引報告書CSV(TRADE_RECORD_LIST)は証拠金
  * (レバレッジ)取引専用で、決済時の「建玉損益」を課税所得とする方式のため、
@@ -235,7 +237,7 @@ export function parseExchangeCsv(
   if (typeof arg2 === "string") {
     const preset = arg1 as ExchangeCsvPreset;
     if (!isKnownExchangeCsvPreset(preset)) {
-      throw new Error("このプリセットでは取り込めません。列名を指定して手動マッピングしてください");
+      return parseAutoDetectedExchangeCsv(arg2);
     }
     switch (preset) {
       case "bitflyer":
@@ -249,6 +251,25 @@ export function parseExchangeCsv(
     }
   }
   return parseMappedExchangeCsv(arg1, arg2);
+}
+
+/**
+ * プリセット未対応の取引所CSVに対する自動認識フォールバック。
+ *
+ * 列名を1件ずつ手入力させる前に、よく使われる列見出し(`HEADER_ALIASES`参照)で
+ * 日付・銘柄・売買種別・数量・単価(または合計金額)・手数料を認識できないか
+ * `parseCryptoExchangeCsv`でまず試みる。認識できた場合は手動マッピングの入力を
+ * 省略でき、認識できなかった場合のみ手動マッピングへ誘導するエラーメッセージを返す。
+ */
+function parseAutoDetectedExchangeCsv(csvText: string): ExchangeCsvParseResult {
+  try {
+    return parseCryptoExchangeCsv(csvText);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${message}(よく使われる列名での自動認識を試みましたが失敗しました。下のマッピング欄に列名を指定してください)`,
+    );
+  }
 }
 
 function parseMappedExchangeCsv(
