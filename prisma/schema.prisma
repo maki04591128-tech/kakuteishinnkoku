@@ -34,6 +34,7 @@ model TaxYear {
   openingBalances             OpeningBalance[]
   investmentLossCarryforwards InvestmentLossCarryforward[]
   brokerAnnualReports         BrokerAnnualReport[]
+  assetBalanceSnapshots       AssetBalanceSnapshot[]
 }
 
 enum CryptoCostMethod {
@@ -320,10 +321,11 @@ model ImportBatch {
   importedAt DateTime @default(now())
   rowCount   Int      @default(0)
 
-  cryptoTrades       CryptoTrade[]
-  cryptoMarginTrades CryptoMarginTrade[]
-  investmentTrades   InvestmentTrade[]
-  cashflowEntries    CashflowEntry[]
+  cryptoTrades          CryptoTrade[]
+  cryptoMarginTrades    CryptoMarginTrade[]
+  investmentTrades      InvestmentTrade[]
+  cashflowEntries       CashflowEntry[]
+  assetBalanceSnapshots AssetBalanceSnapshot[]
 }
 
 /// マネーフォワード ME の家計簿(収支)データ。
@@ -354,4 +356,42 @@ model CashflowEntry {
 enum CashflowDirection {
   INCOME
   EXPENSE
+}
+
+/// マネーフォワード ME の「資産の内訳」CSVから取り込んだ、ある時点の
+/// 金融機関・資産別の残高(評価額)。損益計算そのものには使わず、アプリに
+/// 登録済みの暗号資産・投資取引の金融機関(CryptoTrade.exchange /
+/// InvestmentTrade.broker)と突き合わせて、残高はあるのに取引明細が
+/// 一件も登録されていない金融機関(計上漏れの疑い)や、逆に取引明細は
+/// あるのにマネーフォワード側の資産残高に見当たらない金融機関を検知する
+/// 参照データとして保持する(src/lib/moneyforward/assetBalanceReconciliation.ts)。
+/// CSVの列見出しは公開情報から確認できておらず未検証のため、専用プリセットは
+/// 用意せずユーザーが列名を指定する汎用マッピング方式のみで取り込む。
+model AssetBalanceSnapshot {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 残高時点の日付(CSVに日付列が無い/指定しない場合はインポート日時を使う)
+  snapshotDate DateTime @default(now())
+
+  /// マネーフォワード側の大分類・種類(任意。列を指定しない場合は空文字)
+  category String @default("")
+
+  /// 保有金融機関名(例: bitFlyer, SBI証券)。CryptoTrade.exchange /
+  /// InvestmentTrade.broker と同じ表記を想定する。
+  institution String
+
+  /// 資産名(例: ビットコイン、楽天・全世界株式インデックス・ファンド)
+  assetName String
+
+  /// 残高・評価額(円)
+  balanceJpy Decimal
+
+  importBatchId Int?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([taxYearId, institution])
 }

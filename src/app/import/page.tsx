@@ -4,12 +4,14 @@ import {
   addInvestmentTrade,
   carryForwardInvestmentLoss,
   carryForwardOpeningBalances,
+  deleteAssetBalanceImportBatch,
   deleteBrokerAnnualReport,
   deleteCryptoMarginTrade,
   deleteCryptoTrade,
   deleteInvestmentTrade,
   deleteLossCarryforward,
   deleteOpeningBalance,
+  importAssetBalanceCsv,
   importCryptoExchangeCsv,
   importCryptoMarginCsv,
   importMoneyForwardCsv,
@@ -21,6 +23,7 @@ import {
 import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
 import { prisma } from "@/lib/db";
 import { reconcileBrokerAnnualReports } from "@/lib/investment/annualReportReconciliation";
+import { reconcileAssetBalances } from "@/lib/moneyforward/assetBalanceReconciliation";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
@@ -61,6 +64,7 @@ export default async function ImportPage({
     openingBalances,
     lossCarryforwards,
     brokerAnnualReports,
+    assetBalanceImportBatches,
     yearReport,
   ] = await Promise.all([
     prisma.cryptoTrade.findMany({
@@ -87,8 +91,31 @@ export default async function ImportPage({
       where: { taxYearId: taxYear.id },
       orderBy: [{ broker: "asc" }, { accountType: "asc" }],
     }),
+    prisma.importBatch.findMany({
+      where: { taxYearId: taxYear.id, sourceType: "moneyforward_assets" },
+      orderBy: { importedAt: "desc" },
+      include: {
+        assetBalanceSnapshots: {
+          orderBy: [{ institution: "asc" }, { assetName: "asc" }],
+        },
+      },
+    }),
     buildYearReport(year),
   ]);
+
+  const assetBalanceSnapshots = assetBalanceImportBatches.flatMap(
+    (b) => b.assetBalanceSnapshots,
+  );
+  const assetBalanceReconciliations = reconcileAssetBalances(
+    assetBalanceSnapshots.map((s) => ({
+      institution: s.institution,
+      balanceJpy: s.balanceJpy.toString(),
+    })),
+    [
+      ...cryptoTrades.map((t) => ({ institution: t.exchange })),
+      ...investmentTrades.map((t) => ({ institution: t.broker })),
+    ],
+  );
 
   const brokerReconciliations = reconcileBrokerAnnualReports(
     brokerAnnualReports.map((r) => ({
@@ -148,6 +175,133 @@ export default async function ImportPage({
             取り込む
           </button>
         </form>
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">
+          マネーフォワード資産残高との突合(取引漏れ検出)
+        </h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          マネーフォワード ME の「資産の内訳」画面からダウンロードしたCSVを
+          取り込むと、残高がある金融機関(取引所・証券会社)のうち、アプリに
+          同じ名前の取引明細が1件も登録されていないものを「計上漏れの疑い」
+          として一覧表示する。逆に、アプリには取引明細があるのにマネーフォワード
+          側の資産残高に見当たらない金融機関も参考情報として表示する(資産の
+          移管やマネーフォワード未連携の口座でも起こりうるため、こちらは
+          計上漏れとは限らない)。銘柄ごとの数量・評価額までは自動比較しない
+          (資産名と銘柄シンボルの対応判定・時価の扱いが自動化できないため)。
+          金融機関名は、アプリ側の取引所名・証券会社名の入力(取引の
+          「取引所」「証券会社」欄)と完全一致で突き合わせるため、表記を揃えて
+          登録すること。CSVの列見出しは公開情報から確認できておらず未検証のため、
+          列名を指定する汎用マッピング方式のみ提供する。
+        </p>
+
+        <form
+          action={importAssetBalanceCsv}
+          className="mb-6 grid grid-cols-2 gap-3 border-b border-dashed border-neutral-200 pb-6 dark:border-neutral-800 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="日付列名(任意)">
+            <input type="text" name="dateColumn" className={inputClass} />
+          </Field>
+          <Field label="大分類列名(任意)">
+            <input type="text" name="categoryColumn" className={inputClass} />
+          </Field>
+          <Field label="金融機関列名">
+            <input type="text" name="institutionColumn" required className={inputClass} />
+          </Field>
+          <Field label="資産名列名">
+            <input type="text" name="assetNameColumn" required className={inputClass} />
+          </Field>
+          <Field label="残高(評価額・円)列名">
+            <input type="text" name="balanceColumn" required className={inputClass} />
+          </Field>
+          <div className="col-span-full flex flex-wrap items-center gap-3">
+            <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              取り込む
+            </button>
+          </div>
+        </form>
+
+        {assetBalanceReconciliations.length > 0 && (
+          <div className="mb-6 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["金融機関", "MF資産残高", "アプリの取引明細", "判定"].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {assetBalanceReconciliations.map((r) => (
+                  <tr key={r.institution} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{r.institution}</td>
+                    <td className="px-3 py-2">
+                      {r.moneyForwardBalanceJpy !== null ? yen(r.moneyForwardBalanceJpy) : "-"}
+                    </td>
+                    <td className="px-3 py-2">{r.hasAppTrades ? "あり" : "なし"}</td>
+                    <td className="px-3 py-2">
+                      {r.status === "OK" && (
+                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
+                          一致
+                        </span>
+                      )}
+                      {r.status === "MISSING_APP_TRADES" && (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+                          計上漏れの疑い
+                        </span>
+                      )}
+                      {r.status === "MISSING_IN_MONEYFORWARD" && (
+                        <span className="rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+                          MF側に見当たらない(参考)
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {assetBalanceImportBatches.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["取り込み日時", "ファイル名", "件数", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {assetBalanceImportBatches.map((b) => (
+                  <tr key={b.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{dateInputValue(b.importedAt)}</td>
+                    <td className="px-3 py-2">{b.fileName}</td>
+                    <td className="px-3 py-2">{b.assetBalanceSnapshots.length}</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteAssetBalanceImportBatch}>
+                        <input type="hidden" name="importBatchId" value={b.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
