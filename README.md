@@ -263,6 +263,23 @@ calculator.ts`が自動集計し、`/foreign-tax-credit`を開いた時点の初
 サーバー側で再計算することはできない。そのため試算画面から直接、当年の計算結果を
 翌年分として登録する方式にしている。
 
+### 13. NISA年間投資枠の使用状況試算 — `src/lib/investment/nisaQuota.ts`
+
+2024年以降の新NISA制度は、年間投資枠が「つみたて投資枠(年120万円)」と
+「成長投資枠(年240万円)」に分かれており、それぞれ独立して上限を管理する。
+`/import`の株式・投資信託等の取引フォームでNISA口座の買付(type=BUY)を
+登録する際に、どちらの枠を使った買付かを選択できるようにし
+(`InvestmentTrade.nisaType`)、ダッシュボードにその年の枠ごとの使用額・
+残枠を表示する(上限を超えている場合は警告表示)。
+
+**制約:** 生涯非課税限度額(総枠1,800万円・うち成長投資枠1,200万円)は、
+売却による枠の再利用(簿価残高が翌年以後に復活する仕組み)やアプリ導入前の
+取引を考慮する必要があり、本ツールに登録された取引だけでは正確に追えない
+ため対象外とした。暦年でリセットされ、その年の買付のみで判定できる年間投資枠
+のみを試算する。買付金額は約定代金(数量×単価)を用い、手数料は含めない。
+また、NISA口座の買付のうち枠区分が未入力の取引は集計に含めず、金額を
+「未分類」として警告表示する。
+
 ## データモデル
 
 `prisma/schema.prisma` を参照。主なテーブル:
@@ -270,8 +287,9 @@ calculator.ts`が自動集計し、`/foreign-tax-credit`を開いた時点の初
 - `TaxYear` — 課税年度(暦年)単位でデータを区切る
 - `CryptoTrade` — 暗号資産(現物)の取引明細
 - `CryptoMarginTrade` — 暗号資産の証拠金(レバレッジ)取引の決済損益明細
-- `InvestmentTrade` — 株式・投資信託等の取引明細(口座区分・NISA区分・国外源泉
-  フラグ(isForeign)・外国所得税額(foreignTaxWithheldJpy)を保持)
+- `InvestmentTrade` — 株式・投資信託等の取引明細(口座区分・NISA区分・
+  NISA枠区分(nisaType)・国外源泉フラグ(isForeign)・
+  外国所得税額(foreignTaxWithheldJpy)を保持)
 - `OpeningBalance` — 各課税年度の期首残高(前年繰越分の保有数量・取得価額)
 - `InvestmentLossCarryforward` — 上場株式等の譲渡損失の繰越控除残高
   (発生年ごとの、各課税年度初時点での未使用残高)
@@ -318,6 +336,13 @@ calculator.ts`が自動集計し、`/foreign-tax-credit`を開いた時点の初
 
 ### 完了済み
 
+- **NISA年間投資枠の使用状況試算**(`InvestmentTrade.nisaType`・
+  `src/lib/investment/nisaQuota.ts`・`/import`のNISA枠区分選択・
+  ダッシュボードの「NISA年間投資枠の使用状況」)。つみたて投資枠(年120万円)・
+  成長投資枠(年240万円)それぞれの年間使用額・残枠を、その年にアプリへ
+  登録したNISA口座の買付から試算し、上限超過時は警告表示する。生涯非課税
+  限度額(総枠1,800万円)は売却による枠の再利用等が絡み本ツールのデータのみ
+  では正確に追えないため対象外(機能13参照)。
 - **外国税額控除の対象国外所得の自動判別(国外株式等の譲渡益に対象拡大)**
   (`src/lib/investment/calculator.ts`の`foreignSourceCapitalGainJpy`/
   `totalForeignSourceCapitalGainJpy`/`totalForeignSourceIncomeJpy`集計・

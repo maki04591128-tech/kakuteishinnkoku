@@ -288,6 +288,12 @@ model InvestmentTrade {
   /// NISA区分(該当する場合、非課税のため損益計算から除外)
   isNisa Boolean @default(false)
 
+  /// NISAの年間投資枠区分(isNisa=true かつ type=BUY の場合のみ入力する想定)。
+  /// つみたて投資枠(年120万円)・成長投資枠(年240万円)の使用状況試算
+  /// (src/lib/investment/nisaQuota.ts)に使う。未入力(null)の場合は
+  /// どちらの枠の使用額にも計上されず、試算画面で「未分類」として警告表示する。
+  nisaType InvestmentNisaType?
+
   /// 国外で発行された株式・投資信託等かどうか。米国株等の配当は現地でも
   /// 源泉徴収されることが多く、外国税額控除(所得税法95条)の対象となる
   /// 国外所得金額の自動集計に使う(type=DIVIDENDのレコードのみ対象)。
@@ -332,6 +338,14 @@ enum InvestmentAccountType {
   SPECIFIC_NO_WITHHOLDING
   GENERAL
   NISA
+}
+
+/// NISAの年間投資枠区分(2024年以降の新NISA制度)
+enum InvestmentNisaType {
+  /// つみたて投資枠(年間上限120万円)
+  TSUMITATE
+  /// 成長投資枠(年間上限240万円)
+  GROWTH
 }
 
 /// 証券会社が発行する「特定口座年間取引報告書」の年間サマリー数値。
