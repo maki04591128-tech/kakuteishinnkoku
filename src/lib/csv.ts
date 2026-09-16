@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-<<<<<<<< HEAD:src/lib/csv.ts
-=======
->>>>>>> origin/claude/wonderful-edison-xzm3zs
 /**
  * RFC4180に近い簡易CSVパーサー。
  * ダブルクォートで囲まれたフィールド内のカンマ・改行・エスケープされた
@@ -57,13 +53,6 @@ export function parseCsvRows(text: string): string[][] {
 
   return rows.filter((r) => !(r.length === 1 && r[0].trim() === ""));
 }
-<<<<<<< HEAD
-========
-// マネーフォワード MEのCSVも共通の簡易CSVパーサーを使う。
-// 実装は src/lib/csv.ts に集約し、既存の import 元(./csv)を壊さないよう再エクスポートする。
-export { parseCsvRows } from "../csv";
->>>>>>>> origin/claude/wonderful-edison-xzm3zs:src/lib/moneyforward/csv.ts
-=======
 
 /**
  * カンマ区切り・全角数字混じりの金額文字列をDecimal互換の文字列に正規化する。
@@ -100,4 +89,3 @@ export function parseFlexibleDateTime(value: string | undefined): Date | null {
   if (Number.isNaN(date.getTime())) return null;
   return date;
 }
->>>>>>> origin/claude/wonderful-edison-xzm3zs

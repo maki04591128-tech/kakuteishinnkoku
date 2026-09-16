@@ -4,14 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
-<<<<<<< HEAD
-import { findExchangeCsvFormat } from "@/lib/crypto/exchanges";
-=======
 import {
   parseExchangeCsv,
   type ExchangeCsvPreset,
 } from "@/lib/crypto/exchangeCsv";
->>>>>>> origin/claude/wonderful-edison-xzm3zs
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 
@@ -104,27 +100,14 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
 
 export async function importCryptoExchangeCsv(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-<<<<<<< HEAD
-  const exchangeId = requireString(formData, "exchange");
-=======
   const preset = requireString(formData, "preset") as ExchangeCsvPreset;
->>>>>>> origin/claude/wonderful-edison-xzm3zs
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("CSVファイルを選択してください");
   }
 
-  const format = findExchangeCsvFormat(exchangeId);
-  if (!format) {
-    throw new Error(`未対応の取引所です: ${exchangeId}`);
-  }
-
   const text = await file.text();
-<<<<<<< HEAD
-  const { rows, skippedRows } = format.parse(text);
-=======
   const { rows, skippedRows } = parseExchangeCsv(preset, text);
->>>>>>> origin/claude/wonderful-edison-xzm3zs
 
   const taxYear = await getOrCreateTaxYear(year);
 
@@ -132,11 +115,7 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
     const batch = await tx.importBatch.create({
       data: {
         taxYearId: taxYear.id,
-<<<<<<< HEAD
-        sourceType: `crypto_csv_${format.id}`,
-=======
         sourceType: `crypto_csv_${preset}`,
->>>>>>> origin/claude/wonderful-edison-xzm3zs
         fileName: file.name,
         rowCount: rows.length,
       },
@@ -153,15 +132,9 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
           quantity: row.quantity.toString(),
           unitPriceJpy: row.unitPriceJpy.toString(),
           feeJpy: row.feeJpy.toString(),
-<<<<<<< HEAD
-          exchange: format.label,
-          memo: row.memo,
-          source: `csv:${format.id}`,
-=======
           exchange: row.exchange,
           memo: row.memo,
           source: `exchange_csv:${preset}`,
->>>>>>> origin/claude/wonderful-edison-xzm3zs
         })),
       });
     }

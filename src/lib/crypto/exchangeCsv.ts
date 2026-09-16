@@ -1,9 +1,5 @@
 import { Decimal } from "decimal.js";
-<<<<<<< HEAD
-import { parseCsvRows } from "../csv";
-=======
 import { parseCsvRows, normalizeNumericString, parseFlexibleDateTime } from "../csv";
->>>>>>> origin/claude/wonderful-edison-xzm3zs
 import type { CryptoTradeType } from "./calculator";
 
 /**

@@ -13,11 +13,7 @@ import {
   setLossCarryforward,
   setOpeningBalance,
 } from "@/app/actions";
-<<<<<<< HEAD
-import { EXCHANGE_CSV_FORMATS } from "@/lib/crypto/exchanges";
-=======
 import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
->>>>>>> origin/claude/wonderful-edison-xzm3zs
 import { prisma } from "@/lib/db";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
@@ -145,34 +141,17 @@ export default async function ImportPage({
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="mb-3 text-lg font-semibold">暗号資産取引所CSV取り込み</h2>
         <p className="mb-3 text-sm text-neutral-500">
-<<<<<<< HEAD
-          各取引所からダウンロードした取引履歴CSVを、暗号資産の取引明細として取り込めます。
-          未対応の行(入出金・アルトコイン間ペア等)は自動でスキップされるため、
-          取り込み後に必ず件数と明細を確認してください。
-=======
           bitFlyer・Coincheck・GMOコインの取引履歴CSVを取り込みます。現物の
           売買・交換のみ対応し、入出金(送付・受取)や証拠金取引、税務上の性質が
           一意に決まらない明細は自動では取り込まず件数のみ表示します(取引所側の
           CSV仕様変更や列見出しの差異により解釈できない場合があります。取り込み後は
           必ず一覧で内容を確認してください)。
->>>>>>> origin/claude/wonderful-edison-xzm3zs
         </p>
         <form
           action={importCryptoExchangeCsv}
-          className="flex flex-wrap items-end gap-3"
+          className="flex flex-wrap items-center gap-3"
         >
           <input type="hidden" name="year" value={year} />
-<<<<<<< HEAD
-          <Field label="取引所">
-            <select name="exchange" required className={inputClass}>
-              {EXCHANGE_CSV_FORMATS.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-=======
           <select name="preset" required className={inputClass} defaultValue="">
             <option value="" disabled>
               取引所を選択
@@ -183,7 +162,6 @@ export default async function ImportPage({
               </option>
             ))}
           </select>
->>>>>>> origin/claude/wonderful-edison-xzm3zs
           <input
             type="file"
             name="file"
@@ -198,13 +176,6 @@ export default async function ImportPage({
             取り込む
           </button>
         </form>
-        <ul className="mt-3 space-y-1 text-xs text-neutral-500">
-          {EXCHANGE_CSV_FORMATS.map((f) => (
-            <li key={f.id}>
-              <span className="font-medium">{f.label}:</span> {f.notes}
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
