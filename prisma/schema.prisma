@@ -27,15 +27,16 @@ model TaxYear {
   /// 届出書)が必要で、一度選択すると原則3年間変更できない点に注意。
   cryptoCostMethod CryptoCostMethod @default(AVERAGE)
 
-  cryptoTrades                  CryptoTrade[]
-  cryptoMarginTrades            CryptoMarginTrade[]
-  investmentTrades              InvestmentTrade[]
-  importBatches                 ImportBatch[]
-  openingBalances               OpeningBalance[]
-  investmentLossCarryforwards   InvestmentLossCarryforward[]
-  brokerAnnualReports           BrokerAnnualReport[]
-  assetBalanceSnapshots         AssetBalanceSnapshot[]
-  foreignTaxCreditCarryforwards ForeignTaxCreditCarryforward[]
+  cryptoTrades                            CryptoTrade[]
+  cryptoMarginTrades                      CryptoMarginTrade[]
+  investmentTrades                        InvestmentTrade[]
+  importBatches                           ImportBatch[]
+  openingBalances                         OpeningBalance[]
+  investmentLossCarryforwards             InvestmentLossCarryforward[]
+  brokerAnnualReports                     BrokerAnnualReport[]
+  assetBalanceSnapshots                   AssetBalanceSnapshot[]
+  foreignTaxCreditCarryforwards           ForeignTaxCreditCarryforward[]
+  foreignTaxCreditSpareLimitCarryforwards ForeignTaxCreditSpareLimitCarryforward[]
 }
 
 enum CryptoCostMethod {
@@ -110,7 +111,8 @@ model InvestmentLossCarryforward {
 /// いない残高を発生年(originYear)ごとに保持し、計算エンジン側
 /// (src/lib/investment/foreignTaxCredit.ts)で発生年の古い順に当年の限度額の
 /// 余りへ充当し、期限(発生年+3年)を超えた分は自動的に無効とする。
-/// 限度額に余りが生じた場合の「控除余裕額」側の繰越は対象外(今後の課題)。
+/// 限度額に余りが生じた場合の「控除余裕額」側の繰越は
+/// ForeignTaxCreditSpareLimitCarryforward で別途保持する。
 model ForeignTaxCreditCarryforward {
   id        Int     @id @default(autoincrement())
   taxYearId Int
@@ -120,6 +122,30 @@ model ForeignTaxCreditCarryforward {
   originYear Int
 
   /// taxYearId の年初時点で残っている繰越控除可能な限度超過額
+  remainingAmountJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, originYear])
+}
+
+/// 外国税額控除(所得税法95条)の繰越控除余裕額。ある年の控除限度額に対して
+/// 外国所得税額が少なく限度額が余った場合、その余裕額は発生した年分の翌年以後
+/// 3年間繰り越して、外国所得税額が限度額を超えた年(控除限度超過額が発生する年)
+/// の控除に充当できる。ForeignTaxCreditCarryforward(限度超過額側)と対になる
+/// 繰越で、taxYearId の年初時点でまだ使い切っていない残高を発生年(originYear)
+/// ごとに保持し、計算エンジン側(src/lib/investment/foreignTaxCredit.ts)で発生年の
+/// 古い順に当年の限度超過額へ充当し、期限(発生年+3年)を超えた分は自動的に無効とする。
+model ForeignTaxCreditSpareLimitCarryforward {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 控除余裕額が発生した年(暦年)
+  originYear Int
+
+  /// taxYearId の年初時点で残っている繰越可能な控除余裕額
   remainingAmountJpy Decimal
 
   createdAt DateTime @default(now())

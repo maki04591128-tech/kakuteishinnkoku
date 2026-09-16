@@ -136,6 +136,98 @@ describe("calculateForeignTaxCredit", () => {
     expect(result.carryforwardToNextYear).toEqual([]);
   });
 
+  it("当年の限度額に余りがあれば、翌年以後3年間繰り越す控除余裕額として計上される", () => {
+    const result = calculateForeignTaxCredit({
+      currentYear: 2025,
+      incomeTaxJpy: 800_000,
+      totalIncomeJpy: 5_000_000,
+      foreignSourceIncomeJpy: 500_000,
+      foreignIncomeTaxPaidJpy: 50_000,
+    });
+
+    // 限度額105,680のうち当年分50,000を控除し、繰越控除限度超過額の充当も無いため
+    // 残り55,680がそのまま当年発生の控除余裕額として翌年以後に繰り越される
+    expect(result.newSpareLimitJpy.toString()).toBe("55680");
+    expect(result.spareLimitCarryforwardToNextYear).toEqual([
+      { originYear: 2025, remainingAmountJpy: expect.anything() },
+    ]);
+    expect(result.spareLimitCarryforwardToNextYear[0].remainingAmountJpy.toString()).toBe(
+      "55680",
+    );
+  });
+
+  it("外国所得税額が限度額を超える場合、繰越控除余裕額(発生年の古い順)を充当して控除額を増やせる", () => {
+    const result = calculateForeignTaxCredit({
+      currentYear: 2025,
+      incomeTaxJpy: 100_000,
+      totalIncomeJpy: 5_000_000,
+      foreignSourceIncomeJpy: 500_000,
+      foreignIncomeTaxPaidJpy: 50_000,
+      spareLimitCarryforwardEntries: [
+        { originYear: 2023, remainingAmountJpy: 10_000 },
+        { originYear: 2024, remainingAmountJpy: 15_000 },
+      ],
+    });
+
+    // 限度額13,210、超過額36,790に対し繰越控除余裕額25,000(10,000+15,000)を充当
+    expect(result.totalLimitJpy.toString()).toBe("13210");
+    expect(result.creditFromCurrentYearJpy.toString()).toBe("13210");
+    expect(result.creditFromSpareLimitCarryforwardJpy.toString()).toBe("25000");
+    expect(result.totalCreditJpy.toString()).toBe("38210");
+    expect(
+      result.usedSpareLimitCarryforwardByOriginYear.map((u) => [
+        u.originYear,
+        u.usedAmountJpy.toString(),
+      ]),
+    ).toEqual([
+      [2023, "10000"],
+      [2024, "15000"],
+    ]);
+    // 充当してもなお控除しきれなかった11,790円分が新規の控除限度超過額として繰り越される
+    expect(result.newExcessForeignTaxJpy.toString()).toBe("11790");
+    expect(result.carryforwardToNextYear).toEqual([
+      { originYear: 2025, remainingAmountJpy: expect.anything() },
+    ]);
+    expect(result.carryforwardToNextYear[0].remainingAmountJpy.toString()).toBe("11790");
+    expect(result.spareLimitCarryforwardToNextYear).toEqual([]);
+  });
+
+  it("繰越控除余裕額より超過額の方が大きい場合は使い切れず、超過額と余裕額の双方が生じない範囲で残額を翌年に繰り越す", () => {
+    const result = calculateForeignTaxCredit({
+      currentYear: 2025,
+      incomeTaxJpy: 100_000,
+      totalIncomeJpy: 5_000_000,
+      foreignSourceIncomeJpy: 500_000,
+      foreignIncomeTaxPaidJpy: 50_000,
+      spareLimitCarryforwardEntries: [{ originYear: 2024, remainingAmountJpy: 5_000 }],
+    });
+
+    // 超過額36,790のうち5,000だけ繰越控除余裕額で充当、残り31,790が新規の限度超過額
+    expect(result.creditFromSpareLimitCarryforwardJpy.toString()).toBe("5000");
+    expect(result.newExcessForeignTaxJpy.toString()).toBe("31790");
+    expect(result.spareLimitCarryforwardToNextYear).toEqual([]);
+  });
+
+  it("発生年から3年を超えた繰越控除余裕額は充当に使えず期限切れになる", () => {
+    const result = calculateForeignTaxCredit({
+      currentYear: 2028,
+      incomeTaxJpy: 100_000,
+      totalIncomeJpy: 5_000_000,
+      foreignSourceIncomeJpy: 500_000,
+      foreignIncomeTaxPaidJpy: 50_000,
+      spareLimitCarryforwardEntries: [{ originYear: 2024, remainingAmountJpy: 20_000 }],
+    });
+
+    expect(result.creditFromSpareLimitCarryforwardJpy.toString()).toBe("0");
+    expect(result.expiredSpareLimitCarryforwardByOriginYear).toEqual([
+      { originYear: 2024, expiredAmountJpy: expect.anything() },
+    ]);
+    expect(result.expiredSpareLimitCarryforwardByOriginYear[0].expiredAmountJpy.toString()).toBe(
+      "20000",
+    );
+    expect(result.spareLimitCarryforwardToNextYear).toEqual([]);
+  });
+
   it("負の値を渡すとエラーになる", () => {
     expect(() =>
       calculateForeignTaxCredit({
