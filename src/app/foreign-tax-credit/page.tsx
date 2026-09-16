@@ -28,7 +28,7 @@ export default async function ForeignTaxCreditPage({
   ]);
 
   const autoForeignSourceIncomeJpy =
-    report?.investment.totalForeignSourceDividendJpy.toString() ?? "0";
+    report?.investment.totalForeignSourceIncomeJpy.toString() ?? "0";
   const autoForeignIncomeTaxPaidJpy =
     report?.investment.totalForeignTaxWithheldJpy.toString() ?? "0";
 
@@ -84,12 +84,14 @@ export default async function ForeignTaxCreditPage({
           入力する必要がある(本ツールは給与所得等を管理していないため自動計算できない)。
         </p>
         <p>
-          「国外所得金額」「外国所得税額」は、`/import`
-          で株式等の取引に「国外で発行された株式・投資信託等」のチェックを付けて配当・
-          分配金を登録すると、その課税口座分(NISA口座は国内非課税のため対象外)を
-          自動集計して初期値に反映する(取得後も手入力で上書き可能)。国外株式の
-          譲渡益や、取引登録していない国外所得は自動集計されないため、その場合は
-          引き続き手入力すること。
+          「国外所得金額」は、`/import`
+          で株式等の取引に「国外で発行された株式・投資信託等」のチェックを付けて
+          配当・分配金または売却を登録すると、その課税口座分(NISA口座は国内非課税の
+          ため対象外)の配当等と譲渡益(為替差損益を含む)を合算して自動集計し初期値に
+          反映する(取得後も手入力で上書き可能)。「外国所得税額」は配当等の源泉徴収分
+          のみ自動集計する(株式等の譲渡益に対する現地源泉徴収は通常発生しないため
+          対象外)。取引登録していない国外所得はいずれも自動集計されないため、
+          その場合は引き続き手入力すること。
         </p>
         <p>
           繰越控除限度超過額・繰越控除余裕額はいずれも発生年ごとに

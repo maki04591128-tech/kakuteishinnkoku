@@ -63,11 +63,16 @@ function newPoolState(opening?: InvestmentOpeningBalance): PoolState {
   };
 }
 
+interface SellResult {
+  proceeds: Decimal;
+  costOfSold: Decimal;
+}
+
 function applyTrade(
   pool: PoolState,
   trade: InvestmentTradeInput,
   symbol: string,
-): void {
+): SellResult | undefined {
   const quantity = new Decimal(trade.quantity);
   const unitPrice = new Decimal(trade.unitPriceJpy);
   const fee = trade.feeJpy !== undefined ? new Decimal(trade.feeJpy) : new Decimal(0);
@@ -85,6 +90,7 @@ function applyTrade(
     pool.costJpy = pool.costJpy.plus(cost);
     pool.buyQuantity = pool.buyQuantity.plus(quantity);
     pool.buyCostJpy = pool.buyCostJpy.plus(cost);
+    return undefined;
   } else if (trade.type === "SELL") {
     if (quantity.greaterThan(pool.quantity)) {
       throw new Error(
@@ -102,8 +108,10 @@ function applyTrade(
     pool.sellQuantity = pool.sellQuantity.plus(quantity);
     pool.proceedsJpy = pool.proceedsJpy.plus(proceeds);
     pool.costOfSoldJpy = pool.costOfSoldJpy.plus(costOfSold);
+    return { proceeds, costOfSold };
   }
   // DIVIDEND はコストプールに影響しないため、呼び出し側で別集計する
+  return undefined;
 }
 
 export interface InvestmentSymbolYearResult {
@@ -129,6 +137,13 @@ export interface InvestmentSymbolYearResult {
    * NISA口座分は日本国内で非課税のため外国税額控除の対象外(集計しない)。
    */
   foreignTaxWithheldJpy: Decimal;
+  /**
+   * 譲渡所得(realizedGainJpy)のうち、国外で発行された株式・投資信託等
+   * (isForeign=true)の売却による分(課税口座分のみ)。売却時の円換算額を
+   * そのまま使うため為替差損益も含む。外国税額控除の国外所得金額の
+   * 自動集計に使う(配当等と合算してforeignSourceIncomeJpyとする)。
+   */
+  foreignSourceCapitalGainJpy: Decimal;
   closingQuantity: Decimal;
   closingCostJpy: Decimal;
   /** 参考情報: NISA口座分の譲渡損益(非課税のため申告不要・損益通算不可) */
@@ -153,6 +168,7 @@ export function calculateInvestmentYear(
   let nisaDividendJpy = new Decimal(0);
   let foreignSourceDividendJpy = new Decimal(0);
   let foreignTaxWithheldJpy = new Decimal(0);
+  let foreignSourceCapitalGainJpy = new Decimal(0);
 
   const sorted = [...trades].sort(
     (a, b) => a.tradedAt.getTime() - b.tradedAt.getTime(),
@@ -175,7 +191,13 @@ export function calculateInvestmentYear(
       }
       continue;
     }
-    applyTrade(trade.isNisa ? nisaPool : taxablePool, trade, symbol);
+    const sellResult = applyTrade(trade.isNisa ? nisaPool : taxablePool, trade, symbol);
+    // NISA口座分は国内非課税のため外国税額控除の対象外(集計は課税口座分のみ)
+    if (sellResult && trade.isForeign && !trade.isNisa) {
+      foreignSourceCapitalGainJpy = foreignSourceCapitalGainJpy.plus(
+        sellResult.proceeds.minus(sellResult.costOfSold),
+      );
+    }
   }
 
   const realizedGainJpy = taxablePool.proceedsJpy.minus(taxablePool.costOfSoldJpy);
@@ -194,6 +216,7 @@ export function calculateInvestmentYear(
     dividendJpy,
     foreignSourceDividendJpy,
     foreignTaxWithheldJpy,
+    foreignSourceCapitalGainJpy,
     closingQuantity: taxablePool.quantity,
     closingCostJpy: taxablePool.costJpy,
     nisaRealizedGainJpy,
@@ -212,6 +235,16 @@ export interface InvestmentPortfolioYearResult {
   totalForeignSourceDividendJpy: Decimal;
   /** 課税口座合計の外国所得税額(外国税額控除の外国所得税額の自動集計に使用) */
   totalForeignTaxWithheldJpy: Decimal;
+  /**
+   * 課税口座合計の国外源泉株式等の譲渡益(外国税額控除の国外所得金額の
+   * 自動集計に使用。為替差損益を含む)。
+   */
+  totalForeignSourceCapitalGainJpy: Decimal;
+  /**
+   * 外国税額控除の国外所得金額の自動集計値
+   * (totalForeignSourceDividendJpy + totalForeignSourceCapitalGainJpy)。
+   */
+  totalForeignSourceIncomeJpy: Decimal;
 }
 
 export function calculateInvestmentPortfolioYear(
@@ -262,6 +295,13 @@ export function calculateInvestmentPortfolioYear(
     (sum, r) => sum.plus(r.foreignTaxWithheldJpy),
     new Decimal(0),
   );
+  const totalForeignSourceCapitalGainJpy = bySymbol.reduce(
+    (sum, r) => sum.plus(r.foreignSourceCapitalGainJpy),
+    new Decimal(0),
+  );
+  const totalForeignSourceIncomeJpy = totalForeignSourceDividendJpy.plus(
+    totalForeignSourceCapitalGainJpy,
+  );
 
   return {
     bySymbol,
@@ -269,5 +309,7 @@ export function calculateInvestmentPortfolioYear(
     totalDividendJpy,
     totalForeignSourceDividendJpy,
     totalForeignTaxWithheldJpy,
+    totalForeignSourceCapitalGainJpy,
+    totalForeignSourceIncomeJpy,
   };
 }

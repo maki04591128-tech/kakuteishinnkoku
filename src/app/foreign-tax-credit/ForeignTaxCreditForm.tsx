@@ -23,7 +23,7 @@ export function ForeignTaxCreditForm({
   year: number;
   carryforwardEntries: { originYear: number; remainingAmountJpy: string }[];
   spareLimitCarryforwardEntries: { originYear: number; remainingAmountJpy: string }[];
-  /** `/import`に登録済みの国外源泉配当等から自動集計した国外所得金額(課税口座分) */
+  /** `/import`に登録済みの国外源泉配当等・譲渡益から自動集計した国外所得金額(課税口座分) */
   autoForeignSourceIncomeJpy: string;
   /** `/import`に登録済みの国外源泉配当等から自動集計した外国所得税額(課税口座分) */
   autoForeignIncomeTaxPaidJpy: string;
@@ -84,7 +84,7 @@ export function ForeignTaxCreditForm({
           onChange={setTotalIncomeJpy}
         />
         <Field
-          label={`国外所得金額(外国株式配当等、控除対象の国外所得の合計。自動集計値: ${yen(
+          label={`国外所得金額(外国株式配当等・譲渡益、控除対象の国外所得の合計。自動集計値: ${yen(
             Number(autoForeignSourceIncomeJpy),
           )})`}
           value={foreignSourceIncomeJpy}

@@ -1213,7 +1213,8 @@ export default async function ImportPage({
           </label>
           <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isForeign" /> 国外で発行された株式・投資信託等(米国株等。
-            配当・分配金の場合、外国税額控除の試算画面の国外所得金額・外国所得税額に自動集計される)
+            配当・分配金の場合は外国税額控除の試算画面の国外所得金額・外国所得税額に、
+            売却の場合は譲渡益(為替差損益を含む)が国外所得金額に自動集計される)
           </label>
           <div className="col-span-full">
             <button
