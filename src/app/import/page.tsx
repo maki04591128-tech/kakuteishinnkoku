@@ -23,6 +23,7 @@ import {
   importBrokerAnnualReportCsv,
   importCryptoExchangeCsv,
   importCryptoMarginCsv,
+  importFuturesCsv,
   importMoneyForwardCsv,
   setAssetSymbolMapping,
   setBrokerAnnualReport,
@@ -1319,8 +1320,47 @@ export default async function ImportPage({
           別プールで管理されるため、上の「株式・投資信託等の取引を追加」とは
           別にここへ登録する。暗号資産の証拠金取引と同様、数量×単価による
           取得費の積み上げは行わず、建玉の決済(反対売買・差金決済)のたびに
-          確定する損益をそのまま合算する。CSV取り込みは未対応(今後の課題)。
+          確定する損益をそのまま合算する。DMM FX・GMOクリック証券等の決済履歴CSVは
+          業者ごとに様式が異なり未検証のため、暗号資産の証拠金取引CSVと同様、
+          列名を指定する汎用マッピング方式のみで取り込む。
         </p>
+
+        <div className="mb-6 border-b border-dashed border-neutral-200 pb-6 dark:border-neutral-800">
+          <h3 className="mb-2 text-sm font-semibold">CSV取り込み(列名を指定)</h3>
+          <form
+            action={importFuturesCsv}
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+          >
+            <input type="hidden" name="year" value={year} />
+            <Field label="取引業者名(任意)">
+              <input type="text" name="brokerName" placeholder="DMM FX" className={inputClass} />
+            </Field>
+            <Field label="決済日時列名">
+              <input type="text" name="dateColumn" required className={inputClass} />
+            </Field>
+            <Field label="銘柄・通貨ペア列名">
+              <input type="text" name="symbolColumn" required className={inputClass} />
+            </Field>
+            <Field label="決済損益(円)列名">
+              <input type="text" name="pnlColumn" required className={inputClass} />
+            </Field>
+            <Field label="手数料(円)列名(任意)">
+              <input type="text" name="feeColumn" className={inputClass} />
+            </Field>
+            <Field label="スワップ等(円)列名(任意)">
+              <input type="text" name="swapColumn" className={inputClass} />
+            </Field>
+            <div className="col-span-full flex flex-wrap items-center gap-3">
+              <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
+              <button
+                type="submit"
+                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+              >
+                取り込む
+              </button>
+            </div>
+          </form>
+        </div>
 
         <form action={addFuturesTrade} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <input type="hidden" name="year" value={year} />

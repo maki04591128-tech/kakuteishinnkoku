@@ -296,8 +296,13 @@ FX(店頭外国為替証拠金取引)・先物・CFD等の決済損益は、所�
 確定する損益をそのまま合算する」モデルで計算するようにした。繰越控除も
 `FuturesLossCarryforward`テーブルで上場株式等側(`InvestmentLossCarryforward`)
 とは別に保持し、`/import`の専用セクションから登録・自動繰り越しができる。
-`InvestmentAssetType`からは「FX」を削除した。CSV取り込みは未対応
-(今後の課題、ロードマップ参照)。
+`InvestmentAssetType`からは「FX」を削除した。
+
+DMM FX・GMOクリック証券等の決済履歴CSVも`src/lib/investment/futuresCsv.ts`
+から取り込める。業者ごとに様式が異なり未検証のため専用プリセットは用意せず、
+暗号資産の証拠金取引CSV(`src/lib/crypto/marginCsv.ts`)と同様、決済日時・
+銘柄・決済損益・手数料・スワップの列名を指定する汎用マッピング方式のみで
+対応する。
 
 ## データモデル
 
@@ -357,14 +362,17 @@ FX(店頭外国為替証拠金取引)・先物・CFD等の決済損益は、所�
    までは対応した(機能11参照)。次の課題は、時価データを取得して評価額を
    取得原価ベースの保有数量と比較可能な形に変換するなど、より踏み込んだ
    数量・金額の突合の要否・実現性の検討。
-5. **FX・先物取引所CSVの取り込み** — `FuturesTrade`のモデル・計算エンジン・
-   手入力UIは対応した(機能14参照)が、CSV一括取り込みは未対応。DMM FX・
-   GMOクリック証券等の決済履歴CSVは業者ごとに様式が異なり未検証のため、
-   暗号資産の証拠金取引CSV(`src/lib/crypto/marginCsv.ts`)と同様、
-   列名を指定する汎用マッピング方式での取り込みを検討する。
 
 ### 完了済み
 
+- **FX・先物取引所CSVの取り込み**(`src/lib/investment/futuresCsv.ts`・
+  `/import`の「先物取引・FX」セクションのCSV取り込みフォーム)。DMM FX・
+  GMOクリック証券等の決済履歴CSVを、暗号資産の証拠金取引CSV
+  (`src/lib/crypto/marginCsv.ts`)と同様の、決済日時・銘柄・決済損益・
+  手数料・スワップの列名を指定する汎用マッピング方式で取り込めるようにした。
+  業者ごとの様式差が大きく実データでの検証ができていないため、専用プリセット
+  は用意していない(今後実データを確認できれば、暗号資産取引所CSVと同様に
+  プリセット化を検討する)。
 - **先物取引・FXに係る雑所得等の分離計算**(`FuturesTrade`・
   `FuturesLossCarryforward`テーブル・`src/lib/investment/futuresIncome.ts`・
   `/import`の専用セクション・ダッシュボード・下書きCSV。機能14参照)。
