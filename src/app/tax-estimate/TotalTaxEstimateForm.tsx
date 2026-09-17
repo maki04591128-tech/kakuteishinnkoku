@@ -31,6 +31,7 @@ export function TotalTaxEstimateForm({
   defaultAvailableListedStockLossForDividendJpy,
   registeredIncomeDeductions,
   totalRegisteredIncomeTaxDeductionJpy,
+  incomeDeductionNotes,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -42,6 +43,8 @@ export function TotalTaxEstimateForm({
   registeredIncomeDeductions: RegisteredIncomeDeductionEntry[];
   /** 登録済みの所得控除の合計額(所得税ベース。defaultOtherComprehensiveIncomeJpyの算出に使用済み) */
   totalRegisteredIncomeTaxDeductionJpy: number;
+  /** 合計額の算出にあたっての注記(医療費控除とセルフメディケーション税制が両方登録されている場合等) */
+  incomeDeductionNotes: string[];
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -142,6 +145,13 @@ export function TotalTaxEstimateForm({
               </li>
             ))}
           </ul>
+          {incomeDeductionNotes.length > 0 && (
+            <ul className="mt-2 list-disc space-y-0.5 pl-5 text-amber-600 dark:text-amber-500">
+              {incomeDeductionNotes.map((note, i) => (
+                <li key={i}>{note}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

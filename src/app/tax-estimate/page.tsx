@@ -55,6 +55,7 @@ export default async function TaxEstimatePage({
   }));
   const totalRegisteredIncomeTaxDeductionJpy =
     incomeDeductionSummary.totalIncomeTaxAmountJpy.toNumber();
+  const incomeDeductionNotes = incomeDeductionSummary.notes;
   const defaultOtherComprehensiveIncomeJpy = Math.max(
     0,
     BASE_OTHER_COMPREHENSIVE_INCOME_JPY - totalRegisteredIncomeTaxDeductionJpy,
@@ -87,6 +88,7 @@ export default async function TaxEstimatePage({
         }
         registeredIncomeDeductions={registeredIncomeDeductions}
         totalRegisteredIncomeTaxDeductionJpy={totalRegisteredIncomeTaxDeductionJpy}
+        incomeDeductionNotes={incomeDeductionNotes}
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">

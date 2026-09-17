@@ -20,6 +20,7 @@ describe("summarizeIncomeDeductions", () => {
     expect(summary.totalIncomeTaxAmountJpy.toNumber()).toBe(550_000);
     expect(summary.totalResidentTaxAmountJpy.toNumber()).toBe(520_000);
     expect(summary.entries).toHaveLength(3);
+    expect(summary.notes).toHaveLength(0);
   });
 
   it("エントリが無い場合は合計0を返す", () => {
@@ -28,6 +29,24 @@ describe("summarizeIncomeDeductions", () => {
     expect(summary.totalIncomeTaxAmountJpy.toNumber()).toBe(0);
     expect(summary.totalResidentTaxAmountJpy.toNumber()).toBe(0);
     expect(summary.entries).toHaveLength(0);
+  });
+
+  it("医療費控除とセルフメディケーション税制が両方登録されている場合は有利な方のみ合計に含める", () => {
+    const summary = summarizeIncomeDeductions([
+      { type: "MEDICAL_EXPENSE", incomeTaxAmountJpy: 150_000, residentTaxAmountJpy: 150_000 },
+      { type: "SELF_MEDICATION", incomeTaxAmountJpy: 28_000, residentTaxAmountJpy: 28_000 },
+      {
+        type: "SOCIAL_INSURANCE",
+        incomeTaxAmountJpy: 300_000,
+        residentTaxAmountJpy: 300_000,
+      },
+    ]);
+
+    // 両方のエントリは表示のため保持するが、合計には医療費控除150,000円のみ加算する
+    expect(summary.entries).toHaveLength(3);
+    expect(summary.totalIncomeTaxAmountJpy.toNumber()).toBe(450_000);
+    expect(summary.totalResidentTaxAmountJpy.toNumber()).toBe(450_000);
+    expect(summary.notes.join("")).toContain("医療費控除");
   });
 });
 
