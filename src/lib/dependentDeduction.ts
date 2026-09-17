@@ -18,11 +18,12 @@ import { Decimal } from "decimal.js";
  * 追加した(`estimateDependentDeduction`の`SPECIFIED_SPECIAL`区分)。所得税側は
  * 複数の独立した情報源で一致した5万円刻みの控除額の段階表(58万円超85万円以下
  * 63万円〜120万円超123万円以下3万円)をそのまま実装した。住民税側は満額(45万円、
- * 特定扶養親族と同額)の対象範囲(58万円超95万円以下)は複数の自治体公式サイトで
- * 一致して確認できたが、95万円超123万円以下の段階的な逓減額の具体的な金額表は
- * 一次情報(国税庁・総務省等)で確認できていないため、この範囲は住民税側の控除額を
- * 0円として扱い`residentTaxAmountUnverified`フラグと注記で明示する(誤った金額を
- * 組み込むより、未確認である旨を明示する方針。README「ロードマップ」参照)。
+ * 特定扶養親族と同額)の対象範囲(58万円超95万円以下)、および95万円超123万円以下の
+ * 段階的な逓減額(95万円超100万円以下41万円〜120万円超123万円以下3万円。
+ * 95万円超の各区分では所得税側と同額になる)の両方とも、複数の独立した自治体
+ * 公式サイト(習志野市・葛飾区・町田市・中札内村等)および会計ソフトベンダー・
+ * 税理士事務所の解説で一致して確認できたため実装した(旧`residentTaxAmountUnverified`
+ * フラグは撤去)。
  *
  * **基礎控除の引き上げ(令和7年度税制改正)** は`src/lib/basicDeduction.ts`に
  * 分離して実装した(本ファイルの対象外)。
@@ -184,35 +185,29 @@ export type DependentCategory =
   | "ELDERLY_OTHER";
 
 /**
- * 特定親族特別控除(所得税)の控除額の速算表。合計所得金額の上限(この金額以下)ごとの
- * 控除額。58万円超85万円以下の最初の区分から順に判定する。
+ * 特定親族特別控除の控除額の速算表。合計所得金額の上限(この金額以下)ごとの
+ * 所得税・住民税それぞれの控除額。58万円超85万円以下の最初の区分から順に判定する。
+ * 住民税は58万円超95万円以下が特定扶養親族と同額(45万円)、95万円超123万円以下は
+ * 所得税側と同額になる(いずれも複数の自治体公式サイト等で確認済み)。
  */
-const SPECIFIED_SPECIAL_DEDUCTION_TABLE: Array<{ maxTotalIncomeJpy: number; incomeTaxJpy: number }> = [
-  { maxTotalIncomeJpy: 850_000, incomeTaxJpy: 630_000 },
-  { maxTotalIncomeJpy: 900_000, incomeTaxJpy: 610_000 },
-  { maxTotalIncomeJpy: 950_000, incomeTaxJpy: 510_000 },
-  { maxTotalIncomeJpy: 1_000_000, incomeTaxJpy: 410_000 },
-  { maxTotalIncomeJpy: 1_050_000, incomeTaxJpy: 310_000 },
-  { maxTotalIncomeJpy: 1_100_000, incomeTaxJpy: 210_000 },
-  { maxTotalIncomeJpy: 1_150_000, incomeTaxJpy: 110_000 },
-  { maxTotalIncomeJpy: 1_200_000, incomeTaxJpy: 60_000 },
-  { maxTotalIncomeJpy: 1_230_000, incomeTaxJpy: 30_000 },
+const SPECIFIED_SPECIAL_DEDUCTION_TABLE: Array<{
+  maxTotalIncomeJpy: number;
+  incomeTaxJpy: number;
+  residentTaxJpy: number;
+}> = [
+  { maxTotalIncomeJpy: 850_000, incomeTaxJpy: 630_000, residentTaxJpy: 450_000 },
+  { maxTotalIncomeJpy: 900_000, incomeTaxJpy: 610_000, residentTaxJpy: 450_000 },
+  { maxTotalIncomeJpy: 950_000, incomeTaxJpy: 510_000, residentTaxJpy: 450_000 },
+  { maxTotalIncomeJpy: 1_000_000, incomeTaxJpy: 410_000, residentTaxJpy: 410_000 },
+  { maxTotalIncomeJpy: 1_050_000, incomeTaxJpy: 310_000, residentTaxJpy: 310_000 },
+  { maxTotalIncomeJpy: 1_100_000, incomeTaxJpy: 210_000, residentTaxJpy: 210_000 },
+  { maxTotalIncomeJpy: 1_150_000, incomeTaxJpy: 110_000, residentTaxJpy: 110_000 },
+  { maxTotalIncomeJpy: 1_200_000, incomeTaxJpy: 60_000, residentTaxJpy: 60_000 },
+  { maxTotalIncomeJpy: 1_230_000, incomeTaxJpy: 30_000, residentTaxJpy: 30_000 },
 ];
 
 /** 特定親族特別控除の対象となる合計所得金額の上限 */
 const SPECIFIED_SPECIAL_INCOME_LIMIT = 1_230_000;
-/** 住民税の特定親族特別控除が満額(45万円)になる合計所得金額の上限(これを超える範囲は逓減額が未確認) */
-const SPECIFIED_SPECIAL_RESIDENT_TAX_FULL_AMOUNT_LIMIT = 950_000;
-
-function specifiedSpecialResidentTaxAmount(totalIncomeJpy: Decimal): {
-  amountJpy: Decimal;
-  unverified: boolean;
-} {
-  if (totalIncomeJpy.lessThanOrEqualTo(SPECIFIED_SPECIAL_RESIDENT_TAX_FULL_AMOUNT_LIMIT)) {
-    return { amountJpy: new Decimal(450_000), unverified: false };
-  }
-  return { amountJpy: new Decimal(0), unverified: true };
-}
 
 const DEPENDENT_DEDUCTION_AMOUNTS: Record<
   Exclude<DependentCategory, "UNDER_16" | "SPECIFIED_SPECIAL">,
@@ -252,13 +247,6 @@ export interface DependentResult {
   eligible: boolean;
   incomeTaxAmountJpy: Decimal;
   residentTaxAmountJpy: Decimal;
-  /**
-   * 住民税の控除額が一次情報で確認できていない所得区分(特定親族特別控除の
-   * 合計所得金額95万円超123万円以下)に該当する場合true。この場合
-   * `residentTaxAmountJpy`は0円として扱っている暫定値であり、実際の申告には
-   * 使用せず最新の控除額表を確認すること。
-   */
-  residentTaxAmountUnverified?: boolean;
   notes?: string[];
 }
 
@@ -302,21 +290,13 @@ export function estimateDependentDeduction(input: DependentInput): DependentResu
       totalIncomeJpy.lessThanOrEqualTo(r.maxTotalIncomeJpy),
     );
     const incomeTaxAmountJpy = new Decimal(row?.incomeTaxJpy ?? 0);
-    const resident = specifiedSpecialResidentTaxAmount(totalIncomeJpy);
-    const notes: string[] = [];
-    if (resident.unverified) {
-      notes.push(
-        "住民税の特定親族特別控除額は、合計所得金額が95万円を超える場合の逓減額の表が一次情報で確認できていないため試算対象外(0円として扱う)。実際の申告では最新の控除額表を確認すること。",
-      );
-    }
+    const residentTaxAmountJpy = new Decimal(row?.residentTaxJpy ?? 0);
     return {
       category,
       categoryLabel: "特定親族特別控除の対象(19〜22歳・合計所得金額58万円超123万円以下)",
       eligible: true,
       incomeTaxAmountJpy,
-      residentTaxAmountJpy: resident.amountJpy,
-      residentTaxAmountUnverified: resident.unverified,
-      notes,
+      residentTaxAmountJpy,
     };
   }
 

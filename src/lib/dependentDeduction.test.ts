@@ -220,7 +220,6 @@ describe("estimateDependentDeduction", () => {
     expect(result85.eligible).toBe(true);
     expect(result85.incomeTaxAmountJpy.toNumber()).toBe(630_000);
     expect(result85.residentTaxAmountJpy.toNumber()).toBe(450_000);
-    expect(result85.residentTaxAmountUnverified).toBeFalsy();
 
     expect(
       estimateDependentDeduction({
@@ -238,23 +237,31 @@ describe("estimateDependentDeduction", () => {
     expect(result123.incomeTaxAmountJpy.toNumber()).toBe(30_000);
   });
 
-  it("特定親族特別控除の住民税は合計所得金額95万円以下は45万円、超えると未確認(0円扱い)", () => {
+  it("特定親族特別控除の住民税は合計所得金額95万円以下は45万円、超えると所得税と同額の段階表で逓減する", () => {
     const within = estimateDependentDeduction({
       ageAtYearEnd: 20,
       totalIncomeJpy: 950_000,
       year: 2025,
     });
     expect(within.residentTaxAmountJpy.toNumber()).toBe(450_000);
-    expect(within.residentTaxAmountUnverified).toBeFalsy();
 
-    const over = estimateDependentDeduction({
-      ageAtYearEnd: 20,
-      totalIncomeJpy: 1_000_000,
-      year: 2025,
-    });
-    expect(over.residentTaxAmountJpy.toNumber()).toBe(0);
-    expect(over.residentTaxAmountUnverified).toBe(true);
-    expect(over.notes?.length).toBeGreaterThan(0);
+    const cases: Array<[number, number]> = [
+      [1_000_000, 410_000],
+      [1_050_000, 310_000],
+      [1_100_000, 210_000],
+      [1_150_000, 110_000],
+      [1_200_000, 60_000],
+      [1_230_000, 30_000],
+    ];
+    for (const [totalIncomeJpy, expectedResidentTaxJpy] of cases) {
+      const result = estimateDependentDeduction({
+        ageAtYearEnd: 20,
+        totalIncomeJpy,
+        year: 2025,
+      });
+      expect(result.residentTaxAmountJpy.toNumber()).toBe(expectedResidentTaxJpy);
+      expect(result.incomeTaxAmountJpy.toNumber()).toBe(expectedResidentTaxJpy);
+    }
   });
 
   it("特定親族特別控除は合計所得金額123万円超だと対象外(令和7年分以後)", () => {

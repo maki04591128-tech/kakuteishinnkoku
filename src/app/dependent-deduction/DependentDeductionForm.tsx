@@ -276,7 +276,6 @@ export function DependentDeductionForm({
                     {r.eligible
                       ? `${yen(r.incomeTaxAmountJpy)} / ${yen(r.residentTaxAmountJpy)}`
                       : "対象外"}
-                    {r.residentTaxAmountUnverified && "(住民税は逓減額未確認のため0円扱い)"}
                   </li>
                 ))}
               </ul>
