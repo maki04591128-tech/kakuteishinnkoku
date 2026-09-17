@@ -247,6 +247,8 @@ enum IncomeDeductionType {
   MEDICAL_EXPENSE
   /// 生命保険料控除(src/lib/lifeInsuranceDeduction.ts)
   LIFE_INSURANCE
+  /// 地震保険料控除(src/lib/earthquakeInsuranceDeduction.ts)
+  EARTHQUAKE_INSURANCE
   /// 小規模企業共済等掛金控除・iDeCo等(src/lib/smallBusinessMutualAidDeduction.ts)
   SMALL_BUSINESS_MUTUAL_AID
   /// 社会保険料控除(src/lib/socialInsuranceDeduction.ts)
