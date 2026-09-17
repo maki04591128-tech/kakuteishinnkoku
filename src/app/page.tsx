@@ -177,6 +177,12 @@ export default async function Home({
         >
           小規模企業共済等掛金控除(iDeCo等)を試算する
         </Link>
+        <Link
+          href={`/social-insurance-deduction?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          社会保険料控除額を試算する
+        </Link>
       </section>
 
       <section className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
