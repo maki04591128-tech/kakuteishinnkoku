@@ -5,13 +5,27 @@ import { Decimal } from "decimal.js";
  * 試算する。他の所得控除試算画面と同様、暗号資産・投資の計算エンジンとは独立した
  * 単体の試算ロジック。
  *
- * **前提とする制度:** 令和6年分(2024年分)以前の所得要件・控除額表に基づく。
- * 令和7年度税制改正(いわゆる「103万円の壁」対応。基礎控除の引き上げ、扶養親族等の
- * 合計所得金額要件の48万円→58万円への変更、配偶者特別控除の対象所得の上限引き上げ、
- * 19〜22歳の親族向けに新設された「特定親族特別控除」等)には対応していない。
- * 令和7年分(2025年分)以降の申告では、国税庁「確定申告書等作成コーナー」の
- * 最新の所得要件・控除額で計算し直すこと。
+ * **令和7年度税制改正(いわゆる「103万円の壁」対応)への対応状況:**
+ * 扶養親族・同一生計配偶者の合計所得金額要件が令和7年分(2025年分)以後
+ * 48万円→58万円に引き上げられた点のみ、`year`引数により年分ごとに切り替える
+ * (2025年分以後は58万円、2024年分以前は48万円を適用)。配偶者特別控除は
+ * この要件緩和により48万円超133万円以下だった対象範囲が58万円超133万円以下に
+ * 変わるのみで、上限(133万円)・控除額の段階表自体に変更は無いため据え置いた。
+ *
+ * **未対応の部分:** 基礎控除の引き上げ(所得金額に応じた段階表への変更)、
+ * 19〜22歳の親族向けに新設された「特定親族特別控除」は、控除額の段階表
+ * (国税庁の速算表)を一次情報で確実に確認できておらず、誤った値を組み込む
+ * リスクを避けるため見送った(本ツールの他の未検証データと同様の方針。
+ * README「ロードマップ」参照)。令和7年分(2025年分)以降の申告でこれらが
+ * 必要な場合は、国税庁「確定申告書等作成コーナー」の最新の控除額で計算すること。
  */
+
+/** 扶養親族・同一生計配偶者の合計所得金額要件が48万円→58万円に引き上げられた年分(令和7年度税制改正) */
+const REFORM_YEAR_INCOME_REQUIREMENT_580K = 2025;
+
+function dependentIncomeLimitForYear(year: number): number {
+  return year >= REFORM_YEAR_INCOME_REQUIREMENT_580K ? 580_000 : 480_000;
+}
 
 export type TaxpayerIncomeBand = "UP_TO_900" | "OVER_900_UP_TO_950" | "OVER_950_UP_TO_1000";
 
@@ -28,8 +42,6 @@ const BAND_INDEX: Record<TaxpayerIncomeBand, 0 | 1 | 2> = {
   OVER_950_UP_TO_1000: 2,
 };
 
-/** 配偶者の合計所得金額がこの金額以下であれば配偶者控除(38万円等)の対象。これを超えると配偶者特別控除の対象になりうる。 */
-const SPOUSE_INCOME_LIMIT_FOR_REGULAR_DEDUCTION = 480_000;
 /** 配偶者特別控除の対象となる配偶者の合計所得金額の上限 */
 const SPOUSE_INCOME_LIMIT_FOR_SPECIAL_DEDUCTION = 1_330_000;
 
@@ -69,6 +81,11 @@ export interface SpouseDeductionInput {
   spouseTotalIncomeJpy: Decimal.Value;
   /** 配偶者がその年12月31日時点で70歳以上か(老人控除対象配偶者の判定) */
   spouseIsElderly: boolean;
+  /**
+   * 課税年分(西暦)。令和7年分(2025年分)以後は同一生計配偶者の合計所得金額要件が
+   * 58万円以下(令和6年分以前は48万円以下)になる。省略時は令和6年分以前(48万円)を適用する。
+   */
+  year?: number;
 }
 
 export interface SpouseDeductionResult {
@@ -109,14 +126,17 @@ export function estimateSpouseDeduction(input: SpouseDeductionInput): SpouseDedu
   }
   const bandIndex = BAND_INDEX[band];
 
-  if (spouseTotalIncomeJpy.lessThanOrEqualTo(SPOUSE_INCOME_LIMIT_FOR_REGULAR_DEDUCTION)) {
+  const spouseIncomeLimitForRegularDeduction = dependentIncomeLimitForYear(input.year ?? 0);
+  const spouseIncomeLimitJpyLabel = spouseIncomeLimitForRegularDeduction === 580_000 ? "58万円" : "48万円";
+
+  if (spouseTotalIncomeJpy.lessThanOrEqualTo(spouseIncomeLimitForRegularDeduction)) {
     const amounts = input.spouseIsElderly
       ? SPOUSE_DEDUCTION_AMOUNTS.elderly
       : SPOUSE_DEDUCTION_AMOUNTS.general;
     notes.push(
       input.spouseIsElderly
         ? "配偶者が70歳以上(老人控除対象配偶者)のため、通常より控除額が大きい区分を適用した。"
-        : "配偶者の合計所得金額が48万円以下のため、配偶者控除(一般の控除対象配偶者)を適用した。",
+        : `配偶者の合計所得金額が${spouseIncomeLimitJpyLabel}以下のため、配偶者控除(一般の控除対象配偶者)を適用した。`,
     );
     return {
       category: "SPOUSE_DEDUCTION",
@@ -134,7 +154,7 @@ export function estimateSpouseDeduction(input: SpouseDeductionInput): SpouseDedu
       notes.push("配偶者の合計所得金額が133万円を超えるため、配偶者特別控除は適用されない。");
       return zero;
     }
-    notes.push("配偶者の合計所得金額が48万円超133万円以下のため、配偶者特別控除を適用した。");
+    notes.push(`配偶者の合計所得金額が${spouseIncomeLimitJpyLabel}超133万円以下のため、配偶者特別控除を適用した。`);
     return {
       category: "SPOUSE_SPECIAL_DEDUCTION",
       incomeTaxAmountJpy: new Decimal(row.incomeTax[bandIndex]),
@@ -172,8 +192,6 @@ const DEPENDENT_DEDUCTION_AMOUNTS: Record<
   },
 };
 
-const DEPENDENT_INCOME_LIMIT = 480_000;
-
 export interface DependentInput {
   /** その年12月31日時点の年齢 */
   ageAtYearEnd: number;
@@ -181,6 +199,11 @@ export interface DependentInput {
   totalIncomeJpy: Decimal.Value;
   /** 70歳以上の場合、納税者本人またはその配偶者の直系尊属(父母・祖父母等)と同居しているか */
   cohabitingElderlyRelative?: boolean;
+  /**
+   * 課税年分(西暦)。令和7年分(2025年分)以後は扶養親族の合計所得金額要件が
+   * 58万円以下(令和6年分以前は48万円以下)になる。省略時は令和6年分以前(48万円)を適用する。
+   */
+  year?: number;
 }
 
 export interface DependentResult {
@@ -210,8 +233,9 @@ export function estimateDependentDeduction(input: DependentInput): DependentResu
   }
 
   const category = categorizeDependent(input);
+  const dependentIncomeLimit = dependentIncomeLimitForYear(input.year ?? 0);
 
-  if (category === "UNDER_16" || totalIncomeJpy.greaterThan(DEPENDENT_INCOME_LIMIT)) {
+  if (category === "UNDER_16" || totalIncomeJpy.greaterThan(dependentIncomeLimit)) {
     return {
       category,
       categoryLabel:
