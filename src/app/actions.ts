@@ -22,6 +22,7 @@ import {
 } from "@/lib/investment/annualReportCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
+import { isIncomeDeductionType } from "@/lib/incomeDeduction";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1064,4 +1065,33 @@ export async function carryForwardForeignTaxCreditSpareLimit(
   redirect(
     `/foreign-tax-credit?year=${year}&spareLimitCarried=${toCreate.length}`,
   );
+}
+
+/**
+ * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
+ * (iDeCo等)・社会保険料控除)で試算した控除額を、その年分の IncomeDeduction
+ * として登録する(区分ごとに1件。既に登録済みの場合は上書きする)。
+ * ここに登録すると `/tax-estimate` の「給与所得等の課税所得金額」の
+ * 初期値に自動反映される。
+ */
+export async function saveIncomeDeduction(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const type = requireString(formData, "type");
+  if (!isIncomeDeductionType(type)) {
+    throw new Error(`不正な所得控除区分です: ${type}`);
+  }
+  const incomeTaxAmountJpy = requireString(formData, "incomeTaxAmountJpy");
+  const residentTaxAmountJpy = requireString(formData, "residentTaxAmountJpy");
+  const redirectPath = requireString(formData, "redirectPath");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.incomeDeduction.upsert({
+    where: { taxYearId_type: { taxYearId: taxYear.id, type } },
+    create: { taxYearId: taxYear.id, type, incomeTaxAmountJpy, residentTaxAmountJpy },
+    update: { incomeTaxAmountJpy, residentTaxAmountJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath(redirectPath);
+  redirect(`${redirectPath}?year=${year}&deductionSaved=${type}`);
 }

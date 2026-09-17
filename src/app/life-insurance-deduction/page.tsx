@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listTaxYears } from "@/lib/taxYear";
+import { findIncomeDeductionEntry, getIncomeDeductionEntries } from "@/lib/incomeDeduction";
 import { LifeInsuranceDeductionForm } from "./LifeInsuranceDeductionForm";
 
 export default async function LifeInsuranceDeductionPage({
@@ -11,6 +12,15 @@ export default async function LifeInsuranceDeductionPage({
   const availableYears = await listTaxYears();
   const currentCalendarYear = new Date().getFullYear();
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
+
+  const incomeDeductionEntries = await getIncomeDeductionEntries(year);
+  const registeredEntry = findIncomeDeductionEntry(incomeDeductionEntries, "LIFE_INSURANCE");
+  const registeredDeduction = registeredEntry
+    ? {
+        incomeTaxAmountJpy: Number(registeredEntry.incomeTaxAmountJpy),
+        residentTaxAmountJpy: Number(registeredEntry.residentTaxAmountJpy),
+      }
+    : null;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -30,14 +40,15 @@ export default async function LifeInsuranceDeductionPage({
         </p>
       </header>
 
-      <LifeInsuranceDeductionForm />
+      <LifeInsuranceDeductionForm year={year} registeredDeduction={registeredDeduction} />
 
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         国税庁の生命保険料控除の速算表による概算値であり、実際の控除額は生命保険会社発行の
         控除証明書の金額で確認すること。区分ごとに新旧両方の契約がある場合は、新制度分のみ・
-        旧制度分のみ・新旧合算のうち最も有利な金額を自動的に選択している。ここで求めた
-        控除額は、他の試算画面の所得金額等には自動反映されないため、該当の入力欄から
-        別途差し引くこと。
+        旧制度分のみ・新旧合算のうち最も有利な金額を自動的に選択している。「この試算結果を
+        {year}年分の所得控除として登録する」ボタンで登録すると、`/tax-estimate`の
+        「給与所得等の課税所得金額」の初期値にこの控除額(所得税ベース)が自動反映される
+        (登録後も入力欄は手入力で上書き可能)。
       </p>
     </div>
   );

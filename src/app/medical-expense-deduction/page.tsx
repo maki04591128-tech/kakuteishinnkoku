@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buildYearReport } from "@/lib/reporting";
 import { buildTaxFilingSummary } from "@/lib/etax/summary";
 import { listTaxYears } from "@/lib/taxYear";
+import { findIncomeDeductionEntry, getIncomeDeductionEntries } from "@/lib/incomeDeduction";
 import { MedicalExpenseDeductionForm } from "./MedicalExpenseDeductionForm";
 
 export default async function MedicalExpenseDeductionPage({
@@ -36,6 +37,12 @@ export default async function MedicalExpenseDeductionPage({
     (summary?.investmentDividendJpy.toNumber() ?? 0) +
     (report?.futuresLossCarryforward.taxableGainJpy.toNumber() ?? 0);
 
+  const incomeDeductionEntries = await getIncomeDeductionEntries(year);
+  const registeredEntry = findIncomeDeductionEntry(incomeDeductionEntries, "MEDICAL_EXPENSE");
+  const registeredDeductionJpy = registeredEntry
+    ? Number(registeredEntry.incomeTaxAmountJpy)
+    : null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -52,14 +59,19 @@ export default async function MedicalExpenseDeductionPage({
         </p>
       </header>
 
-      <MedicalExpenseDeductionForm defaultTotalIncomeJpy={defaultTotalIncomeJpy} />
+      <MedicalExpenseDeductionForm
+        year={year}
+        defaultTotalIncomeJpy={defaultTotalIncomeJpy}
+        registeredDeductionJpy={registeredDeductionJpy}
+      />
 
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         国税庁の医療費控除の計算式による概算値であり、実際の申告には医療費控除の明細書の
         作成が必要。セルフメディケーション税制(特定一般用医薬品等購入費控除)とは
-        選択制で併用できないため対象外(通常の医療費控除のみ試算する)。ここで求めた
-        控除額は、他の試算画面の「給与所得等の課税所得金額」等に入力する前に、
-        本ツールが管理していない所得金額から別途差し引くこと。
+        選択制で併用できないため対象外(通常の医療費控除のみ試算する)。「この試算結果を
+        {year}年分の所得控除として登録する」ボタンで登録すると、`/tax-estimate`の
+        「給与所得等の課税所得金額」の初期値にこの控除額が自動反映される
+        (登録後も入力欄は手入力で上書き可能)。
       </p>
     </div>
   );

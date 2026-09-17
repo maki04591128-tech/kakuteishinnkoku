@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { saveIncomeDeduction } from "@/app/actions";
 import { estimateLifeInsurancePremiumDeduction } from "@/lib/lifeInsuranceDeduction";
 
 function yen(value: { toString(): string }): string {
@@ -8,7 +9,14 @@ function yen(value: { toString(): string }): string {
   return `¥${Math.round(n).toLocaleString("ja-JP")}`;
 }
 
-export function LifeInsuranceDeductionForm() {
+export function LifeInsuranceDeductionForm({
+  year,
+  registeredDeduction,
+}: {
+  year: number;
+  /** `/tax-estimate`と連携するため既にこの年分として登録済みの控除額(未登録ならnull) */
+  registeredDeduction: { incomeTaxAmountJpy: number; residentTaxAmountJpy: number } | null;
+}) {
   const [generalNew, setGeneralNew] = useState("0");
   const [generalOld, setGeneralOld] = useState("0");
   const [medicalCareNew, setMedicalCareNew] = useState("0");
@@ -76,6 +84,36 @@ export function LifeInsuranceDeductionForm() {
                 {yen(result.totalResidentTaxDeductionJpy)}
               </p>
             </div>
+          </div>
+
+          <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+            <form action={saveIncomeDeduction}>
+              <input type="hidden" name="year" value={year} />
+              <input type="hidden" name="type" value="LIFE_INSURANCE" />
+              <input
+                type="hidden"
+                name="incomeTaxAmountJpy"
+                value={result.totalIncomeTaxDeductionJpy.toString()}
+              />
+              <input
+                type="hidden"
+                name="residentTaxAmountJpy"
+                value={result.totalResidentTaxDeductionJpy.toString()}
+              />
+              <input type="hidden" name="redirectPath" value="/life-insurance-deduction" />
+              <button
+                type="submit"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                この試算結果を{year}年分の所得控除として登録する
+              </button>
+            </form>
+            {registeredDeduction !== null && (
+              <p className="mt-2 text-xs text-neutral-500">
+                登録済み: 所得税 {yen(registeredDeduction.incomeTaxAmountJpy)} / 住民税{" "}
+                {yen(registeredDeduction.residentTaxAmountJpy)}(/tax-estimateの初期値に反映)
+              </p>
+            )}
           </div>
 
           <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">

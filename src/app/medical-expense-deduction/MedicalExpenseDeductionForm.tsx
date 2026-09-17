@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { saveIncomeDeduction } from "@/app/actions";
 import { estimateMedicalExpenseDeduction } from "@/lib/medicalExpenseDeduction";
 
 function yen(value: { toString(): string }): string {
@@ -9,9 +10,14 @@ function yen(value: { toString(): string }): string {
 }
 
 export function MedicalExpenseDeductionForm({
+  year,
   defaultTotalIncomeJpy,
+  registeredDeductionJpy,
 }: {
+  year: number;
   defaultTotalIncomeJpy: number;
+  /** `/tax-estimate`と連携するため既にこの年分として登録済みの控除額(未登録ならnull) */
+  registeredDeductionJpy: number | null;
 }) {
   const [totalMedicalExpensesJpy, setTotalMedicalExpensesJpy] = useState("0");
   const [insuranceReimbursementJpy, setInsuranceReimbursementJpy] = useState("0");
@@ -57,6 +63,32 @@ export function MedicalExpenseDeductionForm({
           <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
             <p className="text-sm text-neutral-500">医療費控除額</p>
             <p className="mt-1 text-3xl font-semibold">{yen(result.deductionJpy)}</p>
+            <form action={saveIncomeDeduction} className="mt-3">
+              <input type="hidden" name="year" value={year} />
+              <input type="hidden" name="type" value="MEDICAL_EXPENSE" />
+              <input
+                type="hidden"
+                name="incomeTaxAmountJpy"
+                value={result.deductionJpy.toString()}
+              />
+              <input
+                type="hidden"
+                name="residentTaxAmountJpy"
+                value={result.deductionJpy.toString()}
+              />
+              <input type="hidden" name="redirectPath" value="/medical-expense-deduction" />
+              <button
+                type="submit"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                この試算結果を{year}年分の所得控除として登録する
+              </button>
+            </form>
+            {registeredDeductionJpy !== null && (
+              <p className="mt-2 text-xs text-neutral-500">
+                登録済み: {yen(registeredDeductionJpy)}(/tax-estimateの初期値に反映)
+              </p>
+            )}
           </div>
 
           <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">

@@ -40,6 +40,7 @@ model TaxYear {
   assetBalanceSnapshots                   AssetBalanceSnapshot[]
   foreignTaxCreditCarryforwards           ForeignTaxCreditCarryforward[]
   foreignTaxCreditSpareLimitCarryforwards ForeignTaxCreditSpareLimitCarryforward[]
+  incomeDeductions                        IncomeDeduction[]
 }
 
 enum CryptoCostMethod {
@@ -211,6 +212,44 @@ model ForeignTaxCreditSpareLimitCarryforward {
   updatedAt DateTime @updatedAt
 
   @@unique([taxYearId, originYear])
+}
+
+/// 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
+/// (iDeCo等)・社会保険料控除)で算出した年間の控除額を、年分・控除区分ごとに
+/// 保存する。各試算画面はそれ単独では暗号資産・投資の集計とは独立しており
+/// 自動連携していなかったが、ここに登録することで`/tax-estimate`の
+/// 「給与所得等の課税所得金額」の初期値に自動反映できるようにする
+/// (登録後も入力欄は手入力で上書き可能)。生命保険料控除は所得税と住民税とで
+/// 速算表が異なり控除額が一致しないことがあるため、区分によらず所得税用・
+/// 住民税用の金額を別々に保持する(生命保険料控除以外は両者に同額を入れる)。
+model IncomeDeduction {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  type IncomeDeductionType
+
+  /// 所得税の控除額
+  incomeTaxAmountJpy Decimal
+
+  /// 住民税の控除額(生命保険料控除以外は incomeTaxAmountJpy と同額)
+  residentTaxAmountJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, type])
+}
+
+enum IncomeDeductionType {
+  /// 医療費控除(src/lib/medicalExpenseDeduction.ts)
+  MEDICAL_EXPENSE
+  /// 生命保険料控除(src/lib/lifeInsuranceDeduction.ts)
+  LIFE_INSURANCE
+  /// 小規模企業共済等掛金控除・iDeCo等(src/lib/smallBusinessMutualAidDeduction.ts)
+  SMALL_BUSINESS_MUTUAL_AID
+  /// 社会保険料控除(src/lib/socialInsuranceDeduction.ts)
+  SOCIAL_INSURANCE
 }
 
 /// 暗号資産の売買・交換・使用等の取引履歴。

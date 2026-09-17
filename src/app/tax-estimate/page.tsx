@@ -2,7 +2,15 @@ import Link from "next/link";
 import { buildYearReport } from "@/lib/reporting";
 import { buildTaxFilingSummary } from "@/lib/etax/summary";
 import { listTaxYears } from "@/lib/taxYear";
+import {
+  getIncomeDeductionEntries,
+  INCOME_DEDUCTION_TYPE_LABELS,
+  summarizeIncomeDeductions,
+} from "@/lib/incomeDeduction";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
+
+/** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
+const BASE_OTHER_COMPREHENSIVE_INCOME_JPY = 5_000_000;
 
 export default async function TaxEstimatePage({
   searchParams,
@@ -38,6 +46,20 @@ export default async function TaxEstimatePage({
     ? Math.max(0, -report.investment.totalRealizedGainJpy.toNumber())
     : 0;
 
+  const incomeDeductionEntries = await getIncomeDeductionEntries(year);
+  const incomeDeductionSummary = summarizeIncomeDeductions(incomeDeductionEntries);
+  const registeredIncomeDeductions = incomeDeductionSummary.entries.map((entry) => ({
+    label: INCOME_DEDUCTION_TYPE_LABELS[entry.type],
+    incomeTaxAmountJpy: entry.incomeTaxAmountJpy.toNumber(),
+    residentTaxAmountJpy: entry.residentTaxAmountJpy.toNumber(),
+  }));
+  const totalRegisteredIncomeTaxDeductionJpy =
+    incomeDeductionSummary.totalIncomeTaxAmountJpy.toNumber();
+  const defaultOtherComprehensiveIncomeJpy = Math.max(
+    0,
+    BASE_OTHER_COMPREHENSIVE_INCOME_JPY - totalRegisteredIncomeTaxDeductionJpy,
+  );
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -55,7 +77,7 @@ export default async function TaxEstimatePage({
       </header>
 
       <TotalTaxEstimateForm
-        defaultOtherComprehensiveIncomeJpy={5_000_000}
+        defaultOtherComprehensiveIncomeJpy={defaultOtherComprehensiveIncomeJpy}
         defaultCryptoMiscIncomeJpy={defaultCryptoMiscIncomeJpy}
         defaultInvestmentTaxableGainJpy={defaultInvestmentTaxableGainJpy}
         defaultFuturesTaxableGainJpy={defaultFuturesTaxableGainJpy}
@@ -63,6 +85,8 @@ export default async function TaxEstimatePage({
         defaultAvailableListedStockLossForDividendJpy={
           defaultAvailableListedStockLossForDividendJpy
         }
+        registeredIncomeDeductions={registeredIncomeDeductions}
+        totalRegisteredIncomeTaxDeductionJpy={totalRegisteredIncomeTaxDeductionJpy}
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
@@ -70,6 +94,11 @@ export default async function TaxEstimatePage({
           「給与所得等の課税所得金額」は、本ツールが管理していない給与所得等について、
           各種所得控除(基礎控除・社会保険料控除等)を差し引いた後の金額を入力する
           (源泉徴収票の「給与所得控除後の金額」から更に所得控除を差し引いた額に相当)。
+          医療費控除・生命保険料控除・小規模企業共済等掛金控除(iDeCo等)・社会保険料控除の
+          各試算画面で「この試算結果を◯年分の所得控除として登録する」を実行済みの場合、
+          その合計額(所得税ベース)を仮の給与収入(500万円)から差し引いた額を初期値として
+          表示する。基礎控除等それ以外の所得控除は引き続き含まれないため、実際の金額は
+          自分で確認して上書きすること。
         </p>
         <p>
           住民税は所得割10%固定の概算であり、均等割・調整控除は含まない。また

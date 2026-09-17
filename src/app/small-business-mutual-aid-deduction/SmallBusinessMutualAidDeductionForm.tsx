@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { saveIncomeDeduction } from "@/app/actions";
 import {
   estimateSmallBusinessMutualAidDeduction,
   idecoParticipantCategoryLabel,
@@ -22,7 +23,14 @@ function yen(value: { toString(): string }): string {
   return `¥${Math.round(n).toLocaleString("ja-JP")}`;
 }
 
-export function SmallBusinessMutualAidDeductionForm() {
+export function SmallBusinessMutualAidDeductionForm({
+  year,
+  registeredDeductionJpy,
+}: {
+  year: number;
+  /** `/tax-estimate`と連携するため既にこの年分として登録済みの控除額(未登録ならnull) */
+  registeredDeductionJpy: number | null;
+}) {
   const [idecoContribution, setIdecoContribution] = useState("0");
   const [idecoCategory, setIdecoCategory] = useState<IdecoParticipantCategory>("UNKNOWN");
   const [smallBusinessMutualAid, setSmallBusinessMutualAid] = useState("0");
@@ -94,6 +102,36 @@ export function SmallBusinessMutualAidDeductionForm() {
           <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
             <p className="text-sm text-neutral-500">小規模企業共済等掛金控除額(所得税・住民税共通)</p>
             <p className="mt-1 text-3xl font-semibold">{yen(result.deductionJpy)}</p>
+            <form action={saveIncomeDeduction} className="mt-3">
+              <input type="hidden" name="year" value={year} />
+              <input type="hidden" name="type" value="SMALL_BUSINESS_MUTUAL_AID" />
+              <input
+                type="hidden"
+                name="incomeTaxAmountJpy"
+                value={result.deductionJpy.toString()}
+              />
+              <input
+                type="hidden"
+                name="residentTaxAmountJpy"
+                value={result.deductionJpy.toString()}
+              />
+              <input
+                type="hidden"
+                name="redirectPath"
+                value="/small-business-mutual-aid-deduction"
+              />
+              <button
+                type="submit"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                この試算結果を{year}年分の所得控除として登録する
+              </button>
+            </form>
+            {registeredDeductionJpy !== null && (
+              <p className="mt-2 text-xs text-neutral-500">
+                登録済み: {yen(registeredDeductionJpy)}(/tax-estimateの初期値に反映)
+              </p>
+            )}
           </div>
 
           {result.idecoAnnualLimitJpy !== null && (

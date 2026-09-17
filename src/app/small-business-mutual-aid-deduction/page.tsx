@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listTaxYears } from "@/lib/taxYear";
+import { findIncomeDeductionEntry, getIncomeDeductionEntries } from "@/lib/incomeDeduction";
 import { SmallBusinessMutualAidDeductionForm } from "./SmallBusinessMutualAidDeductionForm";
 
 export default async function SmallBusinessMutualAidDeductionPage({
@@ -11,6 +12,15 @@ export default async function SmallBusinessMutualAidDeductionPage({
   const availableYears = await listTaxYears();
   const currentCalendarYear = new Date().getFullYear();
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
+
+  const incomeDeductionEntries = await getIncomeDeductionEntries(year);
+  const registeredEntry = findIncomeDeductionEntry(
+    incomeDeductionEntries,
+    "SMALL_BUSINESS_MUTUAL_AID",
+  );
+  const registeredDeductionJpy = registeredEntry
+    ? Number(registeredEntry.incomeTaxAmountJpy)
+    : null;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -30,14 +40,18 @@ export default async function SmallBusinessMutualAidDeductionPage({
         </p>
       </header>
 
-      <SmallBusinessMutualAidDeductionForm />
+      <SmallBusinessMutualAidDeductionForm
+        year={year}
+        registeredDeductionJpy={registeredDeductionJpy}
+      />
 
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         小規模企業共済等掛金控除は生命保険料控除・医療費控除と異なり足切りや速算表が無く、
         支払った掛金の全額がそのまま所得税・住民税共通の控除額になる。iDeCoの掛金は
         運営管理機関から送付される年間の払込証明書(またはねんきん定期便に準じた通知)の
-        金額で確認すること。ここで求めた控除額は、他の試算画面の所得金額等には
-        自動反映されないため、該当の入力欄から別途差し引くこと。
+        金額で確認すること。「この試算結果を{year}年分の所得控除として登録する」ボタンで
+        登録すると、`/tax-estimate`の「給与所得等の課税所得金額」の初期値にこの控除額が
+        自動反映される(登録後も入力欄は手入力で上書き可能)。
       </p>
     </div>
   );
