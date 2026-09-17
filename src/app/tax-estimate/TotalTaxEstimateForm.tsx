@@ -16,6 +16,12 @@ function yen(value: { toString(): string }): string {
   return `¥${Math.round(n).toLocaleString("ja-JP")}`;
 }
 
+export interface RegisteredIncomeDeductionEntry {
+  label: string;
+  incomeTaxAmountJpy: number;
+  residentTaxAmountJpy: number;
+}
+
 export function TotalTaxEstimateForm({
   defaultOtherComprehensiveIncomeJpy,
   defaultCryptoMiscIncomeJpy,
@@ -23,6 +29,8 @@ export function TotalTaxEstimateForm({
   defaultFuturesTaxableGainJpy,
   defaultDividendIncomeJpy,
   defaultAvailableListedStockLossForDividendJpy,
+  registeredIncomeDeductions,
+  totalRegisteredIncomeTaxDeductionJpy,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -30,6 +38,10 @@ export function TotalTaxEstimateForm({
   defaultFuturesTaxableGainJpy: number;
   defaultDividendIncomeJpy: number;
   defaultAvailableListedStockLossForDividendJpy: number;
+  /** 各所得控除試算画面で登録済みの控除額の内訳(区分ごと) */
+  registeredIncomeDeductions: RegisteredIncomeDeductionEntry[];
+  /** 登録済みの所得控除の合計額(所得税ベース。defaultOtherComprehensiveIncomeJpyの算出に使用済み) */
+  totalRegisteredIncomeTaxDeductionJpy: number;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -81,7 +93,11 @@ export function TotalTaxEstimateForm({
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field
-          label="給与所得等の課税所得金額(所得控除後・暗号資産以外)"
+          label={`給与所得等の課税所得金額(所得控除後・暗号資産以外)${
+            totalRegisteredIncomeTaxDeductionJpy > 0
+              ? ` — 初期値は登録済み所得控除 ${yen(totalRegisteredIncomeTaxDeductionJpy)}を差し引き済み`
+              : ""
+          }`}
           value={otherComprehensiveIncomeJpy}
           onChange={setOtherComprehensiveIncomeJpy}
         />
@@ -111,6 +127,23 @@ export function TotalTaxEstimateForm({
           onChange={setAvailableListedStockLossForDividendJpy}
         />
       </div>
+
+      {registeredIncomeDeductions.length > 0 && (
+        <div className="rounded-md bg-neutral-50 p-3 text-xs text-neutral-500 dark:bg-neutral-900">
+          <p>
+            登録済みの所得控除(参考。「給与所得等の課税所得金額」の初期値の算出に使用済み):
+          </p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {registeredIncomeDeductions.map((entry) => (
+              <li key={entry.label}>
+                {entry.label}: 所得税 {yen(entry.incomeTaxAmountJpy)}
+                {entry.incomeTaxAmountJpy !== entry.residentTaxAmountJpy &&
+                  ` / 住民税 ${yen(entry.residentTaxAmountJpy)}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <label className="flex flex-col gap-1 text-sm sm:w-64">
         <span className="text-neutral-500">配当所得の課税方式</span>

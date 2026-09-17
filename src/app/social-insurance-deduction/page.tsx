@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listTaxYears } from "@/lib/taxYear";
+import { findIncomeDeductionEntry, getIncomeDeductionEntries } from "@/lib/incomeDeduction";
 import { SocialInsuranceDeductionForm } from "./SocialInsuranceDeductionForm";
 
 export default async function SocialInsuranceDeductionPage({
@@ -11,6 +12,12 @@ export default async function SocialInsuranceDeductionPage({
   const availableYears = await listTaxYears();
   const currentCalendarYear = new Date().getFullYear();
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
+
+  const incomeDeductionEntries = await getIncomeDeductionEntries(year);
+  const registeredEntry = findIncomeDeductionEntry(incomeDeductionEntries, "SOCIAL_INSURANCE");
+  const registeredDeductionJpy = registeredEntry
+    ? Number(registeredEntry.incomeTaxAmountJpy)
+    : null;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -30,7 +37,7 @@ export default async function SocialInsuranceDeductionPage({
         </p>
       </header>
 
-      <SocialInsuranceDeductionForm />
+      <SocialInsuranceDeductionForm year={year} registeredDeductionJpy={registeredDeductionJpy} />
 
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         社会保険料控除は生命保険料控除・医療費控除と異なり足切りや速算表が無く、
@@ -38,8 +45,9 @@ export default async function SocialInsuranceDeductionPage({
         日本年金機構から送付される「社会保険料(国民年金保険料)控除証明書」、国民年金基金は
         各基金発行の証明書、国民健康保険料・介護保険料は市区町村発行の納付証明書等で
         金額を確認すること。給与から天引きされ勤務先の年末調整で控除済みの分は、通常
-        この試算に含める必要は無い。ここで求めた控除額は、他の試算画面の所得金額等には
-        自動反映されないため、該当の入力欄から別途差し引くこと。
+        この試算に含める必要は無い。「この試算結果を{year}年分の所得控除として登録する」
+        ボタンで登録すると、`/tax-estimate`の「給与所得等の課税所得金額」の初期値に
+        この控除額が自動反映される(登録後も入力欄は手入力で上書き可能)。
       </p>
     </div>
   );
