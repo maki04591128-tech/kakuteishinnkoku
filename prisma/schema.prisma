@@ -263,6 +263,8 @@ enum IncomeDeductionType {
   DEPENDENT
   /// 基礎控除(src/lib/basicDeduction.ts)
   BASIC
+  /// 障害者控除(src/lib/disabilityDeduction.ts)
+  DISABILITY
 }
 
 /// NISA生涯投資枠(2024年以降の新NISA制度における総枠1,800万円・
