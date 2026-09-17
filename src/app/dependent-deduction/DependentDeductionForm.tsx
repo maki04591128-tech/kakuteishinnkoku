@@ -53,11 +53,12 @@ export function DependentDeductionForm({
         taxpayerTotalIncomeJpy: taxpayerTotalIncome || 0,
         spouseTotalIncomeJpy: spouseTotalIncome || 0,
         spouseIsElderly,
+        year,
       });
     } catch {
       return null;
     }
-  }, [hasEligibleSpouse, taxpayerTotalIncome, spouseTotalIncome, spouseIsElderly]);
+  }, [hasEligibleSpouse, taxpayerTotalIncome, spouseTotalIncome, spouseIsElderly, year]);
 
   const [dependents, setDependents] = useState<DependentRow[]>([]);
   const nextRowIdRef = useRef(0);
@@ -68,12 +69,13 @@ export function DependentDeductionForm({
         ageAtYearEnd: Number(row.age || 0),
         totalIncomeJpy: row.totalIncome || 0,
         cohabitingElderlyRelative: row.cohabitingElderlyRelative,
+        year,
       }));
       return summarizeDependentsDeduction(inputs);
     } catch {
       return null;
     }
-  }, [dependents]);
+  }, [dependents, year]);
 
   return (
     <div className="flex flex-col gap-10">

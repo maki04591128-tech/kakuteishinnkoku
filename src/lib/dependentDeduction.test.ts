@@ -95,6 +95,41 @@ describe("estimateSpouseDeduction", () => {
     expect(result.category).toBe("NONE");
     expect(result.incomeTaxAmountJpy.toNumber()).toBe(0);
   });
+
+  it("令和7年分(2025年分)以後は配偶者の所得58万円以下でも配偶者控除(令和6年分以前は特別控除扱いすらされず対象外)", () => {
+    const result2025 = estimateSpouseDeduction({
+      hasEligibleSpouse: true,
+      taxpayerTotalIncomeJpy: 6_000_000,
+      spouseTotalIncomeJpy: 550_000,
+      spouseIsElderly: false,
+      year: 2025,
+    });
+    expect(result2025.category).toBe("SPOUSE_DEDUCTION");
+    expect(result2025.incomeTaxAmountJpy.toNumber()).toBe(380_000);
+
+    const result2024 = estimateSpouseDeduction({
+      hasEligibleSpouse: true,
+      taxpayerTotalIncomeJpy: 6_000_000,
+      spouseTotalIncomeJpy: 550_000,
+      spouseIsElderly: false,
+      year: 2024,
+    });
+    expect(result2024.category).toBe("SPOUSE_SPECIAL_DEDUCTION");
+    expect(result2024.incomeTaxAmountJpy.toNumber()).toBe(380_000);
+  });
+
+  it("令和7年分は配偶者の所得58万円超133万円以下でも配偶者特別控除の金額表自体は変わらない", () => {
+    const result = estimateSpouseDeduction({
+      hasEligibleSpouse: true,
+      taxpayerTotalIncomeJpy: 6_000_000,
+      spouseTotalIncomeJpy: 900_000,
+      spouseIsElderly: false,
+      year: 2025,
+    });
+    expect(result.category).toBe("SPOUSE_SPECIAL_DEDUCTION");
+    expect(result.incomeTaxAmountJpy.toNumber()).toBe(380_000);
+    expect(result.residentTaxAmountJpy.toNumber()).toBe(330_000);
+  });
 });
 
 describe("estimateDependentDeduction", () => {
@@ -107,6 +142,29 @@ describe("estimateDependentDeduction", () => {
   it("合計所得金額が48万円を超えると対象外", () => {
     const result = estimateDependentDeduction({ ageAtYearEnd: 20, totalIncomeJpy: 500_000 });
     expect(result.eligible).toBe(false);
+  });
+
+  it("令和7年分(2025年分)以後は合計所得金額要件が58万円に緩和される", () => {
+    const result2025 = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 550_000,
+      year: 2025,
+    });
+    expect(result2025.eligible).toBe(true);
+
+    const result2024 = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 550_000,
+      year: 2024,
+    });
+    expect(result2024.eligible).toBe(false);
+
+    const result2025Over = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 600_000,
+      year: 2025,
+    });
+    expect(result2025Over.eligible).toBe(false);
   });
 
   it("一般の控除対象扶養親族(16〜18歳)は38万円/33万円", () => {
