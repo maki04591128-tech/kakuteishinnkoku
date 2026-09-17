@@ -14,6 +14,7 @@ export const INCOME_DEDUCTION_TYPES = [
   "LIFE_INSURANCE",
   "SMALL_BUSINESS_MUTUAL_AID",
   "SOCIAL_INSURANCE",
+  "SELF_MEDICATION",
 ] as const;
 
 export type IncomeDeductionType = (typeof INCOME_DEDUCTION_TYPES)[number];
@@ -23,11 +24,22 @@ export const INCOME_DEDUCTION_TYPE_LABELS: Record<IncomeDeductionType, string> =
   LIFE_INSURANCE: "生命保険料控除",
   SMALL_BUSINESS_MUTUAL_AID: "小規模企業共済等掛金控除(iDeCo等)",
   SOCIAL_INSURANCE: "社会保険料控除",
+  SELF_MEDICATION: "セルフメディケーション税制",
 };
 
 export function isIncomeDeductionType(value: string): value is IncomeDeductionType {
   return (INCOME_DEDUCTION_TYPES as readonly string[]).includes(value);
 }
+
+/**
+ * 医療費控除とセルフメディケーション税制は選択制で併用できないため、
+ * 合計額(`summarizeIncomeDeductions`)の算出では両方が登録されていても
+ * 有利な方のみを1件分として合計に含める。
+ */
+const MUTUALLY_EXCLUSIVE_MEDICAL_TYPES: readonly IncomeDeductionType[] = [
+  "MEDICAL_EXPENSE",
+  "SELF_MEDICATION",
+];
 
 export interface IncomeDeductionEntry {
   type: IncomeDeductionType;
@@ -49,11 +61,17 @@ export interface IncomeDeductionSummary {
   totalIncomeTaxAmountJpy: Decimal;
   /** 登録済みの所得控除の合計額(住民税ベース) */
   totalResidentTaxAmountJpy: Decimal;
+  /** 合計額の算出にあたっての注記(医療費控除とセルフメディケーション税制が両方登録されている場合等) */
+  notes: string[];
 }
 
 /**
  * 登録済みの所得控除エントリ(区分ごとに最大1件)を合算する。
  * DBアクセスを含まない純粋関数のため、テストしやすいよう独立させている。
+ *
+ * 医療費控除とセルフメディケーション税制は選択制のため、両方が登録されている
+ * 場合は`entries`にはどちらも含めて表示しつつ、合計額には所得税ベースの控除額が
+ * 大きい方のみを1件分として反映する。
  */
 export function summarizeIncomeDeductions(
   entries: IncomeDeductionEntry[],
@@ -64,16 +82,40 @@ export function summarizeIncomeDeductions(
     residentTaxAmountJpy: new Decimal(entry.residentTaxAmountJpy),
   }));
 
-  const totalIncomeTaxAmountJpy = normalized.reduce(
+  const medicalEntries = normalized.filter((entry) =>
+    MUTUALLY_EXCLUSIVE_MEDICAL_TYPES.includes(entry.type),
+  );
+  const otherEntries = normalized.filter(
+    (entry) => !MUTUALLY_EXCLUSIVE_MEDICAL_TYPES.includes(entry.type),
+  );
+
+  const notes: string[] = [];
+  let contributingMedicalEntry: IncomeDeductionSummaryEntry | null = medicalEntries[0] ?? null;
+  if (medicalEntries.length > 1) {
+    contributingMedicalEntry = medicalEntries.reduce((best, entry) =>
+      entry.incomeTaxAmountJpy.greaterThan(best.incomeTaxAmountJpy) ? entry : best,
+    );
+    notes.push(
+      `医療費控除とセルフメディケーション税制は選択制のため、合計額には有利な方(${
+        INCOME_DEDUCTION_TYPE_LABELS[contributingMedicalEntry.type]
+      })のみを反映した。`,
+    );
+  }
+
+  const contributingEntries = contributingMedicalEntry
+    ? [...otherEntries, contributingMedicalEntry]
+    : otherEntries;
+
+  const totalIncomeTaxAmountJpy = contributingEntries.reduce(
     (total, entry) => total.plus(entry.incomeTaxAmountJpy),
     new Decimal(0),
   );
-  const totalResidentTaxAmountJpy = normalized.reduce(
+  const totalResidentTaxAmountJpy = contributingEntries.reduce(
     (total, entry) => total.plus(entry.residentTaxAmountJpy),
     new Decimal(0),
   );
 
-  return { entries: normalized, totalIncomeTaxAmountJpy, totalResidentTaxAmountJpy };
+  return { entries: normalized, totalIncomeTaxAmountJpy, totalResidentTaxAmountJpy, notes };
 }
 
 /**
