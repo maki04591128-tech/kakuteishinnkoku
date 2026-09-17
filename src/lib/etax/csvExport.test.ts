@@ -5,6 +5,7 @@ import { calculateCryptoMarginPortfolioYear } from "../crypto/marginCalculator";
 import { calculateInvestmentPortfolioYear } from "../investment/calculator";
 import { calculateFuturesPortfolioYear } from "../investment/futuresIncome";
 import { calculateLossCarryforward } from "../investment/lossCarryforward";
+import { summarizeIncomeDeductions } from "../incomeDeduction";
 import { buildTaxFilingDraftCsv } from "./csvExport";
 import { buildTaxFilingSummary } from "./summary";
 
@@ -120,6 +121,44 @@ describe("buildTaxFilingDraftCsv", () => {
     expect(csv).toContain("先物取引に係る雑所得等");
     expect(csv).toContain("299000");
     expect(csv).toContain("USD/JPY");
+  });
+
+  it("登録済みの所得控除サマリーを区分・申告書記載箇所とともに出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(2026, crypto, investment);
+    const incomeDeductions = summarizeIncomeDeductions([
+      { type: "MEDICAL_EXPENSE", incomeTaxAmountJpy: 80_000, residentTaxAmountJpy: 80_000 },
+      { type: "SELF_MEDICATION", incomeTaxAmountJpy: 30_000, residentTaxAmountJpy: 30_000 },
+      { type: "SOCIAL_INSURANCE", incomeTaxAmountJpy: 500_000, residentTaxAmountJpy: 500_000 },
+    ]);
+
+    const csv = buildTaxFilingDraftCsv(
+      summary,
+      crypto.bySymbol,
+      investment.bySymbol,
+      "AVERAGE",
+      [],
+      [],
+      incomeDeductions,
+    );
+
+    expect(csv).toContain("■ 所得控除サマリー");
+    expect(csv).toContain("医療費控除");
+    expect(csv).toContain("社会保険料控除");
+    expect(csv).toContain("580000"); // 医療費控除(有利な方)80,000 + 社会保険料控除500,000
+    expect(csv).toContain("有利な方");
+    expect(csv).toContain("申告書第一表");
+  });
+
+  it("所得控除の登録が無い場合はサマリー欄を出力しない", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(2026, crypto, investment);
+
+    const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
+
+    expect(csv).not.toContain("■ 所得控除サマリー");
   });
 
   it("カンマを含む値を正しくクォートする", () => {
