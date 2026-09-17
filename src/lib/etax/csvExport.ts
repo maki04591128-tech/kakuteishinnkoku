@@ -37,6 +37,10 @@ const INCOME_DEDUCTION_FILING_LOCATION: Record<IncomeDeductionType, string> = {
   BASIC: "申告書第一表 所得から差し引かれる金額(基礎控除)",
   DISABILITY:
     "申告書第一表 所得から差し引かれる金額(勤労学生、障害者控除) / 第二表 本人に関する事項・配偶者や親族に関する事項(障害者区分のチェック欄)",
+  WIDOW_SINGLE_PARENT:
+    "申告書第一表 所得から差し引かれる金額(寡婦、ひとり親控除) / 第二表 本人に関する事項(寡婦・ひとり親のチェック欄)",
+  WORKING_STUDENT:
+    "申告書第一表 所得から差し引かれる金額(勤労学生、障害者控除) / 第二表 本人に関する事項(勤労学生のチェック欄)",
 };
 
 /**
