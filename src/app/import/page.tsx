@@ -18,6 +18,7 @@ import {
   deleteFuturesTrade,
   deleteInvestmentTrade,
   deleteLossCarryforward,
+  deleteMarketPrice,
   deleteOpeningBalance,
   deleteOpeningBalanceByInstitution,
   importAssetBalanceCsv,
@@ -33,6 +34,7 @@ import {
   setForeignTaxCreditSpareLimitCarryforward,
   setFuturesLossCarryforward,
   setLossCarryforward,
+  setMarketPrice,
   setOpeningBalance,
   setOpeningBalanceByInstitution,
 } from "@/app/actions";
@@ -98,6 +100,7 @@ export default async function ImportPage({
     brokerAnnualReports,
     assetBalanceImportBatches,
     assetSymbolMappings,
+    marketPrices,
     yearReport,
   ] = await Promise.all([
     prisma.cryptoTrade.findMany({
@@ -154,6 +157,7 @@ export default async function ImportPage({
       },
     }),
     prisma.assetSymbolMapping.findMany({ orderBy: { assetName: "asc" } }),
+    prisma.marketPrice.findMany({ orderBy: { symbol: "asc" } }),
     buildYearReport(year),
   ]);
 
@@ -198,6 +202,7 @@ export default async function ImportPage({
         institution: o.institution,
       })),
     ],
+    marketPrices.map((p) => ({ symbol: p.symbol, priceJpy: p.priceJpy.toString() })),
   );
 
   const brokerReconciliations = reconcileBrokerAnnualReports(
@@ -421,13 +426,83 @@ export default async function ImportPage({
             </div>
           )}
 
+          <div className="mb-6 border-t border-dashed border-neutral-200 pt-6 dark:border-neutral-800">
+            <h3 className="mb-2 text-sm font-semibold">現在価格(時価)の登録(任意)</h3>
+            <p className="mb-3 text-sm text-neutral-500">
+              銘柄シンボルごとに現在価格(1単位あたり・円)を手入力で登録すると、
+              下の「銘柄単位の突合」で評価額そのものの突合(期首残高+当年の増減
+              から計算した期待保有数量×この価格と、マネーフォワード側の評価額を
+              比較)ができるようになる。時価を自動取得する仕組みは無いため、
+              実際の相場で定期的に更新すること(登録価格が古いと乖離が大きく
+              出て誤検知しやすくなる)。この価格は「含み損益シミュレーション」
+              (`/unrealized-gain`)の現在価格欄の初期値にも使われる、年に
+              依存しない共通のマスタデータ。
+            </p>
+            <form action={setMarketPrice} className="mb-4 flex flex-wrap items-end gap-3">
+              <input type="hidden" name="year" value={year} />
+              <Field label="銘柄シンボル">
+                <input type="text" name="symbol" required className={inputClass} />
+              </Field>
+              <Field label="現在価格(円/単位)">
+                <input
+                  type="number"
+                  name="priceJpy"
+                  required
+                  min="0"
+                  step="any"
+                  className={inputClass}
+                />
+              </Field>
+              <button
+                type="submit"
+                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+              >
+                登録
+              </button>
+            </form>
+
+            {marketPrices.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-max text-left text-sm">
+                  <thead className="bg-neutral-50 dark:bg-neutral-900">
+                    <tr>
+                      {["銘柄シンボル", "現在価格", "更新日時", ""].map((h) => (
+                        <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {marketPrices.map((p) => (
+                      <tr key={p.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                        <td className="px-3 py-2">{p.symbol}</td>
+                        <td className="px-3 py-2">{yen(p.priceJpy)}</td>
+                        <td className="px-3 py-2 text-neutral-500">
+                          {dateInputValue(p.updatedAt)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <form action={deleteMarketPrice}>
+                            <input type="hidden" name="id" value={p.id} />
+                            <input type="hidden" name="year" value={year} />
+                            <button className="text-xs text-red-600 hover:underline">削除</button>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           {assetSymbolReconciliations.length > 0 && (
             <div className="overflow-x-auto">
               <h4 className="mb-2 text-sm font-semibold">銘柄単位の突合</h4>
               <table className="w-full min-w-max text-left text-sm">
                 <thead className="bg-neutral-50 dark:bg-neutral-900">
                   <tr>
-                    {["金融機関", "資産名", "銘柄", "MF資産残高", "判定", "数量突合"].map((h) => (
+                    {["金融機関", "資産名", "銘柄", "MF資産残高", "判定", "数量突合", "評価額突合"].map((h) => (
                       <th key={h} className="px-3 py-2 font-medium text-neutral-500">
                         {h}
                       </th>
@@ -484,6 +559,35 @@ export default async function ImportPage({
                           </span>
                         )}
                         {r.quantityCheck.status === "NOT_AVAILABLE" && (
+                          <span className="text-xs text-neutral-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {r.valueCheck.status === "OK" && (
+                          <span
+                            className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300"
+                            title={`期待評価額(目安): ${yen(r.valueCheck.expectedValueJpy!)}`}
+                          >
+                            評価額整合(目安)
+                          </span>
+                        )}
+                        {r.valueCheck.status === "LARGE_DEVIATION" && (
+                          <span
+                            className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300"
+                            title={`期待評価額(目安): ${yen(r.valueCheck.expectedValueJpy!)} / MF: ${yen(r.moneyForwardBalanceJpy)}`}
+                          >
+                            評価額乖離大(要確認)
+                          </span>
+                        )}
+                        {r.valueCheck.status === "SKIPPED_AMBIGUOUS_OPENING_BALANCE" && (
+                          <span
+                            className="rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
+                            title="下の「期首残高の金融機関別内訳」にこの金融機関×銘柄の期首残高を登録すると判定できるようになります"
+                          >
+                            判定不能(期首残高の按分不可)
+                          </span>
+                        )}
+                        {r.valueCheck.status === "NOT_AVAILABLE" && (
                           <span className="text-xs text-neutral-400">-</span>
                         )}
                       </td>

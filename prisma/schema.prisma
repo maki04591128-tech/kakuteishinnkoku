@@ -603,6 +603,28 @@ model AssetSymbolMapping {
   updatedAt DateTime @updatedAt
 }
 
+/// 銘柄ごとの現在価格(時価)のユーザー手入力。自動取得の仕組みは持たない
+/// (/import「現在価格(時価)の登録」欄から登録・更新する)。年に紐付かない
+/// 全年共通のマスタデータで、以下2箇所から参照する:
+///  - `/unrealized-gain`(含み損益シミュレーション)の現在価格欄の初期値
+///  - `assetBalanceReconciliation.ts`の`reconcileAssetSymbolBalances`による
+///    マネーフォワード資産残高突合の評価額比較(期首残高+当年増減の期待保有数量
+///    ×この価格と、マネーフォワード側の評価額を比較する)。手入力の価格は
+///    マネーフォワード側の評価時点とずれるため、大きな乖離のみを検知する目安
+///    情報として扱う。
+model MarketPrice {
+  id Int @id @default(autoincrement())
+
+  /// アプリ側の銘柄シンボル・銘柄コード(大文字で正規化して保存する)
+  symbol String @unique
+
+  /// 1単位あたりの現在価格(円)
+  priceJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// パスワード認証のログイン失敗試行(ブルートフォース対策)。IPアドレス単位で
 /// 直近の失敗回数を数え、一定回数を超えたら一時的にログインを拒否する
 /// (src/lib/auth/loginRateLimit.ts)。TaxYearに紐付かない全年共通のテーブル。

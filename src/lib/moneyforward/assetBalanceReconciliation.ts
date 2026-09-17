@@ -24,6 +24,15 @@ import { Decimal } from "decimal.js";
  * (詳細はAssetQuantityCheckStatusのコメント参照)。数量列を指定しない場合は
  * 従来どおり「その金融機関にその銘柄の取引明細が1件でもあるか」という
  * 存在判定のみになる。
+ *
+ * 銘柄ごとに`MarketPrice`(現在価格の手入力。時価を自動取得する仕組みは
+ * 持たない)を登録している場合は、評価額そのものの突合(valueCheck)も行える。
+ * 期待保有数量(期首残高+当年の増減。quantityCheckと同じ計算)×登録価格を
+ * 期待評価額とし、マネーフォワード側の評価額と比較する。手入力の価格は
+ * マネーフォワード側の評価時点とずれることが避けられないため、完全一致は
+ * 求めず、大きな乖離(既定で期待評価額の±10%超)のみを「要確認」として
+ * 検知する目安情報に留める。quantityCheckが使える場合はそちらのほうが
+ * 時価に左右されず精度が高いため優先して確認すること。
  */
 
 export interface AssetBalanceSnapshotEntry {
@@ -190,6 +199,7 @@ export interface AssetSymbolReconciliationResult {
   hasAppTrades: boolean;
   status: AssetSymbolReconciliationStatus;
   quantityCheck: AssetQuantityCheckResult;
+  valueCheck: AssetValueCheckResult;
 }
 
 /** 数量の一致判定の許容誤差(暗号資産の最小単位である1satoshi=0.00000001を基準) */
@@ -200,6 +210,58 @@ const NOT_AVAILABLE_QUANTITY_CHECK: AssetQuantityCheckResult = {
   snapshotQuantity: null,
   expectedQuantity: null,
   diff: null,
+};
+
+export interface MarketPriceEntry {
+  symbol: string;
+  /** 1単位あたりの現在価格(円) */
+  priceJpy: Decimal.Value;
+}
+
+export type AssetValueCheckStatus =
+  | "NOT_AVAILABLE"
+  | "SKIPPED_AMBIGUOUS_OPENING_BALANCE"
+  | "OK"
+  | "LARGE_DEVIATION";
+
+/**
+ * 評価額突合の結果。quantityCheckと異なりCSVの数量列の有無に関係なく、
+ * `MarketPrice`(現在価格の手入力)が登録済みの銘柄であれば計算できる
+ * (期待保有数量自体は期首残高+当年の増減から求まるため)。
+ *
+ * - NOT_AVAILABLE: 銘柄が未マッピング、またはその銘柄の`MarketPrice`が未登録
+ * - SKIPPED_AMBIGUOUS_OPENING_BALANCE: quantityCheckと同様、期首残高の
+ *   按分ができず期待保有数量が求まらないため見送り
+ * - OK: 期待評価額(期待保有数量×登録価格)とマネーフォワード側の評価額の差が
+ *   許容範囲内(既定で期待評価額の±10%以内)
+ * - LARGE_DEVIATION: 許容範囲を超える乖離があり、計上漏れ・入力ミス・
+ *   登録価格が古い等の可能性がある(手入力の価格とマネーフォワード側の評価
+ *   時点がずれるため、あくまで目安の警告でありOKでも一致を保証しない)
+ */
+export interface AssetValueCheckResult {
+  status: AssetValueCheckStatus;
+  /** 登録済みの現在価格。未登録の場合はnull */
+  marketPriceJpy: Decimal | null;
+  /** quantityCheckと同じ計算による期待保有数量。判定できない場合はnull */
+  expectedQuantity: Decimal | null;
+  /** 期待保有数量×登録価格。判定できない場合はnull */
+  expectedValueJpy: Decimal | null;
+  /** マネーフォワード側の評価額 - 期待評価額。判定できない場合はnull */
+  diffJpy: Decimal | null;
+  /** |diffJpy| / |expectedValueJpy|。期待評価額が0、または判定できない場合はnull */
+  diffRatio: Decimal | null;
+}
+
+/** 評価額の乖離許容率。手入力価格と評価時点のずれを見込み、大きな乖離のみを警告する目安値 */
+const VALUE_CHECK_TOLERANCE_RATIO = new Decimal("0.1");
+
+const NOT_AVAILABLE_VALUE_CHECK: AssetValueCheckResult = {
+  status: "NOT_AVAILABLE",
+  marketPriceJpy: null,
+  expectedQuantity: null,
+  expectedValueJpy: null,
+  diffJpy: null,
+  diffRatio: null,
 };
 
 function normalizeSymbol(value: string): string {
@@ -231,12 +293,20 @@ export function reconcileAssetSymbolBalances(
   mappings: AssetSymbolMappingEntry[],
   appHoldings: AppSymbolHoldingEntry[],
   openingQuantities: OpeningQuantityEntry[] = [],
+  marketPrices: MarketPriceEntry[] = [],
 ): AssetSymbolReconciliationResult[] {
   const symbolByAssetName = new Map<string, string>();
   for (const mapping of mappings) {
     const assetName = normalizeInstitution(mapping.assetName);
     if (!assetName) continue;
     symbolByAssetName.set(assetName, normalizeSymbol(mapping.symbol));
+  }
+
+  const marketPriceBySymbol = new Map<string, Decimal>();
+  for (const marketPrice of marketPrices) {
+    const symbol = normalizeSymbol(marketPrice.symbol);
+    if (!symbol) continue;
+    marketPriceBySymbol.set(symbol, new Decimal(marketPrice.priceJpy));
   }
 
   const appSymbolsByInstitution = new Map<string, Set<string>>();
@@ -324,45 +394,78 @@ export function reconcileAssetSymbolBalances(
         hasAppTrades: false,
         status: "UNMAPPED",
         quantityCheck: NOT_AVAILABLE_QUANTITY_CHECK,
+        valueCheck: NOT_AVAILABLE_VALUE_CHECK,
       });
       continue;
     }
 
     const hasAppTrades = appSymbolsByInstitution.get(institution)?.has(symbol) ?? false;
 
+    // 期待保有数量(期首残高+当年の増減)は、quantityCheck(数量突合)と
+    // valueCheck(評価額突合)の両方で使う共通の計算。数量突合はCSVの数量列が
+    // 無いと行えないが、期待保有数量自体はCSVの数量列に依存しないため、
+    // valueCheckは`MarketPrice`さえ登録されていればCSVの数量列が無くても行える。
+    const delta = quantityDeltaByKey.get(`${institution} ${symbol}`) ?? new Decimal(0);
+    const institutionOpeningQuantity = openingQuantityByInstitutionSymbol.get(
+      `${institution} ${symbol}`,
+    );
+    const institutionsForSymbol = institutionsBySymbol.get(symbol) ?? new Set<string>();
+    const unassignedOpeningQuantity = openingQuantityBySymbol.get(symbol) ?? new Decimal(0);
+    const isAmbiguousOpeningBalance =
+      institutionOpeningQuantity === undefined &&
+      unassignedOpeningQuantity.greaterThan(0) &&
+      institutionsForSymbol.size > 1;
+    const expectedQuantity = isAmbiguousOpeningBalance
+      ? null
+      : (institutionOpeningQuantity ?? unassignedOpeningQuantity).plus(delta);
+
     let quantityCheck: AssetQuantityCheckResult;
     if (quantity === null) {
       quantityCheck = NOT_AVAILABLE_QUANTITY_CHECK;
+    } else if (isAmbiguousOpeningBalance) {
+      quantityCheck = {
+        status: "SKIPPED_AMBIGUOUS_OPENING_BALANCE",
+        snapshotQuantity: quantity,
+        expectedQuantity: null,
+        diff: null,
+      };
     } else {
-      const delta = quantityDeltaByKey.get(`${institution} ${symbol}`) ?? new Decimal(0);
-      const institutionOpeningQuantity = openingQuantityByInstitutionSymbol.get(
-        `${institution} ${symbol}`,
-      );
-      const institutionsForSymbol = institutionsBySymbol.get(symbol) ?? new Set<string>();
-      const unassignedOpeningQuantity = openingQuantityBySymbol.get(symbol) ?? new Decimal(0);
+      const diff = quantity.minus(expectedQuantity!);
+      quantityCheck = {
+        status: diff.abs().lessThanOrEqualTo(QUANTITY_EPSILON) ? "OK" : "MISMATCH",
+        snapshotQuantity: quantity,
+        expectedQuantity,
+        diff,
+      };
+    }
 
-      if (
-        institutionOpeningQuantity === undefined &&
-        unassignedOpeningQuantity.greaterThan(0) &&
-        institutionsForSymbol.size > 1
-      ) {
-        quantityCheck = {
-          status: "SKIPPED_AMBIGUOUS_OPENING_BALANCE",
-          snapshotQuantity: quantity,
-          expectedQuantity: null,
-          diff: null,
-        };
+    const marketPriceJpy = marketPriceBySymbol.get(symbol) ?? null;
+    let valueCheck: AssetValueCheckResult;
+    if (marketPriceJpy === null) {
+      valueCheck = NOT_AVAILABLE_VALUE_CHECK;
+    } else if (isAmbiguousOpeningBalance) {
+      valueCheck = {
+        status: "SKIPPED_AMBIGUOUS_OPENING_BALANCE",
+        marketPriceJpy,
+        expectedQuantity: null,
+        expectedValueJpy: null,
+        diffJpy: null,
+        diffRatio: null,
+      };
+    } else {
+      const expectedValueJpy = expectedQuantity!.times(marketPriceJpy);
+      const diffJpy = balanceJpy.minus(expectedValueJpy);
+      let diffRatio: Decimal | null = null;
+      let status: AssetValueCheckStatus;
+      if (expectedValueJpy.isZero()) {
+        status = balanceJpy.isZero() ? "OK" : "LARGE_DEVIATION";
       } else {
-        const openingQuantity = institutionOpeningQuantity ?? unassignedOpeningQuantity;
-        const expectedQuantity = openingQuantity.plus(delta);
-        const diff = quantity.minus(expectedQuantity);
-        quantityCheck = {
-          status: diff.abs().lessThanOrEqualTo(QUANTITY_EPSILON) ? "OK" : "MISMATCH",
-          snapshotQuantity: quantity,
-          expectedQuantity,
-          diff,
-        };
+        diffRatio = diffJpy.abs().dividedBy(expectedValueJpy.abs());
+        status = diffRatio.lessThanOrEqualTo(VALUE_CHECK_TOLERANCE_RATIO)
+          ? "OK"
+          : "LARGE_DEVIATION";
       }
+      valueCheck = { status, marketPriceJpy, expectedQuantity, expectedValueJpy, diffJpy, diffRatio };
     }
 
     results.push({
@@ -373,6 +476,7 @@ export function reconcileAssetSymbolBalances(
       hasAppTrades,
       status: !hasAppTrades && balanceJpy.greaterThan(0) ? "MISSING_APP_TRADES" : "OK",
       quantityCheck,
+      valueCheck,
     });
   }
 

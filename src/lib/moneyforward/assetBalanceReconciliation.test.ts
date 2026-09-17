@@ -273,6 +273,93 @@ describe("reconcileAssetSymbolBalances", () => {
     expect(coincheck?.quantityCheck.expectedQuantity?.toNumber()).toBe(0.15);
   });
 
+  it("MarketPrice未登録の銘柄はvalueCheck.statusがNOT_AVAILABLEになる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000, quantity: 0.3 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 }],
+      [{ symbol: "BTC", quantity: 0.2 }],
+    );
+
+    expect(results[0].valueCheck).toMatchObject({
+      status: "NOT_AVAILABLE",
+      marketPriceJpy: null,
+      expectedValueJpy: null,
+    });
+  });
+
+  it("期待評価額とマネーフォワード側の評価額が許容範囲内ならOK", () => {
+    const results = reconcileAssetSymbolBalances(
+      // 期待保有数量0.3 × 登録価格500万円 = 期待評価額150万円。MF側は155万円(+3.3%)で許容範囲内
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_550_000 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 }],
+      [{ symbol: "BTC", quantity: 0.2 }],
+      [{ symbol: "btc", priceJpy: 5_000_000 }],
+    );
+
+    expect(results[0].valueCheck).toMatchObject({ status: "OK" });
+    expect(results[0].valueCheck.expectedQuantity?.toNumber()).toBe(0.3);
+    expect(results[0].valueCheck.expectedValueJpy?.toNumber()).toBe(1_500_000);
+  });
+
+  it("期待評価額との乖離が許容範囲(既定10%)を超える場合はLARGE_DEVIATION", () => {
+    const results = reconcileAssetSymbolBalances(
+      // 期待評価額150万円に対しMF側は200万円(+33%)と大きく乖離
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 2_000_000 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 }],
+      [{ symbol: "BTC", quantity: 0.2 }],
+      [{ symbol: "BTC", priceJpy: 5_000_000 }],
+    );
+
+    expect(results[0].valueCheck.status).toBe("LARGE_DEVIATION");
+    expect(results[0].valueCheck.diffJpy?.toNumber()).toBe(500_000);
+  });
+
+  it("CSVに数量列が無くてもMarketPriceが登録されていればvalueCheckは計算できる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [{ institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 }],
+      [{ symbol: "BTC", quantity: 0.2 }],
+      [{ symbol: "BTC", priceJpy: 5_000_000 }],
+    );
+
+    expect(results[0].quantityCheck.status).toBe("NOT_AVAILABLE");
+    expect(results[0].valueCheck.status).toBe("OK");
+  });
+
+  it("期首残高が複数金融機関にまたがり按分できない場合はvalueCheckも見送る", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "bitFlyer", assetName: "ビットコイン", balanceJpy: 1_500_000 }],
+      [{ assetName: "ビットコイン", symbol: "BTC" }],
+      [
+        { institution: "bitFlyer", symbol: "BTC", quantityDelta: 0.1 },
+        { institution: "Coincheck", symbol: "BTC", quantityDelta: 0.05 },
+      ],
+      [{ symbol: "BTC", quantity: 0.2 }],
+      [{ symbol: "BTC", priceJpy: 5_000_000 }],
+    );
+
+    expect(results[0].valueCheck).toMatchObject({
+      status: "SKIPPED_AMBIGUOUS_OPENING_BALANCE",
+      expectedValueJpy: null,
+    });
+  });
+
+  it("未マッピングの資産名はvalueCheck.statusもNOT_AVAILABLEになる", () => {
+    const results = reconcileAssetSymbolBalances(
+      [{ institution: "楽天証券", assetName: "全世界株式ファンド", balanceJpy: 100_000 }],
+      [],
+      [],
+      [],
+      [{ symbol: "VT", priceJpy: 10_000 }],
+    );
+
+    expect(results[0].valueCheck.status).toBe("NOT_AVAILABLE");
+  });
+
   it("金融機関別の期首残高が未登録の金融機関は他の金融機関に登録があっても判定不能のまま", () => {
     const results = reconcileAssetSymbolBalances(
       [
