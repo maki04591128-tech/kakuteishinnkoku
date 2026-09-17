@@ -136,11 +136,52 @@ const HEADER_ALIASES: Record<string, LogicalField> = {
   Fee: "fee",
 };
 
+/** エラーメッセージ表示用。`LogicalField`の内部キーをそのままユーザーに見せないための日本語ラベル */
+const LOGICAL_FIELD_LABELS: Record<LogicalField, string> = {
+  date: "日時",
+  pair: "銘柄・通貨ペア",
+  side: "売買種別",
+  quantity: "数量",
+  unitPrice: "単価",
+  totalValue: "合計金額",
+  fee: "手数料",
+};
+
+/**
+ * 手動マッピング欄の入力補助用。`HEADER_ALIASES`に登録済みの列見出し表記を
+ * マッピング対象の項目ごとに列挙する(`/import`画面で各入力欄の`<datalist>`候補として使う)。
+ * `HEADER_ALIASES`から機械的に導出しているため、エイリアス追加時に別途更新する必要はない。
+ */
+export const COMMON_EXCHANGE_CSV_HEADER_NAMES: Record<
+  Exclude<LogicalField, "totalValue">,
+  string[]
+> = {
+  date: [],
+  pair: [],
+  side: [],
+  quantity: [],
+  unitPrice: [],
+  fee: [],
+};
+for (const [header, field] of Object.entries(HEADER_ALIASES)) {
+  if (field === "totalValue") continue;
+  COMMON_EXCHANGE_CSV_HEADER_NAMES[field].push(header);
+}
+
 const REQUIRED_FIELDS: LogicalField[] = ["date", "pair", "side", "quantity"];
 const JPY_SYMBOL = "JPY";
 
 const BUY_VALUES = new Set(["買い", "買", "購入", "現物買", "buy", "BUY", "Buy"]);
 const SELL_VALUES = new Set(["売り", "売", "売却", "現物売", "sell", "SELL", "Sell"]);
+
+/**
+ * 手動マッピング欄の「買い」「売り」を表す値の入力補助用
+ * (`/import`画面の`<datalist>`候補として使う。`BUY_VALUES`/`SELL_VALUES`と同期)。
+ */
+export const COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES = {
+  buy: Array.from(BUY_VALUES),
+  sell: Array.from(SELL_VALUES),
+};
 const NON_TRADE_VALUES = new Set([
   "入金",
   "出金",
@@ -400,7 +441,9 @@ export function parseCryptoExchangeCsv(csvText: string): ExchangeCsvParseResult 
   const missingRequired = REQUIRED_FIELDS.filter((field) => !fieldIndex.has(field));
   if (missingRequired.length > 0) {
     throw new Error(
-      `取引所CSVの形式として認識できませんでした。不足しているカラム: ${missingRequired.join(", ")}`,
+      `取引所CSVの形式として認識できませんでした。不足しているカラム: ${missingRequired
+        .map((field) => LOGICAL_FIELD_LABELS[field])
+        .join(", ")}`,
     );
   }
   if (!fieldIndex.has("unitPrice") && !fieldIndex.has("totalValue")) {
