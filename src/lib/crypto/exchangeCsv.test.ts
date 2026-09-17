@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMMON_EXCHANGE_CSV_HEADER_NAMES,
+  COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES,
   parseCryptoExchangeCsv,
   parseExchangeCsv,
   type ExchangeCsvMapping,
@@ -321,5 +323,58 @@ describe("parseExchangeCsv - manual mapping", () => {
     const result = parseExchangeCsv(csv, mapping);
     expect(result.rows).toHaveLength(1);
     expect(result.skippedRows).toHaveLength(3);
+  });
+
+  it("自動認識に失敗した場合、不足カラムを内部キーではなく日本語ラベルで報告する", () => {
+    expect(() => parseCryptoExchangeCsv("foo,bar\n1,2")).toThrow(
+      "不足しているカラム: 日時, 銘柄・通貨ペア, 売買種別, 数量",
+    );
+  });
+});
+
+describe("COMMON_EXCHANGE_CSV_HEADER_NAMES / COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES(手動マッピングの入力補助)", () => {
+  it("各項目によく使われる列見出しの候補を含む(自動認識と同じ一覧)", () => {
+    expect(COMMON_EXCHANGE_CSV_HEADER_NAMES.date).toEqual(
+      expect.arrayContaining(["取引日時", "日時", "日付", "Date"]),
+    );
+    expect(COMMON_EXCHANGE_CSV_HEADER_NAMES.pair).toEqual(
+      expect.arrayContaining(["銘柄", "通貨ペア", "Pair"]),
+    );
+    expect(COMMON_EXCHANGE_CSV_HEADER_NAMES.side).toEqual(
+      expect.arrayContaining(["売買", "取引種別", "Side"]),
+    );
+    expect(COMMON_EXCHANGE_CSV_HEADER_NAMES.quantity).toEqual(
+      expect.arrayContaining(["約定数量", "数量", "Quantity"]),
+    );
+    expect(COMMON_EXCHANGE_CSV_HEADER_NAMES.unitPrice).toEqual(
+      expect.arrayContaining(["約定単価", "単価", "Price"]),
+    );
+    expect(COMMON_EXCHANGE_CSV_HEADER_NAMES.fee).toEqual(
+      expect.arrayContaining(["手数料", "Fee"]),
+    );
+    // 単価とは別項目のため、合計金額専用の列見出しは単価の候補には含まれない
+    expect(COMMON_EXCHANGE_CSV_HEADER_NAMES.unitPrice).not.toContain("約定代金");
+  });
+
+  it("候補の列見出しは実際に対応する項目として自動認識できる(候補一覧と実装の乖離を防ぐ)", () => {
+    for (const header of COMMON_EXCHANGE_CSV_HEADER_NAMES.date) {
+      const csv = [`${header},銘柄,売買,数量,単価`, "2026/1/1,BTC,買い,1,5000000"].join("\n");
+      const result = parseCryptoExchangeCsv(csv);
+      expect(result.skippedRows).toHaveLength(0);
+    }
+  });
+
+  it("「買い」「売り」を表す値の候補を含み、実際にBUY/SELLとして解釈できる", () => {
+    expect(COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES.buy).toEqual(expect.arrayContaining(["買い"]));
+    expect(COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES.sell).toEqual(expect.arrayContaining(["売り"]));
+
+    for (const value of COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES.buy) {
+      const csv = ["日時,銘柄,売買,数量,単価", `2026/1/1,BTC,${value},1,5000000`].join("\n");
+      expect(parseCryptoExchangeCsv(csv).rows[0]?.type).toBe("BUY");
+    }
+    for (const value of COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES.sell) {
+      const csv = ["日時,銘柄,売買,数量,単価", `2026/1/1,BTC,${value},1,5000000`].join("\n");
+      expect(parseCryptoExchangeCsv(csv).rows[0]?.type).toBe("SELL");
+    }
   });
 });

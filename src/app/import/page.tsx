@@ -44,7 +44,11 @@ import {
   setOpeningBalanceByInstitution,
 } from "@/app/actions";
 import { cryptoTradeQuantityDelta } from "@/lib/crypto/calculator";
-import { EXCHANGE_CSV_PRESETS } from "@/lib/crypto/exchangeCsv";
+import {
+  COMMON_EXCHANGE_CSV_HEADER_NAMES,
+  COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES,
+  EXCHANGE_CSV_PRESETS,
+} from "@/lib/crypto/exchangeCsv";
 import { prisma } from "@/lib/db";
 import { reconcileBrokerAnnualReports } from "@/lib/investment/annualReportReconciliation";
 import { investmentTradeQuantityDelta } from "@/lib/investment/calculator";
@@ -787,6 +791,8 @@ export default async function ImportPage({
           手数料列=fee。bitFlyerの取引履歴CSVは 日付列=取引日時 / 銘柄列=通貨1 /
           売買種別列=取引種別(買い=買い, 売り=売り) / 数量列=通貨1数量 / 単価列=取引価格 /
           手数料列=手数料。取引所の仕様変更等で列名が異なる場合は、実際のCSVに合わせて入力してください。
+          各入力欄はクリックするとよく使われる列名の候補(自動認識で使っているものと同じ一覧)が
+          表示されるため、実際のCSVのヘッダー行を見比べながら選ぶ入力補助として使える。
         </p>
         <form
           action={importCryptoExchangeCsv}
@@ -807,28 +813,68 @@ export default async function ImportPage({
             <input type="text" name="exchangeName" placeholder="bitFlyer" className={inputClass} />
           </Field>
           <Field label="日付列名(任意)">
-            <input type="text" name="dateColumn" className={inputClass} />
+            <input
+              type="text"
+              name="dateColumn"
+              list="exchange-csv-header-date"
+              className={inputClass}
+            />
           </Field>
           <Field label="銘柄列名(任意)">
-            <input type="text" name="symbolColumn" className={inputClass} />
+            <input
+              type="text"
+              name="symbolColumn"
+              list="exchange-csv-header-pair"
+              className={inputClass}
+            />
           </Field>
           <Field label="売買種別列名(任意)">
-            <input type="text" name="typeColumn" className={inputClass} />
+            <input
+              type="text"
+              name="typeColumn"
+              list="exchange-csv-header-side"
+              className={inputClass}
+            />
           </Field>
           <Field label="「買い」を表す値(任意)">
-            <input type="text" name="buyValue" className={inputClass} />
+            <input
+              type="text"
+              name="buyValue"
+              list="exchange-csv-trade-type-buy"
+              className={inputClass}
+            />
           </Field>
           <Field label="「売り」を表す値(任意)">
-            <input type="text" name="sellValue" className={inputClass} />
+            <input
+              type="text"
+              name="sellValue"
+              list="exchange-csv-trade-type-sell"
+              className={inputClass}
+            />
           </Field>
           <Field label="数量列名(任意)">
-            <input type="text" name="quantityColumn" className={inputClass} />
+            <input
+              type="text"
+              name="quantityColumn"
+              list="exchange-csv-header-quantity"
+              className={inputClass}
+            />
           </Field>
           <Field label="単価(円)列名(任意)">
-            <input type="text" name="unitPriceColumn" className={inputClass} />
+            <input
+              type="text"
+              name="unitPriceColumn"
+              list="exchange-csv-header-unitPrice"
+              className={inputClass}
+            />
           </Field>
           <Field label="手数料(円)列名(任意)">
-            <input type="text" name="feeColumn" className={inputClass} />
+            <input
+              type="text"
+              name="feeColumn"
+              list="exchange-csv-header-fee"
+              className={inputClass}
+            />
           </Field>
           <div className="col-span-full flex flex-wrap items-center gap-3">
             <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
@@ -839,6 +885,23 @@ export default async function ImportPage({
               取り込む
             </button>
           </div>
+          {Object.entries(COMMON_EXCHANGE_CSV_HEADER_NAMES).map(([field, headers]) => (
+            <datalist key={field} id={`exchange-csv-header-${field}`}>
+              {headers.map((header) => (
+                <option key={header} value={header} />
+              ))}
+            </datalist>
+          ))}
+          <datalist id="exchange-csv-trade-type-buy">
+            {COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES.buy.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
+          <datalist id="exchange-csv-trade-type-sell">
+            {COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES.sell.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
         </form>
       </section>
 
