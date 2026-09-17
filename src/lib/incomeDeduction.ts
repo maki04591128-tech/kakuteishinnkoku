@@ -15,6 +15,8 @@ export const INCOME_DEDUCTION_TYPES = [
   "SMALL_BUSINESS_MUTUAL_AID",
   "SOCIAL_INSURANCE",
   "SELF_MEDICATION",
+  "SPOUSE",
+  "DEPENDENT",
 ] as const;
 
 export type IncomeDeductionType = (typeof INCOME_DEDUCTION_TYPES)[number];
@@ -25,6 +27,8 @@ export const INCOME_DEDUCTION_TYPE_LABELS: Record<IncomeDeductionType, string> =
   SMALL_BUSINESS_MUTUAL_AID: "小規模企業共済等掛金控除(iDeCo等)",
   SOCIAL_INSURANCE: "社会保険料控除",
   SELF_MEDICATION: "セルフメディケーション税制",
+  SPOUSE: "配偶者控除・配偶者特別控除",
+  DEPENDENT: "扶養控除",
 };
 
 export function isIncomeDeductionType(value: string): value is IncomeDeductionType {

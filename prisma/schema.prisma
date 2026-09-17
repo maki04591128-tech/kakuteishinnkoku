@@ -254,6 +254,10 @@ enum IncomeDeductionType {
   /// MEDICAL_EXPENSEとは選択制で併用できないため、合計額の算出では
   /// 両方が登録されている場合に有利な方のみを採用する(incomeDeduction.ts参照)。
   SELF_MEDICATION
+  /// 配偶者控除・配偶者特別控除(src/lib/dependentDeduction.ts)
+  SPOUSE
+  /// 扶養控除(src/lib/dependentDeduction.ts)
+  DEPENDENT
 }
 
 /// 暗号資産の売買・交換・使用等の取引履歴。
