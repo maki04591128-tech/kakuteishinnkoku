@@ -32,6 +32,7 @@ const INCOME_DEDUCTION_FILING_LOCATION: Record<IncomeDeductionType, string> = {
     "申告書第一表 所得から差し引かれる金額(配偶者(特別)控除) / 第二表 配偶者や親族に関する事項",
   DEPENDENT:
     "申告書第一表 所得から差し引かれる金額(扶養控除) / 第二表 配偶者や親族に関する事項",
+  BASIC: "申告書第一表 所得から差し引かれる金額(基礎控除)",
 };
 
 /**
@@ -160,7 +161,7 @@ export function buildTaxFilingDraftCsv(
     }
     lines.push(
       toCsvLine([
-        "# 基礎控除等、上記以外の所得控除は本ツールでは試算していないため各自申告書に転記すること。",
+        "# 上記以外の所得控除(社会保険料控除の対象とならない任意保険料等)は本ツールでは試算していないため各自申告書に転記すること。",
       ]),
     );
     lines.push("");

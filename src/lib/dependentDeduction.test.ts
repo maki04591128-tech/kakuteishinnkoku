@@ -145,22 +145,24 @@ describe("estimateDependentDeduction", () => {
   });
 
   it("令和7年分(2025年分)以後は合計所得金額要件が58万円に緩和される", () => {
+    // 19〜22歳は令和7年分以後の58万円超は特定親族特別控除の対象になるため、
+    // ここでは要件緩和そのものの検証として対象外の年齢層(一般の控除対象扶養親族)を使う
     const result2025 = estimateDependentDeduction({
-      ageAtYearEnd: 20,
+      ageAtYearEnd: 30,
       totalIncomeJpy: 550_000,
       year: 2025,
     });
     expect(result2025.eligible).toBe(true);
 
     const result2024 = estimateDependentDeduction({
-      ageAtYearEnd: 20,
+      ageAtYearEnd: 30,
       totalIncomeJpy: 550_000,
       year: 2024,
     });
     expect(result2024.eligible).toBe(false);
 
     const result2025Over = estimateDependentDeduction({
-      ageAtYearEnd: 20,
+      ageAtYearEnd: 30,
       totalIncomeJpy: 600_000,
       year: 2025,
     });
@@ -206,6 +208,72 @@ describe("estimateDependentDeduction", () => {
   it("23〜69歳は一般の控除対象扶養親族", () => {
     const result = estimateDependentDeduction({ ageAtYearEnd: 45, totalIncomeJpy: 0 });
     expect(result.category).toBe("GENERAL");
+  });
+
+  it("令和7年分以後、19〜22歳で合計所得金額58万円超は特定親族特別控除(所得税は段階表)", () => {
+    const result85 = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 850_000,
+      year: 2025,
+    });
+    expect(result85.category).toBe("SPECIFIED_SPECIAL");
+    expect(result85.eligible).toBe(true);
+    expect(result85.incomeTaxAmountJpy.toNumber()).toBe(630_000);
+    expect(result85.residentTaxAmountJpy.toNumber()).toBe(450_000);
+    expect(result85.residentTaxAmountUnverified).toBeFalsy();
+
+    expect(
+      estimateDependentDeduction({
+        ageAtYearEnd: 20,
+        totalIncomeJpy: 1_000_000,
+        year: 2025,
+      }).incomeTaxAmountJpy.toNumber(),
+    ).toBe(410_000);
+
+    const result123 = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 1_230_000,
+      year: 2025,
+    });
+    expect(result123.incomeTaxAmountJpy.toNumber()).toBe(30_000);
+  });
+
+  it("特定親族特別控除の住民税は合計所得金額95万円以下は45万円、超えると未確認(0円扱い)", () => {
+    const within = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 950_000,
+      year: 2025,
+    });
+    expect(within.residentTaxAmountJpy.toNumber()).toBe(450_000);
+    expect(within.residentTaxAmountUnverified).toBeFalsy();
+
+    const over = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 1_000_000,
+      year: 2025,
+    });
+    expect(over.residentTaxAmountJpy.toNumber()).toBe(0);
+    expect(over.residentTaxAmountUnverified).toBe(true);
+    expect(over.notes?.length).toBeGreaterThan(0);
+  });
+
+  it("特定親族特別控除は合計所得金額123万円超だと対象外(令和7年分以後)", () => {
+    const result = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 1_300_000,
+      year: 2025,
+    });
+    expect(result.eligible).toBe(false);
+  });
+
+  it("令和6年分以前は特定親族特別控除が存在しないため58万円超で対象外", () => {
+    const result = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 850_000,
+      year: 2024,
+    });
+    expect(result.category).toBe("SPECIFIED");
+    expect(result.eligible).toBe(false);
   });
 });
 
