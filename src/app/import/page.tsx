@@ -49,6 +49,7 @@ import {
   COMMON_EXCHANGE_CSV_TRADE_TYPE_VALUES,
   EXCHANGE_CSV_PRESETS,
 } from "@/lib/crypto/exchangeCsv";
+import { COMMON_MARGIN_CSV_HEADER_NAMES } from "@/lib/crypto/marginCsv";
 import { prisma } from "@/lib/db";
 import { reconcileBrokerAnnualReports } from "@/lib/investment/annualReportReconciliation";
 import { investmentTradeQuantityDelta } from "@/lib/investment/calculator";
@@ -1604,19 +1605,47 @@ export default async function ImportPage({
               <input type="text" name="exchangeName" placeholder="DMM Bitcoin" className={inputClass} />
             </Field>
             <Field label="決済日時列名">
-              <input type="text" name="dateColumn" required className={inputClass} />
+              <input
+                type="text"
+                name="dateColumn"
+                list="margin-csv-header-date"
+                required
+                className={inputClass}
+              />
             </Field>
             <Field label="銘柄列名">
-              <input type="text" name="symbolColumn" required className={inputClass} />
+              <input
+                type="text"
+                name="symbolColumn"
+                list="margin-csv-header-symbol"
+                required
+                className={inputClass}
+              />
             </Field>
             <Field label="決済損益(円)列名">
-              <input type="text" name="pnlColumn" required className={inputClass} />
+              <input
+                type="text"
+                name="pnlColumn"
+                list="margin-csv-header-pnl"
+                required
+                className={inputClass}
+              />
             </Field>
             <Field label="手数料(円)列名(任意)">
-              <input type="text" name="feeColumn" className={inputClass} />
+              <input
+                type="text"
+                name="feeColumn"
+                list="margin-csv-header-fee"
+                className={inputClass}
+              />
             </Field>
             <Field label="スワップ等(円)列名(任意)">
-              <input type="text" name="swapColumn" className={inputClass} />
+              <input
+                type="text"
+                name="swapColumn"
+                list="margin-csv-header-swap"
+                className={inputClass}
+              />
             </Field>
             <div className="col-span-full flex flex-wrap items-center gap-3">
               <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
@@ -1627,6 +1656,13 @@ export default async function ImportPage({
                 取り込む
               </button>
             </div>
+            {Object.entries(COMMON_MARGIN_CSV_HEADER_NAMES).map(([field, headers]) => (
+              <datalist key={field} id={`margin-csv-header-${field}`}>
+                {headers.map((header) => (
+                  <option key={header} value={header} />
+                ))}
+              </datalist>
+            ))}
           </form>
         </div>
 
