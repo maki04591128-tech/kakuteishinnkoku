@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { prisma } from "@/lib/db";
 import { buildYearReport } from "@/lib/reporting";
 import { listTaxYears } from "@/lib/taxYear";
 import { UnrealizedGainForm, type UnrealizedGainFormHolding } from "./UnrealizedGainForm";
@@ -13,7 +14,13 @@ export default async function UnrealizedGainPage({
   const currentCalendarYear = new Date().getFullYear();
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
 
-  const report = await buildYearReport(year);
+  const [report, marketPrices] = await Promise.all([
+    buildYearReport(year),
+    prisma.marketPrice.findMany(),
+  ]);
+  const marketPriceBySymbol = new Map(
+    marketPrices.map((p) => [p.symbol.toUpperCase(), p.priceJpy.toString()]),
+  );
 
   const holdings: UnrealizedGainFormHolding[] = [];
   if (report) {
@@ -24,10 +31,12 @@ export default async function UnrealizedGainPage({
         symbol: s.symbol,
         quantity: s.closingQuantity.toString(),
         costBasisJpy: s.closingCostJpy.toString(),
-        defaultCurrentPriceJpy: s.averageUnitCostJpy.toString(),
+        defaultCurrentPriceJpy:
+          marketPriceBySymbol.get(s.symbol.toUpperCase()) ?? s.averageUnitCostJpy.toString(),
       });
     }
     for (const s of report.investment.bySymbol) {
+      const registeredPriceJpy = marketPriceBySymbol.get(s.symbol.toUpperCase());
       if (!s.closingQuantity.isZero()) {
         const averageUnitCostJpy = s.closingCostJpy.dividedBy(s.closingQuantity);
         holdings.push({
@@ -35,7 +44,7 @@ export default async function UnrealizedGainPage({
           symbol: s.symbol,
           quantity: s.closingQuantity.toString(),
           costBasisJpy: s.closingCostJpy.toString(),
-          defaultCurrentPriceJpy: averageUnitCostJpy.toString(),
+          defaultCurrentPriceJpy: registeredPriceJpy ?? averageUnitCostJpy.toString(),
         });
       }
       if (!s.nisaClosingQuantity.isZero()) {
@@ -45,7 +54,7 @@ export default async function UnrealizedGainPage({
           symbol: s.symbol,
           quantity: s.nisaClosingQuantity.toString(),
           costBasisJpy: s.nisaClosingCostJpy.toString(),
-          defaultCurrentPriceJpy: nisaAverageUnitCostJpy.toString(),
+          defaultCurrentPriceJpy: registeredPriceJpy ?? nisaAverageUnitCostJpy.toString(),
         });
       }
     }
@@ -63,7 +72,9 @@ export default async function UnrealizedGainPage({
         <p className="mt-1 text-sm text-neutral-500">
           この年分に期末時点で保有している銘柄について、現在価格を入力すると含み損益を試算できる。
           損出し(含み損のある銘柄を年内に売却して当年の所得を圧縮する節税策)の判断材料として使う。
-          現在価格は自動取得せず、初期値は平均取得単価(含み損益0円)を表示するため、必ず実際の相場に更新すること。
+          現在価格は自動取得せず、`/import`の「現在価格(時価)の登録」欄にその銘柄の価格を
+          登録していればその値を、未登録の場合は平均取得単価(含み損益0円)を初期値として表示するため、
+          いずれの場合も必ず実際の相場に更新すること。
         </p>
       </header>
 

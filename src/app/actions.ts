@@ -923,6 +923,36 @@ export async function deleteAssetSymbolMapping(formData: FormData): Promise<void
   redirect(`/import?year=${year}&tab=assetBalance`);
 }
 
+/**
+ * 銘柄の現在価格(時価)を手入力で登録する。自動取得の仕組みは持たず、年に
+ * 紐付かない全年共通のマスタデータ。`/unrealized-gain`の現在価格欄の初期値と、
+ * マネーフォワード資産残高突合の評価額比較(valueCheck)の両方で参照する。
+ */
+export async function setMarketPrice(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const symbol = requireString(formData, "symbol").trim().toUpperCase();
+  const priceJpy = requireString(formData, "priceJpy").trim();
+
+  await prisma.marketPrice.upsert({
+    where: { symbol },
+    create: { symbol, priceJpy },
+    update: { priceJpy },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/unrealized-gain");
+  redirect(`/import?year=${year}&tab=assetBalance`);
+}
+
+export async function deleteMarketPrice(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.marketPrice.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/unrealized-gain");
+  redirect(`/import?year=${year}&tab=assetBalance`);
+}
+
 export async function setForeignTaxCreditCarryforward(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
