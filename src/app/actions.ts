@@ -23,6 +23,7 @@ import {
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 import { isIncomeDeductionType } from "@/lib/incomeDeduction";
+import { deriveNisaLifetimeCarryForwardCandidates } from "@/lib/investment/nisaQuota";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -827,6 +828,77 @@ export async function carryForwardInvestmentLoss(
   revalidatePath("/");
   redirect(
     `/import?year=${year}&tab=lossCarryforward&lossCarried=${toCreate.length}`,
+  );
+}
+
+export async function setNisaLifetimeQuota(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const nisaType = requireString(formData, "nisaType");
+  const openingUsedJpy = requireString(formData, "openingUsedJpy");
+  const soldCostBasisJpy = optionalString(formData, "soldCostBasisJpy") ?? "0";
+  if (nisaType !== "TSUMITATE" && nisaType !== "GROWTH") {
+    throw new Error("NISA枠区分が不正です");
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.nisaLifetimeQuota.upsert({
+    where: {
+      taxYearId_nisaType: { taxYearId: taxYear.id, nisaType },
+    },
+    create: { taxYearId: taxYear.id, nisaType, openingUsedJpy, soldCostBasisJpy },
+    update: { openingUsedJpy, soldCostBasisJpy },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=nisaLifetime`);
+}
+
+export async function deleteNisaLifetimeQuota(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.nisaLifetimeQuota.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=nisaLifetime`);
+}
+
+/**
+ * 前年分のNISA生涯投資枠の計算結果(当年末の使用額)から、翌年の年始使用額を
+ * 枠区分ごとに一括登録する。既に当年分に登録がある区分は上書きしない。
+ */
+export async function carryForwardNisaLifetimeQuota(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+  const previousReport = await buildYearReport(year - 1);
+  const candidates = previousReport
+    ? deriveNisaLifetimeCarryForwardCandidates(previousReport.nisaLifetimeQuota)
+    : [];
+
+  const existing = await prisma.nisaLifetimeQuota.findMany({
+    where: { taxYearId: taxYear.id },
+    select: { nisaType: true },
+  });
+  const existingTypes = new Set(existing.map((e) => e.nisaType));
+
+  const toCreate = candidates.filter((c) => !existingTypes.has(c.nisaType));
+
+  if (toCreate.length > 0) {
+    await prisma.nisaLifetimeQuota.createMany({
+      data: toCreate.map((c) => ({
+        taxYearId: taxYear.id,
+        nisaType: c.nisaType,
+        openingUsedJpy: c.openingUsedJpy,
+      })),
+    });
+  }
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(
+    `/import?year=${year}&tab=nisaLifetime&nisaLifetimeCarried=${toCreate.length}`,
   );
 }
 

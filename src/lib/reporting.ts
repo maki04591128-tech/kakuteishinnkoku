@@ -25,7 +25,12 @@ import {
   loadOpeningBalances,
   type CarryForwardCandidate,
 } from "./openingBalance";
-import { calculateNisaQuotaUsage, type NisaQuotaUsageResult } from "./investment/nisaQuota";
+import {
+  calculateNisaLifetimeQuotaUsage,
+  calculateNisaQuotaUsage,
+  type NisaLifetimeQuotaResult,
+  type NisaQuotaUsageResult,
+} from "./investment/nisaQuota";
 
 /**
  * 指定した課税年度のDB上の取引をすべて読み出し、計算エンジンに渡して
@@ -45,6 +50,7 @@ export async function buildYearReport(year: number): Promise<{
   lossCarryforward: LossCarryforwardResult;
   futuresLossCarryforward: LossCarryforwardResult;
   nisaQuota: NisaQuotaUsageResult;
+  nisaLifetimeQuota: NisaLifetimeQuotaResult;
 } | null> {
   const taxYear = await prisma.taxYear.findUnique({ where: { year } });
   if (!taxYear) {
@@ -57,6 +63,7 @@ export async function buildYearReport(year: number): Promise<{
       lossCarryforward: calculateLossCarryforward(year, 0, []),
       futuresLossCarryforward: calculateLossCarryforward(year, 0, []),
       nisaQuota: calculateNisaQuotaUsage([]),
+      nisaLifetimeQuota: calculateNisaLifetimeQuotaUsage([], []),
     };
   }
 
@@ -68,6 +75,7 @@ export async function buildYearReport(year: number): Promise<{
     openings,
     lossCarryforwardEntries,
     futuresLossCarryforwardEntries,
+    nisaLifetimeQuotaEntries,
   ] = await Promise.all([
     prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.cryptoMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
@@ -78,6 +86,9 @@ export async function buildYearReport(year: number): Promise<{
       where: { taxYearId: taxYear.id },
     }),
     prisma.futuresLossCarryforward.findMany({
+      where: { taxYearId: taxYear.id },
+    }),
+    prisma.nisaLifetimeQuota.findMany({
       where: { taxYearId: taxYear.id },
     }),
   ]);
@@ -147,13 +158,22 @@ export async function buildYearReport(year: number): Promise<{
     })),
   );
 
-  const nisaQuota = calculateNisaQuotaUsage(
-    investmentTrades.map((t) => ({
-      type: t.type,
-      isNisa: t.isNisa,
-      nisaType: t.nisaType,
-      quantity: t.quantity.toString(),
-      unitPriceJpy: t.unitPriceJpy.toString(),
+  const nisaQuotaTrades = investmentTrades.map((t) => ({
+    type: t.type,
+    isNisa: t.isNisa,
+    nisaType: t.nisaType,
+    quantity: t.quantity.toString(),
+    unitPriceJpy: t.unitPriceJpy.toString(),
+  }));
+
+  const nisaQuota = calculateNisaQuotaUsage(nisaQuotaTrades);
+
+  const nisaLifetimeQuota = calculateNisaLifetimeQuotaUsage(
+    nisaQuotaTrades,
+    nisaLifetimeQuotaEntries.map((e) => ({
+      nisaType: e.nisaType,
+      openingUsedJpy: e.openingUsedJpy.toString(),
+      soldCostBasisJpy: e.soldCostBasisJpy.toString(),
     })),
   );
 
@@ -166,6 +186,7 @@ export async function buildYearReport(year: number): Promise<{
     lossCarryforward,
     futuresLossCarryforward,
     nisaQuota,
+    nisaLifetimeQuota,
   };
 }
 

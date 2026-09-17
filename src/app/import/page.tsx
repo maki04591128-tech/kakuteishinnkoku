@@ -6,6 +6,7 @@ import {
   addInvestmentTrade,
   carryForwardFuturesLoss,
   carryForwardInvestmentLoss,
+  carryForwardNisaLifetimeQuota,
   carryForwardOpeningBalances,
   deleteAssetBalanceImportBatch,
   deleteAssetSymbolMapping,
@@ -19,6 +20,7 @@ import {
   deleteInvestmentTrade,
   deleteLossCarryforward,
   deleteMarketPrice,
+  deleteNisaLifetimeQuota,
   deleteOpeningBalance,
   deleteOpeningBalanceByInstitution,
   importAssetBalanceCsv,
@@ -35,6 +37,7 @@ import {
   setFuturesLossCarryforward,
   setLossCarryforward,
   setMarketPrice,
+  setNisaLifetimeQuota,
   setOpeningBalance,
   setOpeningBalanceByInstitution,
 } from "@/app/actions";
@@ -80,6 +83,7 @@ export default async function ImportPage({
     carried?: string;
     lossCarried?: string;
     futuresLossCarried?: string;
+    nisaLifetimeCarried?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -101,6 +105,7 @@ export default async function ImportPage({
     assetBalanceImportBatches,
     assetSymbolMappings,
     marketPrices,
+    nisaLifetimeQuotas,
     yearReport,
   ] = await Promise.all([
     prisma.cryptoTrade.findMany({
@@ -158,6 +163,10 @@ export default async function ImportPage({
     }),
     prisma.assetSymbolMapping.findMany({ orderBy: { assetName: "asc" } }),
     prisma.marketPrice.findMany({ orderBy: { symbol: "asc" } }),
+    prisma.nisaLifetimeQuota.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { nisaType: "asc" },
+    }),
     buildYearReport(year),
   ]);
 
@@ -1036,6 +1045,140 @@ export default async function ImportPage({
                 {yearReport.lossCarryforward.expiredByOriginYear
                   .map((e) => `${e.originYear}年分 ${yen(e.expiredAmountJpy)}`)
                   .join(" / ")}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">
+          NISA生涯投資枠(累計1,800万円/うち成長投資枠1,200万円)の使用状況
+        </h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          NISA口座の非課税保有限度額(生涯投資枠)は、過去の買付・売却の累積
+          (簿価残高)で判定するため、年間投資枠(ダッシュボードの「NISA年間投資枠の
+          使用状況」)とは異なりその年の取引だけでは判定できない。ここでは
+          枠区分(つみたて投資枠/成長投資枠)ごとに、{year}
+          年初時点で確定している非課税枠使用額(前年末時点の保有簿価残高。
+          証券会社の取引画面等で確認できる「非課税枠利用状況」を参照)を登録する。
+          当年の買付は取引明細(NISA枠区分を指定したもの)から自動集計するが、
+          当年中に売却した保有分の取得価額(簿価)は自動追跡できないため、
+          翌年に戻る枠の額を正しく試算するには「当年中に売却した保有分の
+          取得価額(簿価)」欄に手入力する必要がある(売却による枠の再利用は
+          売却した年の翌年からのため、当年の買付可否判定には影響しない)。
+        </p>
+
+        {params.nisaLifetimeCarried !== undefined && (
+          <p className="mb-3 rounded-md bg-green-50 px-4 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+            {Number(params.nisaLifetimeCarried) > 0
+              ? `${params.nisaLifetimeCarried}件の年始使用額を${year - 1}年分の計算結果から繰り越しました。`
+              : `${year - 1}年分からの繰越候補はありませんでした(既に登録済みか、繰り越す使用額がありません)。`}
+          </p>
+        )}
+
+        <form action={carryForwardNisaLifetimeQuota} className="mb-5">
+          <input type="hidden" name="year" value={year} />
+          <button
+            type="submit"
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            {year - 1}年分の計算結果から自動で繰り越す
+          </button>
+        </form>
+
+        <form
+          action={setNisaLifetimeQuota}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="枠区分">
+            <select name="nisaType" required className={inputClass}>
+              <option value="TSUMITATE">つみたて投資枠</option>
+              <option value="GROWTH">成長投資枠</option>
+            </select>
+          </Field>
+          <Field label={`${year}年初時点の使用額(円)`}>
+            <input
+              type="number"
+              step="any"
+              name="openingUsedJpy"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label="当年中に売却した保有分の取得価額(簿価。任意)">
+            <input
+              type="number"
+              step="any"
+              name="soldCostBasisJpy"
+              defaultValue={0}
+              className={inputClass}
+            />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              登録・更新
+            </button>
+          </div>
+        </form>
+
+        {nisaLifetimeQuotas.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {[
+                    "枠区分",
+                    `${year}年初使用額`,
+                    "当年売却分(簿価)",
+                    "",
+                  ].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {nisaLifetimeQuotas.map((q) => (
+                  <tr key={q.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{NISA_TYPE_LABEL[q.nisaType]}</td>
+                    <td className="px-3 py-2">{yen(q.openingUsedJpy)}</td>
+                    <td className="px-3 py-2">{yen(q.soldCostBasisJpy)}</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteNisaLifetimeQuota}>
+                        <input type="hidden" name="id" value={q.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {yearReport && (
+          <div className="mt-5 rounded-md bg-neutral-50 p-4 text-sm dark:bg-neutral-900">
+            <p>
+              {year}年末時点の使用額(合計): {yen(yearReport.nisaLifetimeQuota.totalClosingUsedJpy)}{" "}
+              / {yen(yearReport.nisaLifetimeQuota.lifetimeLimitJpy)}
+            </p>
+            {yearReport.nisaLifetimeQuota.exceededOverallJpy.greaterThan(0) && (
+              <p className="text-red-600">
+                年始時点の残り生涯投資枠(総枠)を超える買付があります: 超過額{" "}
+                {yen(yearReport.nisaLifetimeQuota.exceededOverallJpy)}
+              </p>
+            )}
+            {yearReport.nisaLifetimeQuota.exceededGrowthJpy.greaterThan(0) && (
+              <p className="text-red-600">
+                年始時点の残り成長投資枠(生涯上限1,200万円分)を超える成長投資枠での
+                買付があります: 超過額 {yen(yearReport.nisaLifetimeQuota.exceededGrowthJpy)}
               </p>
             )}
           </div>
