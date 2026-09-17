@@ -27,6 +27,10 @@ export default async function Home({
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
 
   const report = await buildYearReport(year);
+  // calculateNisaLifetimeQuotaUsage は byType に TSUMITATE/GROWTH を必ず両方含める
+  const nisaLifetimeGrowth = report?.nisaLifetimeQuota.byType.find(
+    (t) => t.nisaType === "GROWTH",
+  );
   const summary = report
     ? buildTaxFilingSummary(
         year,
@@ -273,14 +277,56 @@ export default async function Home({
             </div>
             <p className="mt-2 text-xs text-neutral-400">
               その年にアプリへ登録したNISA口座の買付(取得価額ベース)のみを集計した年間投資枠の試算。
-              生涯非課税限度額(総枠1,800万円)は売却による枠の再利用等が絡み本ツールのデータのみでは
-              正確に追えないため対象外。
             </p>
             {report.nisaQuota.unclassifiedBuyJpy.greaterThan(0) && (
               <p className="mt-2 rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
                 NISA枠区分(つみたて/成長)が未入力の買付が
                 {yen(report.nisaQuota.unclassifiedBuyJpy)}あります。上記の集計に含まれていないため、
                 「データを取り込む」で該当取引を削除し、NISA枠区分を指定して登録し直してください。
+              </p>
+            )}
+          </section>
+        )}
+
+      {report &&
+        nisaLifetimeGrowth &&
+        report.nisaLifetimeQuota.totalOpeningUsedJpy
+          .plus(report.nisaLifetimeQuota.totalBuyJpy)
+          .greaterThan(0) && (
+          <section>
+            <h2 className="mb-2 text-lg font-semibold">NISA生涯投資枠の使用状況(試算)</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <NisaQuotaCard
+                title="生涯投資枠(総枠)"
+                limitJpy={report.nisaLifetimeQuota.lifetimeLimitJpy}
+                usedJpy={report.nisaLifetimeQuota.totalClosingUsedJpy}
+                remainingJpy={report.nisaLifetimeQuota.lifetimeLimitJpy.minus(
+                  report.nisaLifetimeQuota.totalClosingUsedJpy,
+                )}
+              />
+              <NisaQuotaCard
+                title="うち成長投資枠"
+                limitJpy={report.nisaLifetimeQuota.growthLifetimeLimitJpy}
+                usedJpy={nisaLifetimeGrowth.closingUsedJpy}
+                remainingJpy={report.nisaLifetimeQuota.growthLifetimeLimitJpy.minus(
+                  nisaLifetimeGrowth.closingUsedJpy,
+                )}
+              />
+            </div>
+            <p className="mt-2 text-xs text-neutral-400">
+              {year}年末時点の使用額(年始使用額+当年買付-当年売却分の簿価)。年始時点の使用額・
+              当年の売却分(簿価)は「データを取り込む」の「NISA生涯投資枠」セクションで手入力する。
+            </p>
+            {report.nisaLifetimeQuota.exceededOverallJpy.greaterThan(0) && (
+              <p className="mt-2 rounded-md border border-dashed border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+                年始時点の残り生涯投資枠(総枠)を超える買付があります: 超過額{" "}
+                {yen(report.nisaLifetimeQuota.exceededOverallJpy)}
+              </p>
+            )}
+            {report.nisaLifetimeQuota.exceededGrowthJpy.greaterThan(0) && (
+              <p className="mt-2 rounded-md border border-dashed border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+                年始時点の残り成長投資枠(生涯上限1,200万円分)を超える成長投資枠での買付があります:
+                超過額 {yen(report.nisaLifetimeQuota.exceededGrowthJpy)}
               </p>
             )}
           </section>

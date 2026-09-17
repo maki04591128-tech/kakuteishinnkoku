@@ -41,6 +41,7 @@ model TaxYear {
   foreignTaxCreditCarryforwards           ForeignTaxCreditCarryforward[]
   foreignTaxCreditSpareLimitCarryforwards ForeignTaxCreditSpareLimitCarryforward[]
   incomeDeductions                        IncomeDeduction[]
+  nisaLifetimeQuotas                      NisaLifetimeQuota[]
 }
 
 enum CryptoCostMethod {
@@ -258,6 +259,38 @@ enum IncomeDeductionType {
   SPOUSE
   /// 扶養控除(src/lib/dependentDeduction.ts)
   DEPENDENT
+}
+
+/// NISA生涯投資枠(2024年以降の新NISA制度における総枠1,800万円・
+/// うち成長投資枠1,200万円)の使用状況試算用データ。年間投資枠
+/// (src/lib/investment/nisaQuota.ts の calculateNisaQuotaUsage)はその年の
+/// 買付だけを見れば判定できるが、生涯投資枠は過去の買付・売却の累積
+/// (簿価残高)を追わないと判定できない。売却により再利用可能になった枠は
+/// 売却した年の翌年から使えるようになるため、本テーブルには taxYearId の
+/// 年始時点で確定している「使用額」(前年末の保有簿価残高)を枠区分ごとに
+/// 保持し、当年の買付額を加算して当年末の使用額(翌年への繰越額)を計算する。
+/// 当年中に売却した保有分の取得価額(簿価)は自動追跡せず、ユーザーが
+/// soldCostBasisJpy に手入力する(OpeningBalance等と同様、本ツールが
+/// 過去の取引を全件保持している保証がないための簡略化)。
+model NisaLifetimeQuota {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  nisaType InvestmentNisaType
+
+  /// 年始時点の非課税枠使用額(前年末時点の保有簿価残高)
+  openingUsedJpy Decimal
+
+  /// 当年中に売却した、この枠で買い付けた保有分の取得価額(簿価)の合計(手入力)。
+  /// 翌年への繰越額(=翌年の年始使用額)の算出にのみ使う
+  /// (売却による枠の再利用は翌年からのため、当年の買付可否判定には使わない)。
+  soldCostBasisJpy Decimal @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, nisaType])
 }
 
 /// 暗号資産の売買・交換・使用等の取引履歴。
