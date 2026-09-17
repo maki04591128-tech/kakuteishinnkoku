@@ -259,6 +259,8 @@ enum IncomeDeductionType {
   SPOUSE
   /// 扶養控除(src/lib/dependentDeduction.ts)
   DEPENDENT
+  /// 基礎控除(src/lib/basicDeduction.ts)
+  BASIC
 }
 
 /// NISA生涯投資枠(2024年以降の新NISA制度における総枠1,800万円・

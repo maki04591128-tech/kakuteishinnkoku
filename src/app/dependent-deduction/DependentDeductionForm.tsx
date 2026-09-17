@@ -276,7 +276,15 @@ export function DependentDeductionForm({
                     {r.eligible
                       ? `${yen(r.incomeTaxAmountJpy)} / ${yen(r.residentTaxAmountJpy)}`
                       : "対象外"}
+                    {r.residentTaxAmountUnverified && "(住民税は逓減額未確認のため0円扱い)"}
                   </li>
+                ))}
+              </ul>
+            )}
+            {dependentsResult.notes.length > 0 && (
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-600 dark:text-amber-400">
+                {dependentsResult.notes.map((note, i) => (
+                  <li key={i}>{note}</li>
                 ))}
               </ul>
             )}

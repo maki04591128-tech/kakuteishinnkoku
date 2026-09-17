@@ -17,6 +17,7 @@ export const INCOME_DEDUCTION_TYPES = [
   "SELF_MEDICATION",
   "SPOUSE",
   "DEPENDENT",
+  "BASIC",
 ] as const;
 
 export type IncomeDeductionType = (typeof INCOME_DEDUCTION_TYPES)[number];
@@ -29,6 +30,7 @@ export const INCOME_DEDUCTION_TYPE_LABELS: Record<IncomeDeductionType, string> =
   SELF_MEDICATION: "セルフメディケーション税制",
   SPOUSE: "配偶者控除・配偶者特別控除",
   DEPENDENT: "扶養控除",
+  BASIC: "基礎控除",
 };
 
 export function isIncomeDeductionType(value: string): value is IncomeDeductionType {
