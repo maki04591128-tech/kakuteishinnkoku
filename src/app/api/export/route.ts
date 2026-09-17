@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildTaxFilingDraftCsv, UTF8_BOM } from "@/lib/etax/csvExport";
 import { buildTaxFilingSummary } from "@/lib/etax/summary";
+import { getIncomeDeductionEntries, summarizeIncomeDeductions } from "@/lib/incomeDeduction";
 import { buildYearReport } from "@/lib/reporting";
 
 export async function GET(request: NextRequest) {
@@ -21,6 +22,9 @@ export async function GET(request: NextRequest) {
     report.futures,
     report.futuresLossCarryforward,
   );
+  const incomeDeductionEntries = await getIncomeDeductionEntries(year);
+  const incomeDeductions = summarizeIncomeDeductions(incomeDeductionEntries);
+
   const csv = buildTaxFilingDraftCsv(
     summary,
     report.crypto.bySymbol,
@@ -28,6 +32,7 @@ export async function GET(request: NextRequest) {
     report.cryptoCostMethod,
     report.cryptoMargin.bySymbol,
     report.futures.bySymbol,
+    incomeDeductions,
   );
 
   return new NextResponse(UTF8_BOM + csv, {

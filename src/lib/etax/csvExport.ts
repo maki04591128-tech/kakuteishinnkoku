@@ -3,11 +3,35 @@ import type { CryptoCostMethod, CryptoSymbolYearResult } from "../crypto/calcula
 import type { CryptoMarginSymbolYearResult } from "../crypto/marginCalculator";
 import type { InvestmentSymbolYearResult } from "../investment/calculator";
 import type { FuturesSymbolYearResult } from "../investment/futuresIncome";
+import type { IncomeDeductionSummary, IncomeDeductionType } from "../incomeDeduction";
+import { INCOME_DEDUCTION_TYPE_LABELS } from "../incomeDeduction";
 import type { TaxFilingSummary } from "./summary";
 
 const CRYPTO_COST_METHOD_LABEL: Record<CryptoCostMethod, string> = {
   AVERAGE: "総平均法",
   MOVING_AVERAGE: "移動平均法",
+};
+
+/**
+ * 所得控除試算結果(`IncomeDeduction`テーブル登録分)を下書きCSVに転記する際の、
+ * 申告書での主な記載箇所の対応表。区分ごとに専用の試算画面はあるが、実際に
+ * 転記する申告書の欄は共通のフォーマットのため、ここで一元管理する。
+ */
+const INCOME_DEDUCTION_FILING_LOCATION: Record<IncomeDeductionType, string> = {
+  MEDICAL_EXPENSE:
+    "申告書第一表 所得から差し引かれる金額(医療費控除) / 医療費控除の明細書",
+  LIFE_INSURANCE:
+    "申告書第一表 所得から差し引かれる金額(生命保険料控除) / 第二表 保険料控除等に関する事項",
+  SMALL_BUSINESS_MUTUAL_AID:
+    "申告書第一表 所得から差し引かれる金額(小規模企業共済等掛金控除) / 第二表 保険料控除等に関する事項",
+  SOCIAL_INSURANCE:
+    "申告書第一表 所得から差し引かれる金額(社会保険料控除) / 第二表 保険料控除等に関する事項",
+  SELF_MEDICATION:
+    "申告書第一表 所得から差し引かれる金額(医療費控除・セルフメディケーション税制の特例) / セルフメディケーション税制の明細書",
+  SPOUSE:
+    "申告書第一表 所得から差し引かれる金額(配偶者(特別)控除) / 第二表 配偶者や親族に関する事項",
+  DEPENDENT:
+    "申告書第一表 所得から差し引かれる金額(扶養控除) / 第二表 配偶者や親族に関する事項",
 };
 
 /**
@@ -43,6 +67,7 @@ export function buildTaxFilingDraftCsv(
   cryptoCostMethod: CryptoCostMethod = "AVERAGE",
   cryptoMarginDetail: CryptoMarginSymbolYearResult[] = [],
   futuresDetail: FuturesSymbolYearResult[] = [],
+  incomeDeductions?: IncomeDeductionSummary,
 ): string {
   const lines: string[] = [];
 
@@ -101,6 +126,45 @@ export function buildTaxFilingDraftCsv(
     ]),
   );
   lines.push("");
+
+  if (incomeDeductions && incomeDeductions.entries.length > 0) {
+    lines.push(toCsvLine(["■ 所得控除サマリー(各試算画面で登録済みの分)"]));
+    lines.push(
+      toCsvLine([
+        "区分",
+        "所得税の控除額(円)",
+        "住民税の控除額(円)",
+        "申告書での主な記載箇所",
+      ]),
+    );
+    for (const entry of incomeDeductions.entries) {
+      lines.push(
+        toCsvLine([
+          INCOME_DEDUCTION_TYPE_LABELS[entry.type],
+          formatYen(entry.incomeTaxAmountJpy),
+          formatYen(entry.residentTaxAmountJpy),
+          INCOME_DEDUCTION_FILING_LOCATION[entry.type],
+        ]),
+      );
+    }
+    lines.push(
+      toCsvLine([
+        "合計(併用不可の医療費控除/セルフメディケーション税制は有利な方のみ計上)",
+        formatYen(incomeDeductions.totalIncomeTaxAmountJpy),
+        formatYen(incomeDeductions.totalResidentTaxAmountJpy),
+        "",
+      ]),
+    );
+    for (const note of incomeDeductions.notes) {
+      lines.push(toCsvLine([`# ${note}`]));
+    }
+    lines.push(
+      toCsvLine([
+        "# 基礎控除等、上記以外の所得控除は本ツールでは試算していないため各自申告書に転記すること。",
+      ]),
+    );
+    lines.push("");
+  }
 
   const carryforward = summary.investmentLossCarryforward;
   if (
