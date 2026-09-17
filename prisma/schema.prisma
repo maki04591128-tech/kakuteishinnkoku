@@ -42,6 +42,7 @@ model TaxYear {
   foreignTaxCreditSpareLimitCarryforwards ForeignTaxCreditSpareLimitCarryforward[]
   incomeDeductions                        IncomeDeduction[]
   nisaLifetimeQuotas                      NisaLifetimeQuota[]
+  casualtyLossCarryforwards               CasualtyLossCarryforward[]
 }
 
 enum CryptoCostMethod {
@@ -207,6 +208,31 @@ model ForeignTaxCreditSpareLimitCarryforward {
   originYear Int
 
   /// taxYearId の年初時点で残っている繰越可能な控除余裕額
+  remainingAmountJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, originYear])
+}
+
+/// 雑損失の繰越控除(3年間・所得税法71条)。雑損控除額(src/lib/casualtyLossDeduction.ts)
+/// がその年の総所得金額等を超えて控除しきれなかった場合、その超過額(雑損失の金額)は
+/// 発生した年分の翌年以後3年間、総所得金額等から控除できる。InvestmentLossCarryforward等
+/// と同様、taxYearId の年初時点でまだ使い切っていない残高を発生年(originYear)ごとに
+/// 保持し、計算エンジン側(src/lib/casualtyLossCarryforward.ts)で発生年の古い順に
+/// 当年の総所得金額等から控除し、期限(発生年+3年)を超えた分は自動的に無効とする。
+/// 雑損控除は所得税・住民税で同一の算式のため、繰越残高も税目を分けず単一のプールで
+/// 保持する。
+model CasualtyLossCarryforward {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 雑損失が発生した年(暦年)
+  originYear Int
+
+  /// taxYearId の年初時点で残っている繰越控除可能な雑損失額
   remainingAmountJpy Decimal
 
   createdAt DateTime @default(now())
