@@ -22,6 +22,8 @@ const INCOME_DEDUCTION_FILING_LOCATION: Record<IncomeDeductionType, string> = {
     "申告書第一表 所得から差し引かれる金額(医療費控除) / 医療費控除の明細書",
   LIFE_INSURANCE:
     "申告書第一表 所得から差し引かれる金額(生命保険料控除) / 第二表 保険料控除等に関する事項",
+  EARTHQUAKE_INSURANCE:
+    "申告書第一表 所得から差し引かれる金額(地震保険料控除) / 第二表 保険料控除等に関する事項",
   SMALL_BUSINESS_MUTUAL_AID:
     "申告書第一表 所得から差し引かれる金額(小規模企業共済等掛金控除) / 第二表 保険料控除等に関する事項",
   SOCIAL_INSURANCE:

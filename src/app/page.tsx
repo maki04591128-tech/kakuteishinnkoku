@@ -176,6 +176,12 @@ export default async function Home({
           生命保険料控除額を試算する
         </Link>
         <Link
+          href={`/earthquake-insurance-deduction?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          地震保険料控除額を試算する
+        </Link>
+        <Link
           href={`/small-business-mutual-aid-deduction?year=${year}`}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >

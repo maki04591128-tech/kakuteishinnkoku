@@ -12,6 +12,7 @@ import { prisma } from "./db";
 export const INCOME_DEDUCTION_TYPES = [
   "MEDICAL_EXPENSE",
   "LIFE_INSURANCE",
+  "EARTHQUAKE_INSURANCE",
   "SMALL_BUSINESS_MUTUAL_AID",
   "SOCIAL_INSURANCE",
   "SELF_MEDICATION",
@@ -25,6 +26,7 @@ export type IncomeDeductionType = (typeof INCOME_DEDUCTION_TYPES)[number];
 export const INCOME_DEDUCTION_TYPE_LABELS: Record<IncomeDeductionType, string> = {
   MEDICAL_EXPENSE: "医療費控除",
   LIFE_INSURANCE: "生命保険料控除",
+  EARTHQUAKE_INSURANCE: "地震保険料控除",
   SMALL_BUSINESS_MUTUAL_AID: "小規模企業共済等掛金控除(iDeCo等)",
   SOCIAL_INSURANCE: "社会保険料控除",
   SELF_MEDICATION: "セルフメディケーション税制",
