@@ -12,6 +12,35 @@ import { normalizeNumericString, parseCsvRows, parseFlexibleDateTime } from "../
  * (誤って現物取引と同じモデルで解釈してしまうことを避けるため)。
  */
 
+/**
+ * 手動マッピング欄の入力補助用。DMM Bitcoin・SBI VCトレード等の証拠金取引の
+ * 取引報告書CSVで使われることが多い列見出し表記の候補一覧
+ * (`/import`画面の証拠金取引CSV取り込み欄で各入力欄の`<datalist>`候補として使う)。
+ *
+ * `exchangeCsv.ts`の`HEADER_ALIASES`と異なり自動認識には使わない(証拠金取引は
+ * 取引所ごとの列構成の差異が大きく誤認識のリスクが高いため、あくまで手入力の
+ * 補助に留める)。実データでの検証は今後の課題(README ロードマップ参照)。
+ */
+export const COMMON_MARGIN_CSV_HEADER_NAMES: Record<
+  "date" | "symbol" | "pnl" | "fee" | "swap",
+  string[]
+> = {
+  date: ["決済日時", "約定日時", "取引日時", "決済日", "Date", "Settlement Date"],
+  symbol: ["銘柄", "銘柄名", "通貨ペア", "商品", "Symbol", "Product"],
+  pnl: [
+    "決済損益",
+    "建玉損益",
+    "実現損益",
+    "決済損益(円)",
+    "損益",
+    "評価損益",
+    "Realized P/L",
+    "Profit/Loss",
+  ],
+  fee: ["手数料", "取引手数料", "決済手数料", "Fee"],
+  swap: ["スワップ", "スワップポイント", "建玉管理料", "Swap"],
+};
+
 export interface MarginCsvMapping {
   /** 決済日時の列名 */
   dateColumn: string;

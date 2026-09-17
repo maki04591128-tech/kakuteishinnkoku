@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseCryptoMarginCsv, type MarginCsvMapping } from "./marginCsv";
+import {
+  COMMON_MARGIN_CSV_HEADER_NAMES,
+  parseCryptoMarginCsv,
+  type MarginCsvMapping,
+} from "./marginCsv";
 
 const MAPPING: MarginCsvMapping = {
   dateColumn: "決済日時",
@@ -81,5 +85,32 @@ describe("parseCryptoMarginCsv", () => {
     const { rows, skippedRows } = parseCryptoMarginCsv("", MAPPING);
     expect(rows).toEqual([]);
     expect(skippedRows).toEqual([]);
+  });
+});
+
+describe("COMMON_MARGIN_CSV_HEADER_NAMES", () => {
+  it("各項目に手動マッピング欄の入力補助用の候補が1件以上ある", () => {
+    for (const headers of Object.values(COMMON_MARGIN_CSV_HEADER_NAMES)) {
+      expect(headers.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("候補の列名で実際にCSVを取り込める", () => {
+    const csv = [
+      "決済日時,銘柄名,建玉損益,決済手数料,スワップポイント",
+      "2026/1/10 10:00:00,BTC,100000,500,-100",
+    ].join("\n");
+
+    const { rows, skippedRows } = parseCryptoMarginCsv(csv, {
+      dateColumn: "決済日時",
+      symbolColumn: "銘柄名",
+      pnlColumn: "建玉損益",
+      feeColumn: "決済手数料",
+      swapColumn: "スワップポイント",
+    });
+
+    expect(skippedRows).toEqual([]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].realizedPnlJpy.toNumber()).toBe(100_000);
   });
 });
