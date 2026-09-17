@@ -297,6 +297,8 @@ enum IncomeDeductionType {
   WORKING_STUDENT
   /// 雑損控除(src/lib/casualtyLossDeduction.ts)
   CASUALTY_LOSS
+  /// 寄附金控除・ふるさと納税等(src/lib/donationDeduction.ts)
+  DONATION
 }
 
 /// NISA生涯投資枠(2024年以降の新NISA制度における総枠1,800万円・
