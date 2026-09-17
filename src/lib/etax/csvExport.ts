@@ -41,6 +41,8 @@ const INCOME_DEDUCTION_FILING_LOCATION: Record<IncomeDeductionType, string> = {
     "申告書第一表 所得から差し引かれる金額(寡婦、ひとり親控除) / 第二表 本人に関する事項(寡婦・ひとり親のチェック欄)",
   WORKING_STUDENT:
     "申告書第一表 所得から差し引かれる金額(勤労学生、障害者控除) / 第二表 本人に関する事項(勤労学生のチェック欄)",
+  CASUALTY_LOSS:
+    "申告書第一表 所得から差し引かれる金額(雑損控除) / 第二表 特例適用条文等・雑損控除に関する事項",
 };
 
 /**

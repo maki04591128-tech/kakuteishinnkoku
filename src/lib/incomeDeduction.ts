@@ -22,6 +22,7 @@ export const INCOME_DEDUCTION_TYPES = [
   "DISABILITY",
   "WIDOW_SINGLE_PARENT",
   "WORKING_STUDENT",
+  "CASUALTY_LOSS",
 ] as const;
 
 export type IncomeDeductionType = (typeof INCOME_DEDUCTION_TYPES)[number];
@@ -39,6 +40,7 @@ export const INCOME_DEDUCTION_TYPE_LABELS: Record<IncomeDeductionType, string> =
   DISABILITY: "障害者控除",
   WIDOW_SINGLE_PARENT: "寡婦控除・ひとり親控除",
   WORKING_STUDENT: "勤労学生控除",
+  CASUALTY_LOSS: "雑損控除",
 };
 
 export function isIncomeDeductionType(value: string): value is IncomeDeductionType {

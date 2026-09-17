@@ -217,6 +217,12 @@ export default async function Home({
         >
           寡婦・ひとり親・勤労学生控除額を試算する
         </Link>
+        <Link
+          href={`/casualty-loss-deduction?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          雑損控除額を試算する
+        </Link>
       </section>
 
       <section className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
