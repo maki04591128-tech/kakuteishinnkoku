@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportForm";
 import {
   addCryptoMarginTrade,
   addCryptoTrade,
@@ -2191,6 +2192,8 @@ export default async function ImportPage({
             </div>
           </form>
         </div>
+
+        <AnnualReportTextImportForm year={year} />
 
         <form
           action={setBrokerAnnualReport}
