@@ -3,14 +3,22 @@
 import { useMemo, useState } from "react";
 import {
   simulateDividendTaxation,
+  simulateNonListedDividendTaxation,
   type DividendTaxMethod,
   type DividendTaxMethodResult,
+  type NonListedDividendTaxMethod,
+  type NonListedDividendTaxMethodResult,
 } from "@/lib/investment/dividendTaxSimulation";
 
 const METHOD_LABEL: Record<DividendTaxMethod, string> = {
   COMPREHENSIVE: "総合課税",
   SEPARATE: "申告分離課税",
   NO_FILING: "申告不要",
+};
+
+const NON_LISTED_METHOD_LABEL: Record<NonListedDividendTaxMethod, string> = {
+  REPORT_ALL: "総合課税(全額申告)",
+  SMALL_DIVIDEND_NO_FILING: "少額配当分は申告不要",
 };
 
 function yen(value: { toString(): string }): string {
@@ -23,11 +31,13 @@ export function DividendSimulatorForm({
   defaultDividendHalfCreditJpy,
   defaultDividendNoCreditJpy,
   defaultAvailableListedStockLossJpy,
+  defaultNonListedDividendJpy,
 }: {
   defaultDividendJpy: number;
   defaultDividendHalfCreditJpy: number;
   defaultDividendNoCreditJpy: number;
   defaultAvailableListedStockLossJpy: number;
+  defaultNonListedDividendJpy: number;
 }) {
   const [dividendJpy, setDividendJpy] = useState(String(defaultDividendJpy));
   const [halfCreditDividendJpy, setHalfCreditDividendJpy] = useState(
@@ -38,6 +48,11 @@ export function DividendSimulatorForm({
   );
   const [otherIncomeJpy, setOtherIncomeJpy] = useState("5000000");
   const [lossJpy, setLossJpy] = useState(String(defaultAvailableListedStockLossJpy));
+
+  const [nonListedDividendJpy, setNonListedDividendJpy] = useState(
+    String(defaultNonListedDividendJpy),
+  );
+  const [smallDividendJpy, setSmallDividendJpy] = useState("0");
 
   const result = useMemo(() => {
     try {
@@ -54,6 +69,18 @@ export function DividendSimulatorForm({
       return null;
     }
   }, [dividendJpy, halfCreditDividendJpy, noCreditDividendJpy, otherIncomeJpy, lossJpy]);
+
+  const nonListedResult = useMemo(() => {
+    try {
+      return simulateNonListedDividendTaxation({
+        nonListedDividendIncomeJpy: nonListedDividendJpy === "" ? 0 : nonListedDividendJpy,
+        smallDividendJpy: smallDividendJpy === "" ? 0 : smallDividendJpy,
+        otherTaxableIncomeJpy: otherIncomeJpy === "" ? 0 : otherIncomeJpy,
+      });
+    } catch {
+      return null;
+    }
+  }, [nonListedDividendJpy, smallDividendJpy, otherIncomeJpy]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -134,6 +161,60 @@ export function DividendSimulatorForm({
           </ul>
         </>
       )}
+
+      <hr className="border-neutral-200 dark:border-neutral-800" />
+
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">
+          一般株式等(非上場株式)の配当所得
+        </h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          上場株式等と異なり申告分離課税は選択できない。少額配当(1回の配当金額が10万円×配当計算期間の月数÷12以下)に
+          該当する部分のみ、所得税に限り確定申告不要制度を選択できる(住民税は常に総合課税での申告が必要)。
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label="一般株式等(非上場株式)の配当所得金額(源泉徴収前・年間合計)"
+          value={nonListedDividendJpy}
+          onChange={setNonListedDividendJpy}
+        />
+        <Field
+          label="うち少額配当に該当する額(支払いごとに自身で判定)"
+          value={smallDividendJpy}
+          onChange={setSmallDividendJpy}
+        />
+      </div>
+
+      {nonListedResult === null ? (
+        <p className="text-sm text-red-600">入力値を確認してください(0以上の数値を入力)。</p>
+      ) : (
+        <>
+          <div
+            className={`grid grid-cols-1 gap-4 ${
+              nonListedResult.smallDividendNoFiling ? "sm:grid-cols-2" : "sm:grid-cols-1"
+            }`}
+          >
+            <NonListedMethodCard
+              result={nonListedResult.reportAll}
+              recommended={nonListedResult.recommendedMethod === "REPORT_ALL"}
+            />
+            {nonListedResult.smallDividendNoFiling && (
+              <NonListedMethodCard
+                result={nonListedResult.smallDividendNoFiling}
+                recommended={nonListedResult.recommendedMethod === "SMALL_DIVIDEND_NO_FILING"}
+              />
+            )}
+          </div>
+
+          <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-500">
+            {nonListedResult.notes.map((note, i) => (
+              <li key={i}>{note}</li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
@@ -192,6 +273,41 @@ function MethodCard({
         国税 {yen(result.nationalTaxJpy)} + 住民税 {yen(result.residentTaxJpy)}
       </p>
       {extra && <p className="mt-1 text-xs text-neutral-400">{extra}</p>}
+    </div>
+  );
+}
+
+function NonListedMethodCard({
+  result,
+  recommended,
+}: {
+  result: NonListedDividendTaxMethodResult;
+  recommended: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-lg border p-4 ${
+        recommended
+          ? "border-neutral-900 dark:border-white"
+          : "border-neutral-200 dark:border-neutral-800"
+      }`}
+    >
+      <p className="flex items-center justify-between text-sm text-neutral-500">
+        <span>{NON_LISTED_METHOD_LABEL[result.method]}</span>
+        {recommended && (
+          <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-xs text-white dark:bg-white dark:text-neutral-900">
+            有利
+          </span>
+        )}
+      </p>
+      <p className="mt-1 text-2xl font-semibold">{yen(result.totalTaxJpy)}</p>
+      <p className="mt-1 text-xs text-neutral-400">
+        国税 {yen(result.nationalTaxJpy)} + 住民税 {yen(result.residentTaxJpy)}
+        {result.nationalWithholdingFinalJpy
+          ? ` + 申告不要分の源泉徴収 ${yen(result.nationalWithholdingFinalJpy)}`
+          : ""}
+      </p>
+      <p className="mt-1 text-xs text-neutral-400">配当控除: {yen(result.dividendCreditJpy)}</p>
     </div>
   );
 }
