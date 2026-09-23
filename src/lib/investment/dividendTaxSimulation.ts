@@ -255,17 +255,24 @@ function simulateNoFiling(dividendIncomeJpy: Decimal): DividendTaxMethodResult {
  * 支払い単位までは区別していないため、年間受取額のうち少額配当の基準を
  * 満たす金額(smallDividendJpy)はユーザー自身の判定に基づく入力とする。
  *
+ * 一般株式等の配当も上場株式等(`simulateDividendTaxation`)と同様、銘柄種別
+ * (非上場の投資信託等)により配当控除率が通常税率(FULL)ではなく半分・1/4・
+ * 対象外になる場合があるため、`dividendCreditBreakdown`で内訳を渡すとそれぞれの
+ * 税率区分ごとに正しく計算する(省略時は全額を通常税率として扱う簡略化)。
+ *
  * 簡略化している点(今後の課題):
- *  - 一般株式等の配当は普通株式の配当(配当控除率が通常税率(FULL)となる
- *    もの)のみを想定する。非上場の投資信託等、配当控除が半分税率・対象外と
- *    なる銘柄種別の区別には対応しない(上場株式等向けの
- *    `dividendCreditBreakdown`のような内訳指定は設けていない)。
  *  - 所得税額の計算は`simulateDividendTaxation`と同様、速算表と住民税10%
  *    固定を用いる。
  *  - 上場株式等の配当(`simulateDividendTaxation`)とは独立に試算するため、
  *    合計所得金額に基づく配当控除の1,000万円の閾値判定は、双方の配当を
  *    合算せずそれぞれ単独で行う(上場株式等の配当と合わせて1,000万円を
  *    超える場合、実際の控除額とは差異が生じ得る)。
+ *  - 少額配当の確定申告不要制度を選んだ場合、smallDividendJpyがどの税率
+ *    区分の配当に該当するかまでは指定できないため、通常税率(FULL)の分から
+ *    優先して申告不要にあて、それでも不足する場合は半分税率(HALF)→
+ *    1/4税率(QUARTER)→対象外(NONE)の順に充当する簡略化とする(実際の
+ *    有利・不利は総所得金額や適用税率により変動するため、この順序による
+ *    試算結果と実際の最適な組み合わせが一致しない場合がある)。
  */
 
 export type NonListedDividendTaxMethod = "REPORT_ALL" | "SMALL_DIVIDEND_NO_FILING";
@@ -285,6 +292,13 @@ export interface NonListedDividendTaxSimulationInput {
   smallDividendJpy?: Decimal.Value;
   /** 配当以外の課税所得金額(給与所得等、各種所得控除後の金額) */
   otherTaxableIncomeJpy: Decimal.Value;
+  /**
+   * nonListedDividendIncomeJpyの税率区分ごとの内訳(総合課税時の配当控除の
+   * 計算に使用)。半分税率・1/4税率・対象外の分のみ指定し、残り
+   * (nonListedDividendIncomeJpyからそれらを差し引いた額)を通常税率
+   * (一般株式等の普通配当)として扱う。省略時は全額を通常税率として扱う。
+   */
+  dividendCreditBreakdown?: DividendCreditBreakdown;
 }
 
 export interface NonListedDividendTaxMethodResult {
@@ -324,6 +338,19 @@ function nationalComprehensiveTaxJpy(
   return withDividend.minus(withoutDividend).minus(nationalCreditJpy);
 }
 
+/**
+ * amounts(FULL→HALF→QUARTER→NONEの順)からtoConsumeを順番に差し引き、
+ * 各区分の残額を返す(少額配当該当額の内訳区分が指定されない場合の充当順に使用)。
+ */
+function consumeSequentially(amounts: Decimal[], toConsume: Decimal): Decimal[] {
+  let remaining = toConsume;
+  return amounts.map((amount) => {
+    const consumed = Decimal.min(amount, remaining);
+    remaining = remaining.minus(consumed);
+    return amount.minus(consumed);
+  });
+}
+
 export function simulateNonListedDividendTaxation(
   input: NonListedDividendTaxSimulationInput,
 ): NonListedDividendTaxSimulationResult {
@@ -332,20 +359,46 @@ export function simulateNonListedDividendTaxation(
   const smallDividendJpy = input.smallDividendJpy
     ? new Decimal(input.smallDividendJpy)
     : new Decimal(0);
+  const halfCreditDividendJpy = input.dividendCreditBreakdown?.halfCreditJpy
+    ? new Decimal(input.dividendCreditBreakdown.halfCreditJpy)
+    : new Decimal(0);
+  const quarterCreditDividendJpy = input.dividendCreditBreakdown?.quarterCreditJpy
+    ? new Decimal(input.dividendCreditBreakdown.quarterCreditJpy)
+    : new Decimal(0);
+  const noCreditDividendJpy = input.dividendCreditBreakdown?.noCreditJpy
+    ? new Decimal(input.dividendCreditBreakdown.noCreditJpy)
+    : new Decimal(0);
 
   requireNonNegative(nonListedDividendIncomeJpy, "一般株式等の配当所得金額");
   requireNonNegative(otherTaxableIncomeJpy, "配当以外の課税所得金額");
   requireNonNegative(smallDividendJpy, "少額配当該当額");
+  requireNonNegative(halfCreditDividendJpy, "配当控除半分税率の内訳額");
+  requireNonNegative(quarterCreditDividendJpy, "配当控除1/4税率の内訳額");
+  requireNonNegative(noCreditDividendJpy, "配当控除対象外の内訳額");
   if (smallDividendJpy.greaterThan(nonListedDividendIncomeJpy)) {
     throw new Error("少額配当該当額が一般株式等の配当所得金額を超えています");
   }
+  if (
+    halfCreditDividendJpy
+      .plus(quarterCreditDividendJpy)
+      .plus(noCreditDividendJpy)
+      .greaterThan(nonListedDividendIncomeJpy)
+  ) {
+    throw new Error(
+      "配当控除の内訳額(半分税率+1/4税率+対象外)の合計が一般株式等の配当所得金額を超えています",
+    );
+  }
+  const fullCreditDividendJpy = nonListedDividendIncomeJpy
+    .minus(halfCreditDividendJpy)
+    .minus(quarterCreditDividendJpy)
+    .minus(noCreditDividendJpy);
 
   // 住民税は所得税側の選択にかかわらず常に配当所得全額を総合課税で計算する
   const { nationalCreditJpy: fullNationalCreditJpy, residentCreditJpy } = dividendCreditJpy(
     otherTaxableIncomeJpy,
-    nonListedDividendIncomeJpy,
-    new Decimal(0),
-    new Decimal(0),
+    fullCreditDividendJpy,
+    halfCreditDividendJpy,
+    quarterCreditDividendJpy,
   );
   const residentTaxJpy = nonListedDividendIncomeJpy
     .times(RESIDENT_TAX_RATE)
@@ -370,6 +423,11 @@ export function simulateNonListedDividendTaxation(
     "所得税で少額配当の確定申告不要制度を選んでも、住民税は常に他の所得と合算した総合課税での申告が必要(確定申告書を提出しない場合は住民税の申告が別途必要)。",
     "少額配当の判定(1回の配当金額が10万円×配当計算期間の月数÷12以下)は支払いごとに行うため、少額配当該当額は自身で判定した金額を入力すること。",
   ];
+  if (noCreditDividendJpy.greaterThan(0)) {
+    notes.push(
+      `配当所得のうち${noCreditDividendJpy.toString()}円分(公社債投資信託等)は総合課税を選んでも配当控除の対象外。`,
+    );
+  }
 
   if (smallDividendJpy.isZero()) {
     return {
@@ -380,11 +438,15 @@ export function simulateNonListedDividendTaxation(
   }
 
   const mustReportJpy = nonListedDividendIncomeJpy.minus(smallDividendJpy);
+  const [mustReportFullJpy, mustReportHalfJpy, mustReportQuarterJpy] = consumeSequentially(
+    [fullCreditDividendJpy, halfCreditDividendJpy, quarterCreditDividendJpy, noCreditDividendJpy],
+    smallDividendJpy,
+  );
   const { nationalCreditJpy: partialNationalCreditJpy } = dividendCreditJpy(
     otherTaxableIncomeJpy,
-    mustReportJpy,
-    new Decimal(0),
-    new Decimal(0),
+    mustReportFullJpy,
+    mustReportHalfJpy,
+    mustReportQuarterJpy,
   );
   const partialNationalTaxJpy = nationalComprehensiveTaxJpy(
     otherTaxableIncomeJpy,
