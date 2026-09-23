@@ -151,6 +151,41 @@ describe("buildTaxFilingDraftCsv", () => {
     expect(csv).toContain("申告書第一表");
   });
 
+  it("登録済みの住宅ローン控除(税額控除)を出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        nationalTaxCreditJpy: new Decimal(210_000),
+        residentTaxCreditJpy: new Decimal(15_000),
+      },
+    );
+
+    const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
+
+    expect(csv).toContain("■ 税額控除(住宅ローン控除)");
+    expect(csv).toContain("210000");
+    expect(csv).toContain("15000");
+    expect(csv).toContain("外国税額控除は本CSVには含まれない");
+  });
+
+  it("住宅ローン控除が未登録の場合は税額控除欄を出力しない", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(2026, crypto, investment);
+
+    const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
+
+    expect(csv).not.toContain("■ 税額控除");
+  });
+
   it("所得控除の登録が無い場合はサマリー欄を出力しない", () => {
     const crypto = calculateCryptoPortfolioYear([]);
     const investment = calculateInvestmentPortfolioYear([]);

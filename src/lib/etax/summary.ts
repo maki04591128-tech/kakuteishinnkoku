@@ -43,6 +43,15 @@ export interface TaxFilingSummary {
    * 損益通算・繰越控除は別プールで管理される。
    */
   futuresLossCarryforward: LossCarryforwardResult;
+  /**
+   * `/mortgage-deduction`で登録済みの住宅ローン控除(税額控除)。未登録の場合はundefined。
+   * 外国税額控除は現年分の所得税額等がDBに保存されない都度入力のため、ここには含めない
+   * (`/foreign-tax-credit`の試算結果を別途申告書へ転記する。ロードマップ参照)。
+   */
+  mortgageDeduction?: {
+    nationalTaxCreditJpy: Decimal;
+    residentTaxCreditJpy: Decimal;
+  };
 }
 
 export function buildTaxFilingSummary(
@@ -53,6 +62,7 @@ export function buildTaxFilingSummary(
   cryptoMargin?: CryptoMarginPortfolioYearResult,
   futures?: FuturesPortfolioYearResult,
   futuresLossCarryforward?: LossCarryforwardResult,
+  mortgageDeduction?: { nationalTaxCreditJpy: Decimal; residentTaxCreditJpy: Decimal },
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
@@ -69,5 +79,6 @@ export function buildTaxFilingSummary(
     futuresLossCarryforward:
       futuresLossCarryforward ??
       calculateLossCarryforward(year, futuresRealizedGainJpy, []),
+    mortgageDeduction,
   };
 }
