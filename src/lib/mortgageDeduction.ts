@@ -24,9 +24,14 @@ import { Decimal } from "decimal.js";
  * いずれかに該当する場合は13年間、それ以外(新築等の「その他の住宅」・
  * 既存住宅)は10年間。
  *
+ * 床面積40㎡以上50㎡未満の特例(isSmallFloorArea)は、新築等(既存住宅・買取再販を除く)
+ * の場合に限り、合計所得金額の上限を2,000万円ではなく1,000万円として判定する
+ * (租税特別措置法41条11項)。建築確認を受けた期限(公表資料により令和5年12月31日を
+ * 基本としつつ、令和6年度税制改正で延長された可能性があるという情報もあり一次情報で
+ * 確定できていない)はこのモジュールでは判定せず、ユーザー自身が対象年分に該当するか
+ * 確認する前提とする。
+ *
  * 簡略化している点(今後の課題):
- *  - 床面積40㎡以上50㎡未満の特例(合計所得金額1,000万円以下・令和5年12月31日
- *    までの建築確認が条件)は対象外とし、床面積50㎡以上の住宅のみを前提とする。
  *  - 新築等の「その他の住宅」で、令和5年12月31日までに建築確認を受けた場合の
  *    経過措置(令和6・7年入居でも借入限度額2,000万円・控除期間10年)は対象外とし、
  *    令和6・7年入居の「その他の住宅」は一律で対象外(借入限度額0円)として扱う。
@@ -57,6 +62,9 @@ export const MORTGAGE_DEDUCTION_RATE = new Decimal(0.007);
 
 /** 合計所得金額の要件(これを超える年は控除の適用を受けられない) */
 const TOTAL_INCOME_LIMIT_JPY = new Decimal(20_000_000);
+
+/** 床面積40㎡以上50㎡未満の特例を適用する場合の合計所得金額の要件(通常より厳しい) */
+const SMALL_FLOOR_AREA_TOTAL_INCOME_LIMIT_JPY = new Decimal(10_000_000);
 
 /** 住民税の控除限度額(課税総所得金額等の5%、上限9万7,500円。令和4年以降入居) */
 const RESIDENT_TAX_CREDIT_RATE = new Decimal(0.05);
@@ -101,6 +109,13 @@ export interface MortgageDeductionInput {
   isExistingHome: boolean;
   /** 子育て世帯等(令和6・7年入居の新築等のみ上乗せ措置の対象) */
   isChildRearingHousehold?: boolean;
+  /**
+   * 床面積40㎡以上50㎡未満の特例の対象かどうか(新築等のみ。既存住宅は対象外)。
+   * trueの場合、合計所得金額の要件が2,000万円ではなく1,000万円になる。
+   * 建築確認を受けた期限の判定はこのモジュールでは行わないため、対象年分に
+   * 該当するかはユーザー自身が確認すること。
+   */
+  isSmallFloorArea?: boolean;
   /** その年の年末借入金残高 */
   yearEndLoanBalanceJpy: Decimal.Value;
   /** その年の合計所得金額(2,000万円超の年は適用不可) */
@@ -193,6 +208,7 @@ export function calculateMortgageDeduction(
   const yearEndLoanBalanceJpy = new Decimal(input.yearEndLoanBalanceJpy);
   const totalIncomeJpy = new Decimal(input.totalIncomeJpy);
   const isChildRearingHousehold = input.isChildRearingHousehold ?? false;
+  const isSmallFloorArea = input.isSmallFloorArea ?? false;
 
   requireNonNegative(yearEndLoanBalanceJpy, "年末借入金残高");
   requireNonNegative(totalIncomeJpy, "合計所得金額");
@@ -214,16 +230,36 @@ export function calculateMortgageDeduction(
 
   const notes: string[] = [
     "国税庁タックスアンサーNo.1211-1・国土交通省の公表資料に基づく概算値。実際の適用には登記事項証明書・住宅取得資金に係る借入金の年末残高等証明書等の確認が必要。",
-    "床面積50㎡以上の住宅を前提とする(40㎡以上50㎡未満の特例は未対応)。",
     "連帯債務・共有名義の場合の持分按分は考慮していないため、年末借入金残高は本人負担分の金額を入力すること。",
   ];
+
+  if (isSmallFloorArea) {
+    if (input.isExistingHome) {
+      notes.push(
+        "床面積40㎡以上50㎡未満の特例は新築等(買取再販住宅・既存住宅を除く)のみが対象のため、既存住宅(中古)にチェックした場合は反映していない。",
+      );
+    } else {
+      notes.push(
+        "床面積40㎡以上50㎡未満の特例により、合計所得金額の要件を2,000万円ではなく1,000万円として判定している。建築確認を受けた期限の要件(一次情報での期限確認ができていないため本ツールでは判定しない)は自身で確認すること。",
+      );
+    }
+  } else {
+    notes.push("床面積50㎡以上の住宅を前提とする(40㎡以上50㎡未満の特例は入力欄から選択可能)。");
+  }
+
+  const applySmallFloorAreaLimit = isSmallFloorArea && !input.isExistingHome;
+  const totalIncomeLimitJpy = applySmallFloorAreaLimit
+    ? SMALL_FLOOR_AREA_TOTAL_INCOME_LIMIT_JPY
+    : TOTAL_INCOME_LIMIT_JPY;
 
   let eligible = true;
   let ineligibleReason: string | undefined;
 
-  if (totalIncomeJpy.greaterThan(TOTAL_INCOME_LIMIT_JPY)) {
+  if (totalIncomeJpy.greaterThan(totalIncomeLimitJpy)) {
     eligible = false;
-    ineligibleReason = "合計所得金額が2,000万円を超えるため、その年は適用を受けられない。";
+    ineligibleReason = applySmallFloorAreaLimit
+      ? "床面積40㎡以上50㎡未満の特例は合計所得金額が1,000万円を超える年は適用を受けられない。"
+      : "合計所得金額が2,000万円を超えるため、その年は適用を受けられない。";
   } else if (borrowingLimitJpy.isZero()) {
     eligible = false;
     ineligibleReason =

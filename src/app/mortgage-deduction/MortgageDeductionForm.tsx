@@ -18,6 +18,7 @@ export function MortgageDeductionForm({ defaultTaxYear }: { defaultTaxYear: numb
   const [housingCategory, setHousingCategory] = useState<HousingCategory>("ENERGY_SAVING");
   const [isExistingHome, setIsExistingHome] = useState(false);
   const [isChildRearingHousehold, setIsChildRearingHousehold] = useState(false);
+  const [isSmallFloorArea, setIsSmallFloorArea] = useState(false);
   const [yearEndLoanBalanceJpy, setYearEndLoanBalanceJpy] = useState("30000000");
   const [totalIncomeJpy, setTotalIncomeJpy] = useState("6000000");
   const [residentTaxTaxableIncomeJpy, setResidentTaxTaxableIncomeJpy] = useState("");
@@ -32,6 +33,7 @@ export function MortgageDeductionForm({ defaultTaxYear }: { defaultTaxYear: numb
         housingCategory,
         isExistingHome,
         isChildRearingHousehold,
+        isSmallFloorArea,
         yearEndLoanBalanceJpy: yearEndLoanBalanceJpy === "" ? 0 : yearEndLoanBalanceJpy,
         totalIncomeJpy: totalIncomeJpy === "" ? 0 : totalIncomeJpy,
         residentTaxTaxableIncomeJpy:
@@ -50,6 +52,7 @@ export function MortgageDeductionForm({ defaultTaxYear }: { defaultTaxYear: numb
     housingCategory,
     isExistingHome,
     isChildRearingHousehold,
+    isSmallFloorArea,
     yearEndLoanBalanceJpy,
     totalIncomeJpy,
     residentTaxTaxableIncomeJpy,
@@ -94,6 +97,14 @@ export function MortgageDeductionForm({ defaultTaxYear }: { defaultTaxYear: numb
           />
           子育て世帯等(19歳未満の扶養親族あり、または夫婦のいずれかが40歳未満)
         </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isSmallFloorArea}
+            onChange={(e) => setIsSmallFloorArea(e.target.checked)}
+          />
+          床面積40㎡以上50㎡未満の特例(新築等のみ・合計所得金額1,000万円以下)
+        </label>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -103,7 +114,11 @@ export function MortgageDeductionForm({ defaultTaxYear }: { defaultTaxYear: numb
           onChange={setYearEndLoanBalanceJpy}
         />
         <Field
-          label="その年の合計所得金額(2,000万円超は適用不可)"
+          label={
+            isSmallFloorArea && !isExistingHome
+              ? "その年の合計所得金額(床面積特例のため1,000万円超は適用不可)"
+              : "その年の合計所得金額(2,000万円超は適用不可)"
+          }
           value={totalIncomeJpy}
           onChange={setTotalIncomeJpy}
         />

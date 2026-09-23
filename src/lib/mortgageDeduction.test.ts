@@ -232,6 +232,47 @@ describe("calculateMortgageDeduction", () => {
     expect(result.residentTaxCreditJpy?.toNumber()).toBe(0);
   });
 
+  it("床面積40㎡以上50㎡未満の特例は合計所得金額1,000万円以下なら適用できる", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      isSmallFloorArea: true,
+      totalIncomeJpy: 9_000_000,
+    });
+
+    expect(result.eligible).toBe(true);
+  });
+
+  it("床面積40㎡以上50㎡未満の特例は合計所得金額が1,000万円を超えると適用対象外になる(通常の2,000万円要件より厳しい)", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      isSmallFloorArea: true,
+      totalIncomeJpy: 15_000_000,
+    });
+
+    expect(result.eligible).toBe(false);
+    expect(result.ineligibleReason).toContain("1,000万円");
+  });
+
+  it("床面積40㎡以上50㎡未満の特例を指定しない場合は従来通り2,000万円まで適用できる", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      totalIncomeJpy: 15_000_000,
+    });
+
+    expect(result.eligible).toBe(true);
+  });
+
+  it("床面積40㎡以上50㎡未満の特例は既存住宅(中古)には適用されない(通常の2,000万円要件のまま)", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      isExistingHome: true,
+      isSmallFloorArea: true,
+      totalIncomeJpy: 15_000_000,
+    });
+
+    expect(result.eligible).toBe(true);
+  });
+
   it("負の値を入力するとエラーになる", () => {
     expect(() =>
       calculateMortgageDeduction({ ...baseInput(), yearEndLoanBalanceJpy: -1 }),
