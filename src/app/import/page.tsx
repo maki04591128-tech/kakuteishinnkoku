@@ -1840,6 +1840,12 @@ export default async function ImportPage({
             シミュレーション(総合課税選択時)で配当控除の対象外として扱う)
           </label>
           <label className="col-span-full flex items-center gap-2 text-sm">
+            <input type="checkbox" name="mutualFundHighForeignRatio" /> 外貨建資産等の組入割合が
+            50%超75%以下(資産種別「投資信託」の場合のみ指定可能。投資信託説明書・運用報告書で
+            確認。配当・分配金の課税方式シミュレーション(総合課税選択時)で配当控除が通常の
+            半分ではなく1/4の税率になる。未指定(組入割合50%以下)の場合は従来どおり半分税率)
+          </label>
+          <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isNisa" /> NISA口座での取引(非課税として損益計算から除外)
           </label>
           <Field label="NISA枠区分(NISA口座の買付の場合のみ。年間投資枠の使用状況試算に使用)">
@@ -1884,6 +1890,7 @@ export default async function ImportPage({
                     <td className="px-3 py-2">
                       {INVESTMENT_ASSET_TYPE_LABEL[t.assetType] ?? t.assetType}
                       {t.isReit ? "(J-REIT)" : ""}
+                      {t.mutualFundHighForeignRatio ? "(外貨等50%超)" : ""}
                     </td>
                     <td className="px-3 py-2">{t.type}</td>
                     <td className="px-3 py-2">{t.quantity.toString()}</td>

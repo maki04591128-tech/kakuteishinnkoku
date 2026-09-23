@@ -257,6 +257,7 @@ describe("buildTaxFilingDraftCsv", () => {
         totalDividendJpy: new Decimal(0),
         totalDividendFullCreditJpy: new Decimal(0),
         totalDividendHalfCreditJpy: new Decimal(0),
+        totalDividendQuarterCreditJpy: new Decimal(0),
         totalDividendNoCreditJpy: new Decimal(0),
         totalForeignSourceDividendJpy: new Decimal(0),
         totalForeignTaxWithheldJpy: new Decimal(0),

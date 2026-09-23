@@ -124,11 +124,46 @@ describe("simulateDividendTaxation", () => {
     expect(result.comprehensive.dividendCreditJpy?.toNumber()).toBeCloseTo(expectedCredit, 0);
   });
 
+  it("外貨建資産等の組入割合が50%超の株式投資信託の分配金(1/4税率)は配当控除が1/4になる", () => {
+    const result = simulateDividendTaxation({
+      dividendIncomeJpy: 1_000_000,
+      dividendCreditBreakdown: { quarterCreditJpy: 1_000_000 },
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+
+    // 全額が1000万円以下の枠内: 2.5%+0.7%=3.2%
+    expect(result.comprehensive.dividendCreditJpy?.toNumber()).toBeCloseTo(32_000, 0);
+  });
+
+  it("半分税率・1/4税率が混在する場合、半分税率の分から先に1000万円の枠を消費する", () => {
+    // 他の所得900万円 + 半分税率100万円 + 1/4税率100万円 = 1100万円 (100万円が枠超過)
+    // 半分税率: 枠内100万円(5%+1.4%)
+    // 1/4税率: 全額枠超(1.25%+0.35%)
+    const result = simulateDividendTaxation({
+      dividendIncomeJpy: 2_000_000,
+      dividendCreditBreakdown: { halfCreditJpy: 1_000_000, quarterCreditJpy: 1_000_000 },
+      otherTaxableIncomeJpy: 9_000_000,
+    });
+
+    const expectedCredit = 1_000_000 * 0.064 + 1_000_000 * (0.0125 + 0.0035);
+    expect(result.comprehensive.dividendCreditJpy?.toNumber()).toBeCloseTo(expectedCredit, 0);
+  });
+
   it("内訳の合計が配当所得金額を超える場合はエラーになる", () => {
     expect(() =>
       simulateDividendTaxation({
         dividendIncomeJpy: 1_000_000,
         dividendCreditBreakdown: { halfCreditJpy: 600_000, noCreditJpy: 600_000 },
+        otherTaxableIncomeJpy: 5_000_000,
+      }),
+    ).toThrow();
+  });
+
+  it("内訳の合計(半分税率+1/4税率+対象外)が配当所得金額を超える場合はエラーになる", () => {
+    expect(() =>
+      simulateDividendTaxation({
+        dividendIncomeJpy: 1_000_000,
+        dividendCreditBreakdown: { halfCreditJpy: 400_000, quarterCreditJpy: 400_000, noCreditJpy: 400_000 },
         otherTaxableIncomeJpy: 5_000_000,
       }),
     ).toThrow();

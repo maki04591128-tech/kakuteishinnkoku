@@ -166,6 +166,42 @@ describe("calculateInvestmentYear (移動平均法)", () => {
     expect(result.dividendNoCreditJpy.toNumber()).toBe(8000);
   });
 
+  it("外貨建資産等の組入割合が50%超の株式投資信託(mutualFundHighForeignRatio=true)の分配金は1/4税率として集計する", () => {
+    const result = calculateInvestmentYear("MIXED", [
+      // 組入割合50%以下(既定値false): 半分税率
+      {
+        tradedAt: d("2026-01-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 4000,
+        assetType: "MUTUAL_FUND",
+      },
+      // 組入割合50%超: 1/4税率
+      {
+        tradedAt: d("2026-02-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 6000,
+        assetType: "MUTUAL_FUND",
+        mutualFundHighForeignRatio: true,
+      },
+      // mutualFundHighForeignRatio=trueでもMUTUAL_FUND以外(例: STOCK)には影響しない
+      {
+        tradedAt: d("2026-03-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 1000,
+        assetType: "STOCK",
+        mutualFundHighForeignRatio: true,
+      },
+    ]);
+
+    expect(result.dividendJpy.toNumber()).toBe(11_000);
+    expect(result.dividendFullCreditJpy.toNumber()).toBe(1000);
+    expect(result.dividendHalfCreditJpy.toNumber()).toBe(4000);
+    expect(result.dividendQuarterCreditJpy.toNumber()).toBe(6000);
+  });
+
   it("国外源泉株式等の譲渡益は外国税額控除の国外所得金額として別集計される(為替差損益を含む)", () => {
     const result = calculateInvestmentYear("VOO", [
       { tradedAt: d("2026-01-10"), type: "BUY", quantity: 10, unitPriceJpy: 50_000, isForeign: true },
