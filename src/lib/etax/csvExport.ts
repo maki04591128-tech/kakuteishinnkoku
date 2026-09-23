@@ -140,6 +140,33 @@ export function buildTaxFilingDraftCsv(
   );
   lines.push("");
 
+  if (summary.mortgageDeduction) {
+    lines.push(toCsvLine(["■ 税額控除(住宅ローン控除)"]));
+    lines.push(toCsvLine(["区分", "金額(円)", "申告書での主な記載箇所"]));
+    lines.push(
+      toCsvLine([
+        "所得税からの控除額",
+        formatYen(summary.mortgageDeduction.nationalTaxCreditJpy),
+        "申告書第一表 税額控除(住宅借入金等特別控除) / (特定増改築等)住宅借入金等特別控除額の計算明細書",
+      ]),
+    );
+    if (summary.mortgageDeduction.residentTaxCreditJpy.greaterThan(0)) {
+      lines.push(
+        toCsvLine([
+          "住民税からの控除額(所得税から控除しきれなかった分)",
+          formatYen(summary.mortgageDeduction.residentTaxCreditJpy),
+          "住民税は市区町村側で自動計算されるため申告書への記載は不要",
+        ]),
+      );
+    }
+    lines.push(
+      toCsvLine([
+        "# 外国税額控除は本CSVには含まれない。/foreign-tax-creditの試算結果を別途申告書第一表・第二表へ転記すること。",
+      ]),
+    );
+    lines.push("");
+  }
+
   if (incomeDeductions && incomeDeductions.entries.length > 0) {
     lines.push(toCsvLine(["■ 所得控除サマリー(各試算画面で登録済みの分)"]));
     lines.push(
