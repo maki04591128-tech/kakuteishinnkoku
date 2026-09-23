@@ -240,6 +240,12 @@ export default async function Home({
           寄附金控除(ふるさと納税等)額を試算する
         </Link>
         <Link
+          href={`/donation-tax-credit?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          政党等・認定NPO法人等寄附金特別控除(税額控除)を試算する
+        </Link>
+        <Link
           href={`/mortgage-deduction?year=${year}`}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
