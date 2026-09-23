@@ -45,8 +45,12 @@ import { prisma } from "./db";
  *    算出するが、実際に住民税から控除される額(所得税から控除しきれなかった額と
  *    この限度額のいずれか少ない方)の算出には、住宅ローン控除適用前の所得税額の
  *    入力が必要(未入力の場合は限度額のみを表示する)。
- *  - 連帯債務・共有名義の場合の持分按分は考慮しない(年末残高は本人負担分の
- *    金額を入力する前提)。
+ *  - 連帯債務(共有名義)の場合、`jointDebtShareRatioPercent`(本人の負担割合)を
+ *    指定すると、`yearEndLoanBalanceJpy`(連帯債務者全員分の年末残高の合計額)に
+ *    その割合を乗じた額を本人の年末残高とみなして計算する(国税庁タックスアンサー
+ *    No.1234)。負担割合は連帯債務者間の合意で定める割合で、実務上は持分登記割合や
+ *    出資割合と一致させることが多いが、この判定自体はユーザー自身が行う前提とする。
+ *    未指定の場合は従来どおり`yearEndLoanBalanceJpy`を本人負担分の金額として扱う。
  */
 
 export type HousingCategory = "CERTIFIED" | "ZEH" | "ENERGY_SAVING" | "OTHER";
@@ -117,8 +121,19 @@ export interface MortgageDeductionInput {
    * 該当するかはユーザー自身が確認すること。
    */
   isSmallFloorArea?: boolean;
-  /** その年の年末借入金残高 */
+  /**
+   * その年の年末借入金残高。`jointDebtShareRatioPercent`を指定する場合は、
+   * 連帯債務者全員分の年末残高の合計額を入力する(本人負担分への按分は
+   * 自動計算する)。指定しない場合は、従来どおり本人負担分の金額を入力する。
+   */
   yearEndLoanBalanceJpy: Decimal.Value;
+  /**
+   * 連帯債務(共有名義)による持分按分を行う場合の、本人の債務負担割合(%。
+   * 0より大きく100以下)。指定すると`yearEndLoanBalanceJpy`(合計額)に
+   * この割合を乗じた額を本人の年末残高として計算する。単独債務の場合は
+   * 指定不要(未指定)。
+   */
+  jointDebtShareRatioPercent?: Decimal.Value;
   /** その年の合計所得金額(2,000万円超の年は適用不可) */
   totalIncomeJpy: Decimal.Value;
   /**
@@ -145,7 +160,13 @@ export interface MortgageDeductionResult {
   controlPeriodYears: number;
   /** 控除期間の最終年(居住開始年 + 控除期間 - 1) */
   controlPeriodEndYear: number;
-  /** 控除対象借入金残高(年末借入金残高と借入限度額のいずれか少ない方) */
+  /**
+   * 本人の年末借入金残高(連帯債務の場合は`yearEndLoanBalanceJpy`に
+   * `jointDebtShareRatioPercent`を乗じた按分後の金額。単独債務の場合は
+   * `yearEndLoanBalanceJpy`と同じ)。
+   */
+  ownYearEndLoanBalanceJpy: Decimal;
+  /** 控除対象借入金残高(本人の年末借入金残高と借入限度額のいずれか少ない方) */
   deductibleBalanceJpy: Decimal;
   /** その年分の所得税の控除額(100円未満切り捨て) */
   nationalTaxCreditJpy: Decimal;
@@ -231,8 +252,28 @@ export function calculateMortgageDeduction(
 
   const notes: string[] = [
     "国税庁タックスアンサーNo.1211-1・国土交通省の公表資料に基づく概算値。実際の適用には登記事項証明書・住宅取得資金に係る借入金の年末残高等証明書等の確認が必要。",
-    "連帯債務・共有名義の場合の持分按分は考慮していないため、年末借入金残高は本人負担分の金額を入力すること。",
   ];
+
+  let ownYearEndLoanBalanceJpy = yearEndLoanBalanceJpy;
+  if (input.jointDebtShareRatioPercent !== undefined) {
+    const jointDebtShareRatioPercent = new Decimal(input.jointDebtShareRatioPercent);
+    if (
+      jointDebtShareRatioPercent.lessThanOrEqualTo(0) ||
+      jointDebtShareRatioPercent.greaterThan(100)
+    ) {
+      throw new Error("連帯債務の負担割合は0%超100%以下で入力してください");
+    }
+    ownYearEndLoanBalanceJpy = yearEndLoanBalanceJpy
+      .times(jointDebtShareRatioPercent)
+      .dividedBy(100);
+    notes.push(
+      `連帯債務(共有名義)の負担割合${jointDebtShareRatioPercent}%により、年末残高の合計額を本人の年末残高${ownYearEndLoanBalanceJpy.toFixed(0)}円に按分して計算した(国税庁タックスアンサーNo.1234)。負担割合は連帯債務者間の合意で定める割合で、実務上は持分登記割合・出資割合と一致させることが多い。`,
+    );
+  } else {
+    notes.push(
+      "連帯債務(共有名義)の場合は、年末借入金残高に連帯債務者全員分の合計額を入力したうえで本人の負担割合(%)を指定すると、本人負担分への按分を自動計算する。未指定の場合、年末借入金残高は本人負担分の金額を入力すること。",
+    );
+  }
 
   if (isSmallFloorArea) {
     if (input.isExistingHome) {
@@ -271,7 +312,7 @@ export function calculateMortgageDeduction(
   }
 
   const deductibleBalanceJpy = eligible
-    ? Decimal.min(yearEndLoanBalanceJpy, borrowingLimitJpy)
+    ? Decimal.min(ownYearEndLoanBalanceJpy, borrowingLimitJpy)
     : new Decimal(0);
   const nationalTaxCreditJpy = eligible
     ? floorToHundredYen(deductibleBalanceJpy.times(MORTGAGE_DEDUCTION_RATE))
@@ -326,6 +367,7 @@ export function calculateMortgageDeduction(
     borrowingLimitJpy,
     controlPeriodYears: periodYears,
     controlPeriodEndYear,
+    ownYearEndLoanBalanceJpy,
     deductibleBalanceJpy,
     nationalTaxCreditJpy,
     residentTaxCreditLimitJpy,
