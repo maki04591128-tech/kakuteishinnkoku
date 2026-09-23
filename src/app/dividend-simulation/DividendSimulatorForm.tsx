@@ -33,6 +33,9 @@ export function DividendSimulatorForm({
   defaultDividendNoCreditJpy,
   defaultAvailableListedStockLossJpy,
   defaultNonListedDividendJpy,
+  defaultNonListedDividendHalfCreditJpy,
+  defaultNonListedDividendQuarterCreditJpy,
+  defaultNonListedDividendNoCreditJpy,
 }: {
   defaultDividendJpy: number;
   defaultDividendHalfCreditJpy: number;
@@ -40,6 +43,9 @@ export function DividendSimulatorForm({
   defaultDividendNoCreditJpy: number;
   defaultAvailableListedStockLossJpy: number;
   defaultNonListedDividendJpy: number;
+  defaultNonListedDividendHalfCreditJpy: number;
+  defaultNonListedDividendQuarterCreditJpy: number;
+  defaultNonListedDividendNoCreditJpy: number;
 }) {
   const [dividendJpy, setDividendJpy] = useState(String(defaultDividendJpy));
   const [halfCreditDividendJpy, setHalfCreditDividendJpy] = useState(
@@ -56,6 +62,15 @@ export function DividendSimulatorForm({
 
   const [nonListedDividendJpy, setNonListedDividendJpy] = useState(
     String(defaultNonListedDividendJpy),
+  );
+  const [nonListedHalfCreditDividendJpy, setNonListedHalfCreditDividendJpy] = useState(
+    String(defaultNonListedDividendHalfCreditJpy),
+  );
+  const [nonListedQuarterCreditDividendJpy, setNonListedQuarterCreditDividendJpy] = useState(
+    String(defaultNonListedDividendQuarterCreditJpy),
+  );
+  const [nonListedNoCreditDividendJpy, setNonListedNoCreditDividendJpy] = useState(
+    String(defaultNonListedDividendNoCreditJpy),
   );
   const [smallDividendJpy, setSmallDividendJpy] = useState("0");
 
@@ -89,11 +104,25 @@ export function DividendSimulatorForm({
         nonListedDividendIncomeJpy: nonListedDividendJpy === "" ? 0 : nonListedDividendJpy,
         smallDividendJpy: smallDividendJpy === "" ? 0 : smallDividendJpy,
         otherTaxableIncomeJpy: otherIncomeJpy === "" ? 0 : otherIncomeJpy,
+        dividendCreditBreakdown: {
+          halfCreditJpy:
+            nonListedHalfCreditDividendJpy === "" ? 0 : nonListedHalfCreditDividendJpy,
+          quarterCreditJpy:
+            nonListedQuarterCreditDividendJpy === "" ? 0 : nonListedQuarterCreditDividendJpy,
+          noCreditJpy: nonListedNoCreditDividendJpy === "" ? 0 : nonListedNoCreditDividendJpy,
+        },
       });
     } catch {
       return null;
     }
-  }, [nonListedDividendJpy, smallDividendJpy, otherIncomeJpy]);
+  }, [
+    nonListedDividendJpy,
+    smallDividendJpy,
+    otherIncomeJpy,
+    nonListedHalfCreditDividendJpy,
+    nonListedQuarterCreditDividendJpy,
+    nonListedNoCreditDividendJpy,
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -205,6 +234,29 @@ export function DividendSimulatorForm({
           onChange={setSmallDividendJpy}
         />
       </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Field
+          label="うち非上場投資信託等の分配金(組入割合50%以下・配当控除が半分税率)"
+          value={nonListedHalfCreditDividendJpy}
+          onChange={setNonListedHalfCreditDividendJpy}
+        />
+        <Field
+          label="うち非上場投資信託等の分配金(組入割合50%超・配当控除が1/4税率)"
+          value={nonListedQuarterCreditDividendJpy}
+          onChange={setNonListedQuarterCreditDividendJpy}
+        />
+        <Field
+          label="うち非上場公社債投資信託等の分配金(配当控除の対象外)"
+          value={nonListedNoCreditDividendJpy}
+          onChange={setNonListedNoCreditDividendJpy}
+        />
+      </div>
+      <p className="text-xs text-neutral-500">
+        上記3つの内訳欄は「一般株式等の配当所得金額」の内数として入力する(残りは普通株式の配当として
+        通常税率で計算する)。銘柄種別・外貨建資産等の組入割合を登録済みの取引から自動集計した値を
+        初期値として表示している。
+      </p>
 
       {nonListedResult === null ? (
         <p className="text-sm text-red-600">入力値を確認してください(0以上の数値を入力)。</p>

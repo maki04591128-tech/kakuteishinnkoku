@@ -26,6 +26,12 @@ export default async function DividendSimulationPage({
     ? Math.max(0, -report.investment.totalRealizedGainJpy.toNumber())
     : 0;
   const defaultNonListedDividendJpy = report?.investmentNonListed.totalDividendJpy.toNumber() ?? 0;
+  const defaultNonListedDividendHalfCreditJpy =
+    report?.investmentNonListed.totalDividendHalfCreditJpy.toNumber() ?? 0;
+  const defaultNonListedDividendQuarterCreditJpy =
+    report?.investmentNonListed.totalDividendQuarterCreditJpy.toNumber() ?? 0;
+  const defaultNonListedDividendNoCreditJpy =
+    report?.investmentNonListed.totalDividendNoCreditJpy.toNumber() ?? 0;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -51,6 +57,9 @@ export default async function DividendSimulationPage({
         defaultDividendNoCreditJpy={defaultDividendNoCreditJpy}
         defaultAvailableListedStockLossJpy={defaultAvailableListedStockLossJpy}
         defaultNonListedDividendJpy={defaultNonListedDividendJpy}
+        defaultNonListedDividendHalfCreditJpy={defaultNonListedDividendHalfCreditJpy}
+        defaultNonListedDividendQuarterCreditJpy={defaultNonListedDividendQuarterCreditJpy}
+        defaultNonListedDividendNoCreditJpy={defaultNonListedDividendNoCreditJpy}
       />
 
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">

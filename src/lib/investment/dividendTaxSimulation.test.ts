@@ -304,4 +304,64 @@ describe("simulateNonListedDividendTaxation", () => {
       }),
     ).toThrow();
   });
+
+  it("配当控除の内訳(対象外)を指定すると総合課税で配当控除が減る", () => {
+    const full = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+    const withNoCredit = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      otherTaxableIncomeJpy: 5_000_000,
+      dividendCreditBreakdown: { noCreditJpy: 1_000_000 },
+    });
+
+    expect(withNoCredit.reportAll.dividendCreditJpy.toNumber()).toBe(0);
+    expect(withNoCredit.reportAll.totalTaxJpy.toNumber()).toBeGreaterThan(
+      full.reportAll.totalTaxJpy.toNumber(),
+    );
+    expect(withNoCredit.notes.some((n) => n.includes("配当控除の対象外"))).toBe(true);
+  });
+
+  it("配当控除の内訳(半分税率)を指定すると通常税率より配当控除が少なくなる", () => {
+    const full = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+    const halfCredit = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      otherTaxableIncomeJpy: 5_000_000,
+      dividendCreditBreakdown: { halfCreditJpy: 1_000_000 },
+    });
+
+    // 全額半分税率(国税5%+住民税1.4%=6.4%) < 通常税率(12.8%)
+    expect(halfCredit.reportAll.dividendCreditJpy.toNumber()).toBeCloseTo(64_000, 0);
+    expect(halfCredit.reportAll.dividendCreditJpy.toNumber()).toBeLessThan(
+      full.reportAll.dividendCreditJpy.toNumber(),
+    );
+  });
+
+  it("少額配当を申告不要にした場合、内訳は通常税率の分から優先して充当される", () => {
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      smallDividendJpy: 600_000,
+      otherTaxableIncomeJpy: 5_000_000,
+      dividendCreditBreakdown: { noCreditJpy: 400_000 },
+    });
+
+    // 通常税率600,000円分がすべて少額配当として除外され、残る申告対象400,000円は
+    // すべて配当控除の対象外(noCredit)のため、申告分の配当控除(所得税分)は0円になる
+    expect(result.smallDividendNoFiling!.nationalReportedDividendJpy.toNumber()).toBe(400_000);
+    expect(result.notes.some((n) => n.includes("配当控除の対象外"))).toBe(true);
+  });
+
+  it("配当控除の内訳額の合計が配当所得金額を超える場合はエラーになる", () => {
+    expect(() =>
+      simulateNonListedDividendTaxation({
+        nonListedDividendIncomeJpy: 500_000,
+        otherTaxableIncomeJpy: 0,
+        dividendCreditBreakdown: { halfCreditJpy: 300_000, quarterCreditJpy: 300_000 },
+      }),
+    ).toThrow();
+  });
 });
