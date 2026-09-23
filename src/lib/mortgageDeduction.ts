@@ -1,4 +1,5 @@
 import { Decimal } from "decimal.js";
+import { prisma } from "./db";
 
 /**
  * 住宅借入金等特別控除(住宅ローン控除)を試算する(租税特別措置法41条)。
@@ -330,5 +331,34 @@ export function calculateMortgageDeduction(
     residentTaxCreditLimitJpy,
     residentTaxCreditJpy,
     notes,
+  };
+}
+
+export interface MortgageDeductionRecordEntry {
+  taxYear: number;
+  nationalTaxCreditJpy: Decimal;
+  residentTaxCreditJpy: Decimal;
+}
+
+/**
+ * `/mortgage-deduction`で登録済みの、指定した年分の住宅ローン控除額(税額控除)を
+ * DBから読み出す。`/tax-estimate`の合計税額試算へ税額控除として自動反映するために使う。
+ * 未登録の年は null を返す。
+ */
+export async function getMortgageDeductionRecord(
+  year: number,
+): Promise<MortgageDeductionRecordEntry | null> {
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (!taxYear) return null;
+
+  const record = await prisma.mortgageDeductionRecord.findUnique({
+    where: { taxYearId: taxYear.id },
+  });
+  if (!record) return null;
+
+  return {
+    taxYear: year,
+    nationalTaxCreditJpy: new Decimal(record.nationalTaxCreditJpy.toString()),
+    residentTaxCreditJpy: new Decimal(record.residentTaxCreditJpy.toString()),
   };
 }

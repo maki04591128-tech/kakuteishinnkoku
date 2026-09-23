@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listTaxYears } from "@/lib/taxYear";
+import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
 import { MortgageDeductionForm } from "./MortgageDeductionForm";
 
 export default async function MortgageDeductionPage({
@@ -11,6 +12,15 @@ export default async function MortgageDeductionPage({
   const availableYears = await listTaxYears();
   const currentCalendarYear = new Date().getFullYear();
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
+
+  const mortgageDeductionRecord = await getMortgageDeductionRecord(year);
+  const registeredRecord = mortgageDeductionRecord
+    ? {
+        taxYear: mortgageDeductionRecord.taxYear,
+        nationalTaxCreditJpy: mortgageDeductionRecord.nationalTaxCreditJpy.toNumber(),
+        residentTaxCreditJpy: mortgageDeductionRecord.residentTaxCreditJpy.toNumber(),
+      }
+    : null;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -24,11 +34,15 @@ export default async function MortgageDeductionPage({
         <p className="mt-1 text-sm text-neutral-500">
           居住開始年・住宅の区分・年末借入金残高を入力すると、その年分の所得税額から
           控除できる住宅ローン控除額(税額控除)を試算する。令和4年(2022年)〜令和7年
-          (2025年)に居住の用に供した場合のみ対応する。
+          (2025年)に居住の用に供した場合のみ対応する。試算結果は「登録する」ボタンで
+          年分ごとに保存でき、<Link href="/tax-estimate" className="underline">
+            /tax-estimate
+          </Link>
+          の合計税額試算に税額控除として自動反映される(初期値のみで、手入力で上書き可能)。
         </p>
       </header>
 
-      <MortgageDeductionForm defaultTaxYear={year} />
+      <MortgageDeductionForm defaultTaxYear={year} registeredRecord={registeredRecord} />
 
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         本シミュレーターは国税庁タックスアンサーNo.1211-1・国土交通省の公表資料に

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { saveMortgageDeductionRecord } from "@/app/actions";
 import {
   HOUSING_CATEGORY_LABEL,
   calculateMortgageDeduction,
@@ -12,7 +13,18 @@ function yen(value: { toString(): string }): string {
   return `¥${Math.round(n).toLocaleString("ja-JP")}`;
 }
 
-export function MortgageDeductionForm({ defaultTaxYear }: { defaultTaxYear: number }) {
+export function MortgageDeductionForm({
+  defaultTaxYear,
+  registeredRecord,
+}: {
+  defaultTaxYear: number;
+  /** `/tax-estimate`と連携するため既に登録済みの住宅ローン控除額(未登録ならnull) */
+  registeredRecord: {
+    taxYear: number;
+    nationalTaxCreditJpy: number;
+    residentTaxCreditJpy: number;
+  } | null;
+}) {
   const [taxYear, setTaxYear] = useState(String(defaultTaxYear));
   const [moveInYear, setMoveInYear] = useState(String(defaultTaxYear));
   const [housingCategory, setHousingCategory] = useState<HousingCategory>("ENERGY_SAVING");
@@ -175,6 +187,41 @@ export function MortgageDeductionForm({ defaultTaxYear }: { defaultTaxYear: numb
               {result.ineligibleReason}
             </p>
           )}
+
+          <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+            <form action={saveMortgageDeductionRecord}>
+              <input type="hidden" name="year" value={taxYear} />
+              <input
+                type="hidden"
+                name="nationalTaxCreditJpy"
+                value={result.nationalTaxCreditJpy.toString()}
+              />
+              <input
+                type="hidden"
+                name="residentTaxCreditJpy"
+                value={result.residentTaxCreditJpy?.toString() ?? "0"}
+              />
+              <button
+                type="submit"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                この試算結果を{taxYear}年分の住宅ローン控除として登録する
+              </button>
+            </form>
+            {result.residentTaxCreditJpy === undefined && (
+              <p className="mt-2 text-xs text-neutral-500">
+                住民税から控除される額が未算出(所得税額・住宅ローン控除適用前が未入力)のため、
+                登録すると住民税分は0円として保存される。
+              </p>
+            )}
+            {registeredRecord !== null && (
+              <p className="mt-2 text-xs text-neutral-500">
+                登録済み({registeredRecord.taxYear}年分): 所得税{" "}
+                {yen(registeredRecord.nationalTaxCreditJpy)} / 住民税{" "}
+                {yen(registeredRecord.residentTaxCreditJpy)}(/tax-estimateの初期値に反映)
+              </p>
+            )}
+          </div>
 
           <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-500">
             {result.notes.map((note, i) => (

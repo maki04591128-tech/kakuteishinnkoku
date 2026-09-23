@@ -7,6 +7,7 @@ import {
   INCOME_DEDUCTION_TYPE_LABELS,
   summarizeIncomeDeductions,
 } from "@/lib/incomeDeduction";
+import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -61,6 +62,14 @@ export default async function TaxEstimatePage({
     BASE_OTHER_COMPREHENSIVE_INCOME_JPY - totalRegisteredIncomeTaxDeductionJpy,
   );
 
+  const mortgageDeductionRecord = await getMortgageDeductionRecord(year);
+  const registeredMortgageDeduction = mortgageDeductionRecord
+    ? {
+        nationalTaxCreditJpy: mortgageDeductionRecord.nationalTaxCreditJpy.toNumber(),
+        residentTaxCreditJpy: mortgageDeductionRecord.residentTaxCreditJpy.toNumber(),
+      }
+    : null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -89,6 +98,13 @@ export default async function TaxEstimatePage({
         registeredIncomeDeductions={registeredIncomeDeductions}
         totalRegisteredIncomeTaxDeductionJpy={totalRegisteredIncomeTaxDeductionJpy}
         incomeDeductionNotes={incomeDeductionNotes}
+        defaultMortgageDeductionNationalTaxCreditJpy={
+          registeredMortgageDeduction?.nationalTaxCreditJpy ?? 0
+        }
+        defaultMortgageDeductionResidentTaxCreditJpy={
+          registeredMortgageDeduction?.residentTaxCreditJpy ?? 0
+        }
+        registeredMortgageDeduction={registeredMortgageDeduction}
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
@@ -101,6 +117,14 @@ export default async function TaxEstimatePage({
           その合計額(所得税ベース)を仮の給与収入(500万円)から差し引いた額を初期値として
           表示する。基礎控除等それ以外の所得控除は引き続き含まれないため、実際の金額は
           自分で確認して上書きすること。
+        </p>
+        <p>
+          住宅ローン控除(税額控除)は`/mortgage-deduction`で「この試算結果を◯年分の
+          住宅ローン控除として登録する」を実行済みの場合、所得税分・住民税分それぞれの
+          控除額を初期値として表示する。ここで求まる合計税額から直接差し引くため、控除額が
+          合計税額を上回っても0円が下限(還付は生じない)。ふるさと納税の上限額の試算は
+          住宅ローン控除適用前の住民税所得割額を基準にしており、住宅ローン控除による
+          変動は含めていない。
         </p>
         <p>
           住民税は所得割10%固定の概算であり、均等割・調整控除は含まない。また

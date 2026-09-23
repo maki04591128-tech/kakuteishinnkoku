@@ -34,6 +34,13 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  *  - 住民税は所得割10%固定(均等割・調整控除は考慮しない)。
  *  - 予定納税額・源泉徴収税額との相殺(還付・納付額の算出)は行わない。
  *    ここで求めるのはあくまで年間の税額そのものの概算値。
+ *
+ * 住宅ローン控除(`mortgageDeduction.ts`)は所得控除ではなく税額控除のため、
+ * 上記の各所得区分の税額を合算した後の合計税額から直接差し引く。所得税分・
+ * 住民税分いずれも、`/mortgage-deduction`の試算結果(または`IncomeDeduction`と
+ * 同様にDB登録した値)をそのまま「その年に適用される控除額」として受け取り、
+ * 本モジュール側では所得税額・住民税所得割額の限度判定(住民税へ繰り越す額の
+ * 算出)を再計算しない。控除額が合計税額を上回る場合は0円が下限(還付は生じない)。
  */
 
 export interface TotalTaxEstimateInput {
@@ -51,6 +58,10 @@ export interface TotalTaxEstimateInput {
   dividendMethod?: DividendTaxMethod;
   /** 配当所得(申告分離課税時)と損益通算できる上場株式等の譲渡損失額 */
   availableListedStockLossForDividendJpy?: Decimal.Value;
+  /** 住宅ローン控除(税額控除)のうち、その年の所得税額から控除する額 */
+  mortgageDeductionNationalTaxCreditJpy?: Decimal.Value;
+  /** 住宅ローン控除(税額控除)のうち、その年の住民税額から控除する額 */
+  mortgageDeductionResidentTaxCreditJpy?: Decimal.Value;
 }
 
 export interface TotalTaxEstimateResult {
@@ -74,11 +85,19 @@ export interface TotalTaxEstimateResult {
   futuresNationalTaxJpy: Decimal;
   /** 先物取引に係る雑所得等(申告分離課税)の住民税額 */
   futuresResidentTaxJpy: Decimal;
-  /** 合計の所得税額(復興特別所得税を含む) */
+  /** 住宅ローン控除適用前の合計の所得税額(復興特別所得税を含む) */
+  totalNationalTaxBeforeMortgageDeductionJpy: Decimal;
+  /** 住宅ローン控除適用前の合計の住民税額 */
+  totalResidentTaxBeforeMortgageDeductionJpy: Decimal;
+  /** 実際に適用された住宅ローン控除額(所得税分。入力値と適用前の所得税額のいずれか少ない方) */
+  mortgageDeductionNationalTaxAppliedJpy: Decimal;
+  /** 実際に適用された住宅ローン控除額(住民税分。入力値と適用前の住民税額のいずれか少ない方) */
+  mortgageDeductionResidentTaxAppliedJpy: Decimal;
+  /** 合計の所得税額(復興特別所得税を含む。住宅ローン控除適用後) */
   totalNationalTaxJpy: Decimal;
-  /** 合計の住民税額 */
+  /** 合計の住民税額(住宅ローン控除適用後) */
   totalResidentTaxJpy: Decimal;
-  /** 合計税額(所得税・復興特別所得税・住民税の合計) */
+  /** 合計税額(所得税・復興特別所得税・住民税の合計。住宅ローン控除適用後) */
   totalTaxJpy: Decimal;
   /** ふるさと納税(寄附金控除)の年間上限額の試算(自己負担2,000円になる目安) */
   furusatoNozei: FurusatoNozeiLimitResult;
@@ -140,14 +159,38 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
   const futuresNationalTaxJpy = futuresTaxableGainJpy.times(SEPARATE_NATIONAL_TAX_RATE);
   const futuresResidentTaxJpy = futuresTaxableGainJpy.times(SEPARATE_RESIDENT_TAX_RATE);
 
-  const totalNationalTaxJpy = comprehensiveNationalTaxJpy
+  const totalNationalTaxBeforeMortgageDeductionJpy = comprehensiveNationalTaxJpy
     .plus(dividendResult.nationalTaxJpy)
     .plus(investmentNationalTaxJpy)
     .plus(futuresNationalTaxJpy);
-  const totalResidentTaxJpy = comprehensiveResidentTaxJpy
+  const totalResidentTaxBeforeMortgageDeductionJpy = comprehensiveResidentTaxJpy
     .plus(dividendResult.residentTaxJpy)
     .plus(investmentResidentTaxJpy)
     .plus(futuresResidentTaxJpy);
+
+  const mortgageDeductionNationalTaxCreditJpy = input.mortgageDeductionNationalTaxCreditJpy
+    ? new Decimal(input.mortgageDeductionNationalTaxCreditJpy)
+    : new Decimal(0);
+  const mortgageDeductionResidentTaxCreditJpy = input.mortgageDeductionResidentTaxCreditJpy
+    ? new Decimal(input.mortgageDeductionResidentTaxCreditJpy)
+    : new Decimal(0);
+  requireNonNegative(mortgageDeductionNationalTaxCreditJpy, "住宅ローン控除額(所得税分)");
+  requireNonNegative(mortgageDeductionResidentTaxCreditJpy, "住宅ローン控除額(住民税分)");
+
+  const mortgageDeductionNationalTaxAppliedJpy = Decimal.min(
+    mortgageDeductionNationalTaxCreditJpy,
+    totalNationalTaxBeforeMortgageDeductionJpy,
+  );
+  const mortgageDeductionResidentTaxAppliedJpy = Decimal.min(
+    mortgageDeductionResidentTaxCreditJpy,
+    totalResidentTaxBeforeMortgageDeductionJpy,
+  );
+  const totalNationalTaxJpy = totalNationalTaxBeforeMortgageDeductionJpy.minus(
+    mortgageDeductionNationalTaxAppliedJpy,
+  );
+  const totalResidentTaxJpy = totalResidentTaxBeforeMortgageDeductionJpy.minus(
+    mortgageDeductionResidentTaxAppliedJpy,
+  );
 
   const notes: string[] = [
     "給与所得等の課税所得金額は所得控除後の金額を入力する前提であり、本ツールは所得控除額を計算しない。",
@@ -160,17 +203,33 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
       `配当所得の課税方式に指定された「${dividendMethodUsed}」は、最も税負担が軽い「${dividend.recommendedMethod}」と異なる。`,
     );
   }
+  if (mortgageDeductionNationalTaxCreditJpy.greaterThan(0) || mortgageDeductionResidentTaxCreditJpy.greaterThan(0)) {
+    notes.push(
+      "住宅ローン控除(税額控除)は入力された控除額をそのまま合計税額から差し引いており、所得税額・住民税所得割額の限度判定(住民税へ繰り越す額の算出)は`/mortgage-deduction`の試算結果を前提とする。",
+    );
+    if (
+      mortgageDeductionNationalTaxAppliedJpy.lessThan(mortgageDeductionNationalTaxCreditJpy) ||
+      mortgageDeductionResidentTaxAppliedJpy.lessThan(mortgageDeductionResidentTaxCreditJpy)
+    ) {
+      notes.push(
+        "住宅ローン控除額がその年の所得税額・住民税額を上回ったため、超過分は切り捨てて0円を下限とした(還付は生じない)。",
+      );
+    }
+  }
 
   // ふるさと納税の上限額計算で使う所得税の限界税率は、超過累進税率が適用される
   // 総合課税分の課税所得金額(配当所得を総合課税で選んだ場合はそれも上乗せした金額)に
   // 対応する速算表の税率を用いる(申告分離課税分は税率が別建てのため含めない)。
+  // また上限額の算出自体は住宅ローン控除適用前の住民税所得割額を基準とする
+  // (住宅ローン控除等の税額控除による変動をふるさと納税上限額の試算に含めない、
+  // 既存の簡略化を維持する)。
   const comprehensiveTaxableIncomeForMarginalRateJpy =
     dividendMethodUsed === "COMPREHENSIVE"
       ? comprehensiveTaxableIncomeExcludingDividendJpy.plus(dividendResult.taxableDividendJpy)
       : comprehensiveTaxableIncomeExcludingDividendJpy;
   const totalTaxJpy = totalNationalTaxJpy.plus(totalResidentTaxJpy);
   const furusatoNozei = estimateFurusatoNozeiLimit({
-    residentTaxIncomeLeviedJpy: totalResidentTaxJpy,
+    residentTaxIncomeLeviedJpy: totalResidentTaxBeforeMortgageDeductionJpy,
     marginalIncomeTaxRate: marginalIncomeTaxRate(comprehensiveTaxableIncomeForMarginalRateJpy),
   });
 
@@ -185,6 +244,10 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     investmentResidentTaxJpy,
     futuresNationalTaxJpy,
     futuresResidentTaxJpy,
+    totalNationalTaxBeforeMortgageDeductionJpy,
+    totalResidentTaxBeforeMortgageDeductionJpy,
+    mortgageDeductionNationalTaxAppliedJpy,
+    mortgageDeductionResidentTaxAppliedJpy,
     totalNationalTaxJpy,
     totalResidentTaxJpy,
     totalTaxJpy,

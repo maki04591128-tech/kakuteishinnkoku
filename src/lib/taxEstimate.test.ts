@@ -117,6 +117,81 @@ describe("estimateTotalTax", () => {
     );
   });
 
+  it("住宅ローン控除(税額控除)を入力すると合計税額から直接差し引かれる", () => {
+    const without = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+    const withMortgage = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      mortgageDeductionNationalTaxCreditJpy: 100_000,
+      mortgageDeductionResidentTaxCreditJpy: 20_000,
+    });
+
+    expect(
+      without.totalNationalTaxJpy.minus(withMortgage.totalNationalTaxJpy).toNumber(),
+    ).toBe(100_000);
+    expect(
+      without.totalResidentTaxJpy.minus(withMortgage.totalResidentTaxJpy).toNumber(),
+    ).toBe(20_000);
+    expect(withMortgage.mortgageDeductionNationalTaxAppliedJpy.toNumber()).toBe(100_000);
+    expect(withMortgage.mortgageDeductionResidentTaxAppliedJpy.toNumber()).toBe(20_000);
+    expect(withMortgage.totalTaxJpy.toNumber()).toBe(
+      without.totalTaxJpy.toNumber() - 120_000,
+    );
+  });
+
+  it("住宅ローン控除額がその年の税額を上回る場合は0円が下限になる(還付は生じない)", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 500_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      mortgageDeductionNationalTaxCreditJpy: 100_000_000,
+      mortgageDeductionResidentTaxCreditJpy: 100_000_000,
+    });
+
+    expect(result.totalNationalTaxJpy.toNumber()).toBe(0);
+    expect(result.totalResidentTaxJpy.toNumber()).toBe(0);
+    expect(result.mortgageDeductionNationalTaxAppliedJpy.toNumber()).toBe(
+      result.totalNationalTaxBeforeMortgageDeductionJpy.toNumber(),
+    );
+    expect(result.mortgageDeductionResidentTaxAppliedJpy.toNumber()).toBe(
+      result.totalResidentTaxBeforeMortgageDeductionJpy.toNumber(),
+    );
+  });
+
+  it("ふるさと納税の上限額は住宅ローン控除適用前の住民税所得割額を基準に試算する", () => {
+    const without = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+    const withMortgage = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      mortgageDeductionNationalTaxCreditJpy: 100_000,
+      mortgageDeductionResidentTaxCreditJpy: 20_000,
+    });
+
+    expect(withMortgage.furusatoNozei.fullDeductionDonationLimitJpy.toNumber()).toBe(
+      without.furusatoNozei.fullDeductionDonationLimitJpy.toNumber(),
+    );
+  });
+
   it("負の入力値はエラーになる", () => {
     expect(() =>
       estimateTotalTax({

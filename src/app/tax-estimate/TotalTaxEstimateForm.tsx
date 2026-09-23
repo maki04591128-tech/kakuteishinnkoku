@@ -32,6 +32,9 @@ export function TotalTaxEstimateForm({
   registeredIncomeDeductions,
   totalRegisteredIncomeTaxDeductionJpy,
   incomeDeductionNotes,
+  defaultMortgageDeductionNationalTaxCreditJpy,
+  defaultMortgageDeductionResidentTaxCreditJpy,
+  registeredMortgageDeduction,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -45,6 +48,12 @@ export function TotalTaxEstimateForm({
   totalRegisteredIncomeTaxDeductionJpy: number;
   /** 合計額の算出にあたっての注記(医療費控除とセルフメディケーション税制が両方登録されている場合等) */
   incomeDeductionNotes: string[];
+  /** `/mortgage-deduction`で登録済みの住宅ローン控除額(所得税分)の初期値 */
+  defaultMortgageDeductionNationalTaxCreditJpy: number;
+  /** `/mortgage-deduction`で登録済みの住宅ローン控除額(住民税分)の初期値 */
+  defaultMortgageDeductionResidentTaxCreditJpy: number;
+  /** `/mortgage-deduction`で登録済みの住宅ローン控除額(参考表示。未登録ならnull) */
+  registeredMortgageDeduction: { nationalTaxCreditJpy: number; residentTaxCreditJpy: number } | null;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -62,6 +71,10 @@ export function TotalTaxEstimateForm({
   const [availableListedStockLossForDividendJpy, setAvailableListedStockLossForDividendJpy] =
     useState(String(defaultAvailableListedStockLossForDividendJpy));
   const [dividendMethod, setDividendMethod] = useState<DividendTaxMethod | "AUTO">("AUTO");
+  const [mortgageDeductionNationalTaxCreditJpy, setMortgageDeductionNationalTaxCreditJpy] =
+    useState(String(defaultMortgageDeductionNationalTaxCreditJpy));
+  const [mortgageDeductionResidentTaxCreditJpy, setMortgageDeductionResidentTaxCreditJpy] =
+    useState(String(defaultMortgageDeductionResidentTaxCreditJpy));
 
   const result = useMemo(() => {
     try {
@@ -78,6 +91,14 @@ export function TotalTaxEstimateForm({
           availableListedStockLossForDividendJpy === ""
             ? 0
             : availableListedStockLossForDividendJpy,
+        mortgageDeductionNationalTaxCreditJpy:
+          mortgageDeductionNationalTaxCreditJpy === ""
+            ? 0
+            : mortgageDeductionNationalTaxCreditJpy,
+        mortgageDeductionResidentTaxCreditJpy:
+          mortgageDeductionResidentTaxCreditJpy === ""
+            ? 0
+            : mortgageDeductionResidentTaxCreditJpy,
       });
     } catch {
       return null;
@@ -90,6 +111,8 @@ export function TotalTaxEstimateForm({
     dividendIncomeJpy,
     dividendMethod,
     availableListedStockLossForDividendJpy,
+    mortgageDeductionNationalTaxCreditJpy,
+    mortgageDeductionResidentTaxCreditJpy,
   ]);
 
   return (
@@ -169,6 +192,27 @@ export function TotalTaxEstimateForm({
         </select>
       </label>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label={`住宅ローン控除(税額控除・所得税分)${
+            registeredMortgageDeduction !== null ? " — 初期値は/mortgage-deductionの登録値" : ""
+          }`}
+          value={mortgageDeductionNationalTaxCreditJpy}
+          onChange={setMortgageDeductionNationalTaxCreditJpy}
+        />
+        <Field
+          label="住宅ローン控除(税額控除・住民税分)"
+          value={mortgageDeductionResidentTaxCreditJpy}
+          onChange={setMortgageDeductionResidentTaxCreditJpy}
+        />
+      </div>
+      {registeredMortgageDeduction !== null && (
+        <p className="text-xs text-neutral-500">
+          /mortgage-deductionで登録済み: 所得税 {yen(registeredMortgageDeduction.nationalTaxCreditJpy)} /
+          住民税 {yen(registeredMortgageDeduction.residentTaxCreditJpy)}
+        </p>
+      )}
+
       {result === null ? (
         <p className="text-sm text-red-600">入力値を確認してください(0以上の数値を入力)。</p>
       ) : (
@@ -186,6 +230,23 @@ export function TotalTaxEstimateForm({
                 ? "(最も有利)"
                 : ""}
             </p>
+            {(result.mortgageDeductionNationalTaxAppliedJpy.greaterThan(0) ||
+              result.mortgageDeductionResidentTaxAppliedJpy.greaterThan(0)) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                住宅ローン控除適用前 {yen(
+                  result.totalNationalTaxBeforeMortgageDeductionJpy.plus(
+                    result.totalResidentTaxBeforeMortgageDeductionJpy,
+                  ),
+                )}{" "}
+                − 住宅ローン控除 {yen(
+                  result.mortgageDeductionNationalTaxAppliedJpy.plus(
+                    result.mortgageDeductionResidentTaxAppliedJpy,
+                  ),
+                )}
+                (所得税 {yen(result.mortgageDeductionNationalTaxAppliedJpy)} / 住民税{" "}
+                {yen(result.mortgageDeductionResidentTaxAppliedJpy)})
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

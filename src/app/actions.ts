@@ -1198,6 +1198,23 @@ export async function saveIncomeDeduction(formData: FormData): Promise<void> {
   redirect(`${redirectPath}?year=${year}&deductionSaved=${type}`);
 }
 
+export async function saveMortgageDeductionRecord(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const nationalTaxCreditJpy = requireString(formData, "nationalTaxCreditJpy");
+  const residentTaxCreditJpy = requireString(formData, "residentTaxCreditJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.mortgageDeductionRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, nationalTaxCreditJpy, residentTaxCreditJpy },
+    update: { nationalTaxCreditJpy, residentTaxCreditJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/mortgage-deduction");
+  redirect(`/mortgage-deduction?year=${year}&mortgageDeductionSaved=1`);
+}
+
 export async function setCasualtyLossCarryforward(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
