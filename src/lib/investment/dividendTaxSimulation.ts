@@ -22,11 +22,20 @@ import {
  *
  * このモジュールは3方式の税額を試算し、最も有利な方式を提案する。
  *
+ * 配当控除率は銘柄種別により異なる(上場株式等の普通配当は通常税率、
+ * 株式投資信託の分配金は半分、公社債投資信託・J-REIT等は対象外)。
+ * `dividendCreditBreakdown`で内訳を渡すとそれぞれの税率区分ごとに
+ * 正しく計算する(省略時は全額を通常税率(上場株式等)として扱う簡略化)。
+ * `/dividend-simulation`ページでは`InvestmentTrade.assetType`から
+ * 自動集計した内訳(`dividendCreditCategory`、`src/lib/investment/
+ * calculator.ts`)を初期値として渡している。
+ *
  * 簡略化している点(今後の課題):
- *  - 配当控除率は上場株式(普通配当)を前提とする。公募株式投資信託の
- *    分配金は控除率が半分、公社債投資信託やJ-REITの分配金は配当控除の
- *    対象外など、銘柄種別により率が異なる。複数種別が混在する場合は
- *    概算値として扱うこと。
+ *  - 株式投資信託の半分税率は、外貨建資産等の組入割合が50%以下であることを
+ *    前提とする。組入割合が50%を超え75%以下の場合はさらに率が下がり
+ *    (通常の1/4)、75%超または公社債投資信託・REIT等は対象外だが、
+ *    本ツールでは銘柄種別(STOCK/ETF/MUTUAL_FUND/BOND/OTHER)までしか
+ *    区別していないため、MUTUAL_FUNDは一律半分税率として扱う。
  *  - 所得税額の計算は国税庁の「速算表」(超過累進税率)をそのまま使用し、
  *    住民税は10%固定(均等割は考慮しない)としている。
  *  - 総合課税を選ぶと合計所得金額が増え、配偶者控除・扶養控除の可否や
@@ -36,9 +45,29 @@ import {
 
 export type DividendTaxMethod = "COMPREHENSIVE" | "SEPARATE" | "NO_FILING";
 
+export interface DividendCreditBreakdown {
+  /**
+   * 配当等の金額(源泉徴収前)のうち、株式投資信託の分配金等、配当控除が
+   * 半分の税率になる分。省略時は0。
+   */
+  halfCreditJpy?: Decimal.Value;
+  /**
+   * 配当等の金額(源泉徴収前)のうち、公社債投資信託・J-REIT等、配当控除の
+   * 対象外の分。省略時は0。
+   */
+  noCreditJpy?: Decimal.Value;
+}
+
 export interface DividendTaxSimulationInput {
-  /** その年の上場株式等の配当所得金額(源泉徴収前の総額) */
+  /** その年の配当所得金額(源泉徴収前の総額。全税率区分の合計) */
   dividendIncomeJpy: Decimal.Value;
+  /**
+   * dividendIncomeJpyの税率区分ごとの内訳(総合課税を選んだ場合の配当控除の
+   * 計算に使用)。半分税率・対象外の分のみ指定し、残り(dividendIncomeJpyから
+   * それらを差し引いた額)を通常税率(上場株式等の普通配当)として扱う。
+   * 省略時は全額を通常税率として扱う。
+   */
+  dividendCreditBreakdown?: DividendCreditBreakdown;
   /** 配当以外の課税所得金額(給与所得等、各種所得控除後の金額) */
   otherTaxableIncomeJpy: Decimal.Value;
   /**
@@ -82,26 +111,48 @@ function requireNonNegative(value: Decimal, label: string): void {
 }
 
 /**
+ * 金額を「合計所得金額1,000万円の枠内(below)」「枠を超える部分(above)」に
+ * 分割する。複数の配当控除税率区分がある場合、通常税率(FULL)の分から
+ * 順に枠を消費し、残った枠を半分税率(HALF)の分に充てる
+ * (配当控除の対象外(NONE)の分は枠を消費しない。今後の課題参照)。
+ */
+function splitByThreshold(
+  amount: Decimal,
+  roomBelowThreshold: Decimal,
+): { below: Decimal; above: Decimal; remainingRoom: Decimal } {
+  const below = Decimal.min(amount, roomBelowThreshold);
+  const above = amount.minus(below);
+  return { below, above, remainingRoom: roomBelowThreshold.minus(below) };
+}
+
+/**
  * 配当所得を総合課税で申告した場合の配当控除額を計算する。
- * 合計所得金額が1,000万円を超える部分に対応する配当は控除率が半分になる。
+ * 合計所得金額が1,000万円を超える部分に対応する配当は控除率が半分になる
+ * (税率区分ごとの詳細は`dividendCreditCategory`のコメント参照)。
  */
 function dividendCreditJpy(
   otherTaxableIncomeJpy: Decimal,
-  dividendIncomeJpy: Decimal,
+  fullCreditDividendJpy: Decimal,
+  halfCreditDividendJpy: Decimal,
 ): { nationalCreditJpy: Decimal; residentCreditJpy: Decimal } {
   const roomBelowThreshold = Decimal.max(
     DIVIDEND_CREDIT_THRESHOLD_JPY.minus(otherTaxableIncomeJpy),
     0,
   );
-  const dividendBelowThreshold = Decimal.min(dividendIncomeJpy, roomBelowThreshold);
-  const dividendAboveThreshold = dividendIncomeJpy.minus(dividendBelowThreshold);
 
-  const nationalCreditJpy = dividendBelowThreshold
+  const full = splitByThreshold(fullCreditDividendJpy, roomBelowThreshold);
+  const half = splitByThreshold(halfCreditDividendJpy, full.remainingRoom);
+
+  const nationalCreditJpy = full.below
     .times(0.1)
-    .plus(dividendAboveThreshold.times(0.05));
-  const residentCreditJpy = dividendBelowThreshold
+    .plus(full.above.times(0.05))
+    .plus(half.below.times(0.05))
+    .plus(half.above.times(0.025));
+  const residentCreditJpy = full.below
     .times(0.028)
-    .plus(dividendAboveThreshold.times(0.014));
+    .plus(full.above.times(0.014))
+    .plus(half.below.times(0.014))
+    .plus(half.above.times(0.007));
 
   return { nationalCreditJpy, residentCreditJpy };
 }
@@ -109,6 +160,8 @@ function dividendCreditJpy(
 function simulateComprehensive(
   otherTaxableIncomeJpy: Decimal,
   dividendIncomeJpy: Decimal,
+  fullCreditDividendJpy: Decimal,
+  halfCreditDividendJpy: Decimal,
 ): DividendTaxMethodResult {
   const nationalTaxWithoutDividend = nationalIncomeTaxWithSurtaxJpy(otherTaxableIncomeJpy);
   const nationalTaxWithDividend = nationalIncomeTaxWithSurtaxJpy(
@@ -118,7 +171,8 @@ function simulateComprehensive(
 
   const { nationalCreditJpy, residentCreditJpy } = dividendCreditJpy(
     otherTaxableIncomeJpy,
-    dividendIncomeJpy,
+    fullCreditDividendJpy,
+    halfCreditDividendJpy,
   );
 
   const nationalTaxJpy = marginalNationalTaxJpy.minus(nationalCreditJpy);
@@ -175,12 +229,33 @@ export function simulateDividendTaxation(
   const availableListedStockLossJpy = input.availableListedStockLossJpy
     ? new Decimal(input.availableListedStockLossJpy)
     : new Decimal(0);
+  const halfCreditDividendJpy = input.dividendCreditBreakdown?.halfCreditJpy
+    ? new Decimal(input.dividendCreditBreakdown.halfCreditJpy)
+    : new Decimal(0);
+  const noCreditDividendJpy = input.dividendCreditBreakdown?.noCreditJpy
+    ? new Decimal(input.dividendCreditBreakdown.noCreditJpy)
+    : new Decimal(0);
 
   requireNonNegative(dividendIncomeJpy, "配当所得金額");
   requireNonNegative(otherTaxableIncomeJpy, "配当以外の課税所得金額");
   requireNonNegative(availableListedStockLossJpy, "損益通算可能な譲渡損失額");
+  requireNonNegative(halfCreditDividendJpy, "配当控除半分税率の内訳額");
+  requireNonNegative(noCreditDividendJpy, "配当控除対象外の内訳額");
+  if (halfCreditDividendJpy.plus(noCreditDividendJpy).greaterThan(dividendIncomeJpy)) {
+    throw new Error(
+      "配当控除の内訳額(半分税率+対象外)の合計が配当所得金額を超えています",
+    );
+  }
+  const fullCreditDividendJpy = dividendIncomeJpy
+    .minus(halfCreditDividendJpy)
+    .minus(noCreditDividendJpy);
 
-  const comprehensive = simulateComprehensive(otherTaxableIncomeJpy, dividendIncomeJpy);
+  const comprehensive = simulateComprehensive(
+    otherTaxableIncomeJpy,
+    dividendIncomeJpy,
+    fullCreditDividendJpy,
+    halfCreditDividendJpy,
+  );
   const separate = simulateSeparate(dividendIncomeJpy, availableListedStockLossJpy);
   const noFiling = simulateNoFiling(dividendIncomeJpy);
 
@@ -201,6 +276,11 @@ export function simulateDividendTaxation(
   if (availableListedStockLossJpy.greaterThan(0) && recommended.method !== "SEPARATE") {
     notes.push(
       "譲渡損失を損益通算に使うには申告分離課税を選ぶ必要がある。他の方式の税額が低い場合でも、繰越控除の期限(損失発生年から3年)が近い場合は申告分離課税を検討すること。",
+    );
+  }
+  if (noCreditDividendJpy.greaterThan(0)) {
+    notes.push(
+      `配当所得のうち${noCreditDividendJpy.toString()}円分(公社債投資信託・J-REIT等)は総合課税を選んでも配当控除の対象外。`,
     );
   }
 

@@ -15,6 +15,10 @@ export default async function DividendSimulationPage({
 
   const report = await buildYearReport(year);
   const defaultDividendJpy = report?.investment.totalDividendJpy.toNumber() ?? 0;
+  const defaultDividendHalfCreditJpy =
+    report?.investment.totalDividendHalfCreditJpy.toNumber() ?? 0;
+  const defaultDividendNoCreditJpy =
+    report?.investment.totalDividendNoCreditJpy.toNumber() ?? 0;
   // 当年の株式等譲渡損失(赤字の場合)を、申告分離課税での損益通算の初期値として提案する
   const defaultAvailableListedStockLossJpy = report
     ? Math.max(0, -report.investment.totalRealizedGainJpy.toNumber())
@@ -32,13 +36,15 @@ export default async function DividendSimulationPage({
         <p className="mt-1 text-sm text-neutral-500">
           総合課税・申告分離課税・申告不要のどれを選ぶと税負担が最も軽くなるかを試算する。
           {report && report.investment.totalDividendJpy.greaterThan(0)
-            ? "配当所得金額はこの年の株式等の配当受取額を初期値として表示している。"
+            ? "配当所得金額はこの年の配当受取額(銘柄種別ごとの配当控除税率の内訳を含む)を初期値として表示している。"
             : "配当所得金額は手入力で試算できる。"}
         </p>
       </header>
 
       <DividendSimulatorForm
         defaultDividendJpy={defaultDividendJpy}
+        defaultDividendHalfCreditJpy={defaultDividendHalfCreditJpy}
+        defaultDividendNoCreditJpy={defaultDividendNoCreditJpy}
         defaultAvailableListedStockLossJpy={defaultAvailableListedStockLossJpy}
       />
 

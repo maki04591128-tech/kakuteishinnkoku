@@ -17,10 +17,43 @@ import { Decimal } from "decimal.js";
  *    本来は口座ごとに取得費を計算すべきだが、本バージョンでは
  *    銘柄単位で合算して計算する。
  *  - 配当所得は申告分離課税/総合課税/申告不要のいずれを選択するかで
- *    税額計算が変わるが、本バージョンでは受取額の集計のみ行う。
+ *    税額計算が変わるが、本バージョンでは受取額の集計のみ行う
+ *    (総合課税時の配当控除率区分ごとの内訳は`dividendFullCreditJpy`等で
+ *    集計し、`dividendTaxSimulation.ts`側で税額計算に使う)。
  */
 
 export type InvestmentTradeType = "BUY" | "SELL" | "DIVIDEND";
+
+export type InvestmentAssetType = "STOCK" | "ETF" | "MUTUAL_FUND" | "BOND" | "OTHER";
+
+/**
+ * 配当等の金額を、総合課税を選択した場合の配当控除の税率区分ごとに分類する。
+ *
+ *  - FULL: 上場株式等の普通配当(STOCK)・ETF。通常の配当控除率
+ *    (国税10%/5%・住民税2.8%/1.4%)の対象。ETFはJ-REIT型ETF等
+ *    配当控除の対象外となるものも存在するが、本ツールでは銘柄種別を
+ *    これ以上細分化していないため株式と同様に扱う(今後の課題)。
+ *  - HALF: 株式投資信託(MUTUAL_FUND)の収益分配金。外貨建資産等の
+ *    組入割合が50%以下であることを前提に、通常の半分の税率
+ *    (国税5%/2.5%・住民税1.4%/0.7%)の対象として扱う簡略化
+ *    (組入割合が50%を超える場合は本来さらに率が下がる。今後の課題)。
+ *  - NONE: 公社債投資信託・REIT等(BOND・OTHER)。配当控除の対象外。
+ */
+export function dividendCreditCategory(
+  assetType: InvestmentAssetType | undefined,
+): "FULL" | "HALF" | "NONE" {
+  switch (assetType) {
+    case "MUTUAL_FUND":
+      return "HALF";
+    case "BOND":
+    case "OTHER":
+      return "NONE";
+    case "STOCK":
+    case "ETF":
+    default:
+      return "FULL";
+  }
+}
 
 export interface InvestmentTradeInput {
   tradedAt: Date;
@@ -34,6 +67,11 @@ export interface InvestmentTradeInput {
   isForeign?: boolean;
   /** type="DIVIDEND"の場合、現地で源泉徴収された外国所得税額(円換算) */
   foreignTaxWithheldJpy?: Decimal.Value;
+  /**
+   * 銘柄種別(配当控除の税率区分の判定に使用。type="DIVIDEND"の場合のみ参照)。
+   * 省略時は上場株式等(STOCK、通常の配当控除率)として扱う。
+   */
+  assetType?: InvestmentAssetType;
 }
 
 export interface InvestmentOpeningBalance {
@@ -141,6 +179,12 @@ export interface InvestmentSymbolYearResult {
   realizedGainJpy: Decimal;
   /** 配当等の受取額(課税口座分) */
   dividendJpy: Decimal;
+  /** 配当等の受取額(課税口座分)のうち、配当控除が通常税率で使える分(上場株式等・ETF) */
+  dividendFullCreditJpy: Decimal;
+  /** 配当等の受取額(課税口座分)のうち、配当控除が半分の税率で使える分(株式投資信託等) */
+  dividendHalfCreditJpy: Decimal;
+  /** 配当等の受取額(課税口座分)のうち、配当控除の対象外の分(公社債投資信託・REIT等) */
+  dividendNoCreditJpy: Decimal;
   /**
    * 配当等の受取額のうち、国外で発行された株式・投資信託等(isForeign=true)からの
    * 分(課税口座分のみ)。外国税額控除の国外所得金額の自動集計に使う。
@@ -179,6 +223,9 @@ export function calculateInvestmentYear(
   const taxablePool = newPoolState(opening);
   const nisaPool = newPoolState(nisaOpening);
   let dividendJpy = new Decimal(0);
+  let dividendFullCreditJpy = new Decimal(0);
+  let dividendHalfCreditJpy = new Decimal(0);
+  let dividendNoCreditJpy = new Decimal(0);
   let nisaDividendJpy = new Decimal(0);
   let foreignSourceDividendJpy = new Decimal(0);
   let foreignTaxWithheldJpy = new Decimal(0);
@@ -195,6 +242,17 @@ export function calculateInvestmentYear(
         nisaDividendJpy = nisaDividendJpy.plus(amount);
       } else {
         dividendJpy = dividendJpy.plus(amount);
+        switch (dividendCreditCategory(trade.assetType)) {
+          case "FULL":
+            dividendFullCreditJpy = dividendFullCreditJpy.plus(amount);
+            break;
+          case "HALF":
+            dividendHalfCreditJpy = dividendHalfCreditJpy.plus(amount);
+            break;
+          case "NONE":
+            dividendNoCreditJpy = dividendNoCreditJpy.plus(amount);
+            break;
+        }
         // NISA口座分は国内非課税のため外国税額控除の対象外(集計は課税口座分のみ)
         if (trade.isForeign) {
           foreignSourceDividendJpy = foreignSourceDividendJpy.plus(amount);
@@ -228,6 +286,9 @@ export function calculateInvestmentYear(
     costOfSoldJpy: taxablePool.costOfSoldJpy,
     realizedGainJpy,
     dividendJpy,
+    dividendFullCreditJpy,
+    dividendHalfCreditJpy,
+    dividendNoCreditJpy,
     foreignSourceDividendJpy,
     foreignTaxWithheldJpy,
     foreignSourceCapitalGainJpy,
@@ -245,6 +306,12 @@ export interface InvestmentPortfolioYearResult {
   /** 課税口座合計の譲渡所得(申告分離課税の対象額。損失の場合は負値) */
   totalRealizedGainJpy: Decimal;
   totalDividendJpy: Decimal;
+  /** 課税口座合計の配当等のうち、配当控除が通常税率で使える分(上場株式等・ETF) */
+  totalDividendFullCreditJpy: Decimal;
+  /** 課税口座合計の配当等のうち、配当控除が半分の税率で使える分(株式投資信託等) */
+  totalDividendHalfCreditJpy: Decimal;
+  /** 課税口座合計の配当等のうち、配当控除の対象外の分(公社債投資信託・REIT等) */
+  totalDividendNoCreditJpy: Decimal;
   /** 課税口座合計の国外源泉配当等の受取額(外国税額控除の国外所得金額の自動集計に使用) */
   totalForeignSourceDividendJpy: Decimal;
   /** 課税口座合計の外国所得税額(外国税額控除の外国所得税額の自動集計に使用) */
@@ -301,6 +368,18 @@ export function calculateInvestmentPortfolioYear(
     (sum, r) => sum.plus(r.dividendJpy),
     new Decimal(0),
   );
+  const totalDividendFullCreditJpy = bySymbol.reduce(
+    (sum, r) => sum.plus(r.dividendFullCreditJpy),
+    new Decimal(0),
+  );
+  const totalDividendHalfCreditJpy = bySymbol.reduce(
+    (sum, r) => sum.plus(r.dividendHalfCreditJpy),
+    new Decimal(0),
+  );
+  const totalDividendNoCreditJpy = bySymbol.reduce(
+    (sum, r) => sum.plus(r.dividendNoCreditJpy),
+    new Decimal(0),
+  );
   const totalForeignSourceDividendJpy = bySymbol.reduce(
     (sum, r) => sum.plus(r.foreignSourceDividendJpy),
     new Decimal(0),
@@ -321,6 +400,9 @@ export function calculateInvestmentPortfolioYear(
     bySymbol,
     totalRealizedGainJpy,
     totalDividendJpy,
+    totalDividendFullCreditJpy,
+    totalDividendHalfCreditJpy,
+    totalDividendNoCreditJpy,
     totalForeignSourceDividendJpy,
     totalForeignTaxWithheldJpy,
     totalForeignSourceCapitalGainJpy,

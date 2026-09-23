@@ -87,6 +87,53 @@ describe("simulateDividendTaxation", () => {
     expect(result.comprehensive.dividendCreditJpy?.toNumber()).toBeCloseTo(expectedCredit, 0);
   });
 
+  it("株式投資信託の分配金(半分税率)は配当控除が半分になる", () => {
+    const result = simulateDividendTaxation({
+      dividendIncomeJpy: 1_000_000,
+      dividendCreditBreakdown: { halfCreditJpy: 1_000_000 },
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+
+    // 全額が1000万円以下の枠内: 5%+1.4%=6.4%
+    expect(result.comprehensive.dividendCreditJpy?.toNumber()).toBeCloseTo(64_000, 0);
+  });
+
+  it("公社債投資信託・REIT等の分配金(対象外)は配当控除が発生しない", () => {
+    const result = simulateDividendTaxation({
+      dividendIncomeJpy: 1_000_000,
+      dividendCreditBreakdown: { noCreditJpy: 1_000_000 },
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+
+    expect(result.comprehensive.dividendCreditJpy?.toNumber()).toBe(0);
+    expect(result.notes.some((n) => n.includes("配当控除の対象外"))).toBe(true);
+  });
+
+  it("税率区分が混在する場合、通常税率の分から先に1000万円の枠を消費する", () => {
+    // 他の所得900万円 + 通常税率200万円 = 1100万円 (100万円が枠超過)
+    // 通常税率: 枠内100万円(10%+2.8%) + 枠超100万円(5%+1.4%)
+    // 半分税率: 全額枠超(2.5%+0.7%)
+    const result = simulateDividendTaxation({
+      dividendIncomeJpy: 3_000_000,
+      dividendCreditBreakdown: { halfCreditJpy: 1_000_000 },
+      otherTaxableIncomeJpy: 9_000_000,
+    });
+
+    const expectedCredit =
+      1_000_000 * 0.128 + 1_000_000 * 0.064 + 1_000_000 * (0.025 + 0.007);
+    expect(result.comprehensive.dividendCreditJpy?.toNumber()).toBeCloseTo(expectedCredit, 0);
+  });
+
+  it("内訳の合計が配当所得金額を超える場合はエラーになる", () => {
+    expect(() =>
+      simulateDividendTaxation({
+        dividendIncomeJpy: 1_000_000,
+        dividendCreditBreakdown: { halfCreditJpy: 600_000, noCreditJpy: 600_000 },
+        otherTaxableIncomeJpy: 5_000_000,
+      }),
+    ).toThrow();
+  });
+
   it("負の入力値はエラーになる", () => {
     expect(() =>
       simulateDividendTaxation({ dividendIncomeJpy: -1, otherTaxableIncomeJpy: 0 }),
