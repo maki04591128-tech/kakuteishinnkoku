@@ -45,6 +45,7 @@ model TaxYear {
   casualtyLossCarryforwards               CasualtyLossCarryforward[]
   mortgageDeductionRecords                MortgageDeductionRecord[]
   foreignTaxCreditRecords                 ForeignTaxCreditRecord[]
+  residentTaxAdjustmentDeductionRecords   ResidentTaxAdjustmentDeductionRecord[]
 }
 
 enum CryptoCostMethod {
@@ -319,6 +320,27 @@ model ForeignTaxCreditRecord {
 
   /// totalCreditJpyのうち住民税額から控除される額(ForeignTaxCreditResult.residentTaxCreditJpy)
   residentTaxCreditJpy Decimal @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 住民税の調整控除(src/lib/residentTaxAdjustmentDeduction.ts)の試算結果を
+/// 年分ごとに保存し、`/tax-estimate`の合計税額試算へ税額控除として自動反映する
+/// ためのデータ。住宅ローン控除(MortgageDeductionRecord)・外国税額控除
+/// (ForeignTaxCreditRecord)と同様、`/resident-tax-adjustment-deduction`の
+/// 「この年分の住民税の調整控除として登録する」ボタンから登録する。調整控除は
+/// 住民税所得割のみに適用される制度(所得税に対応する控除は無い)のため、
+/// 住民税分の控除額1列のみを保持する。
+model ResidentTaxAdjustmentDeductionRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の調整控除額(ResidentTaxAdjustmentDeductionResult.adjustmentDeductionJpy)
+  adjustmentDeductionJpy Decimal
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

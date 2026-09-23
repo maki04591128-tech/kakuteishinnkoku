@@ -1,4 +1,5 @@
 import { Decimal } from "decimal.js";
+import { prisma } from "./db";
 
 /**
  * 個人住民税の調整控除(地方税法附則3条の3等)を試算する。他の所得控除試算画面と
@@ -337,5 +338,34 @@ export function estimateResidentTaxAdjustmentDeduction(
     personalDeductionDifferenceBreakdown: breakdown,
     adjustmentDeductionJpy,
     notes,
+  };
+}
+
+export interface ResidentTaxAdjustmentDeductionRecordEntry {
+  taxYear: number;
+  /** その年分の調整控除額(ResidentTaxAdjustmentDeductionResult.adjustmentDeductionJpy) */
+  adjustmentDeductionJpy: Decimal;
+}
+
+/**
+ * `/resident-tax-adjustment-deduction`で登録済みの、指定した年分の調整控除額を
+ * DBから読み出す。住宅ローン控除(`getMortgageDeductionRecord`)・外国税額控除
+ * (`getForeignTaxCreditRecord`)と同様、`/tax-estimate`の合計税額試算へ
+ * 税額控除(住民税所得割のみ)として自動反映するために使う。未登録の年は null を返す。
+ */
+export async function getResidentTaxAdjustmentDeductionRecord(
+  year: number,
+): Promise<ResidentTaxAdjustmentDeductionRecordEntry | null> {
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (!taxYear) return null;
+
+  const record = await prisma.residentTaxAdjustmentDeductionRecord.findUnique({
+    where: { taxYearId: taxYear.id },
+  });
+  if (!record) return null;
+
+  return {
+    taxYear: year,
+    adjustmentDeductionJpy: new Decimal(record.adjustmentDeductionJpy.toString()),
   };
 }

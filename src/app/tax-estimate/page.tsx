@@ -9,6 +9,7 @@ import {
 } from "@/lib/incomeDeduction";
 import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
 import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
+import { getResidentTaxAdjustmentDeductionRecord } from "@/lib/residentTaxAdjustmentDeduction";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -79,6 +80,10 @@ export default async function TaxEstimatePage({
       }
     : null;
 
+  const residentTaxAdjustmentDeductionRecord = await getResidentTaxAdjustmentDeductionRecord(year);
+  const registeredResidentTaxAdjustmentDeductionJpy =
+    residentTaxAdjustmentDeductionRecord?.adjustmentDeductionJpy.toNumber() ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -107,6 +112,10 @@ export default async function TaxEstimatePage({
         registeredIncomeDeductions={registeredIncomeDeductions}
         totalRegisteredIncomeTaxDeductionJpy={totalRegisteredIncomeTaxDeductionJpy}
         incomeDeductionNotes={incomeDeductionNotes}
+        defaultResidentTaxAdjustmentDeductionJpy={
+          registeredResidentTaxAdjustmentDeductionJpy ?? 0
+        }
+        registeredResidentTaxAdjustmentDeductionJpy={registeredResidentTaxAdjustmentDeductionJpy}
         defaultMortgageDeductionNationalTaxCreditJpy={
           registeredMortgageDeduction?.nationalTaxCreditJpy ?? 0
         }
@@ -135,6 +144,13 @@ export default async function TaxEstimatePage({
           自分で確認して上書きすること。
         </p>
         <p>
+          住民税の調整控除(税額控除)は`/resident-tax-adjustment-deduction`で「この
+          試算結果を◯年分の住民税の調整控除として登録する」を実行済みの場合、その
+          控除額を初期値として表示する。住民税所得割のみが対象(所得税に対応する
+          控除は無い)で、住宅ローン控除・外国税額控除より先に住民税所得割額から
+          差し引く。
+        </p>
+        <p>
           住宅ローン控除(税額控除)は`/mortgage-deduction`で「この試算結果を◯年分の
           住宅ローン控除として登録する」を実行済みの場合、所得税分・住民税分それぞれの
           控除額を初期値として表示する。ここで求まる合計税額から直接差し引くため、控除額が
@@ -150,7 +166,8 @@ export default async function TaxEstimatePage({
           差し引くため、控除額の合計が合計税額を上回っても0円が下限(還付は生じない)。
         </p>
         <p>
-          住民税所得割は10%固定の概算であり、調整控除は含まない。均等割(定額部分。
+          住民税所得割は10%固定の概算であり、調整控除は`/resident-tax-adjustment-deduction`で
+          登録した場合のみ税額控除として反映する(未登録の場合は含まない)。均等割(定額部分。
           標準税率は年5,000円程度だが自治体の超過課税により異なる場合がある)は
           住所情報から自動算出できないため、住民税決定通知書等で確認した金額を
           入力した場合のみ合計住民税額に加算する(未入力の場合は含まれない)。
