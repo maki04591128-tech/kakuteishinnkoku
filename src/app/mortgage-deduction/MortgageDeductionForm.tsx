@@ -32,6 +32,7 @@ export function MortgageDeductionForm({
   const [isChildRearingHousehold, setIsChildRearingHousehold] = useState(false);
   const [isSmallFloorArea, setIsSmallFloorArea] = useState(false);
   const [otherHousingTransitionalMeasure, setOtherHousingTransitionalMeasure] = useState(false);
+  const [energySavingTransitionalMeasure, setEnergySavingTransitionalMeasure] = useState(false);
   const [isJointDebt, setIsJointDebt] = useState(false);
   const [jointDebtShareRatioPercent, setJointDebtShareRatioPercent] = useState("50");
   const [yearEndLoanBalanceJpy, setYearEndLoanBalanceJpy] = useState("30000000");
@@ -50,6 +51,7 @@ export function MortgageDeductionForm({
         isChildRearingHousehold,
         isSmallFloorArea,
         otherHousingTransitionalMeasure,
+        energySavingTransitionalMeasure,
         yearEndLoanBalanceJpy: yearEndLoanBalanceJpy === "" ? 0 : yearEndLoanBalanceJpy,
         jointDebtShareRatioPercent:
           isJointDebt && jointDebtShareRatioPercent !== "" ? jointDebtShareRatioPercent : undefined,
@@ -72,6 +74,7 @@ export function MortgageDeductionForm({
     isChildRearingHousehold,
     isSmallFloorArea,
     otherHousingTransitionalMeasure,
+    energySavingTransitionalMeasure,
     isJointDebt,
     jointDebtShareRatioPercent,
     yearEndLoanBalanceJpy,
@@ -84,7 +87,7 @@ export function MortgageDeductionForm({
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field label="試算対象年分" value={taxYear} onChange={setTaxYear} />
-        <Field label="居住を開始した年(令和4年=2022年〜令和7年=2025年)" value={moveInYear} onChange={setMoveInYear} />
+        <Field label="居住を開始した年(令和4年=2022年〜令和12年=2030年)" value={moveInYear} onChange={setMoveInYear} />
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-500">住宅の区分</span>
           <select
@@ -126,18 +129,26 @@ export function MortgageDeductionForm({
           />
           床面積40㎡以上50㎡未満の特例(新築等のみ・合計所得金額1,000万円以下)
         </label>
-        {!isExistingHome &&
-          housingCategory === "OTHER" &&
-          (moveInYear === "2024" || moveInYear === "2025") && (
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={otherHousingTransitionalMeasure}
-                onChange={(e) => setOtherHousingTransitionalMeasure(e.target.checked)}
-              />
-              「その他の住宅」の経過措置(令和5年12月31日までの建築確認、または令和6年6月30日までの建築)の対象
-            </label>
-          )}
+        {!isExistingHome && housingCategory === "OTHER" && Number(moveInYear) >= 2024 && (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={otherHousingTransitionalMeasure}
+              onChange={(e) => setOtherHousingTransitionalMeasure(e.target.checked)}
+            />
+            「その他の住宅」の経過措置(令和5年12月31日までの建築確認、または令和6年6月30日までの建築)の対象
+          </label>
+        )}
+        {!isExistingHome && housingCategory === "ENERGY_SAVING" && Number(moveInYear) >= 2028 && (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={energySavingTransitionalMeasure}
+              onChange={(e) => setEnergySavingTransitionalMeasure(e.target.checked)}
+            />
+            省エネ基準適合住宅の経過措置(令和9年12月31日までの建築確認、または令和10年6月30日までの建築)の対象
+          </label>
+        )}
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -187,7 +198,7 @@ export function MortgageDeductionForm({
       </div>
 
       {result === null ? (
-        <p className="text-sm text-red-600">入力値を確認してください(居住年は2022〜2025年、金額は0以上)。</p>
+        <p className="text-sm text-red-600">入力値を確認してください(居住年は2022〜2030年、金額は0以上)。</p>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
