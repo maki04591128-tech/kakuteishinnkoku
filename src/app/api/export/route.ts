@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildTaxFilingDraftCsv, UTF8_BOM } from "@/lib/etax/csvExport";
 import { buildTaxFilingSummary } from "@/lib/etax/summary";
 import { getIncomeDeductionEntries, summarizeIncomeDeductions } from "@/lib/incomeDeduction";
+import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
 import { buildYearReport } from "@/lib/reporting";
 
@@ -14,7 +15,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "指定された年分のデータがありません" }, { status: 404 });
   }
 
-  const mortgageDeductionRecord = await getMortgageDeductionRecord(year);
+  const [mortgageDeductionRecord, foreignTaxCreditRecord] = await Promise.all([
+    getMortgageDeductionRecord(year),
+    getForeignTaxCreditRecord(year),
+  ]);
 
   const summary = buildTaxFilingSummary(
     year,
@@ -29,6 +33,9 @@ export async function GET(request: NextRequest) {
           nationalTaxCreditJpy: mortgageDeductionRecord.nationalTaxCreditJpy,
           residentTaxCreditJpy: mortgageDeductionRecord.residentTaxCreditJpy,
         }
+      : undefined,
+    foreignTaxCreditRecord
+      ? { totalCreditJpy: foreignTaxCreditRecord.totalCreditJpy }
       : undefined,
   );
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);

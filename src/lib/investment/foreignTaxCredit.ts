@@ -1,4 +1,5 @@
 import { Decimal } from "decimal.js";
+import { prisma } from "../db";
 
 /**
  * 外国税額控除(所得税法95条)。
@@ -327,5 +328,32 @@ export function calculateForeignTaxCredit(
     spareLimitCarryforwardToNextYear: spareLimitCarryforwardToNextYear.sort(
       (a, b) => a.originYear - b.originYear,
     ),
+  };
+}
+
+export interface ForeignTaxCreditRecordEntry {
+  taxYear: number;
+  totalCreditJpy: Decimal;
+}
+
+/**
+ * `/foreign-tax-credit`で登録済みの、指定した年分の外国税額控除の合計控除額を
+ * DBから読み出す。下書きCSV(`/api/export`)の税額控除欄への自動反映に使う。
+ * 未登録の年は null を返す。
+ */
+export async function getForeignTaxCreditRecord(
+  year: number,
+): Promise<ForeignTaxCreditRecordEntry | null> {
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (!taxYear) return null;
+
+  const record = await prisma.foreignTaxCreditRecord.findUnique({
+    where: { taxYearId: taxYear.id },
+  });
+  if (!record) return null;
+
+  return {
+    taxYear: year,
+    totalCreditJpy: new Decimal(record.totalCreditJpy.toString()),
   };
 }

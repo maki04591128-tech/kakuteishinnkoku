@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
 import { ForeignTaxCreditForm } from "./ForeignTaxCreditForm";
@@ -7,7 +8,12 @@ import { ForeignTaxCreditForm } from "./ForeignTaxCreditForm";
 export default async function ForeignTaxCreditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; excessCarried?: string; spareLimitCarried?: string }>;
+  searchParams: Promise<{
+    year?: string;
+    excessCarried?: string;
+    spareLimitCarried?: string;
+    foreignTaxCreditSaved?: string;
+  }>;
 }) {
   const params = await searchParams;
   const availableYears = await listTaxYears();
@@ -15,7 +21,7 @@ export default async function ForeignTaxCreditPage({
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
 
   const taxYear = await getOrCreateTaxYear(year);
-  const [carryforwards, spareLimitCarryforwards, report] = await Promise.all([
+  const [carryforwards, spareLimitCarryforwards, report, registeredRecord] = await Promise.all([
     prisma.foreignTaxCreditCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
@@ -25,6 +31,7 @@ export default async function ForeignTaxCreditPage({
       orderBy: { originYear: "asc" },
     }),
     buildYearReport(year),
+    getForeignTaxCreditRecord(year),
   ]);
 
   const autoForeignSourceIncomeJpy =
@@ -63,6 +70,13 @@ export default async function ForeignTaxCreditPage({
         </p>
       )}
 
+      {params.foreignTaxCreditSaved !== undefined && (
+        <p className="rounded-md bg-green-50 px-4 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+          {year}年分の外国税額控除を登録しました。下書きCSV(データ取り込み画面の
+          エクスポート)の税額控除欄に自動反映されます。
+        </p>
+      )}
+
       <ForeignTaxCreditForm
         year={year}
         carryforwardEntries={carryforwards.map((c) => ({
@@ -75,6 +89,9 @@ export default async function ForeignTaxCreditPage({
         }))}
         autoForeignSourceIncomeJpy={autoForeignSourceIncomeJpy}
         autoForeignIncomeTaxPaidJpy={autoForeignIncomeTaxPaidJpy}
+        registeredTotalCreditJpy={
+          registeredRecord ? registeredRecord.totalCreditJpy.toNumber() : null
+        }
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
