@@ -29,12 +29,14 @@ function yen(value: { toString(): string }): string {
 export function DividendSimulatorForm({
   defaultDividendJpy,
   defaultDividendHalfCreditJpy,
+  defaultDividendQuarterCreditJpy,
   defaultDividendNoCreditJpy,
   defaultAvailableListedStockLossJpy,
   defaultNonListedDividendJpy,
 }: {
   defaultDividendJpy: number;
   defaultDividendHalfCreditJpy: number;
+  defaultDividendQuarterCreditJpy: number;
   defaultDividendNoCreditJpy: number;
   defaultAvailableListedStockLossJpy: number;
   defaultNonListedDividendJpy: number;
@@ -42,6 +44,9 @@ export function DividendSimulatorForm({
   const [dividendJpy, setDividendJpy] = useState(String(defaultDividendJpy));
   const [halfCreditDividendJpy, setHalfCreditDividendJpy] = useState(
     String(defaultDividendHalfCreditJpy),
+  );
+  const [quarterCreditDividendJpy, setQuarterCreditDividendJpy] = useState(
+    String(defaultDividendQuarterCreditJpy),
   );
   const [noCreditDividendJpy, setNoCreditDividendJpy] = useState(
     String(defaultDividendNoCreditJpy),
@@ -60,6 +65,7 @@ export function DividendSimulatorForm({
         dividendIncomeJpy: dividendJpy === "" ? 0 : dividendJpy,
         dividendCreditBreakdown: {
           halfCreditJpy: halfCreditDividendJpy === "" ? 0 : halfCreditDividendJpy,
+          quarterCreditJpy: quarterCreditDividendJpy === "" ? 0 : quarterCreditDividendJpy,
           noCreditJpy: noCreditDividendJpy === "" ? 0 : noCreditDividendJpy,
         },
         otherTaxableIncomeJpy: otherIncomeJpy === "" ? 0 : otherIncomeJpy,
@@ -68,7 +74,14 @@ export function DividendSimulatorForm({
     } catch {
       return null;
     }
-  }, [dividendJpy, halfCreditDividendJpy, noCreditDividendJpy, otherIncomeJpy, lossJpy]);
+  }, [
+    dividendJpy,
+    halfCreditDividendJpy,
+    quarterCreditDividendJpy,
+    noCreditDividendJpy,
+    otherIncomeJpy,
+    lossJpy,
+  ]);
 
   const nonListedResult = useMemo(() => {
     try {
@@ -102,11 +115,16 @@ export function DividendSimulatorForm({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field
-          label="うち株式投資信託等の分配金(配当控除が半分税率)"
+          label="うち株式投資信託等の分配金(組入割合50%以下・配当控除が半分税率)"
           value={halfCreditDividendJpy}
           onChange={setHalfCreditDividendJpy}
+        />
+        <Field
+          label="うち株式投資信託等の分配金(組入割合50%超・配当控除が1/4税率)"
+          value={quarterCreditDividendJpy}
+          onChange={setQuarterCreditDividendJpy}
         />
         <Field
           label="うち公社債投資信託・J-REIT等の分配金(配当控除の対象外)"
@@ -115,8 +133,9 @@ export function DividendSimulatorForm({
         />
       </div>
       <p className="text-xs text-neutral-500">
-        上記2つの内訳欄は「配当所得金額」の内数として入力する(残りは上場株式等の普通配当・ETF等として
-        通常税率で計算する)。銘柄種別を登録済みの取引から自動集計した値を初期値として表示している。
+        上記3つの内訳欄は「配当所得金額」の内数として入力する(残りは上場株式等の普通配当・ETF等として
+        通常税率で計算する)。銘柄種別・外貨建資産等の組入割合を登録済みの取引から自動集計した値を
+        初期値として表示している。
       </p>
 
       {result === null ? (

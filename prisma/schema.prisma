@@ -590,6 +590,15 @@ model InvestmentTrade {
   /// 判定(`src/lib/investment/calculator.ts`の`dividendCreditCategory`)にのみ使う。
   isReit Boolean @default(false)
 
+  /// 株式投資信託(assetType=MUTUAL_FUND)の分配金につき、外貨建資産・公社債等の
+  /// 組入割合が50%超75%以下かどうか(投資信託説明書・運用報告書で確認)。
+  /// 組入割合50%以下(既定値false)は通常の半分税率(HALF)だが、50%超75%以下は
+  /// さらに率が下がる1/4税率(QUARTER)の対象になる(75%超は対象外(NONE)だが、
+  /// この区分までは細分化していないため75%超もQUARTER扱いとなる簡略化。
+  /// `src/lib/investment/calculator.ts`の`dividendCreditCategory`参照)。
+  /// type=DIVIDENDのレコードの配当控除率区分の判定にのみ使う。
+  mutualFundHighForeignRatio Boolean @default(false)
+
   /// 上場株式等(true)か一般株式等・非上場株式(false)かの区分。国税庁は
   /// 両者を別プールの申告分離課税として扱い、損益通算はできない。また
   /// 譲渡損失の繰越控除(措置法37の12の2)は上場株式等のみに認められた制度

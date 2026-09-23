@@ -17,6 +17,8 @@ export default async function DividendSimulationPage({
   const defaultDividendJpy = report?.investment.totalDividendJpy.toNumber() ?? 0;
   const defaultDividendHalfCreditJpy =
     report?.investment.totalDividendHalfCreditJpy.toNumber() ?? 0;
+  const defaultDividendQuarterCreditJpy =
+    report?.investment.totalDividendQuarterCreditJpy.toNumber() ?? 0;
   const defaultDividendNoCreditJpy =
     report?.investment.totalDividendNoCreditJpy.toNumber() ?? 0;
   // 当年の株式等譲渡損失(赤字の場合)を、申告分離課税での損益通算の初期値として提案する
@@ -45,6 +47,7 @@ export default async function DividendSimulationPage({
       <DividendSimulatorForm
         defaultDividendJpy={defaultDividendJpy}
         defaultDividendHalfCreditJpy={defaultDividendHalfCreditJpy}
+        defaultDividendQuarterCreditJpy={defaultDividendQuarterCreditJpy}
         defaultDividendNoCreditJpy={defaultDividendNoCreditJpy}
         defaultAvailableListedStockLossJpy={defaultAvailableListedStockLossJpy}
         defaultNonListedDividendJpy={defaultNonListedDividendJpy}
