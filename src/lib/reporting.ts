@@ -126,6 +126,7 @@ export async function buildYearReport(year: number): Promise<{
       isNisa: t.isNisa,
       isForeign: t.isForeign,
       foreignTaxWithheldJpy: t.foreignTaxWithheldJpy.toString(),
+      assetType: t.assetType,
     })),
     openings.investment,
     openings.investmentNisa,

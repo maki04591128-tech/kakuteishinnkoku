@@ -87,6 +87,50 @@ describe("calculateInvestmentYear (移動平均法)", () => {
     expect(result.foreignTaxWithheldJpy.toNumber()).toBe(1000);
   });
 
+  it("配当は銘柄種別ごとに配当控除の税率区分を集計する", () => {
+    const result = calculateInvestmentYear("MIXED", [
+      // STOCK(既定値・assetType省略): 通常税率
+      { tradedAt: d("2026-01-10"), type: "DIVIDEND", quantity: 1, unitPriceJpy: 10_000 },
+      // ETF: 通常税率
+      {
+        tradedAt: d("2026-02-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 5000,
+        assetType: "ETF",
+      },
+      // MUTUAL_FUND: 半分税率
+      {
+        tradedAt: d("2026-03-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 3000,
+        assetType: "MUTUAL_FUND",
+      },
+      // BOND: 対象外
+      {
+        tradedAt: d("2026-04-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 2000,
+        assetType: "BOND",
+      },
+      // OTHER: 対象外
+      {
+        tradedAt: d("2026-05-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 1000,
+        assetType: "OTHER",
+      },
+    ]);
+
+    expect(result.dividendJpy.toNumber()).toBe(21_000);
+    expect(result.dividendFullCreditJpy.toNumber()).toBe(15_000);
+    expect(result.dividendHalfCreditJpy.toNumber()).toBe(3000);
+    expect(result.dividendNoCreditJpy.toNumber()).toBe(3000);
+  });
+
   it("国外源泉株式等の譲渡益は外国税額控除の国外所得金額として別集計される(為替差損益を含む)", () => {
     const result = calculateInvestmentYear("VOO", [
       { tradedAt: d("2026-01-10"), type: "BUY", quantity: 10, unitPriceJpy: 50_000, isForeign: true },
@@ -176,6 +220,33 @@ describe("calculateInvestmentPortfolioYear", () => {
     expect(result.totalRealizedGainJpy.toNumber()).toBe(50_000 - 10_000);
     expect(result.totalDividendJpy.toNumber()).toBe(3000);
     expect(result.bySymbol).toHaveLength(2);
+  });
+
+  it("複数銘柄の配当を配当控除の税率区分ごとに合算する", () => {
+    const result = calculateInvestmentPortfolioYear([
+      { symbol: "7203", tradedAt: d("2026-01-01"), type: "DIVIDEND", quantity: 1, unitPriceJpy: 10_000 },
+      {
+        symbol: "2559",
+        tradedAt: d("2026-02-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 6000,
+        assetType: "MUTUAL_FUND",
+      },
+      {
+        symbol: "2510",
+        tradedAt: d("2026-03-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 4000,
+        assetType: "BOND",
+      },
+    ]);
+
+    expect(result.totalDividendJpy.toNumber()).toBe(20_000);
+    expect(result.totalDividendFullCreditJpy.toNumber()).toBe(10_000);
+    expect(result.totalDividendHalfCreditJpy.toNumber()).toBe(6000);
+    expect(result.totalDividendNoCreditJpy.toNumber()).toBe(4000);
   });
 
   it("複数銘柄の国外源泉配当・外国所得税額を合算する", () => {

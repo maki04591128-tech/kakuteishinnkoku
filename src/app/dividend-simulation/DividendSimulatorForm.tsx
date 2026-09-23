@@ -20,12 +20,22 @@ function yen(value: { toString(): string }): string {
 
 export function DividendSimulatorForm({
   defaultDividendJpy,
+  defaultDividendHalfCreditJpy,
+  defaultDividendNoCreditJpy,
   defaultAvailableListedStockLossJpy,
 }: {
   defaultDividendJpy: number;
+  defaultDividendHalfCreditJpy: number;
+  defaultDividendNoCreditJpy: number;
   defaultAvailableListedStockLossJpy: number;
 }) {
   const [dividendJpy, setDividendJpy] = useState(String(defaultDividendJpy));
+  const [halfCreditDividendJpy, setHalfCreditDividendJpy] = useState(
+    String(defaultDividendHalfCreditJpy),
+  );
+  const [noCreditDividendJpy, setNoCreditDividendJpy] = useState(
+    String(defaultDividendNoCreditJpy),
+  );
   const [otherIncomeJpy, setOtherIncomeJpy] = useState("5000000");
   const [lossJpy, setLossJpy] = useState(String(defaultAvailableListedStockLossJpy));
 
@@ -33,13 +43,17 @@ export function DividendSimulatorForm({
     try {
       return simulateDividendTaxation({
         dividendIncomeJpy: dividendJpy === "" ? 0 : dividendJpy,
+        dividendCreditBreakdown: {
+          halfCreditJpy: halfCreditDividendJpy === "" ? 0 : halfCreditDividendJpy,
+          noCreditJpy: noCreditDividendJpy === "" ? 0 : noCreditDividendJpy,
+        },
         otherTaxableIncomeJpy: otherIncomeJpy === "" ? 0 : otherIncomeJpy,
         availableListedStockLossJpy: lossJpy === "" ? 0 : lossJpy,
       });
     } catch {
       return null;
     }
-  }, [dividendJpy, otherIncomeJpy, lossJpy]);
+  }, [dividendJpy, halfCreditDividendJpy, noCreditDividendJpy, otherIncomeJpy, lossJpy]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -60,6 +74,23 @@ export function DividendSimulatorForm({
           onChange={setLossJpy}
         />
       </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label="うち株式投資信託等の分配金(配当控除が半分税率)"
+          value={halfCreditDividendJpy}
+          onChange={setHalfCreditDividendJpy}
+        />
+        <Field
+          label="うち公社債投資信託・J-REIT等の分配金(配当控除の対象外)"
+          value={noCreditDividendJpy}
+          onChange={setNoCreditDividendJpy}
+        />
+      </div>
+      <p className="text-xs text-neutral-500">
+        上記2つの内訳欄は「配当所得金額」の内数として入力する(残りは上場株式等の普通配当・ETF等として
+        通常税率で計算する)。銘柄種別を登録済みの取引から自動集計した値を初期値として表示している。
+      </p>
 
       {result === null ? (
         <p className="text-sm text-red-600">入力値を確認してください(0以上の数値を入力)。</p>
