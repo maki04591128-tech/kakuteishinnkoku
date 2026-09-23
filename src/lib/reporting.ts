@@ -31,6 +31,10 @@ import {
   type NisaLifetimeQuotaResult,
   type NisaQuotaUsageResult,
 } from "./investment/nisaQuota";
+import {
+  reconcileAssetBalances,
+  type AssetBalanceReconciliationResult,
+} from "./moneyforward/assetBalanceReconciliation";
 
 /**
  * 指定した課税年度のDB上の取引をすべて読み出し、計算エンジンに渡して
@@ -51,6 +55,12 @@ export async function buildYearReport(year: number): Promise<{
   futuresLossCarryforward: LossCarryforwardResult;
   nisaQuota: NisaQuotaUsageResult;
   nisaLifetimeQuota: NisaLifetimeQuotaResult;
+  /**
+   * マネーフォワード資産残高との突合結果(機能11参照)。ダッシュボードで
+   * 「計上漏れの疑い」を一目で気付けるようにするため、`/import`ページだけでなく
+   * ここにも含める。
+   */
+  assetBalanceReconciliation: AssetBalanceReconciliationResult[];
 } | null> {
   const taxYear = await prisma.taxYear.findUnique({ where: { year } });
   if (!taxYear) {
@@ -64,6 +74,7 @@ export async function buildYearReport(year: number): Promise<{
       futuresLossCarryforward: calculateLossCarryforward(year, 0, []),
       nisaQuota: calculateNisaQuotaUsage([]),
       nisaLifetimeQuota: calculateNisaLifetimeQuotaUsage([], []),
+      assetBalanceReconciliation: [],
     };
   }
 
@@ -76,6 +87,7 @@ export async function buildYearReport(year: number): Promise<{
     lossCarryforwardEntries,
     futuresLossCarryforwardEntries,
     nisaLifetimeQuotaEntries,
+    assetBalanceSnapshots,
   ] = await Promise.all([
     prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.cryptoMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
@@ -91,6 +103,7 @@ export async function buildYearReport(year: number): Promise<{
     prisma.nisaLifetimeQuota.findMany({
       where: { taxYearId: taxYear.id },
     }),
+    prisma.assetBalanceSnapshot.findMany({ where: { taxYearId: taxYear.id } }),
   ]);
 
   const crypto = calculateCryptoPortfolioYearByMethod(
@@ -178,6 +191,17 @@ export async function buildYearReport(year: number): Promise<{
     })),
   );
 
+  const assetBalanceReconciliation = reconcileAssetBalances(
+    assetBalanceSnapshots.map((s) => ({
+      institution: s.institution,
+      balanceJpy: s.balanceJpy.toString(),
+    })),
+    [
+      ...cryptoTrades.map((t) => ({ institution: t.exchange })),
+      ...investmentTrades.map((t) => ({ institution: t.broker })),
+    ],
+  );
+
   return {
     crypto,
     cryptoMargin,
@@ -188,6 +212,7 @@ export async function buildYearReport(year: number): Promise<{
     futuresLossCarryforward,
     nisaQuota,
     nisaLifetimeQuota,
+    assetBalanceReconciliation,
   };
 }
 
