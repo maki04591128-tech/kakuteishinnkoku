@@ -170,10 +170,61 @@ describe("buildTaxFilingDraftCsv", () => {
 
     const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
 
-    expect(csv).toContain("■ 税額控除(住宅ローン控除)");
+    expect(csv).toContain("■ 税額控除");
     expect(csv).toContain("210000");
     expect(csv).toContain("15000");
-    expect(csv).toContain("外国税額控除は本CSVには含まれない");
+    expect(csv).toContain("外国税額控除は/foreign-tax-creditで登録されていない");
+  });
+
+  it("登録済みの外国税額控除を住宅ローン控除と合算して出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        nationalTaxCreditJpy: new Decimal(210_000),
+        residentTaxCreditJpy: new Decimal(15_000),
+      },
+      { totalCreditJpy: new Decimal(45_000) },
+    );
+
+    const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
+
+    expect(csv).toContain("■ 税額控除");
+    expect(csv).toContain("210000");
+    expect(csv).toContain("15000");
+    expect(csv).toContain("外国税額控除額");
+    expect(csv).toContain("45000");
+    expect(csv).not.toContain("登録されていないため本CSVには含まれない");
+  });
+
+  it("外国税額控除のみ登録されている場合も税額控除欄を出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { totalCreditJpy: new Decimal(45_000) },
+    );
+
+    const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
+
+    expect(csv).toContain("■ 税額控除");
+    expect(csv).toContain("外国税額控除額");
+    expect(csv).toContain("45000");
+    expect(csv).not.toContain("住宅ローン控除");
   });
 
   it("住宅ローン控除が未登録の場合は税額控除欄を出力しない", () => {

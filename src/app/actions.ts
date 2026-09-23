@@ -1170,6 +1170,27 @@ export async function carryForwardForeignTaxCreditSpareLimit(
 }
 
 /**
+ * 外国税額控除シミュレーター(/foreign-tax-credit)の当年分の試算結果(合計控除額)を
+ * ForeignTaxCreditRecord として登録する。住宅ローン控除(saveMortgageDeductionRecord)
+ * と同様、下書きCSV(/api/export)の税額控除欄への自動反映に使う。既に登録済みの場合は
+ * 上書きする。
+ */
+export async function saveForeignTaxCreditRecord(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const totalCreditJpy = requireString(formData, "totalCreditJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.foreignTaxCreditRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, totalCreditJpy },
+    update: { totalCreditJpy },
+  });
+
+  revalidatePath("/foreign-tax-credit");
+  redirect(`/foreign-tax-credit?year=${year}&foreignTaxCreditSaved=1`);
+}
+
+/**
  * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
  * (iDeCo等)・社会保険料控除)で試算した控除額を、その年分の IncomeDeduction
  * として登録する(区分ごとに1件。既に登録済みの場合は上書きする)。

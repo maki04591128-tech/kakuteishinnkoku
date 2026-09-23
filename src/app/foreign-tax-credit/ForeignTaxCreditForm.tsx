@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   carryForwardForeignTaxCreditExcess,
   carryForwardForeignTaxCreditSpareLimit,
+  saveForeignTaxCreditRecord,
 } from "@/app/actions";
 import { calculateForeignTaxCredit } from "@/lib/investment/foreignTaxCredit";
 
@@ -19,6 +20,7 @@ export function ForeignTaxCreditForm({
   spareLimitCarryforwardEntries,
   autoForeignSourceIncomeJpy,
   autoForeignIncomeTaxPaidJpy,
+  registeredTotalCreditJpy,
 }: {
   year: number;
   carryforwardEntries: { originYear: number; remainingAmountJpy: string }[];
@@ -27,6 +29,8 @@ export function ForeignTaxCreditForm({
   autoForeignSourceIncomeJpy: string;
   /** `/import`に登録済みの国外源泉配当等から自動集計した外国所得税額(課税口座分) */
   autoForeignIncomeTaxPaidJpy: string;
+  /** この年分として登録済みの外国税額控除の合計控除額(下書きCSV用)。未登録の場合はnull */
+  registeredTotalCreditJpy: number | null;
 }) {
   const [incomeTaxJpy, setIncomeTaxJpy] = useState("300000");
   const [totalIncomeJpy, setTotalIncomeJpy] = useState("5000000");
@@ -174,6 +178,25 @@ export function ForeignTaxCreditForm({
                   .join(" / ")}
               </p>
             )}
+            {registeredTotalCreditJpy !== null && (
+              <p className="mt-2 text-xs text-neutral-400">
+                {year}年分として登録済みの控除額: {yen(registeredTotalCreditJpy)}
+              </p>
+            )}
+            <form action={saveForeignTaxCreditRecord} className="mt-3">
+              <input type="hidden" name="year" value={year} />
+              <input
+                type="hidden"
+                name="totalCreditJpy"
+                value={result.totalCreditJpy.toString()}
+              />
+              <button
+                type="submit"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                この年分の外国税額控除として登録する
+              </button>
+            </form>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

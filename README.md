@@ -1049,6 +1049,26 @@ DBに保存されない都度入力のため、試算画面から直接翌年分
 試算(`/foreign-tax-credit`)のため、今回は対象に含めていない(引き続き
 ロードマップの課題とする)。
 
+### 48. 外国税額控除の当年分試算結果のDB永続化と下書きCSVへの反映 — `src/lib/investment/foreignTaxCredit.ts`・`src/lib/etax/summary.ts`・`src/lib/etax/csvExport.ts`
+
+機能47で下書きCSVに住宅ローン控除(税額控除)を追加した際、外国税額控除
+(`/foreign-tax-credit`)は当年の所得税額・所得総額等が都度入力の試算のまま
+DBに保存されておらず、下書きCSVへの自動反映ができていなかった(ロードマップの
+「外国税額控除の当年分試算結果のDB永続化」)。`MortgageDeductionRecord`に
+倣い、年分ごとに1件保持する`ForeignTaxCreditRecord`テーブル(合計控除額
+`totalCreditJpy`のみを保持)を追加し、`/foreign-tax-credit`の試算結果画面に
+「この年分の外国税額控除として登録する」ボタンを追加した。登録すると
+`buildTaxFilingSummary`が`ForeignTaxCreditRecord`を受け取れるようになり、
+下書きCSVの「■ 税額控除」欄に住宅ローン控除と合算して、申告書第一表の
+税額控除欄・外国税額控除に関する明細書への記載箇所とともに出力される
+(未登録の年は従来通り「登録されていない」旨の注記のみ出力する)。
+
+外国税額控除は所得税・復興特別所得税・住民税の3つの限度額に対して合計額のみを
+充当する制度のため、住宅ローン控除のように所得税分・住民税分を分けては保存
+していない(実際の充当順序は確定申告書等作成コーナー側の計算に委ねる)。また
+繰越控除額(限度超過額・控除余裕額)は従来通り`ForeignTaxCreditCarryforward`/
+`ForeignTaxCreditSpareLimitCarryforward`で別途管理する(今回の変更対象外)。
+
 ## データモデル
 
 `prisma/schema.prisma` を参照。主なテーブル:
@@ -1095,6 +1115,9 @@ DBに保存されない都度入力のため、試算画面から直接翌年分
 - `MortgageDeductionRecord` — 住宅ローン控除(税額控除)の年分ごとの試算結果
   (所得税分・住民税分の控除額)。`/mortgage-deduction`から登録し、
   `/tax-estimate`の合計税額試算へ自動反映するために使う
+- `ForeignTaxCreditRecord` — 外国税額控除(税額控除)の年分ごとの試算結果
+  (合計控除額)。`/foreign-tax-credit`から登録し、下書きCSVの税額控除欄へ
+  自動反映するために使う
 - `NisaLifetimeQuota` — NISA生涯投資枠(総枠1,800万円)の使用状況試算用に、
   各課税年度の年始時点で確定している非課税枠使用額(前年末の保有簿価残高)を
   枠区分(つみたて投資枠/成長投資枠)ごとに保持する。当年中に売却した保有分の
@@ -1136,24 +1159,24 @@ DBに保存されない都度入力のため、試算画面から直接翌年分
    確認事項として注記表示のみ)。都道府県が公開するハザードマップ等との突合は
    住所情報を扱う必要があり本ツールのスコープを超えるため、引き続き対象外の
    まま注記での対応にとどめるのが妥当かは次回以降の検討課題。
-4. **外国税額控除の当年分試算結果のDB永続化** — 機能47で下書きCSVに住宅
-   ローン控除(税額控除)を追加したが、外国税額控除(`/foreign-tax-credit`)
-   はその年の所得税額・所得総額等が都度入力の試算のままでDBに保存されて
-   おらず、下書きCSVへの自動反映ができていない。繰越控除額(限度超過額・
-   余裕額)は`ForeignTaxCreditCarryforward`/`ForeignTaxCreditSpareLimitCarryforward`
-   に永続化済みのため、これに倣って当年の控除額そのものも
-   `MortgageDeductionRecord`と同様の年分1レコードのテーブルとして保存できれば、
-   下書きCSVの税額控除欄に外国税額控除も合算表示できるようになる。
 
 ### 完了済み
 
+- **外国税額控除の当年分試算結果のDB永続化**(`src/lib/investment/
+  foreignTaxCredit.ts`・`src/lib/etax/summary.ts`・`src/lib/etax/csvExport.ts`。
+  機能48参照)。`ForeignTaxCreditRecord`テーブルを追加し、`/foreign-tax-credit`
+  の試算結果を年分ごとに登録できるようにした。下書きCSVの「■ 税額控除」欄に
+  住宅ローン控除と合算して出力される。`/tax-estimate`の合計税額試算への
+  自動反映は、外国税額控除が所得税・復興特別所得税・住民税の3限度額に
+  またがる制度で住宅ローン控除ほど単純に統合できないため、引き続き対象外
+  (今後の課題)。
 - **下書きCSVへの住宅ローン控除(税額控除)欄の追加**
   (`src/lib/etax/summary.ts`・`src/lib/etax/csvExport.ts`・
   `src/app/api/export/route.ts`。機能47参照)。`/mortgage-deduction`で
   登録済みの住宅ローン控除額(税額控除)を、下書きCSVの「■ 税額控除
   (住宅ローン控除)」欄として、申告書第一表・計算明細書への記載箇所とともに
   出力するようにした。外国税額控除は当年分の試算結果がDBに保存されないため
-  引き続き対象外(ロードマップ参照)。
+  引き続き対象外としていたが、機能48で対応した(ロードマップ参照)。
 - **マネーフォワード資産残高突合の「計上漏れの疑い」をダッシュボードに表示**
   (`src/lib/reporting.ts`の`buildYearReport`・`src/app/page.tsx`。機能46参照)。
   `/import`ページでしか確認できなかった「計上漏れの疑い」を、確定申告直前に

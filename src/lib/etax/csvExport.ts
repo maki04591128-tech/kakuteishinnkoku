@@ -140,30 +140,42 @@ export function buildTaxFilingDraftCsv(
   );
   lines.push("");
 
-  if (summary.mortgageDeduction) {
-    lines.push(toCsvLine(["■ 税額控除(住宅ローン控除)"]));
+  if (summary.mortgageDeduction || summary.foreignTaxCredit) {
+    lines.push(toCsvLine(["■ 税額控除"]));
     lines.push(toCsvLine(["区分", "金額(円)", "申告書での主な記載箇所"]));
-    lines.push(
-      toCsvLine([
-        "所得税からの控除額",
-        formatYen(summary.mortgageDeduction.nationalTaxCreditJpy),
-        "申告書第一表 税額控除(住宅借入金等特別控除) / (特定増改築等)住宅借入金等特別控除額の計算明細書",
-      ]),
-    );
-    if (summary.mortgageDeduction.residentTaxCreditJpy.greaterThan(0)) {
+    if (summary.mortgageDeduction) {
       lines.push(
         toCsvLine([
-          "住民税からの控除額(所得税から控除しきれなかった分)",
-          formatYen(summary.mortgageDeduction.residentTaxCreditJpy),
-          "住民税は市区町村側で自動計算されるため申告書への記載は不要",
+          "住宅ローン控除: 所得税からの控除額",
+          formatYen(summary.mortgageDeduction.nationalTaxCreditJpy),
+          "申告書第一表 税額控除(住宅借入金等特別控除) / (特定増改築等)住宅借入金等特別控除額の計算明細書",
+        ]),
+      );
+      if (summary.mortgageDeduction.residentTaxCreditJpy.greaterThan(0)) {
+        lines.push(
+          toCsvLine([
+            "住宅ローン控除: 住民税からの控除額(所得税から控除しきれなかった分)",
+            formatYen(summary.mortgageDeduction.residentTaxCreditJpy),
+            "住民税は市区町村側で自動計算されるため申告書への記載は不要",
+          ]),
+        );
+      }
+    }
+    if (summary.foreignTaxCredit) {
+      lines.push(
+        toCsvLine([
+          "外国税額控除額(所得税・復興特別所得税・住民税からの控除額の合計)",
+          formatYen(summary.foreignTaxCredit.totalCreditJpy),
+          "申告書第一表 税額控除(外国税額控除等) / 外国税額控除に関する明細書",
+        ]),
+      );
+    } else {
+      lines.push(
+        toCsvLine([
+          "# 外国税額控除は/foreign-tax-creditで登録されていないため本CSVには含まれない。試算結果を登録するか、別途申告書第一表・第二表へ転記すること。",
         ]),
       );
     }
-    lines.push(
-      toCsvLine([
-        "# 外国税額控除は本CSVには含まれない。/foreign-tax-creditの試算結果を別途申告書第一表・第二表へ転記すること。",
-      ]),
-    );
     lines.push("");
   }
 

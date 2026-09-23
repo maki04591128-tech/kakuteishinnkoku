@@ -44,6 +44,7 @@ model TaxYear {
   nisaLifetimeQuotas                      NisaLifetimeQuota[]
   casualtyLossCarryforwards               CasualtyLossCarryforward[]
   mortgageDeductionRecords                MortgageDeductionRecord[]
+  foreignTaxCreditRecords                 ForeignTaxCreditRecord[]
 }
 
 enum CryptoCostMethod {
@@ -287,6 +288,28 @@ model MortgageDeductionRecord {
   /// residentTaxCreditJpy)。試算時に未算出(住宅ローン控除適用前の所得税額が
   /// 未入力)だった場合は0円として保存する。
   residentTaxCreditJpy Decimal @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 外国税額控除(src/lib/investment/foreignTaxCredit.ts)の当年分の試算結果
+/// (合計控除額)を年分ごとに保存し、下書きCSV(src/lib/etax/csvExport.ts)の
+/// 税額控除欄に自動反映するためのデータ。控除の計算に必要な所得税額・所得総額
+/// 等はこのツールでは保有していない(都度入力の試算のため)ので、計算結果である
+/// 合計控除額のみを`/foreign-tax-credit`の「この年分の外国税額控除として登録する」
+/// ボタンから保存する方式にしている。繰越控除額(限度超過額・控除余裕額)は
+/// ForeignTaxCreditCarryforward/ForeignTaxCreditSpareLimitCarryforwardで別途管理する。
+model ForeignTaxCreditRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分に外国税額控除として使える合計額(ForeignTaxCreditResult.totalCreditJpy。
+  /// 所得税・復興特別所得税・住民税からの控除額の合計)
+  totalCreditJpy Decimal
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
