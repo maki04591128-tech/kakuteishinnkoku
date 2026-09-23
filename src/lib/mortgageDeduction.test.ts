@@ -115,6 +115,57 @@ describe("calculateMortgageDeduction", () => {
     expect(result.borrowingLimitJpy.toNumber()).toBe(0);
   });
 
+  it("令和6・7年入居の新築「その他の住宅」は経過措置を指定すると借入限度額2,000万円・控除期間10年になる", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      moveInYear: 2024,
+      taxYear: 2024,
+      housingCategory: "OTHER",
+      otherHousingTransitionalMeasure: true,
+    });
+
+    expect(result.eligible).toBe(true);
+    expect(result.borrowingLimitJpy.toNumber()).toBe(20_000_000);
+    expect(result.controlPeriodYears).toBe(10);
+  });
+
+  it("「その他の住宅」の経過措置は令和4・5年入居分には影響しない(通常通り3,000万円のまま)", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      moveInYear: 2022,
+      taxYear: 2022,
+      housingCategory: "OTHER",
+      otherHousingTransitionalMeasure: true,
+    });
+
+    expect(result.borrowingLimitJpy.toNumber()).toBe(30_000_000);
+  });
+
+  it("「その他の住宅」の経過措置は既存住宅(中古)には影響しない(通常通り2,000万円のまま)", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      moveInYear: 2024,
+      taxYear: 2024,
+      housingCategory: "OTHER",
+      isExistingHome: true,
+      otherHousingTransitionalMeasure: true,
+    });
+
+    expect(result.borrowingLimitJpy.toNumber()).toBe(20_000_000);
+  });
+
+  it("「その他の住宅」の経過措置は省エネ基準適合住宅等には影響しない(通常通り3,000万円のまま)", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      moveInYear: 2024,
+      taxYear: 2024,
+      housingCategory: "ENERGY_SAVING",
+      otherHousingTransitionalMeasure: true,
+    });
+
+    expect(result.borrowingLimitJpy.toNumber()).toBe(30_000_000);
+  });
+
   it("既存住宅(中古)は認定住宅等でも借入限度額3,000万円・控除期間10年になる", () => {
     const result = calculateMortgageDeduction({
       ...baseInput(),

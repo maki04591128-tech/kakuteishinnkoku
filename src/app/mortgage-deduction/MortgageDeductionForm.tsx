@@ -31,6 +31,7 @@ export function MortgageDeductionForm({
   const [isExistingHome, setIsExistingHome] = useState(false);
   const [isChildRearingHousehold, setIsChildRearingHousehold] = useState(false);
   const [isSmallFloorArea, setIsSmallFloorArea] = useState(false);
+  const [otherHousingTransitionalMeasure, setOtherHousingTransitionalMeasure] = useState(false);
   const [isJointDebt, setIsJointDebt] = useState(false);
   const [jointDebtShareRatioPercent, setJointDebtShareRatioPercent] = useState("50");
   const [yearEndLoanBalanceJpy, setYearEndLoanBalanceJpy] = useState("30000000");
@@ -48,6 +49,7 @@ export function MortgageDeductionForm({
         isExistingHome,
         isChildRearingHousehold,
         isSmallFloorArea,
+        otherHousingTransitionalMeasure,
         yearEndLoanBalanceJpy: yearEndLoanBalanceJpy === "" ? 0 : yearEndLoanBalanceJpy,
         jointDebtShareRatioPercent:
           isJointDebt && jointDebtShareRatioPercent !== "" ? jointDebtShareRatioPercent : undefined,
@@ -69,6 +71,7 @@ export function MortgageDeductionForm({
     isExistingHome,
     isChildRearingHousehold,
     isSmallFloorArea,
+    otherHousingTransitionalMeasure,
     isJointDebt,
     jointDebtShareRatioPercent,
     yearEndLoanBalanceJpy,
@@ -123,6 +126,18 @@ export function MortgageDeductionForm({
           />
           床面積40㎡以上50㎡未満の特例(新築等のみ・合計所得金額1,000万円以下)
         </label>
+        {!isExistingHome &&
+          housingCategory === "OTHER" &&
+          (moveInYear === "2024" || moveInYear === "2025") && (
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={otherHousingTransitionalMeasure}
+                onChange={(e) => setOtherHousingTransitionalMeasure(e.target.checked)}
+              />
+              「その他の住宅」の経過措置(令和5年12月31日までの建築確認、または令和6年6月30日までの建築)の対象
+            </label>
+          )}
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
