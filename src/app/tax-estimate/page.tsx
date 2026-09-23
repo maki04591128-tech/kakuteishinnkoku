@@ -35,12 +35,17 @@ export default async function TaxEstimatePage({
         report.cryptoMargin,
         report.futures,
         report.futuresLossCarryforward,
+        undefined,
+        undefined,
+        report.investmentNonListed,
       )
     : null;
 
   const defaultCryptoMiscIncomeJpy = summary?.cryptoMiscIncomeJpy.toNumber() ?? 0;
   const defaultInvestmentTaxableGainJpy =
     summary?.investmentLossCarryforward.taxableGainJpy.toNumber() ?? 0;
+  const defaultNonListedInvestmentTaxableGainJpy =
+    report?.nonListedInvestmentTaxableGainJpy.toNumber() ?? 0;
   const defaultFuturesTaxableGainJpy =
     report?.futuresLossCarryforward.taxableGainJpy.toNumber() ?? 0;
   const defaultDividendIncomeJpy = summary?.investmentDividendJpy.toNumber() ?? 0;
@@ -94,9 +99,11 @@ export default async function TaxEstimatePage({
           所得税・住民税の概算合計税額試算({year}年分)
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          暗号資産の雑所得・株式等の譲渡所得・配当所得・先物取引に係る雑所得等を
-          合算し、その年の所得税・復興特別所得税・住民税の概算合計額を試算する。
-          株式等・配当・先物取引の各金額はこの年の集計値を初期値として表示している。
+          暗号資産の雑所得・株式等(上場株式等・一般株式等)の譲渡所得等・配当所得・
+          先物取引に係る雑所得等を合算し、その年の所得税・復興特別所得税・住民税の
+          概算合計額を試算する。株式等・配当・先物取引の各金額はこの年の集計値を
+          初期値として表示している。上場株式等と一般株式等(非上場株式)は別プールの
+          申告分離課税で損益通算はできない。
         </p>
       </header>
 
@@ -104,6 +111,7 @@ export default async function TaxEstimatePage({
         defaultOtherComprehensiveIncomeJpy={defaultOtherComprehensiveIncomeJpy}
         defaultCryptoMiscIncomeJpy={defaultCryptoMiscIncomeJpy}
         defaultInvestmentTaxableGainJpy={defaultInvestmentTaxableGainJpy}
+        defaultNonListedInvestmentTaxableGainJpy={defaultNonListedInvestmentTaxableGainJpy}
         defaultFuturesTaxableGainJpy={defaultFuturesTaxableGainJpy}
         defaultDividendIncomeJpy={defaultDividendIncomeJpy}
         defaultAvailableListedStockLossForDividendJpy={

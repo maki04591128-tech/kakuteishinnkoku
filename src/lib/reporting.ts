@@ -1,3 +1,4 @@
+import { Decimal } from "decimal.js";
 import { prisma } from "./db";
 import {
   calculateCryptoPortfolioYearByMethod,
@@ -49,6 +50,18 @@ export async function buildYearReport(year: number): Promise<{
   crypto: CryptoPortfolioYearResult;
   cryptoMargin: CryptoMarginPortfolioYearResult;
   investment: InvestmentPortfolioYearResult;
+  /**
+   * 一般株式等(非上場株式)分の譲渡所得等・配当等(機能54参照)。上場株式等
+   * (investment)とは別プールの申告分離課税で損益通算はできず、譲渡損失の
+   * 繰越控除(措置法37の12の2)は上場株式等のみの制度のため対象外
+   * (nonListedInvestmentTaxableGainJpyで当年限りの切り捨てを反映済み)。
+   */
+  investmentNonListed: InvestmentPortfolioYearResult;
+  /**
+   * 一般株式等(非上場株式)分の当年課税対象額(繰越控除制度が無いため、
+   * 損失の場合は0円に切り捨てる。黒字の場合はそのまま)。
+   */
+  nonListedInvestmentTaxableGainJpy: Decimal;
   futures: FuturesPortfolioYearResult;
   cryptoCostMethod: CryptoCostMethod;
   lossCarryforward: LossCarryforwardResult;
@@ -68,6 +81,8 @@ export async function buildYearReport(year: number): Promise<{
       crypto: calculateCryptoPortfolioYearByMethod("AVERAGE", []),
       cryptoMargin: calculateCryptoMarginPortfolioYear([]),
       investment: calculateInvestmentPortfolioYear([]),
+      investmentNonListed: calculateInvestmentPortfolioYear([]),
+      nonListedInvestmentTaxableGainJpy: new Decimal(0),
       futures: calculateFuturesPortfolioYear([]),
       cryptoCostMethod: "AVERAGE",
       lossCarryforward: calculateLossCarryforward(year, 0, []),
@@ -128,21 +143,37 @@ export async function buildYearReport(year: number): Promise<{
     })),
   );
 
+  const toInvestmentTradeInput = (t: (typeof investmentTrades)[number]) => ({
+    symbol: t.symbol,
+    tradedAt: t.tradedAt,
+    type: t.type,
+    quantity: t.quantity.toString(),
+    unitPriceJpy: t.unitPriceJpy.toString(),
+    feeJpy: t.feeJpy.toString(),
+    isNisa: t.isNisa,
+    isForeign: t.isForeign,
+    foreignTaxWithheldJpy: t.foreignTaxWithheldJpy.toString(),
+    assetType: t.assetType,
+  });
+
   const investment = calculateInvestmentPortfolioYear(
-    investmentTrades.map((t) => ({
-      symbol: t.symbol,
-      tradedAt: t.tradedAt,
-      type: t.type,
-      quantity: t.quantity.toString(),
-      unitPriceJpy: t.unitPriceJpy.toString(),
-      feeJpy: t.feeJpy.toString(),
-      isNisa: t.isNisa,
-      isForeign: t.isForeign,
-      foreignTaxWithheldJpy: t.foreignTaxWithheldJpy.toString(),
-      assetType: t.assetType,
-    })),
+    investmentTrades.filter((t) => t.isListed).map(toInvestmentTradeInput),
     openings.investment,
     openings.investmentNisa,
+  );
+
+  // 一般株式等(非上場株式)は上場株式等とは別プールの申告分離課税(機能54参照)。
+  // NISA口座は上場株式等等のみが対象のためNISA分の期首残高は渡さない
+  // (登録時にisNisa=trueかつisListed=falseの組み合わせを拒否している)。
+  const investmentNonListed = calculateInvestmentPortfolioYear(
+    investmentTrades.filter((t) => !t.isListed).map(toInvestmentTradeInput),
+    openings.investmentNonListed,
+  );
+  // 一般株式等の譲渡損失には繰越控除制度(措置法37の12の2)が無いため、
+  // 黒字の場合のみそのまま課税対象額とし、赤字の場合は当年限りで切り捨てる。
+  const nonListedInvestmentTaxableGainJpy = Decimal.max(
+    0,
+    investmentNonListed.totalRealizedGainJpy,
   );
 
   const lossCarryforward = calculateLossCarryforward(
@@ -206,6 +237,8 @@ export async function buildYearReport(year: number): Promise<{
     crypto,
     cryptoMargin,
     investment,
+    investmentNonListed,
+    nonListedInvestmentTaxableGainJpy,
     futures,
     cryptoCostMethod: taxYear.cryptoCostMethod,
     lossCarryforward,
@@ -225,5 +258,5 @@ export async function buildCarryForwardCandidates(
 ): Promise<CarryForwardCandidate[]> {
   const report = await buildYearReport(previousYear);
   if (!report) return [];
-  return deriveCarryForwardCandidates(report.crypto, report.investment);
+  return deriveCarryForwardCandidates(report.crypto, report.investment, report.investmentNonListed);
 }

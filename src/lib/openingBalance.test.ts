@@ -27,6 +27,7 @@ describe("deriveCarryForwardCandidates", () => {
       assetClass: "CRYPTO",
       symbol: "BTC",
       isNisa: false,
+      isListed: true,
       quantity: "0.6",
       costBasisJpy: "3000000",
     });
@@ -34,6 +35,7 @@ describe("deriveCarryForwardCandidates", () => {
       assetClass: "INVESTMENT",
       symbol: "7203",
       isNisa: false,
+      isListed: true,
       quantity: "100",
       costBasisJpy: "200000",
     });
@@ -41,8 +43,34 @@ describe("deriveCarryForwardCandidates", () => {
       assetClass: "INVESTMENT",
       symbol: "7203",
       isNisa: true,
+      isListed: true,
       quantity: "10",
       costBasisJpy: "25000",
+    });
+  });
+
+  it("一般株式等(非上場株式)の残数量も翌年の期首残高候補として抽出する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const investmentNonListed = calculateInvestmentPortfolioYear([
+      {
+        symbol: "9999",
+        tradedAt: new Date("2026-03-01"),
+        type: "BUY",
+        quantity: 50,
+        unitPriceJpy: 1000,
+      },
+    ]);
+
+    const candidates = deriveCarryForwardCandidates(crypto, investment, investmentNonListed);
+
+    expect(candidates).toContainEqual({
+      assetClass: "INVESTMENT",
+      symbol: "9999",
+      isNisa: false,
+      isListed: false,
+      quantity: "50",
+      costBasisJpy: "50000",
     });
   });
 

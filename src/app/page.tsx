@@ -40,6 +40,9 @@ export default async function Home({
         report.cryptoMargin,
         report.futures,
         report.futuresLossCarryforward,
+        undefined,
+        undefined,
+        report.investmentNonListed,
       )
     : null;
 
@@ -124,6 +127,13 @@ export default async function Home({
               : "申告分離課税(株式等・暗号資産とは別プール)"
           }
         />
+        {report && !report.investmentNonListed.totalRealizedGainJpy.isZero() && (
+          <SummaryCard
+            title="譲渡所得等(一般株式等・非上場株式)"
+            value={yen(report.nonListedInvestmentTaxableGainJpy)}
+            hint="上場株式等とは別プールの申告分離課税・繰越控除制度なし(赤字は当年限りで切り捨て)"
+          />
+        )}
       </section>
 
       <section className="flex flex-wrap gap-3">
@@ -440,6 +450,20 @@ export default async function Home({
         />
       )}
 
+      {report && report.investmentNonListed.bySymbol.length > 0 && (
+        <DetailTable
+          title="一般株式等(非上場株式) 銘柄別内訳"
+          columns={["銘柄", "買付数量", "売却数量", "譲渡損益", "配当"]}
+          rows={report.investmentNonListed.bySymbol.map((r) => [
+            r.symbol,
+            r.buyQuantity.toString(),
+            r.sellQuantity.toString(),
+            yen(r.realizedGainJpy),
+            yen(r.dividendJpy),
+          ])}
+        />
+      )}
+
       {report && report.futures.bySymbol.length > 0 && (
         <DetailTable
           title="先物取引・FX 銘柄別内訳(先物取引に係る雑所得等)"
@@ -459,6 +483,7 @@ export default async function Home({
         report.crypto.bySymbol.length === 0 &&
         report.cryptoMargin.bySymbol.length === 0 &&
         report.investment.bySymbol.length === 0 &&
+        report.investmentNonListed.bySymbol.length === 0 &&
         report.futures.bySymbol.length === 0 && (
           <p className="rounded-md border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500 dark:border-neutral-700">
             {year}年分の取引データがまだありません。「データを取り込む / 手入力する」から登録してください。

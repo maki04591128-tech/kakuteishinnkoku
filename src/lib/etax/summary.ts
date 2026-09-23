@@ -38,6 +38,14 @@ export interface TaxFilingSummary {
   /** 上場株式等の譲渡損失の繰越控除(3年間)の適用結果 */
   investmentLossCarryforward: LossCarryforwardResult;
   /**
+   * 譲渡所得等(一般株式等・非上場株式・申告分離課税)。上場株式等とは別プール
+   * で損益通算はできず、繰越控除制度(措置法37の12の2)も上場株式等のみのため
+   * 対象外(機能54参照)。
+   */
+  nonListedInvestmentCapitalGainJpy: Decimal;
+  /** 一般株式等(非上場株式)の配当等(参考値。総合課税・少額配当の申告不要以外の課税方式は選べない点が上場株式等と異なる) */
+  nonListedInvestmentDividendJpy: Decimal;
+  /**
    * 先物取引に係る雑所得等(FX・先物・CFD等)の繰越控除(3年間)の適用結果。
    * 上場株式等の譲渡所得・暗号資産の雑所得とは別区分の申告分離課税のため、
    * 損益通算・繰越控除は別プールで管理される。
@@ -70,6 +78,7 @@ export function buildTaxFilingSummary(
   futuresLossCarryforward?: LossCarryforwardResult,
   mortgageDeduction?: { nationalTaxCreditJpy: Decimal; residentTaxCreditJpy: Decimal },
   foreignTaxCredit?: { totalCreditJpy: Decimal },
+  investmentNonListed?: InvestmentPortfolioYearResult,
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
@@ -83,6 +92,9 @@ export function buildTaxFilingSummary(
     investmentLossCarryforward:
       lossCarryforward ??
       calculateLossCarryforward(year, investment.totalRealizedGainJpy, []),
+    nonListedInvestmentCapitalGainJpy:
+      investmentNonListed?.totalRealizedGainJpy ?? new Decimal(0),
+    nonListedInvestmentDividendJpy: investmentNonListed?.totalDividendJpy ?? new Decimal(0),
     futuresLossCarryforward:
       futuresLossCarryforward ??
       calculateLossCarryforward(year, futuresRealizedGainJpy, []),

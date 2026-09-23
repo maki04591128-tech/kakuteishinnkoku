@@ -83,6 +83,12 @@ export interface TotalTaxEstimateInput {
   cryptoMiscIncomeJpy: Decimal.Value;
   /** 譲渡所得(上場株式等・申告分離課税、繰越控除適用後の課税対象額) */
   investmentTaxableGainJpy: Decimal.Value;
+  /**
+   * 譲渡所得等(一般株式等・非上場株式・申告分離課税)。上場株式等とは
+   * 別プールで損益通算はできず、繰越控除制度(措置法37の12の2)は上場株式等
+   * のみのため対象外(赤字の場合は0円に切り捨てた課税対象額を入力する前提)
+   */
+  nonListedInvestmentTaxableGainJpy?: Decimal.Value;
   /** 雑所得等(先物取引・FX、申告分離課税、繰越控除適用後の課税対象額) */
   futuresTaxableGainJpy: Decimal.Value;
   /** 配当所得金額(源泉徴収前の年間合計) */
@@ -151,6 +157,10 @@ export interface TotalTaxEstimateResult {
   investmentNationalTaxJpy: Decimal;
   /** 株式等の譲渡所得(申告分離課税)の住民税額 */
   investmentResidentTaxJpy: Decimal;
+  /** 譲渡所得等(一般株式等・非上場株式・申告分離課税)の所得税額(復興特別所得税を含む) */
+  nonListedInvestmentNationalTaxJpy: Decimal;
+  /** 譲渡所得等(一般株式等・非上場株式・申告分離課税)の住民税額 */
+  nonListedInvestmentResidentTaxJpy: Decimal;
   /** 先物取引に係る雑所得等(申告分離課税)の所得税額(復興特別所得税を含む) */
   futuresNationalTaxJpy: Decimal;
   /** 先物取引に係る雑所得等(申告分離課税)の住民税額 */
@@ -212,6 +222,9 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
   const otherComprehensiveIncomeJpy = new Decimal(input.otherComprehensiveIncomeJpy);
   const cryptoMiscIncomeJpy = new Decimal(input.cryptoMiscIncomeJpy);
   const investmentTaxableGainJpy = new Decimal(input.investmentTaxableGainJpy);
+  const nonListedInvestmentTaxableGainJpy = input.nonListedInvestmentTaxableGainJpy
+    ? new Decimal(input.nonListedInvestmentTaxableGainJpy)
+    : new Decimal(0);
   const futuresTaxableGainJpy = new Decimal(input.futuresTaxableGainJpy);
   const dividendIncomeJpy = new Decimal(input.dividendIncomeJpy);
   const availableListedStockLossForDividendJpy = input.availableListedStockLossForDividendJpy
@@ -221,6 +234,7 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
   requireNonNegative(otherComprehensiveIncomeJpy, "給与所得等の課税所得金額");
   requireNonNegative(cryptoMiscIncomeJpy, "雑所得(暗号資産)");
   requireNonNegative(investmentTaxableGainJpy, "譲渡所得(株式等)");
+  requireNonNegative(nonListedInvestmentTaxableGainJpy, "譲渡所得等(一般株式等・非上場株式)");
   requireNonNegative(futuresTaxableGainJpy, "雑所得等(先物取引・FX)");
   requireNonNegative(dividendIncomeJpy, "配当所得金額");
   requireNonNegative(availableListedStockLossForDividendJpy, "損益通算可能な譲渡損失額");
@@ -254,16 +268,24 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
 
   const investmentNationalTaxJpy = investmentTaxableGainJpy.times(SEPARATE_NATIONAL_TAX_RATE);
   const investmentResidentTaxJpy = investmentTaxableGainJpy.times(SEPARATE_RESIDENT_TAX_RATE);
+  const nonListedInvestmentNationalTaxJpy = nonListedInvestmentTaxableGainJpy.times(
+    SEPARATE_NATIONAL_TAX_RATE,
+  );
+  const nonListedInvestmentResidentTaxJpy = nonListedInvestmentTaxableGainJpy.times(
+    SEPARATE_RESIDENT_TAX_RATE,
+  );
   const futuresNationalTaxJpy = futuresTaxableGainJpy.times(SEPARATE_NATIONAL_TAX_RATE);
   const futuresResidentTaxJpy = futuresTaxableGainJpy.times(SEPARATE_RESIDENT_TAX_RATE);
 
   const totalNationalTaxBeforeMortgageDeductionJpy = comprehensiveNationalTaxJpy
     .plus(dividendResult.nationalTaxJpy)
     .plus(investmentNationalTaxJpy)
+    .plus(nonListedInvestmentNationalTaxJpy)
     .plus(futuresNationalTaxJpy);
   const totalResidentTaxBeforeAdjustmentDeductionJpy = comprehensiveResidentTaxJpy
     .plus(dividendResult.residentTaxJpy)
     .plus(investmentResidentTaxJpy)
+    .plus(nonListedInvestmentResidentTaxJpy)
     .plus(futuresResidentTaxJpy);
 
   const residentTaxAdjustmentDeductionJpy = input.residentTaxAdjustmentDeductionJpy
@@ -351,8 +373,13 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
   const notes: string[] = [
     "給与所得等の課税所得金額は所得控除後の金額を入力する前提であり、本ツールは所得控除額を計算しない。",
     "住民税所得割は10%固定の概算値であり、税源移譲による人的控除額の差の調整(調整控除)は入力された場合のみ税額控除として反映する。",
-    "上場株式等の譲渡所得と先物取引に係る雑所得等は別プールの申告分離課税のため、損益通算はできない。",
+    "上場株式等の譲渡所得・一般株式等(非上場株式)の譲渡所得等・先物取引に係る雑所得等はそれぞれ別プールの申告分離課税のため、損益通算はできない。",
   ];
+  if (nonListedInvestmentTaxableGainJpy.greaterThan(0)) {
+    notes.push(
+      "一般株式等(非上場株式)の譲渡所得等には譲渡損失の繰越控除制度(措置法37の12の2)が無いため、赤字の場合は当年限りで切り捨てる前提の金額を入力すること(繰越控除は上場株式等のみの制度)。",
+    );
+  }
   if (residentTaxPerCapitaLeviesJpy.greaterThan(0)) {
     notes.push(
       "住民税の均等割は入力された金額をそのまま合計住民税額に加算しており、税額控除の対象外(住宅ローン控除・外国税額控除後の所得割額に加算)である。ふるさと納税の上限額試算の基準となる住民税所得割額には含めていない。",
@@ -451,6 +478,8 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     comprehensiveResidentTaxJpy,
     investmentNationalTaxJpy,
     investmentResidentTaxJpy,
+    nonListedInvestmentNationalTaxJpy,
+    nonListedInvestmentResidentTaxJpy,
     futuresNationalTaxJpy,
     futuresResidentTaxJpy,
     totalResidentTaxBeforeAdjustmentDeductionJpy,

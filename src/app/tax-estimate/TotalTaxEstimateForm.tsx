@@ -30,6 +30,7 @@ export function TotalTaxEstimateForm({
   defaultOtherComprehensiveIncomeJpy,
   defaultCryptoMiscIncomeJpy,
   defaultInvestmentTaxableGainJpy,
+  defaultNonListedInvestmentTaxableGainJpy,
   defaultFuturesTaxableGainJpy,
   defaultDividendIncomeJpy,
   defaultAvailableListedStockLossForDividendJpy,
@@ -48,6 +49,8 @@ export function TotalTaxEstimateForm({
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
   defaultInvestmentTaxableGainJpy: number;
+  /** 一般株式等(非上場株式)の当年課税対象額の初期値(赤字の場合0円に切り捨て済み) */
+  defaultNonListedInvestmentTaxableGainJpy: number;
   defaultFuturesTaxableGainJpy: number;
   defaultDividendIncomeJpy: number;
   defaultAvailableListedStockLossForDividendJpy: number;
@@ -83,6 +86,9 @@ export function TotalTaxEstimateForm({
   const [investmentTaxableGainJpy, setInvestmentTaxableGainJpy] = useState(
     String(defaultInvestmentTaxableGainJpy),
   );
+  const [nonListedInvestmentTaxableGainJpy, setNonListedInvestmentTaxableGainJpy] = useState(
+    String(defaultNonListedInvestmentTaxableGainJpy),
+  );
   const [futuresTaxableGainJpy, setFuturesTaxableGainJpy] = useState(
     String(defaultFuturesTaxableGainJpy),
   );
@@ -114,6 +120,8 @@ export function TotalTaxEstimateForm({
         cryptoMiscIncomeJpy: cryptoMiscIncomeJpy === "" ? 0 : cryptoMiscIncomeJpy,
         investmentTaxableGainJpy:
           investmentTaxableGainJpy === "" ? 0 : investmentTaxableGainJpy,
+        nonListedInvestmentTaxableGainJpy:
+          nonListedInvestmentTaxableGainJpy === "" ? 0 : nonListedInvestmentTaxableGainJpy,
         futuresTaxableGainJpy: futuresTaxableGainJpy === "" ? 0 : futuresTaxableGainJpy,
         dividendIncomeJpy: dividendIncomeJpy === "" ? 0 : dividendIncomeJpy,
         dividendMethod: dividendMethod === "AUTO" ? undefined : dividendMethod,
@@ -153,6 +161,7 @@ export function TotalTaxEstimateForm({
     otherComprehensiveIncomeJpy,
     cryptoMiscIncomeJpy,
     investmentTaxableGainJpy,
+    nonListedInvestmentTaxableGainJpy,
     futuresTaxableGainJpy,
     dividendIncomeJpy,
     dividendMethod,
@@ -189,6 +198,11 @@ export function TotalTaxEstimateForm({
           label="譲渡所得(株式等・繰越控除後)"
           value={investmentTaxableGainJpy}
           onChange={setInvestmentTaxableGainJpy}
+        />
+        <Field
+          label="譲渡所得等(一般株式等・非上場株式・繰越控除制度なし)"
+          value={nonListedInvestmentTaxableGainJpy}
+          onChange={setNonListedInvestmentTaxableGainJpy}
         />
         <Field
           label="雑所得等(先物取引・FX・繰越控除後)"
@@ -427,6 +441,11 @@ export function TotalTaxEstimateForm({
               title="譲渡所得(株式等・申告分離課税)"
               nationalTaxJpy={result.investmentNationalTaxJpy}
               residentTaxJpy={result.investmentResidentTaxJpy}
+            />
+            <BreakdownCard
+              title="譲渡所得等(一般株式等・非上場株式・申告分離課税)"
+              nationalTaxJpy={result.nonListedInvestmentNationalTaxJpy}
+              residentTaxJpy={result.nonListedInvestmentResidentTaxJpy}
             />
             <BreakdownCard
               title="雑所得等(先物取引・FX・申告分離課税)"
