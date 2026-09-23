@@ -192,6 +192,60 @@ describe("estimateTotalTax", () => {
     );
   });
 
+  it("源泉徴収税額を入力すると納付・還付見込み額が試算される", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 0,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 1_000_000,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      withheldNationalTaxJpy: 100_000,
+      withheldResidentTaxJpy: 30_000,
+    });
+
+    expect(result.nationalTaxBalanceJpy.toNumber()).toBeCloseTo(
+      result.totalNationalTaxJpy.toNumber() - 100_000,
+      6,
+    );
+    expect(result.residentTaxBalanceJpy.toNumber()).toBeCloseTo(
+      result.totalResidentTaxJpy.toNumber() - 30_000,
+      6,
+    );
+    expect(result.totalTaxBalanceJpy.toNumber()).toBeCloseTo(
+      result.nationalTaxBalanceJpy.toNumber() + result.residentTaxBalanceJpy.toNumber(),
+      6,
+    );
+  });
+
+  it("源泉徴収税額が税額を上回る場合は還付見込み額としてマイナスになる", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 0,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 100_000,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      withheldNationalTaxJpy: 1_000_000,
+      withheldResidentTaxJpy: 0,
+    });
+
+    expect(result.nationalTaxBalanceJpy.isNegative()).toBe(true);
+    expect(result.totalTaxBalanceJpy.isNegative()).toBe(true);
+  });
+
+  it("源泉徴収税額を入力しない場合、納付見込み額は合計税額と一致する", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 3_000_000,
+      cryptoMiscIncomeJpy: 500_000,
+      investmentTaxableGainJpy: 1_000_000,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+
+    expect(result.withheldNationalTaxJpy.toNumber()).toBe(0);
+    expect(result.withheldResidentTaxJpy.toNumber()).toBe(0);
+    expect(result.totalTaxBalanceJpy.toNumber()).toBeCloseTo(result.totalTaxJpy.toNumber(), 6);
+  });
+
   it("負の入力値はエラーになる", () => {
     expect(() =>
       estimateTotalTax({
