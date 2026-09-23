@@ -73,6 +73,14 @@ const NISA_TYPE_LABEL: Record<string, string> = {
   GROWTH: "成長投資枠",
 };
 
+const INVESTMENT_ASSET_TYPE_LABEL: Record<string, string> = {
+  STOCK: "株式",
+  ETF: "ETF",
+  MUTUAL_FUND: "投資信託",
+  BOND: "債券",
+  OTHER: "その他",
+};
+
 function yen(value: { toString(): string }): string {
   return `¥${Number(value.toString()).toLocaleString("ja-JP")}`;
 }
@@ -1827,6 +1835,11 @@ export default async function ImportPage({
             上場株式等等のみが対象のため、外した場合はNISA口座での取引を選べない)
           </label>
           <label className="col-span-full flex items-center gap-2 text-sm">
+            <input type="checkbox" name="isReit" /> J-REIT(不動産投資信託。資産種別「ETF」の場合の
+            み指定可能。不動産投資法人は法人税が実質非課税のため、配当・分配金の課税方式
+            シミュレーション(総合課税選択時)で配当控除の対象外として扱う)
+          </label>
+          <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isNisa" /> NISA口座での取引(非課税として損益計算から除外)
           </label>
           <Field label="NISA枠区分(NISA口座の買付の場合のみ。年間投資枠の使用状況試算に使用)">
@@ -1856,7 +1869,7 @@ export default async function ImportPage({
             <table className="w-full min-w-max text-left text-sm">
               <thead className="bg-neutral-50 dark:bg-neutral-900">
                 <tr>
-                  {["日時", "銘柄", "種別", "数量", "単価", "区分", "口座", "NISA枠", "国外源泉", ""].map((h) => (
+                  {["日時", "銘柄", "資産種別", "種別", "数量", "単価", "区分", "口座", "NISA枠", "国外源泉", ""].map((h) => (
                     <th key={h} className="px-3 py-2 font-medium text-neutral-500">
                       {h}
                     </th>
@@ -1868,6 +1881,10 @@ export default async function ImportPage({
                   <tr key={t.id} className="border-t border-neutral-100 dark:border-neutral-800">
                     <td className="px-3 py-2">{dateInputValue(t.tradedAt)}</td>
                     <td className="px-3 py-2">{t.symbol}</td>
+                    <td className="px-3 py-2">
+                      {INVESTMENT_ASSET_TYPE_LABEL[t.assetType] ?? t.assetType}
+                      {t.isReit ? "(J-REIT)" : ""}
+                    </td>
                     <td className="px-3 py-2">{t.type}</td>
                     <td className="px-3 py-2">{t.quantity.toString()}</td>
                     <td className="px-3 py-2">{yen(t.unitPriceJpy)}</td>

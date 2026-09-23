@@ -154,6 +154,7 @@ export async function buildYearReport(year: number): Promise<{
     isForeign: t.isForeign,
     foreignTaxWithheldJpy: t.foreignTaxWithheldJpy.toString(),
     assetType: t.assetType,
+    isReit: t.isReit,
   });
 
   const investment = calculateInvestmentPortfolioYear(

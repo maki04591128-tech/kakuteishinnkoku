@@ -583,6 +583,13 @@ model InvestmentTrade {
 
   assetType InvestmentAssetType
 
+  /// J-REIT(不動産投資信託)かどうか(assetType=ETFの場合のみ意味を持つ)。
+  /// ETFは通常上場株式等の普通配当と同じ配当控除率で扱うが、J-REIT型ETF
+  /// (不動産投資法人が発行する投資証券)は法人税が実質非課税のため
+  /// 配当控除の対象外(0%)。type=DIVIDENDのレコードの配当控除率区分の
+  /// 判定(`src/lib/investment/calculator.ts`の`dividendCreditCategory`)にのみ使う。
+  isReit Boolean @default(false)
+
   /// 上場株式等(true)か一般株式等・非上場株式(false)かの区分。国税庁は
   /// 両者を別プールの申告分離課税として扱い、損益通算はできない。また
   /// 譲渡損失の繰越控除(措置法37の12の2)は上場株式等のみに認められた制度

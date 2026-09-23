@@ -131,6 +131,41 @@ describe("calculateInvestmentYear (移動平均法)", () => {
     expect(result.dividendNoCreditJpy.toNumber()).toBe(3000);
   });
 
+  it("J-REIT型ETF(isReit=true)の分配金は配当控除の対象外として集計する", () => {
+    const result = calculateInvestmentYear("MIXED", [
+      // 通常のETF: 通常税率
+      {
+        tradedAt: d("2026-01-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 5000,
+        assetType: "ETF",
+      },
+      // J-REIT型ETF: 配当控除の対象外
+      {
+        tradedAt: d("2026-02-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 8000,
+        assetType: "ETF",
+        isReit: true,
+      },
+      // isReit=trueでもETF以外(例: STOCK)には影響しない
+      {
+        tradedAt: d("2026-03-10"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 2000,
+        assetType: "STOCK",
+        isReit: true,
+      },
+    ]);
+
+    expect(result.dividendJpy.toNumber()).toBe(15_000);
+    expect(result.dividendFullCreditJpy.toNumber()).toBe(7000);
+    expect(result.dividendNoCreditJpy.toNumber()).toBe(8000);
+  });
+
   it("国外源泉株式等の譲渡益は外国税額控除の国外所得金額として別集計される(為替差損益を含む)", () => {
     const result = calculateInvestmentYear("VOO", [
       { tradedAt: d("2026-01-10"), type: "BUY", quantity: 10, unitPriceJpy: 50_000, isForeign: true },
