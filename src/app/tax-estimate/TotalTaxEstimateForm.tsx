@@ -16,6 +16,10 @@ function yen(value: { toString(): string }): string {
   return `¥${Math.round(n).toLocaleString("ja-JP")}`;
 }
 
+function balanceLabel(value: Decimal): string {
+  return value.isNegative() ? `還付見込み ${yen(value.abs())}` : `納付見込み ${yen(value)}`;
+}
+
 export interface RegisteredIncomeDeductionEntry {
   label: string;
   incomeTaxAmountJpy: number;
@@ -75,6 +79,8 @@ export function TotalTaxEstimateForm({
     useState(String(defaultMortgageDeductionNationalTaxCreditJpy));
   const [mortgageDeductionResidentTaxCreditJpy, setMortgageDeductionResidentTaxCreditJpy] =
     useState(String(defaultMortgageDeductionResidentTaxCreditJpy));
+  const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
+  const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
 
   const result = useMemo(() => {
     try {
@@ -99,6 +105,8 @@ export function TotalTaxEstimateForm({
           mortgageDeductionResidentTaxCreditJpy === ""
             ? 0
             : mortgageDeductionResidentTaxCreditJpy,
+        withheldNationalTaxJpy: withheldNationalTaxJpy === "" ? 0 : withheldNationalTaxJpy,
+        withheldResidentTaxJpy: withheldResidentTaxJpy === "" ? 0 : withheldResidentTaxJpy,
       });
     } catch {
       return null;
@@ -113,6 +121,8 @@ export function TotalTaxEstimateForm({
     availableListedStockLossForDividendJpy,
     mortgageDeductionNationalTaxCreditJpy,
     mortgageDeductionResidentTaxCreditJpy,
+    withheldNationalTaxJpy,
+    withheldResidentTaxJpy,
   ]);
 
   return (
@@ -213,6 +223,19 @@ export function TotalTaxEstimateForm({
         </p>
       )}
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label="源泉徴収税額(所得税・復興特別所得税分。給与・配当・特定口座内の譲渡益等の合計)"
+          value={withheldNationalTaxJpy}
+          onChange={setWithheldNationalTaxJpy}
+        />
+        <Field
+          label="源泉徴収済みの住民税相当額(特定口座(源泉徴収あり)分。通常は税抜金額の5%)"
+          value={withheldResidentTaxJpy}
+          onChange={setWithheldResidentTaxJpy}
+        />
+      </div>
+
       {result === null ? (
         <p className="text-sm text-red-600">入力値を確認してください(0以上の数値を入力)。</p>
       ) : (
@@ -248,6 +271,24 @@ export function TotalTaxEstimateForm({
               </p>
             )}
           </div>
+
+          {(result.withheldNationalTaxJpy.greaterThan(0) ||
+            result.withheldResidentTaxJpy.greaterThan(0)) && (
+            <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+              <p className="text-sm text-neutral-500">納付・還付見込み額(源泉徴収税額との差額)</p>
+              <p className="mt-1 text-2xl font-semibold">
+                {balanceLabel(result.totalTaxBalanceJpy)}
+              </p>
+              <p className="mt-1 text-xs text-neutral-400">
+                所得税等: {balanceLabel(result.nationalTaxBalanceJpy)}(税額 {" "}
+                {yen(result.totalNationalTaxJpy)} − 源泉徴収 {yen(result.withheldNationalTaxJpy)})
+              </p>
+              <p className="mt-1 text-xs text-neutral-400">
+                住民税: {balanceLabel(result.residentTaxBalanceJpy)}(税額 {" "}
+                {yen(result.totalResidentTaxJpy)} − 特別徴収 {yen(result.withheldResidentTaxJpy)})
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <BreakdownCard

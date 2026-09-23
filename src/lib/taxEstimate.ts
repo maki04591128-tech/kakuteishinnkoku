@@ -41,6 +41,12 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  * 同様にDB登録した値)をそのまま「その年に適用される控除額」として受け取り、
  * 本モジュール側では所得税額・住民税所得割額の限度判定(住民税へ繰り越す額の
  * 算出)を再計算しない。控除額が合計税額を上回る場合は0円が下限(還付は生じない)。
+ *
+ * 源泉徴収税額(`withheldNationalTaxJpy`/`withheldResidentTaxJpy`)は、給与の
+ * 源泉徴収税額や、配当等・特定口座(源泉徴収あり)内の株式等譲渡益について
+ * 既に源泉徴収(特別徴収)された金額をユーザーが入力すると、上記で求めた
+ * 合計税額との差額(納付見込み額・還付見込み額)を追加で試算する任意項目。
+ * 未入力(0円)の場合は従来通り年間の税額そのものの概算値のみを返す。
  */
 
 export interface TotalTaxEstimateInput {
@@ -62,6 +68,17 @@ export interface TotalTaxEstimateInput {
   mortgageDeductionNationalTaxCreditJpy?: Decimal.Value;
   /** 住宅ローン控除(税額控除)のうち、その年の住民税額から控除する額 */
   mortgageDeductionResidentTaxCreditJpy?: Decimal.Value;
+  /**
+   * 既に源泉徴収された所得税及び復興特別所得税の合計額(給与の源泉徴収税額・
+   * 配当等の源泉徴収税額・特定口座(源泉徴収あり)内の株式等譲渡益の
+   * 源泉徴収税額等)。入力すると合計税額との差額(納付・還付見込み額)を試算する
+   */
+  withheldNationalTaxJpy?: Decimal.Value;
+  /**
+   * 既に特別徴収された住民税相当額の合計額(特定口座(源泉徴収あり)内の
+   * 株式等譲渡益・配当等について証券会社が徴収した住民税相当額(通常5%)等)
+   */
+  withheldResidentTaxJpy?: Decimal.Value;
 }
 
 export interface TotalTaxEstimateResult {
@@ -101,6 +118,16 @@ export interface TotalTaxEstimateResult {
   totalTaxJpy: Decimal;
   /** ふるさと納税(寄附金控除)の年間上限額の試算(自己負担2,000円になる目安) */
   furusatoNozei: FurusatoNozeiLimitResult;
+  /** 入力された源泉徴収税額(所得税・復興特別所得税分) */
+  withheldNationalTaxJpy: Decimal;
+  /** 入力された源泉徴収税額(住民税相当分) */
+  withheldResidentTaxJpy: Decimal;
+  /** 所得税・復興特別所得税の納付見込み額(正の場合は納付、負の場合は還付) */
+  nationalTaxBalanceJpy: Decimal;
+  /** 住民税の納付(追加徴収)見込み額(正の場合は追加徴収、負の場合は減額) */
+  residentTaxBalanceJpy: Decimal;
+  /** 所得税・住民税を合算した納付見込み額(正の場合は納付、負の場合は還付) */
+  totalTaxBalanceJpy: Decimal;
   notes: string[];
 }
 
@@ -192,12 +219,35 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     mortgageDeductionResidentTaxAppliedJpy,
   );
 
+  const withheldNationalTaxJpy = input.withheldNationalTaxJpy
+    ? new Decimal(input.withheldNationalTaxJpy)
+    : new Decimal(0);
+  const withheldResidentTaxJpy = input.withheldResidentTaxJpy
+    ? new Decimal(input.withheldResidentTaxJpy)
+    : new Decimal(0);
+  requireNonNegative(withheldNationalTaxJpy, "源泉徴収税額(所得税・復興特別所得税分)");
+  requireNonNegative(withheldResidentTaxJpy, "源泉徴収税額(住民税相当分)");
+  const nationalTaxBalanceJpy = totalNationalTaxJpy.minus(withheldNationalTaxJpy);
+  const residentTaxBalanceJpy = totalResidentTaxJpy.minus(withheldResidentTaxJpy);
+  const totalTaxBalanceJpy = nationalTaxBalanceJpy.plus(residentTaxBalanceJpy);
+
   const notes: string[] = [
     "給与所得等の課税所得金額は所得控除後の金額を入力する前提であり、本ツールは所得控除額を計算しない。",
     "住民税は所得割10%固定の概算であり、均等割・調整控除は含まない。",
-    "源泉徴収税額・予定納税額との相殺は行っておらず、ここで求めているのは年間の税額そのものの概算値(納付額・還付額ではない)。",
     "上場株式等の譲渡所得と先物取引に係る雑所得等は別プールの申告分離課税のため、損益通算はできない。",
   ];
+  if (withheldNationalTaxJpy.greaterThan(0) || withheldResidentTaxJpy.greaterThan(0)) {
+    notes.push(
+      "納付・還付見込み額は入力された源泉徴収税額を単純に差し引いた概算であり、予定納税額との相殺は行っていない。",
+    );
+    notes.push(
+      "特定口座(源泉徴収あり)内の株式等譲渡益・配当等の住民税相当額(通常5%)は、所得税と異なり確定申告時にその場で還付されるものではなく、翌年度の住民税(特別徴収・普通徴収)の額に反映される形で精算される。住民税分の納付・還付見込み額はその概算値であり、実際の精算時期・方法とは異なる。",
+    );
+  } else {
+    notes.push(
+      "源泉徴収税額を入力していないため、納付・還付見込み額は年間の税額そのものの概算値と一致する(源泉徴収税額・予定納税額との相殺は行っていない)。",
+    );
+  }
   if (dividendMethodUsed !== dividend.recommendedMethod) {
     notes.push(
       `配当所得の課税方式に指定された「${dividendMethodUsed}」は、最も税負担が軽い「${dividend.recommendedMethod}」と異なる。`,
@@ -252,6 +302,11 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     totalResidentTaxJpy,
     totalTaxJpy,
     furusatoNozei,
+    withheldNationalTaxJpy,
+    withheldResidentTaxJpy,
+    nationalTaxBalanceJpy,
+    residentTaxBalanceJpy,
+    totalTaxBalanceJpy,
     notes,
   };
 }
