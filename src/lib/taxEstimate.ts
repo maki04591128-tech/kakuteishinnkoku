@@ -32,8 +32,9 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  *    既に差し引いた課税所得金額としてユーザーが入力する前提であり、
  *    本モジュールは所得控除の計算を行わない。
  *  - 住民税は所得割10%固定(均等割・調整控除は考慮しない)。
- *  - 予定納税額・源泉徴収税額との相殺(還付・納付額の算出)は行わない。
- *    ここで求めるのはあくまで年間の税額そのものの概算値。
+ *  - 源泉徴収税額・予定納税額との相殺(還付・納付額の算出)は任意入力項目
+ *    (下記参照)。いずれも未入力(0円)の場合は年間の税額そのものの概算値
+ *    のみを返す。延滞税・加算税・予定納税の減額申請は考慮しない。
  *
  * 住宅ローン控除(`mortgageDeduction.ts`)は所得控除ではなく税額控除のため、
  * 上記の各所得区分の税額を合算した後の合計税額から直接差し引く。所得税分・
@@ -47,6 +48,14 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  * 既に源泉徴収(特別徴収)された金額をユーザーが入力すると、上記で求めた
  * 合計税額との差額(納付見込み額・還付見込み額)を追加で試算する任意項目。
  * 未入力(0円)の場合は従来通り年間の税額そのものの概算値のみを返す。
+ *
+ * 予定納税額(`estimatedTaxPrepaymentJpy`)は、前年の所得金額・税額を基準に
+ * その年の7月・11月に前払いした所得税・復興特別所得税の合計額(国税庁から
+ * 送付される「予定納税額の通知書」記載額、または実際に納付した合計額)を
+ * ユーザーが入力すると、源泉徴収税額と同様に所得税・復興特別所得税の
+ * 納付・還付見込み額からさらに差し引く任意項目。予定納税は所得税・復興特別
+ * 所得税のみの制度で住民税には存在しないため、住民税の納付・還付見込み額には
+ * 影響しない。
  */
 
 export interface TotalTaxEstimateInput {
@@ -79,6 +88,13 @@ export interface TotalTaxEstimateInput {
    * 株式等譲渡益・配当等について証券会社が徴収した住民税相当額(通常5%)等)
    */
   withheldResidentTaxJpy?: Decimal.Value;
+  /**
+   * その年に納付済みの予定納税額(所得税・復興特別所得税の第1期分・第2期分の
+   * 合計)。入力すると源泉徴収税額と合わせて所得税・復興特別所得税の
+   * 納付・還付見込み額から差し引く(住民税には予定納税の制度が無いため
+   * 住民税分には影響しない)
+   */
+  estimatedTaxPrepaymentJpy?: Decimal.Value;
 }
 
 export interface TotalTaxEstimateResult {
@@ -122,6 +138,8 @@ export interface TotalTaxEstimateResult {
   withheldNationalTaxJpy: Decimal;
   /** 入力された源泉徴収税額(住民税相当分) */
   withheldResidentTaxJpy: Decimal;
+  /** 入力された予定納税額(所得税・復興特別所得税分。住民税には制度が無い) */
+  estimatedTaxPrepaymentJpy: Decimal;
   /** 所得税・復興特別所得税の納付見込み額(正の場合は納付、負の場合は還付) */
   nationalTaxBalanceJpy: Decimal;
   /** 住民税の納付(追加徴収)見込み額(正の場合は追加徴収、負の場合は減額) */
@@ -227,7 +245,13 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     : new Decimal(0);
   requireNonNegative(withheldNationalTaxJpy, "源泉徴収税額(所得税・復興特別所得税分)");
   requireNonNegative(withheldResidentTaxJpy, "源泉徴収税額(住民税相当分)");
-  const nationalTaxBalanceJpy = totalNationalTaxJpy.minus(withheldNationalTaxJpy);
+  const estimatedTaxPrepaymentJpy = input.estimatedTaxPrepaymentJpy
+    ? new Decimal(input.estimatedTaxPrepaymentJpy)
+    : new Decimal(0);
+  requireNonNegative(estimatedTaxPrepaymentJpy, "予定納税額");
+  const nationalTaxBalanceJpy = totalNationalTaxJpy
+    .minus(withheldNationalTaxJpy)
+    .minus(estimatedTaxPrepaymentJpy);
   const residentTaxBalanceJpy = totalResidentTaxJpy.minus(withheldResidentTaxJpy);
   const totalTaxBalanceJpy = nationalTaxBalanceJpy.plus(residentTaxBalanceJpy);
 
@@ -236,16 +260,25 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     "住民税は所得割10%固定の概算であり、均等割・調整控除は含まない。",
     "上場株式等の譲渡所得と先物取引に係る雑所得等は別プールの申告分離課税のため、損益通算はできない。",
   ];
-  if (withheldNationalTaxJpy.greaterThan(0) || withheldResidentTaxJpy.greaterThan(0)) {
+  if (
+    withheldNationalTaxJpy.greaterThan(0) ||
+    withheldResidentTaxJpy.greaterThan(0) ||
+    estimatedTaxPrepaymentJpy.greaterThan(0)
+  ) {
     notes.push(
-      "納付・還付見込み額は入力された源泉徴収税額を単純に差し引いた概算であり、予定納税額との相殺は行っていない。",
+      "納付・還付見込み額は入力された源泉徴収税額・予定納税額を単純に差し引いた概算であり、延滞税・加算税等は含まない。",
     );
     notes.push(
       "特定口座(源泉徴収あり)内の株式等譲渡益・配当等の住民税相当額(通常5%)は、所得税と異なり確定申告時にその場で還付されるものではなく、翌年度の住民税(特別徴収・普通徴収)の額に反映される形で精算される。住民税分の納付・還付見込み額はその概算値であり、実際の精算時期・方法とは異なる。",
     );
+    if (estimatedTaxPrepaymentJpy.greaterThan(0)) {
+      notes.push(
+        "予定納税額は所得税・復興特別所得税のみの制度で住民税には存在しないため、住民税の納付・還付見込み額には反映していない。",
+      );
+    }
   } else {
     notes.push(
-      "源泉徴収税額を入力していないため、納付・還付見込み額は年間の税額そのものの概算値と一致する(源泉徴収税額・予定納税額との相殺は行っていない)。",
+      "源泉徴収税額・予定納税額を入力していないため、納付・還付見込み額は年間の税額そのものの概算値と一致する。",
     );
   }
   if (dividendMethodUsed !== dividend.recommendedMethod) {
@@ -304,6 +337,7 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     furusatoNozei,
     withheldNationalTaxJpy,
     withheldResidentTaxJpy,
+    estimatedTaxPrepaymentJpy,
     nationalTaxBalanceJpy,
     residentTaxBalanceJpy,
     totalTaxBalanceJpy,
