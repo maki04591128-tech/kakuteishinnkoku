@@ -43,6 +43,7 @@ model TaxYear {
   incomeDeductions                        IncomeDeduction[]
   nisaLifetimeQuotas                      NisaLifetimeQuota[]
   casualtyLossCarryforwards               CasualtyLossCarryforward[]
+  mortgageDeductionRecords                MortgageDeductionRecord[]
 }
 
 enum CryptoCostMethod {
@@ -266,6 +267,31 @@ model IncomeDeduction {
   updatedAt DateTime @updatedAt
 
   @@unique([taxYearId, type])
+}
+
+/// 住宅借入金等特別控除(住宅ローン控除。src/lib/mortgageDeduction.ts)の試算結果を
+/// 年分ごとに保存し、`/tax-estimate`の合計税額試算へ税額控除として自動反映する
+/// ためのデータ。住宅ローン控除は所得控除ではなく所得税額・住民税額そのものから
+/// 直接差し引く税額控除のため、`IncomeDeduction`(所得控除)とは別テーブルとして
+/// 保持する。`/mortgage-deduction`の「この年分の住宅ローン控除として登録する」
+/// ボタンから登録する。1年につき居住中の住宅は通常1件のため年分ごとに1件のみ保持する。
+model MortgageDeductionRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の所得税の控除額(MortgageDeductionResult.nationalTaxCreditJpy)
+  nationalTaxCreditJpy Decimal
+
+  /// 所得税から控除しきれず住民税から控除される額(MortgageDeductionResult.
+  /// residentTaxCreditJpy)。試算時に未算出(住宅ローン控除適用前の所得税額が
+  /// 未入力)だった場合は0円として保存する。
+  residentTaxCreditJpy Decimal @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
 }
 
 enum IncomeDeductionType {
