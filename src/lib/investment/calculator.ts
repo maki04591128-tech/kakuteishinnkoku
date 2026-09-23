@@ -29,18 +29,19 @@ export type InvestmentAssetType = "STOCK" | "ETF" | "MUTUAL_FUND" | "BOND" | "OT
 /**
  * 配当等の金額を、総合課税を選択した場合の配当控除の税率区分ごとに分類する。
  *
- *  - FULL: 上場株式等の普通配当(STOCK)・ETF。通常の配当控除率
- *    (国税10%/5%・住民税2.8%/1.4%)の対象。ETFはJ-REIT型ETF等
- *    配当控除の対象外となるものも存在するが、本ツールでは銘柄種別を
- *    これ以上細分化していないため株式と同様に扱う(今後の課題)。
+ *  - FULL: 上場株式等の普通配当(STOCK)・ETF(J-REIT型を除く)。通常の
+ *    配当控除率(国税10%/5%・住民税2.8%/1.4%)の対象。
  *  - HALF: 株式投資信託(MUTUAL_FUND)の収益分配金。外貨建資産等の
  *    組入割合が50%以下であることを前提に、通常の半分の税率
  *    (国税5%/2.5%・住民税1.4%/0.7%)の対象として扱う簡略化
  *    (組入割合が50%を超える場合は本来さらに率が下がる。今後の課題)。
- *  - NONE: 公社債投資信託・REIT等(BOND・OTHER)。配当控除の対象外。
+ *  - NONE: 公社債投資信託・REIT等(BOND・OTHER)、およびJ-REIT型ETF
+ *    (isReit=true)。不動産投資法人は法人税が実質非課税で二重課税が
+ *    生じないため、配当控除の対象外。
  */
 export function dividendCreditCategory(
   assetType: InvestmentAssetType | undefined,
+  isReit?: boolean,
 ): "FULL" | "HALF" | "NONE" {
   switch (assetType) {
     case "MUTUAL_FUND":
@@ -48,8 +49,9 @@ export function dividendCreditCategory(
     case "BOND":
     case "OTHER":
       return "NONE";
-    case "STOCK":
     case "ETF":
+      return isReit ? "NONE" : "FULL";
+    case "STOCK":
     default:
       return "FULL";
   }
@@ -72,6 +74,12 @@ export interface InvestmentTradeInput {
    * 省略時は上場株式等(STOCK、通常の配当控除率)として扱う。
    */
   assetType?: InvestmentAssetType;
+  /**
+   * J-REIT(不動産投資信託)かどうか(assetType="ETF"の場合のみ参照。
+   * type="DIVIDEND"の場合のみ配当控除の税率区分判定に使用)。
+   * true の場合、配当控除の対象外(NONE)として扱う。
+   */
+  isReit?: boolean;
 }
 
 export interface InvestmentOpeningBalance {
@@ -242,7 +250,7 @@ export function calculateInvestmentYear(
         nisaDividendJpy = nisaDividendJpy.plus(amount);
       } else {
         dividendJpy = dividendJpy.plus(amount);
-        switch (dividendCreditCategory(trade.assetType)) {
+        switch (dividendCreditCategory(trade.assetType, trade.isReit)) {
           case "FULL":
             dividendFullCreditJpy = dividendFullCreditJpy.plus(amount);
             break;

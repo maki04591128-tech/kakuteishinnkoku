@@ -248,13 +248,20 @@ export async function addInvestmentTrade(formData: FormData): Promise<void> {
     throw new Error("一般株式等(非上場株式)はNISA口座の対象外です");
   }
 
+  const assetType = requireString(formData, "assetType");
+  const isReit = formData.get("isReit") === "on";
+  if (isReit && assetType !== "ETF") {
+    throw new Error("J-REITは資産種別「ETF」の場合のみ指定できます");
+  }
+
   await prisma.investmentTrade.create({
     data: {
       taxYearId: taxYear.id,
       tradedAt: new Date(requireString(formData, "tradedAt")),
       symbol: requireString(formData, "symbol"),
       name: optionalString(formData, "name"),
-      assetType: requireString(formData, "assetType") as never,
+      assetType: assetType as never,
+      isReit,
       isListed,
       type: requireString(formData, "type") as never,
       quantity: requireString(formData, "quantity"),
