@@ -288,6 +288,23 @@ export default async function Home({
         </p>
       )}
 
+      {report &&
+        (() => {
+          const missingInstitutions = report.assetBalanceReconciliation.filter(
+            (r) => r.status === "MISSING_APP_TRADES",
+          );
+          return (
+            missingInstitutions.length > 0 && (
+              <p className="rounded-md border border-dashed border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+                マネーフォワードの資産残高はあるのに、アプリに取引明細が登録されていない
+                金融機関があります(計上漏れの疑い・参考情報):{" "}
+                {missingInstitutions.map((r) => r.institution).join(" / ")}
+                。「データを取り込む」の「マネーフォワード資産残高との突合」欄で確認してください。
+              </p>
+            )
+          );
+        })()}
+
       {report && report.futuresLossCarryforward.expiredByOriginYear.length > 0 && (
         <p className="rounded-md border border-dashed border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
           控除期限(3年)を超えて繰り越せなかった先物取引に係る雑所得等の損失があります:{" "}
