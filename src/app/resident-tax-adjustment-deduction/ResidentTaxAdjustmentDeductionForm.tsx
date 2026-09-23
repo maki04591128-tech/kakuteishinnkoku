@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { saveResidentTaxAdjustmentDeductionRecord } from "@/app/actions";
 import {
   estimateResidentTaxAdjustmentDeduction,
   type DependentDeductionDiffCategory,
@@ -22,7 +23,14 @@ const DEPENDENT_FIELDS: Array<{ category: DependentDeductionDiffCategory; label:
   { category: "ELDERLY_OTHER", label: "老人扶養親族(同居老親等以外)" },
 ];
 
-export function ResidentTaxAdjustmentDeductionForm({ year }: { year: number }) {
+export function ResidentTaxAdjustmentDeductionForm({
+  year,
+  registeredRecord,
+}: {
+  year: number;
+  /** `/tax-estimate`と連携するため既に登録済みの調整控除額(未登録ならnull) */
+  registeredRecord: { taxYear: number; adjustmentDeductionJpy: number } | null;
+}) {
   const [taxpayerTotalIncome, setTaxpayerTotalIncome] = useState("5000000");
   const [totalTaxableIncome, setTotalTaxableIncome] = useState("3000000");
   const [spouse, setSpouse] = useState<SpouseSelection>("NONE");
@@ -200,6 +208,29 @@ export function ResidentTaxAdjustmentDeductionForm({ year }: { year: number }) {
               <p className="text-sm text-neutral-500">調整控除額(住民税から控除)</p>
               <p className="mt-1 text-3xl font-semibold">{yen(result.adjustmentDeductionJpy)}</p>
             </div>
+          </div>
+
+          <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+            <form action={saveResidentTaxAdjustmentDeductionRecord}>
+              <input type="hidden" name="year" value={year} />
+              <input
+                type="hidden"
+                name="adjustmentDeductionJpy"
+                value={result.adjustmentDeductionJpy.toString()}
+              />
+              <button
+                type="submit"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                この試算結果を{year}年分の住民税の調整控除として登録する
+              </button>
+            </form>
+            {registeredRecord !== null && (
+              <p className="mt-2 text-xs text-neutral-500">
+                登録済み({registeredRecord.taxYear}年分): {yen(registeredRecord.adjustmentDeductionJpy)}
+                (/tax-estimateの初期値に反映)
+              </p>
+            )}
           </div>
 
           {result.personalDeductionDifferenceBreakdown.length > 0 && (

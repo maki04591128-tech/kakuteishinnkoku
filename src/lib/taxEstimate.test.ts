@@ -117,6 +117,105 @@ describe("estimateTotalTax", () => {
     );
   });
 
+  it("住民税の調整控除(税額控除)を入力すると住民税額からのみ差し引かれる", () => {
+    const without = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+    const withAdjustment = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      residentTaxAdjustmentDeductionJpy: 25_000,
+    });
+
+    expect(without.totalNationalTaxJpy.toNumber()).toBe(withAdjustment.totalNationalTaxJpy.toNumber());
+    expect(
+      without.totalResidentTaxJpy.minus(withAdjustment.totalResidentTaxJpy).toNumber(),
+    ).toBe(25_000);
+    expect(withAdjustment.residentTaxAdjustmentDeductionAppliedJpy.toNumber()).toBe(25_000);
+  });
+
+  it("住民税の調整控除額が住民税所得割額を上回る場合は0円が下限になる(還付は生じない)", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 500_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      residentTaxAdjustmentDeductionJpy: 100_000_000,
+    });
+
+    expect(result.totalResidentTaxJpy.toNumber()).toBe(0);
+    expect(result.residentTaxAdjustmentDeductionAppliedJpy.toNumber()).toBe(
+      result.totalResidentTaxBeforeAdjustmentDeductionJpy.toNumber(),
+    );
+  });
+
+  it("住民税の調整控除は住宅ローン控除・外国税額控除より先に住民税所得割額から差し引かれる", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      residentTaxAdjustmentDeductionJpy: 25_000,
+      mortgageDeductionResidentTaxCreditJpy: 20_000,
+    });
+
+    // 調整控除適用後の住民税額を基準に住宅ローン控除の限度額が判定されるため、
+    // 「住宅ローン控除適用前」の住民税額は既に調整控除適用済みの額になる。
+    expect(result.totalResidentTaxBeforeMortgageDeductionJpy.toNumber()).toBe(
+      result.totalResidentTaxBeforeAdjustmentDeductionJpy
+        .minus(result.residentTaxAdjustmentDeductionAppliedJpy)
+        .toNumber(),
+    );
+    expect(result.mortgageDeductionResidentTaxAppliedJpy.toNumber()).toBe(20_000);
+  });
+
+  it("ふるさと納税の上限額は調整控除適用後の住民税所得割額を基準に試算する", () => {
+    const without = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+    const withAdjustment = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      residentTaxAdjustmentDeductionJpy: 25_000,
+    });
+
+    expect(
+      withAdjustment.furusatoNozei.residentTaxIncomeLeviedJpy.toNumber(),
+    ).toBe(without.furusatoNozei.residentTaxIncomeLeviedJpy.toNumber() - 25_000);
+    expect(
+      withAdjustment.furusatoNozei.fullDeductionDonationLimitJpy.toNumber(),
+    ).toBeLessThan(without.furusatoNozei.fullDeductionDonationLimitJpy.toNumber());
+  });
+
+  it("負の調整控除額はエラーになる", () => {
+    expect(() =>
+      estimateTotalTax({
+        otherComprehensiveIncomeJpy: 0,
+        cryptoMiscIncomeJpy: 0,
+        investmentTaxableGainJpy: 0,
+        futuresTaxableGainJpy: 0,
+        dividendIncomeJpy: 0,
+        residentTaxAdjustmentDeductionJpy: -1,
+      }),
+    ).toThrow();
+  });
+
   it("住宅ローン控除(税額控除)を入力すると合計税額から直接差し引かれる", () => {
     const without = estimateTotalTax({
       otherComprehensiveIncomeJpy: 5_000_000,

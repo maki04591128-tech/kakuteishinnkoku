@@ -36,6 +36,8 @@ export function TotalTaxEstimateForm({
   registeredIncomeDeductions,
   totalRegisteredIncomeTaxDeductionJpy,
   incomeDeductionNotes,
+  defaultResidentTaxAdjustmentDeductionJpy,
+  registeredResidentTaxAdjustmentDeductionJpy,
   defaultMortgageDeductionNationalTaxCreditJpy,
   defaultMortgageDeductionResidentTaxCreditJpy,
   registeredMortgageDeduction,
@@ -55,6 +57,10 @@ export function TotalTaxEstimateForm({
   totalRegisteredIncomeTaxDeductionJpy: number;
   /** 合計額の算出にあたっての注記(医療費控除とセルフメディケーション税制が両方登録されている場合等) */
   incomeDeductionNotes: string[];
+  /** `/resident-tax-adjustment-deduction`で登録済みの調整控除額の初期値 */
+  defaultResidentTaxAdjustmentDeductionJpy: number;
+  /** `/resident-tax-adjustment-deduction`で登録済みの調整控除額(参考表示。未登録ならnull) */
+  registeredResidentTaxAdjustmentDeductionJpy: number | null;
   /** `/mortgage-deduction`で登録済みの住宅ローン控除額(所得税分)の初期値 */
   defaultMortgageDeductionNationalTaxCreditJpy: number;
   /** `/mortgage-deduction`で登録済みの住宅ローン控除額(住民税分)の初期値 */
@@ -84,6 +90,9 @@ export function TotalTaxEstimateForm({
   const [availableListedStockLossForDividendJpy, setAvailableListedStockLossForDividendJpy] =
     useState(String(defaultAvailableListedStockLossForDividendJpy));
   const [dividendMethod, setDividendMethod] = useState<DividendTaxMethod | "AUTO">("AUTO");
+  const [residentTaxAdjustmentDeductionJpy, setResidentTaxAdjustmentDeductionJpy] = useState(
+    String(defaultResidentTaxAdjustmentDeductionJpy),
+  );
   const [mortgageDeductionNationalTaxCreditJpy, setMortgageDeductionNationalTaxCreditJpy] =
     useState(String(defaultMortgageDeductionNationalTaxCreditJpy));
   const [mortgageDeductionResidentTaxCreditJpy, setMortgageDeductionResidentTaxCreditJpy] =
@@ -112,6 +121,8 @@ export function TotalTaxEstimateForm({
           availableListedStockLossForDividendJpy === ""
             ? 0
             : availableListedStockLossForDividendJpy,
+        residentTaxAdjustmentDeductionJpy:
+          residentTaxAdjustmentDeductionJpy === "" ? 0 : residentTaxAdjustmentDeductionJpy,
         mortgageDeductionNationalTaxCreditJpy:
           mortgageDeductionNationalTaxCreditJpy === ""
             ? 0
@@ -146,6 +157,7 @@ export function TotalTaxEstimateForm({
     dividendIncomeJpy,
     dividendMethod,
     availableListedStockLossForDividendJpy,
+    residentTaxAdjustmentDeductionJpy,
     mortgageDeductionNationalTaxCreditJpy,
     mortgageDeductionResidentTaxCreditJpy,
     foreignTaxCreditNationalTaxCreditJpy,
@@ -235,6 +247,24 @@ export function TotalTaxEstimateForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
+          label={`住民税の調整控除(税額控除・住民税所得割のみ)${
+            registeredResidentTaxAdjustmentDeductionJpy !== null
+              ? " — 初期値は/resident-tax-adjustment-deductionの登録値"
+              : ""
+          }`}
+          value={residentTaxAdjustmentDeductionJpy}
+          onChange={setResidentTaxAdjustmentDeductionJpy}
+        />
+      </div>
+      {registeredResidentTaxAdjustmentDeductionJpy !== null && (
+        <p className="text-xs text-neutral-500">
+          /resident-tax-adjustment-deductionで登録済み:{" "}
+          {yen(registeredResidentTaxAdjustmentDeductionJpy)}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
           label={`住宅ローン控除(税額控除・所得税分)${
             registeredMortgageDeduction !== null ? " — 初期値は/mortgage-deductionの登録値" : ""
           }`}
@@ -316,6 +346,12 @@ export function TotalTaxEstimateForm({
                 ? "(最も有利)"
                 : ""}
             </p>
+            {result.residentTaxAdjustmentDeductionAppliedJpy.greaterThan(0) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                − 住民税の調整控除 {yen(result.residentTaxAdjustmentDeductionAppliedJpy)}
+                (住民税所得割のみ。所得税分は無し)
+              </p>
+            )}
             {(result.mortgageDeductionNationalTaxAppliedJpy.greaterThan(0) ||
               result.mortgageDeductionResidentTaxAppliedJpy.greaterThan(0)) && (
               <p className="mt-1 text-xs text-neutral-400">

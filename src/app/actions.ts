@@ -1238,6 +1238,33 @@ export async function saveMortgageDeductionRecord(formData: FormData): Promise<v
   redirect(`/mortgage-deduction?year=${year}&mortgageDeductionSaved=1`);
 }
 
+/**
+ * 住民税の調整控除シミュレーター(/resident-tax-adjustment-deduction)の試算結果を
+ * ResidentTaxAdjustmentDeductionRecord として登録する。住宅ローン控除
+ * (saveMortgageDeductionRecord)・外国税額控除(saveForeignTaxCreditRecord)と同様、
+ * `/tax-estimate`の合計税額試算(住民税所得割からの税額控除)への自動反映に使う。
+ * 既に登録済みの場合は上書きする。
+ */
+export async function saveResidentTaxAdjustmentDeductionRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const adjustmentDeductionJpy = requireString(formData, "adjustmentDeductionJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.residentTaxAdjustmentDeductionRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, adjustmentDeductionJpy },
+    update: { adjustmentDeductionJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/resident-tax-adjustment-deduction");
+  redirect(
+    `/resident-tax-adjustment-deduction?year=${year}&residentTaxAdjustmentDeductionSaved=1`,
+  );
+}
+
 export async function setCasualtyLossCarryforward(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
