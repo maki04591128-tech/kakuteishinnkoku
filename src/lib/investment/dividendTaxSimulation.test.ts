@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { simulateDividendTaxation } from "./dividendTaxSimulation";
+import { simulateDividendTaxation, simulateNonListedDividendTaxation } from "./dividendTaxSimulation";
 
 describe("simulateDividendTaxation", () => {
   it("申告不要は源泉徴収税率20.315%どおりに計算する", () => {
@@ -146,6 +146,126 @@ describe("simulateDividendTaxation", () => {
         dividendIncomeJpy: 0,
         otherTaxableIncomeJpy: 0,
         availableListedStockLossJpy: -1,
+      }),
+    ).toThrow();
+  });
+});
+
+describe("simulateNonListedDividendTaxation", () => {
+  it("少額配当該当額が0の場合は総合課税のみが選択肢になる", () => {
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 500_000,
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+
+    expect(result.smallDividendNoFiling).toBeUndefined();
+    expect(result.recommendedMethod).toBe("REPORT_ALL");
+    expect(result.reportAll.nationalReportedDividendJpy.toNumber()).toBe(500_000);
+  });
+
+  it("総合課税は配当控除(通常税率)を適用する", () => {
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+
+    // 全額1000万円以下の枠内: 国税10%+住民税2.8%=12.8%
+    expect(result.reportAll.dividendCreditJpy.toNumber()).toBeCloseTo(128_000, 0);
+  });
+
+  it("住民税は所得税側の選択にかかわらず常に配当全額を総合課税で計算する", () => {
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      smallDividendJpy: 1_000_000,
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+
+    expect(result.smallDividendNoFiling).toBeDefined();
+    expect(result.reportAll.residentTaxJpy.toNumber()).toBeCloseTo(
+      result.smallDividendNoFiling!.residentTaxJpy.toNumber(),
+      6,
+    );
+  });
+
+  it("少額配当を申告不要にした場合、その部分は20.42%源泉徴収で確定し配当控除は受けられない", () => {
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      smallDividendJpy: 1_000_000,
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+
+    expect(result.smallDividendNoFiling!.nationalReportedDividendJpy.toNumber()).toBe(0);
+    expect(result.smallDividendNoFiling!.nationalTaxJpy.toNumber()).toBe(0);
+    expect(result.smallDividendNoFiling!.nationalWithholdingFinalJpy?.toNumber()).toBeCloseTo(
+      204_200,
+      0,
+    );
+    // 所得税分の配当控除は0だが、住民税は常に総合課税のため住民税分(2.8%)の配当控除は残る
+    expect(result.smallDividendNoFiling!.dividendCreditJpy.toNumber()).toBeCloseTo(28_000, 0);
+  });
+
+  it("少額配当の一部のみ該当する場合、残りは総合課税で申告する", () => {
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      smallDividendJpy: 300_000,
+      otherTaxableIncomeJpy: 5_000_000,
+    });
+
+    expect(result.smallDividendNoFiling!.nationalReportedDividendJpy.toNumber()).toBe(700_000);
+    expect(result.smallDividendNoFiling!.nationalWithholdingFinalJpy?.toNumber()).toBeCloseTo(
+      61_260,
+      0,
+    );
+  });
+
+  it("高所得帯では総合課税より申告不要のほうが有利になり得る", () => {
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      smallDividendJpy: 1_000_000,
+      otherTaxableIncomeJpy: 20_000_000,
+    });
+
+    expect(result.recommendedMethod).toBe("SMALL_DIVIDEND_NO_FILING");
+  });
+
+  it("低所得帯では配当控除により総合課税のほうが有利になり得る", () => {
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 500_000,
+      smallDividendJpy: 500_000,
+      otherTaxableIncomeJpy: 1_000_000,
+    });
+
+    expect(result.recommendedMethod).toBe("REPORT_ALL");
+  });
+
+  it("少額配当該当額が配当所得金額を超える場合はエラーになる", () => {
+    expect(() =>
+      simulateNonListedDividendTaxation({
+        nonListedDividendIncomeJpy: 500_000,
+        smallDividendJpy: 600_000,
+        otherTaxableIncomeJpy: 0,
+      }),
+    ).toThrow();
+  });
+
+  it("負の入力値はエラーになる", () => {
+    expect(() =>
+      simulateNonListedDividendTaxation({
+        nonListedDividendIncomeJpy: -1,
+        otherTaxableIncomeJpy: 0,
+      }),
+    ).toThrow();
+    expect(() =>
+      simulateNonListedDividendTaxation({
+        nonListedDividendIncomeJpy: 0,
+        otherTaxableIncomeJpy: -1,
+      }),
+    ).toThrow();
+    expect(() =>
+      simulateNonListedDividendTaxation({
+        nonListedDividendIncomeJpy: 0,
+        smallDividendJpy: -1,
+        otherTaxableIncomeJpy: 0,
       }),
     ).toThrow();
   });

@@ -221,6 +221,193 @@ function simulateNoFiling(dividendIncomeJpy: Decimal): DividendTaxMethodResult {
   };
 }
 
+/**
+ * 一般株式等(非上場株式)の配当所得は、上場株式等と異なり申告分離課税を
+ * 選択できない(措置法8条の4・8条の5は上場株式等の配当等のみが対象)。
+ *
+ *  - 総合課税(REPORT_ALL): 他の所得と合算し、超過累進税率を適用する。
+ *    配当控除が使える。
+ *  - 少額配当の確定申告不要制度(SMALL_DIVIDEND_NO_FILING): 1回に受け取る
+ *    配当金額が「10万円×配当計算期間の月数÷12」以下(措置法8条の5)の場合、
+ *    所得税(復興特別所得税を含む)に限り申告不要を選択できる。この場合、
+ *    源泉徴収された20.42%が最終的な税額となり還付・税額控除は受けられない。
+ *
+ * 上場株式等と異なり、所得税で申告不要を選んでも住民税は免除されない
+ * (地方税法の規定により、少額配当であっても住民税は常に他の所得と合算した
+ * 総合課税で申告する必要がある。中央区・柏市等、複数の自治体公式サイトで
+ * 確認)。そのため住民税額は所得税側の選択にかかわらず常に配当所得全額を
+ * 総合課税で計算する。
+ *
+ * 少額配当の判定は配当の支払い1回ごとに行うが、本ツールは取引明細を
+ * 支払い単位までは区別していないため、年間受取額のうち少額配当の基準を
+ * 満たす金額(smallDividendJpy)はユーザー自身の判定に基づく入力とする。
+ *
+ * 簡略化している点(今後の課題):
+ *  - 一般株式等の配当は普通株式の配当(配当控除率が通常税率(FULL)となる
+ *    もの)のみを想定する。非上場の投資信託等、配当控除が半分税率・対象外と
+ *    なる銘柄種別の区別には対応しない(上場株式等向けの
+ *    `dividendCreditBreakdown`のような内訳指定は設けていない)。
+ *  - 所得税額の計算は`simulateDividendTaxation`と同様、速算表と住民税10%
+ *    固定を用いる。
+ *  - 上場株式等の配当(`simulateDividendTaxation`)とは独立に試算するため、
+ *    合計所得金額に基づく配当控除の1,000万円の閾値判定は、双方の配当を
+ *    合算せずそれぞれ単独で行う(上場株式等の配当と合わせて1,000万円を
+ *    超える場合、実際の控除額とは差異が生じ得る)。
+ */
+
+export type NonListedDividendTaxMethod = "REPORT_ALL" | "SMALL_DIVIDEND_NO_FILING";
+
+// 非上場株式の配当等の源泉徴収税率(所得税・復興特別所得税のみ。住民税相当額の源泉徴収は無い)
+const NON_LISTED_WITHHOLDING_RATE = new Decimal(0.2042);
+
+export interface NonListedDividendTaxSimulationInput {
+  /** 一般株式等(非上場株式)の配当所得金額(源泉徴収前の年間合計) */
+  nonListedDividendIncomeJpy: Decimal.Value;
+  /**
+   * nonListedDividendIncomeJpyのうち、少額配当(1回の配当金額が
+   * 10万円×配当計算期間の月数÷12以下)に該当し、所得税の確定申告不要制度を
+   * 選択できる部分。判定は支払いごとに行う必要があるためユーザー自身が
+   * 入力する(省略時は0=全額が少額配当に該当せず総合課税が必須)。
+   */
+  smallDividendJpy?: Decimal.Value;
+  /** 配当以外の課税所得金額(給与所得等、各種所得控除後の金額) */
+  otherTaxableIncomeJpy: Decimal.Value;
+}
+
+export interface NonListedDividendTaxMethodResult {
+  method: NonListedDividendTaxMethod;
+  /** 所得税で総合課税により申告する配当所得金額 */
+  nationalReportedDividendJpy: Decimal;
+  nationalTaxJpy: Decimal;
+  /**
+   * 少額配当につき所得税の申告不要制度を選んだ部分の源泉徴収税額
+   * (還付・税額控除の対象外。SMALL_DIVIDEND_NO_FILINGの場合のみ)
+   */
+  nationalWithholdingFinalJpy?: Decimal;
+  /** 住民税額(所得税側の選択にかかわらず常に配当所得全額を総合課税で計算) */
+  residentTaxJpy: Decimal;
+  totalTaxJpy: Decimal;
+  /** 配当控除額(国税+住民税) */
+  dividendCreditJpy: Decimal;
+}
+
+export interface NonListedDividendTaxSimulationResult {
+  reportAll: NonListedDividendTaxMethodResult;
+  /** smallDividendJpyが0より大きい場合のみ算出(少額配当に該当する部分が無ければ選択肢自体が存在しない) */
+  smallDividendNoFiling?: NonListedDividendTaxMethodResult;
+  recommendedMethod: NonListedDividendTaxMethod;
+  notes: string[];
+}
+
+function nationalComprehensiveTaxJpy(
+  otherTaxableIncomeJpy: Decimal,
+  reportedDividendJpy: Decimal,
+  nationalCreditJpy: Decimal,
+): Decimal {
+  const withoutDividend = nationalIncomeTaxWithSurtaxJpy(otherTaxableIncomeJpy);
+  const withDividend = nationalIncomeTaxWithSurtaxJpy(
+    otherTaxableIncomeJpy.plus(reportedDividendJpy),
+  );
+  return withDividend.minus(withoutDividend).minus(nationalCreditJpy);
+}
+
+export function simulateNonListedDividendTaxation(
+  input: NonListedDividendTaxSimulationInput,
+): NonListedDividendTaxSimulationResult {
+  const nonListedDividendIncomeJpy = new Decimal(input.nonListedDividendIncomeJpy);
+  const otherTaxableIncomeJpy = new Decimal(input.otherTaxableIncomeJpy);
+  const smallDividendJpy = input.smallDividendJpy
+    ? new Decimal(input.smallDividendJpy)
+    : new Decimal(0);
+
+  requireNonNegative(nonListedDividendIncomeJpy, "一般株式等の配当所得金額");
+  requireNonNegative(otherTaxableIncomeJpy, "配当以外の課税所得金額");
+  requireNonNegative(smallDividendJpy, "少額配当該当額");
+  if (smallDividendJpy.greaterThan(nonListedDividendIncomeJpy)) {
+    throw new Error("少額配当該当額が一般株式等の配当所得金額を超えています");
+  }
+
+  // 住民税は所得税側の選択にかかわらず常に配当所得全額を総合課税で計算する
+  const { nationalCreditJpy: fullNationalCreditJpy, residentCreditJpy } = dividendCreditJpy(
+    otherTaxableIncomeJpy,
+    nonListedDividendIncomeJpy,
+    new Decimal(0),
+  );
+  const residentTaxJpy = nonListedDividendIncomeJpy
+    .times(RESIDENT_TAX_RATE)
+    .minus(residentCreditJpy);
+
+  const reportAllNationalTaxJpy = nationalComprehensiveTaxJpy(
+    otherTaxableIncomeJpy,
+    nonListedDividendIncomeJpy,
+    fullNationalCreditJpy,
+  );
+  const reportAll: NonListedDividendTaxMethodResult = {
+    method: "REPORT_ALL",
+    nationalReportedDividendJpy: nonListedDividendIncomeJpy,
+    nationalTaxJpy: reportAllNationalTaxJpy,
+    residentTaxJpy,
+    totalTaxJpy: reportAllNationalTaxJpy.plus(residentTaxJpy),
+    dividendCreditJpy: fullNationalCreditJpy.plus(residentCreditJpy),
+  };
+
+  const notes: string[] = [
+    "一般株式等(非上場株式)の配当は上場株式等と異なり、申告分離課税を選択できない。",
+    "所得税で少額配当の確定申告不要制度を選んでも、住民税は常に他の所得と合算した総合課税での申告が必要(確定申告書を提出しない場合は住民税の申告が別途必要)。",
+    "少額配当の判定(1回の配当金額が10万円×配当計算期間の月数÷12以下)は支払いごとに行うため、少額配当該当額は自身で判定した金額を入力すること。",
+  ];
+
+  if (smallDividendJpy.isZero()) {
+    return {
+      reportAll,
+      recommendedMethod: "REPORT_ALL",
+      notes,
+    };
+  }
+
+  const mustReportJpy = nonListedDividendIncomeJpy.minus(smallDividendJpy);
+  const { nationalCreditJpy: partialNationalCreditJpy } = dividendCreditJpy(
+    otherTaxableIncomeJpy,
+    mustReportJpy,
+    new Decimal(0),
+  );
+  const partialNationalTaxJpy = nationalComprehensiveTaxJpy(
+    otherTaxableIncomeJpy,
+    mustReportJpy,
+    partialNationalCreditJpy,
+  );
+  const nationalWithholdingFinalJpy = smallDividendJpy.times(NON_LISTED_WITHHOLDING_RATE);
+
+  const smallDividendNoFiling: NonListedDividendTaxMethodResult = {
+    method: "SMALL_DIVIDEND_NO_FILING",
+    nationalReportedDividendJpy: mustReportJpy,
+    nationalTaxJpy: partialNationalTaxJpy,
+    nationalWithholdingFinalJpy,
+    residentTaxJpy,
+    totalTaxJpy: partialNationalTaxJpy
+      .plus(nationalWithholdingFinalJpy)
+      .plus(residentTaxJpy),
+    dividendCreditJpy: partialNationalCreditJpy.plus(residentCreditJpy),
+  };
+
+  notes.push(
+    `少額配当該当額${smallDividendJpy.toString()}円を申告不要にした場合、その源泉徴収税額${nationalWithholdingFinalJpy.toString()}円(住民税分を含まない)は還付・税額控除の対象外として最終確定する。`,
+  );
+
+  const recommendedMethod: NonListedDividendTaxMethod = smallDividendNoFiling.totalTaxJpy.lessThan(
+    reportAll.totalTaxJpy,
+  )
+    ? "SMALL_DIVIDEND_NO_FILING"
+    : "REPORT_ALL";
+
+  return {
+    reportAll,
+    smallDividendNoFiling,
+    recommendedMethod,
+    notes,
+  };
+}
+
 export function simulateDividendTaxation(
   input: DividendTaxSimulationInput,
 ): DividendTaxSimulationResult {
