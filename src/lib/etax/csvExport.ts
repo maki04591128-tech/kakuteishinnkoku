@@ -81,6 +81,7 @@ export function buildTaxFilingDraftCsv(
   cryptoMarginDetail: CryptoMarginSymbolYearResult[] = [],
   futuresDetail: FuturesSymbolYearResult[] = [],
   incomeDeductions?: IncomeDeductionSummary,
+  investmentNonListedDetail: InvestmentSymbolYearResult[] = [],
 ): string {
   const lines: string[] = [];
 
@@ -124,6 +125,29 @@ export function buildTaxFilingDraftCsv(
       "申告書第三表(分離課税用) / 株式等に係る譲渡所得等の金額の計算明細書",
     ]),
   );
+  if (!summary.nonListedInvestmentCapitalGainJpy.isZero() || investmentNonListedDetail.length > 0) {
+    lines.push(
+      toCsvLine([
+        "譲渡所得等(一般株式等・非上場株式・申告分離課税)",
+        formatYen(summary.nonListedInvestmentCapitalGainJpy),
+        "申告書第三表(分離課税用・一般株式等の譲渡) / 株式等に係る譲渡所得等の金額の計算明細書",
+      ]),
+    );
+    lines.push(
+      toCsvLine([
+        "# 一般株式等(非上場株式)は上場株式等とは別プールの申告分離課税で損益通算はできず、譲渡損失の繰越控除(措置法37の12の2)は上場株式等のみの制度のため対象外(赤字の場合は当年限りで切り捨て)。",
+      ]),
+    );
+    if (!summary.nonListedInvestmentDividendJpy.isZero()) {
+      lines.push(
+        toCsvLine([
+          "一般株式等(非上場株式)の配当等(参考)",
+          formatYen(summary.nonListedInvestmentDividendJpy),
+          "申告書第一表 配当所得(総合課税、または少額配当は申告不要制度の対象。上場株式等と異なり申告分離課税は選べない)",
+        ]),
+      );
+    }
+  }
   lines.push(
     toCsvLine([
       "配当所得",
@@ -403,6 +427,39 @@ export function buildTaxFilingDraftCsv(
         r.closingQuantity.toString(),
       ]),
     );
+  }
+
+  if (investmentNonListedDetail.length > 0) {
+    lines.push("");
+    lines.push(toCsvLine(["■ 一般株式等(非上場株式) 銘柄別内訳(移動平均法・繰越控除なし)"]));
+    lines.push(
+      toCsvLine([
+        "銘柄",
+        "期首数量",
+        "年間買付数量",
+        "年間売却数量",
+        "譲渡収入合計(円)",
+        "譲渡原価(円)",
+        "譲渡損益(円)",
+        "配当等(円)",
+        "期末数量",
+      ]),
+    );
+    for (const r of investmentNonListedDetail) {
+      lines.push(
+        toCsvLine([
+          r.symbol,
+          r.openingQuantity.toString(),
+          r.buyQuantity.toString(),
+          r.sellQuantity.toString(),
+          formatYen(r.proceedsJpy),
+          formatYen(r.costOfSoldJpy),
+          formatYen(r.realizedGainJpy),
+          formatYen(r.dividendJpy),
+          r.closingQuantity.toString(),
+        ]),
+      );
+    }
   }
 
   if (futuresDetail.length > 0) {

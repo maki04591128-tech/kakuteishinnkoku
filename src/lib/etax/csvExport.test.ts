@@ -268,4 +268,55 @@ describe("buildTaxFilingDraftCsv", () => {
     // ヘッダーコメント行自体にカンマは無いが、区切りが崩れていないことを確認
     expect(csv.split("\n").length).toBeGreaterThan(5);
   });
+
+  it("一般株式等(非上場株式)の譲渡所得等を上場株式等とは別区分で出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const investmentNonListed = calculateInvestmentPortfolioYear([
+      {
+        symbol: "9999",
+        tradedAt: new Date("2026-01-01"),
+        type: "BUY",
+        quantity: 10,
+        unitPriceJpy: 100_000,
+      },
+      {
+        symbol: "9999",
+        tradedAt: new Date("2026-06-01"),
+        type: "SELL",
+        quantity: 10,
+        unitPriceJpy: 150_000,
+      },
+    ]);
+
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      investmentNonListed,
+    );
+    expect(summary.nonListedInvestmentCapitalGainJpy.toNumber()).toBe(500_000);
+
+    const csv = buildTaxFilingDraftCsv(
+      summary,
+      crypto.bySymbol,
+      investment.bySymbol,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      investmentNonListed.bySymbol,
+    );
+
+    expect(csv).toContain("譲渡所得等(一般株式等・非上場株式・申告分離課税)");
+    expect(csv).toContain("■ 一般株式等(非上場株式) 銘柄別内訳");
+    expect(csv).toContain("500000");
+    expect(csv).toContain("9999");
+  });
 });

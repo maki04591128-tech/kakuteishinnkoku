@@ -239,6 +239,15 @@ export async function addInvestmentTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const taxYear = await getOrCreateTaxYear(year);
 
+  const isNisa = formData.get("isNisa") === "on";
+  // チェックボックスは既定でオン(上場株式等)。外すと一般株式等(非上場株式)
+  // として登録する。NISA口座は上場株式等等のみが対象のため、非上場株式との
+  // 組み合わせは拒否する。
+  const isListed = formData.get("isListed") === "on";
+  if (isNisa && !isListed) {
+    throw new Error("一般株式等(非上場株式)はNISA口座の対象外です");
+  }
+
   await prisma.investmentTrade.create({
     data: {
       taxYearId: taxYear.id,
@@ -246,12 +255,13 @@ export async function addInvestmentTrade(formData: FormData): Promise<void> {
       symbol: requireString(formData, "symbol"),
       name: optionalString(formData, "name"),
       assetType: requireString(formData, "assetType") as never,
+      isListed,
       type: requireString(formData, "type") as never,
       quantity: requireString(formData, "quantity"),
       unitPriceJpy: requireString(formData, "unitPriceJpy"),
       feeJpy: optionalString(formData, "feeJpy") ?? "0",
       accountType: requireString(formData, "accountType") as never,
-      isNisa: formData.get("isNisa") === "on",
+      isNisa,
       nisaType: optionalString(formData, "nisaType") as never,
       isForeign: formData.get("isForeign") === "on",
       foreignTaxWithheldJpy: optionalString(formData, "foreignTaxWithheldJpy") ?? "0",
@@ -633,18 +643,24 @@ export async function setOpeningBalance(formData: FormData): Promise<void> {
     | "CRYPTO"
     | "INVESTMENT";
   const symbol = requireString(formData, "symbol").toUpperCase();
-  // NISA口座は投資のみ区分がある。暗号資産では常にfalseとして扱う。
+  // NISA口座・一般株式等(非上場株式)区分は投資のみ有効。暗号資産では常に
+  // isNisa=false・isListed=trueとして扱う。
   const isNisa = assetClass === "INVESTMENT" && formData.get("isNisa") === "on";
+  const isListed = assetClass !== "INVESTMENT" || formData.get("isListed") === "on";
+  if (isNisa && !isListed) {
+    throw new Error("一般株式等(非上場株式)はNISA口座の対象外です");
+  }
   const quantity = requireString(formData, "quantity");
   const costBasisJpy = requireString(formData, "costBasisJpy");
 
   await prisma.openingBalance.upsert({
     where: {
-      taxYearId_assetClass_symbol_isNisa: {
+      taxYearId_assetClass_symbol_isNisa_isListed: {
         taxYearId: taxYear.id,
         assetClass,
         symbol,
         isNisa,
+        isListed,
       },
     },
     create: {
@@ -652,6 +668,7 @@ export async function setOpeningBalance(formData: FormData): Promise<void> {
       assetClass,
       symbol,
       isNisa,
+      isListed,
       quantity,
       costBasisJpy,
     },
@@ -735,14 +752,14 @@ export async function carryForwardOpeningBalances(
 
   const existing = await prisma.openingBalance.findMany({
     where: { taxYearId: taxYear.id },
-    select: { assetClass: true, symbol: true, isNisa: true },
+    select: { assetClass: true, symbol: true, isNisa: true, isListed: true },
   });
   const existingKeys = new Set(
-    existing.map((e) => `${e.assetClass}:${e.symbol}:${e.isNisa}`),
+    existing.map((e) => `${e.assetClass}:${e.symbol}:${e.isNisa}:${e.isListed}`),
   );
 
   const toCreate = candidates.filter(
-    (c) => !existingKeys.has(`${c.assetClass}:${c.symbol}:${c.isNisa}`),
+    (c) => !existingKeys.has(`${c.assetClass}:${c.symbol}:${c.isNisa}:${c.isListed}`),
   );
 
   if (toCreate.length > 0) {
@@ -752,6 +769,7 @@ export async function carryForwardOpeningBalances(
         assetClass: c.assetClass,
         symbol: c.symbol,
         isNisa: c.isNisa,
+        isListed: c.isListed,
         quantity: c.quantity,
         costBasisJpy: c.costBasisJpy,
       })),

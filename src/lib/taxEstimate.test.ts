@@ -46,6 +46,38 @@ describe("estimateTotalTax", () => {
     );
   });
 
+  it("一般株式等(非上場株式)の譲渡所得等は上場株式等とは別プールの20.315%申告分離課税", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 0,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 1_000_000,
+      nonListedInvestmentTaxableGainJpy: 3_000_000,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+
+    expect(
+      result.nonListedInvestmentNationalTaxJpy
+        .plus(result.nonListedInvestmentResidentTaxJpy)
+        .toNumber(),
+    ).toBeCloseTo(3_000_000 * 0.20315, 0);
+    // 上場株式等分と合算されず、別プールとしてそれぞれ独立に計算される
+    expect(result.totalTaxJpy.toNumber()).toBeCloseTo(4_000_000 * 0.20315, 0);
+  });
+
+  it("一般株式等(非上場株式)は未入力の場合0円として扱われる(既存の呼び出しとの互換性)", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 0,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+
+    expect(result.nonListedInvestmentNationalTaxJpy.toNumber()).toBe(0);
+    expect(result.nonListedInvestmentResidentTaxJpy.toNumber()).toBe(0);
+  });
+
   it("配当所得の課税方式は指定しなければ最も有利な方式が自動選択される", () => {
     const result = estimateTotalTax({
       otherComprehensiveIncomeJpy: 1_000_000,

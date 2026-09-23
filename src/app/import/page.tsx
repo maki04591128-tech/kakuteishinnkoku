@@ -953,6 +953,11 @@ export default async function ImportPage({
           <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isNisa" /> NISA口座分(株式等の場合のみ有効)
           </label>
+          <label className="col-span-full flex items-center gap-2 text-sm">
+            <input type="checkbox" name="isListed" defaultChecked /> 上場株式等(株式等の場合のみ有効。
+            外すと一般株式等(非上場株式)として登録する。上場株式等・一般株式等は
+            別プールの申告分離課税のため、同一銘柄でも取得費を別管理する)
+          </label>
           <div className="col-span-full">
             <button
               type="submit"
@@ -979,7 +984,13 @@ export default async function ImportPage({
                 {openingBalances.map((b) => (
                   <tr key={b.id} className="border-t border-neutral-100 dark:border-neutral-800">
                     <td className="px-3 py-2">
-                      {b.assetClass === "CRYPTO" ? "暗号資産" : b.isNisa ? "株式等(NISA)" : "株式等"}
+                      {b.assetClass === "CRYPTO"
+                        ? "暗号資産"
+                        : b.isNisa
+                          ? "株式等(NISA)"
+                          : b.isListed
+                            ? "株式等(上場)"
+                            : "株式等(一般・非上場)"}
                     </td>
                     <td className="px-3 py-2">{b.symbol}</td>
                     <td className="px-3 py-2">{b.quantity.toString()}</td>
@@ -1810,6 +1821,12 @@ export default async function ImportPage({
             />
           </Field>
           <label className="col-span-full flex items-center gap-2 text-sm">
+            <input type="checkbox" name="isListed" defaultChecked /> 上場株式等(外すと一般株式等
+            (非上場株式)として登録する。上場株式等とは別プールの申告分離課税で損益通算は
+            できず、譲渡損失の繰越控除(3年間)の対象外(当年限りで切り捨て)。NISA口座は
+            上場株式等等のみが対象のため、外した場合はNISA口座での取引を選べない)
+          </label>
+          <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isNisa" /> NISA口座での取引(非課税として損益計算から除外)
           </label>
           <Field label="NISA枠区分(NISA口座の買付の場合のみ。年間投資枠の使用状況試算に使用)">
@@ -1839,7 +1856,7 @@ export default async function ImportPage({
             <table className="w-full min-w-max text-left text-sm">
               <thead className="bg-neutral-50 dark:bg-neutral-900">
                 <tr>
-                  {["日時", "銘柄", "種別", "数量", "単価", "口座", "NISA枠", "国外源泉", ""].map((h) => (
+                  {["日時", "銘柄", "種別", "数量", "単価", "区分", "口座", "NISA枠", "国外源泉", ""].map((h) => (
                     <th key={h} className="px-3 py-2 font-medium text-neutral-500">
                       {h}
                     </th>
@@ -1854,6 +1871,7 @@ export default async function ImportPage({
                     <td className="px-3 py-2">{t.type}</td>
                     <td className="px-3 py-2">{t.quantity.toString()}</td>
                     <td className="px-3 py-2">{yen(t.unitPriceJpy)}</td>
+                    <td className="px-3 py-2">{t.isListed ? "上場" : "一般(非上場)"}</td>
                     <td className="px-3 py-2">{t.isNisa ? "NISA" : t.accountType}</td>
                     <td className="px-3 py-2">
                       {t.isNisa && t.type === "BUY"

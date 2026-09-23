@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     foreignTaxCreditRecord
       ? { totalCreditJpy: foreignTaxCreditRecord.totalCreditJpy }
       : undefined,
+    report.investmentNonListed,
   );
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);
   const incomeDeductions = summarizeIncomeDeductions(incomeDeductionEntries);
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
     report.cryptoMargin.bySymbol,
     report.futures.bySymbol,
     incomeDeductions,
+    report.investmentNonListed.bySymbol,
   );
 
   return new NextResponse(UTF8_BOM + csv, {

@@ -73,6 +73,13 @@ model OpeningBalance {
   /// 暗号資産(CRYPTO)では常に false。
   isNisa Boolean @default(false)
 
+  /// 投資(INVESTMENT)のみ有効。上場株式等(true)か一般株式等・非上場株式
+  /// (false)かの区分(機能54参照)。両者は別プールの申告分離課税のため
+  /// 同一銘柄でも取得費を別管理する必要がある。暗号資産(CRYPTO)では常に
+  /// true(無視)。デフォルトtrueとすることで、この区分の追加前に登録済みの
+  /// 株式等の期首残高(すべて上場株式等として登録されていた)の扱いを維持する。
+  isListed Boolean @default(true)
+
   /// 年初時点の保有数量
   quantity Decimal
 
@@ -82,7 +89,7 @@ model OpeningBalance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([taxYearId, assetClass, symbol, isNisa])
+  @@unique([taxYearId, assetClass, symbol, isNisa, isListed])
 }
 
 /// 期首残高の金融機関別内訳(任意)。`OpeningBalance`は銘柄単位の合計しか
@@ -575,6 +582,14 @@ model InvestmentTrade {
   name String?
 
   assetType InvestmentAssetType
+
+  /// 上場株式等(true)か一般株式等・非上場株式(false)かの区分。国税庁は
+  /// 両者を別プールの申告分離課税として扱い、損益通算はできない。また
+  /// 譲渡損失の繰越控除(措置法37の12の2)は上場株式等のみに認められた制度
+  /// のため、一般株式等の譲渡損失は当年限りで切り捨てられる(繰越不可)。
+  /// NISA口座は上場株式等・ETF・株式投資信託等のみが対象のため、
+  /// isListed=falseの場合isNisa=trueは想定しない(登録時に拒否する)。
+  isListed Boolean @default(true)
 
   type InvestmentTradeType
 
