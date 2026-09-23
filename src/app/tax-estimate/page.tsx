@@ -8,6 +8,7 @@ import {
   summarizeIncomeDeductions,
 } from "@/lib/incomeDeduction";
 import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
+import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -70,6 +71,14 @@ export default async function TaxEstimatePage({
       }
     : null;
 
+  const foreignTaxCreditRecord = await getForeignTaxCreditRecord(year);
+  const registeredForeignTaxCredit = foreignTaxCreditRecord
+    ? {
+        nationalTaxCreditJpy: foreignTaxCreditRecord.nationalTaxCreditJpy.toNumber(),
+        residentTaxCreditJpy: foreignTaxCreditRecord.residentTaxCreditJpy.toNumber(),
+      }
+    : null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -105,6 +114,13 @@ export default async function TaxEstimatePage({
           registeredMortgageDeduction?.residentTaxCreditJpy ?? 0
         }
         registeredMortgageDeduction={registeredMortgageDeduction}
+        defaultForeignTaxCreditNationalTaxCreditJpy={
+          registeredForeignTaxCredit?.nationalTaxCreditJpy ?? 0
+        }
+        defaultForeignTaxCreditResidentTaxCreditJpy={
+          registeredForeignTaxCredit?.residentTaxCreditJpy ?? 0
+        }
+        registeredForeignTaxCredit={registeredForeignTaxCredit}
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
@@ -125,6 +141,13 @@ export default async function TaxEstimatePage({
           合計税額を上回っても0円が下限(還付は生じない)。ふるさと納税の上限額の試算は
           住宅ローン控除適用前の住民税所得割額を基準にしており、住宅ローン控除による
           変動は含めていない。
+        </p>
+        <p>
+          外国税額控除(税額控除)は`/foreign-tax-credit`で「この年分の外国税額控除として
+          登録する」を実行済みの場合、所得税・復興特別所得税から控除される額と住民税から
+          控除される額(実際の控除順序である所得税→復興特別所得税→住民税の順に振り分けた
+          金額)を初期値として表示する。住宅ローン控除を適用した後の税額からさらに
+          差し引くため、控除額の合計が合計税額を上回っても0円が下限(還付は生じない)。
         </p>
         <p>
           住民税は所得割10%固定の概算であり、均等割・調整控除は含まない。

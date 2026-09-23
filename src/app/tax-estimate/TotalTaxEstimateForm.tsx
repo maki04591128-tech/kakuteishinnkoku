@@ -39,6 +39,9 @@ export function TotalTaxEstimateForm({
   defaultMortgageDeductionNationalTaxCreditJpy,
   defaultMortgageDeductionResidentTaxCreditJpy,
   registeredMortgageDeduction,
+  defaultForeignTaxCreditNationalTaxCreditJpy,
+  defaultForeignTaxCreditResidentTaxCreditJpy,
+  registeredForeignTaxCredit,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -58,6 +61,12 @@ export function TotalTaxEstimateForm({
   defaultMortgageDeductionResidentTaxCreditJpy: number;
   /** `/mortgage-deduction`で登録済みの住宅ローン控除額(参考表示。未登録ならnull) */
   registeredMortgageDeduction: { nationalTaxCreditJpy: number; residentTaxCreditJpy: number } | null;
+  /** `/foreign-tax-credit`で登録済みの外国税額控除額(所得税・復興特別所得税分)の初期値 */
+  defaultForeignTaxCreditNationalTaxCreditJpy: number;
+  /** `/foreign-tax-credit`で登録済みの外国税額控除額(住民税分)の初期値 */
+  defaultForeignTaxCreditResidentTaxCreditJpy: number;
+  /** `/foreign-tax-credit`で登録済みの外国税額控除額(参考表示。未登録ならnull) */
+  registeredForeignTaxCredit: { nationalTaxCreditJpy: number; residentTaxCreditJpy: number } | null;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -79,6 +88,10 @@ export function TotalTaxEstimateForm({
     useState(String(defaultMortgageDeductionNationalTaxCreditJpy));
   const [mortgageDeductionResidentTaxCreditJpy, setMortgageDeductionResidentTaxCreditJpy] =
     useState(String(defaultMortgageDeductionResidentTaxCreditJpy));
+  const [foreignTaxCreditNationalTaxCreditJpy, setForeignTaxCreditNationalTaxCreditJpy] =
+    useState(String(defaultForeignTaxCreditNationalTaxCreditJpy));
+  const [foreignTaxCreditResidentTaxCreditJpy, setForeignTaxCreditResidentTaxCreditJpy] =
+    useState(String(defaultForeignTaxCreditResidentTaxCreditJpy));
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
   const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
@@ -106,6 +119,14 @@ export function TotalTaxEstimateForm({
           mortgageDeductionResidentTaxCreditJpy === ""
             ? 0
             : mortgageDeductionResidentTaxCreditJpy,
+        foreignTaxCreditNationalTaxCreditJpy:
+          foreignTaxCreditNationalTaxCreditJpy === ""
+            ? 0
+            : foreignTaxCreditNationalTaxCreditJpy,
+        foreignTaxCreditResidentTaxCreditJpy:
+          foreignTaxCreditResidentTaxCreditJpy === ""
+            ? 0
+            : foreignTaxCreditResidentTaxCreditJpy,
         withheldNationalTaxJpy: withheldNationalTaxJpy === "" ? 0 : withheldNationalTaxJpy,
         withheldResidentTaxJpy: withheldResidentTaxJpy === "" ? 0 : withheldResidentTaxJpy,
         estimatedTaxPrepaymentJpy:
@@ -124,6 +145,8 @@ export function TotalTaxEstimateForm({
     availableListedStockLossForDividendJpy,
     mortgageDeductionNationalTaxCreditJpy,
     mortgageDeductionResidentTaxCreditJpy,
+    foreignTaxCreditNationalTaxCreditJpy,
+    foreignTaxCreditResidentTaxCreditJpy,
     withheldNationalTaxJpy,
     withheldResidentTaxJpy,
     estimatedTaxPrepaymentJpy,
@@ -229,6 +252,28 @@ export function TotalTaxEstimateForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
+          label={`外国税額控除(税額控除・所得税・復興特別所得税分)${
+            registeredForeignTaxCredit !== null ? " — 初期値は/foreign-tax-creditの登録値" : ""
+          }`}
+          value={foreignTaxCreditNationalTaxCreditJpy}
+          onChange={setForeignTaxCreditNationalTaxCreditJpy}
+        />
+        <Field
+          label="外国税額控除(税額控除・住民税分)"
+          value={foreignTaxCreditResidentTaxCreditJpy}
+          onChange={setForeignTaxCreditResidentTaxCreditJpy}
+        />
+      </div>
+      {registeredForeignTaxCredit !== null && (
+        <p className="text-xs text-neutral-500">
+          /foreign-tax-creditで登録済み: 所得税等{" "}
+          {yen(registeredForeignTaxCredit.nationalTaxCreditJpy)} / 住民税{" "}
+          {yen(registeredForeignTaxCredit.residentTaxCreditJpy)}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
           label="源泉徴収税額(所得税・復興特別所得税分。給与・配当・特定口座内の譲渡益等の合計)"
           value={withheldNationalTaxJpy}
           onChange={setWithheldNationalTaxJpy}
@@ -277,6 +322,18 @@ export function TotalTaxEstimateForm({
                 )}
                 (所得税 {yen(result.mortgageDeductionNationalTaxAppliedJpy)} / 住民税{" "}
                 {yen(result.mortgageDeductionResidentTaxAppliedJpy)})
+              </p>
+            )}
+            {(result.foreignTaxCreditNationalTaxAppliedJpy.greaterThan(0) ||
+              result.foreignTaxCreditResidentTaxAppliedJpy.greaterThan(0)) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                − 外国税額控除 {yen(
+                  result.foreignTaxCreditNationalTaxAppliedJpy.plus(
+                    result.foreignTaxCreditResidentTaxAppliedJpy,
+                  ),
+                )}
+                (所得税等 {yen(result.foreignTaxCreditNationalTaxAppliedJpy)} / 住民税{" "}
+                {yen(result.foreignTaxCreditResidentTaxAppliedJpy)})
               </p>
             )}
           </div>

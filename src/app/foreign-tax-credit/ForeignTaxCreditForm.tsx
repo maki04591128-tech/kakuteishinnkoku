@@ -29,8 +29,12 @@ export function ForeignTaxCreditForm({
   autoForeignSourceIncomeJpy: string;
   /** `/import`に登録済みの国外源泉配当等から自動集計した外国所得税額(課税口座分) */
   autoForeignIncomeTaxPaidJpy: string;
-  /** この年分として登録済みの外国税額控除の合計控除額(下書きCSV用)。未登録の場合はnull */
-  registeredTotalCreditJpy: number | null;
+  /** この年分として登録済みの外国税額控除の合計控除額・所得税分・住民税分(下書きCSV・/tax-estimate用)。未登録の場合はnull */
+  registeredTotalCreditJpy: {
+    totalCreditJpy: number;
+    nationalTaxCreditJpy: number;
+    residentTaxCreditJpy: number;
+  } | null;
 }) {
   const [incomeTaxJpy, setIncomeTaxJpy] = useState("300000");
   const [totalIncomeJpy, setTotalIncomeJpy] = useState("5000000");
@@ -178,9 +182,15 @@ export function ForeignTaxCreditForm({
                   .join(" / ")}
               </p>
             )}
+            <p className="mt-1 text-xs text-neutral-400">
+              うち所得税・復興特別所得税から控除: {yen(result.nationalTaxCreditJpy)} / 住民税から控除:{" "}
+              {yen(result.residentTaxCreditJpy)}
+            </p>
             {registeredTotalCreditJpy !== null && (
               <p className="mt-2 text-xs text-neutral-400">
-                {year}年分として登録済みの控除額: {yen(registeredTotalCreditJpy)}
+                {year}年分として登録済みの控除額: {yen(registeredTotalCreditJpy.totalCreditJpy)}
+                (所得税等 {yen(registeredTotalCreditJpy.nationalTaxCreditJpy)} / 住民税{" "}
+                {yen(registeredTotalCreditJpy.residentTaxCreditJpy)})
               </p>
             )}
             <form action={saveForeignTaxCreditRecord} className="mt-3">
@@ -189,6 +199,16 @@ export function ForeignTaxCreditForm({
                 type="hidden"
                 name="totalCreditJpy"
                 value={result.totalCreditJpy.toString()}
+              />
+              <input
+                type="hidden"
+                name="nationalTaxCreditJpy"
+                value={result.nationalTaxCreditJpy.toString()}
+              />
+              <input
+                type="hidden"
+                name="residentTaxCreditJpy"
+                value={result.residentTaxCreditJpy.toString()}
               />
               <button
                 type="submit"

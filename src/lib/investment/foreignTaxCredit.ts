@@ -123,6 +123,15 @@ export interface ForeignTaxCreditResult {
   creditFromSpareLimitCarryforwardJpy: Decimal;
   /** その年の確定申告で外国税額控除として使える合計額 */
   totalCreditJpy: Decimal;
+  /**
+   * `totalCreditJpy`のうち、所得税額・復興特別所得税額から控除される額。
+   * 実際の控除は所得税→復興特別所得税→住民税の順に行われるため、まず
+   * 所得税・復興特別所得税の限度額(`incomeTaxLimitJpy`+`reconstructionSurtaxLimitJpy`)
+   * までを充当し、それでも余る場合のみ住民税分(`residentTaxCreditJpy`)に回す。
+   */
+  nationalTaxCreditJpy: Decimal;
+  /** `totalCreditJpy`のうち、所得税・復興特別所得税の限度額を使い切った後に住民税額から控除される額 */
+  residentTaxCreditJpy: Decimal;
   /** 当年新たに発生し、翌年以後3年間繰り越す控除限度超過額(繰越控除余裕額の充当後もなお控除しきれなかった額) */
   newExcessForeignTaxJpy: Decimal;
   /** 控除期限(発生年から3年)を過ぎて当年は使用できなかった繰越控除限度超過額 */
@@ -289,6 +298,14 @@ export function calculateForeignTaxCredit(
     .plus(creditFromCarryforwardJpy)
     .plus(creditFromSpareLimitCarryforwardJpy);
 
+  // 実際の控除は所得税→復興特別所得税→住民税の順に行われるため、totalCreditJpyを
+  // その順で機械的に振り分ける(控除の発生源(当年分/繰越控除限度超過額/繰越控除余裕額)は
+  // この振り分け順序に影響しない)。totalCreditJpyはtotalLimitJpy(=所得税・復興特別
+  // 所得税の限度額+住民税の限度額)を超えないため、住民税分が限度額を超えることは無い。
+  const nationalTaxLimitJpy = incomeTaxLimitJpy.plus(reconstructionSurtaxLimitJpy);
+  const nationalTaxCreditJpy = Decimal.min(totalCreditJpy, nationalTaxLimitJpy);
+  const residentTaxCreditJpy = totalCreditJpy.minus(nationalTaxCreditJpy);
+
   // 控除余裕額の充当後もなお控除しきれなかった額が、翌年以後へ繰り越す新規の限度超過額
   const newExcessForeignTaxJpy = remainingExcessJpy;
   if (newExcessForeignTaxJpy.greaterThan(0)) {
@@ -318,6 +335,8 @@ export function calculateForeignTaxCredit(
     usedSpareLimitCarryforwardByOriginYear,
     creditFromSpareLimitCarryforwardJpy,
     totalCreditJpy,
+    nationalTaxCreditJpy,
+    residentTaxCreditJpy,
     newExcessForeignTaxJpy,
     expiredCarryforwardByOriginYear,
     carryforwardToNextYear: carryforwardToNextYear.sort(
@@ -334,12 +353,16 @@ export function calculateForeignTaxCredit(
 export interface ForeignTaxCreditRecordEntry {
   taxYear: number;
   totalCreditJpy: Decimal;
+  /** 所得税額・復興特別所得税額から控除される額(ForeignTaxCreditResult.nationalTaxCreditJpy) */
+  nationalTaxCreditJpy: Decimal;
+  /** 住民税額から控除される額(ForeignTaxCreditResult.residentTaxCreditJpy) */
+  residentTaxCreditJpy: Decimal;
 }
 
 /**
  * `/foreign-tax-credit`で登録済みの、指定した年分の外国税額控除の合計控除額を
- * DBから読み出す。下書きCSV(`/api/export`)の税額控除欄への自動反映に使う。
- * 未登録の年は null を返す。
+ * DBから読み出す。下書きCSV(`/api/export`)の税額控除欄・`/tax-estimate`の
+ * 合計税額試算への自動反映に使う。未登録の年は null を返す。
  */
 export async function getForeignTaxCreditRecord(
   year: number,
@@ -355,5 +378,7 @@ export async function getForeignTaxCreditRecord(
   return {
     taxYear: year,
     totalCreditJpy: new Decimal(record.totalCreditJpy.toString()),
+    nationalTaxCreditJpy: new Decimal(record.nationalTaxCreditJpy.toString()),
+    residentTaxCreditJpy: new Decimal(record.residentTaxCreditJpy.toString()),
   };
 }
