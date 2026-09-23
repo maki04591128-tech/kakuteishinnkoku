@@ -31,6 +31,8 @@ export function MortgageDeductionForm({
   const [isExistingHome, setIsExistingHome] = useState(false);
   const [isChildRearingHousehold, setIsChildRearingHousehold] = useState(false);
   const [isSmallFloorArea, setIsSmallFloorArea] = useState(false);
+  const [isJointDebt, setIsJointDebt] = useState(false);
+  const [jointDebtShareRatioPercent, setJointDebtShareRatioPercent] = useState("50");
   const [yearEndLoanBalanceJpy, setYearEndLoanBalanceJpy] = useState("30000000");
   const [totalIncomeJpy, setTotalIncomeJpy] = useState("6000000");
   const [residentTaxTaxableIncomeJpy, setResidentTaxTaxableIncomeJpy] = useState("");
@@ -47,6 +49,8 @@ export function MortgageDeductionForm({
         isChildRearingHousehold,
         isSmallFloorArea,
         yearEndLoanBalanceJpy: yearEndLoanBalanceJpy === "" ? 0 : yearEndLoanBalanceJpy,
+        jointDebtShareRatioPercent:
+          isJointDebt && jointDebtShareRatioPercent !== "" ? jointDebtShareRatioPercent : undefined,
         totalIncomeJpy: totalIncomeJpy === "" ? 0 : totalIncomeJpy,
         residentTaxTaxableIncomeJpy:
           residentTaxTaxableIncomeJpy === "" ? undefined : residentTaxTaxableIncomeJpy,
@@ -65,6 +69,8 @@ export function MortgageDeductionForm({
     isExistingHome,
     isChildRearingHousehold,
     isSmallFloorArea,
+    isJointDebt,
+    jointDebtShareRatioPercent,
     yearEndLoanBalanceJpy,
     totalIncomeJpy,
     residentTaxTaxableIncomeJpy,
@@ -117,14 +123,33 @@ export function MortgageDeductionForm({
           />
           床面積40㎡以上50㎡未満の特例(新築等のみ・合計所得金額1,000万円以下)
         </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isJointDebt}
+            onChange={(e) => setIsJointDebt(e.target.checked)}
+          />
+          連帯債務(共有名義)の持分按分を行う
+        </label>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
-          label="その年の年末借入金残高"
+          label={
+            isJointDebt
+              ? "その年の年末借入金残高(連帯債務者全員分の合計額)"
+              : "その年の年末借入金残高(本人負担分)"
+          }
           value={yearEndLoanBalanceJpy}
           onChange={setYearEndLoanBalanceJpy}
         />
+        {isJointDebt && (
+          <Field
+            label="本人の債務負担割合(%。連帯債務者間の合意による割合)"
+            value={jointDebtShareRatioPercent}
+            onChange={setJointDebtShareRatioPercent}
+          />
+        )}
         <Field
           label={
             isSmallFloorArea && !isExistingHome
@@ -156,10 +181,17 @@ export function MortgageDeductionForm({
               title="控除期間"
               value={`${result.controlPeriodYears}年間(${result.controlPeriodEndYear}年分まで)`}
             />
-            <SummaryCard
-              title="控除対象借入金残高"
-              value={yen(result.deductibleBalanceJpy)}
-            />
+            {isJointDebt ? (
+              <SummaryCard
+                title="按分後の本人の年末借入金残高"
+                value={yen(result.ownYearEndLoanBalanceJpy)}
+              />
+            ) : (
+              <SummaryCard
+                title="控除対象借入金残高"
+                value={yen(result.deductibleBalanceJpy)}
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -281,4 +281,63 @@ describe("calculateMortgageDeduction", () => {
       calculateMortgageDeduction({ ...baseInput(), totalIncomeJpy: -1 }),
     ).toThrow();
   });
+
+  it("連帯債務の負担割合を指定すると、年末残高の合計額を按分した金額が本人の年末残高になる", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      yearEndLoanBalanceJpy: 40_000_000, // 連帯債務者全員分の合計額
+      jointDebtShareRatioPercent: 60,
+    });
+
+    // 40,000,000 × 60% = 24,000,000円(借入限度額3,000万円以下なのでそのまま)
+    expect(result.ownYearEndLoanBalanceJpy.toNumber()).toBe(24_000_000);
+    expect(result.deductibleBalanceJpy.toNumber()).toBe(24_000_000);
+    // 24,000,000 × 0.7% = 168,000円
+    expect(result.nationalTaxCreditJpy.toNumber()).toBe(168_000);
+  });
+
+  it("連帯債務按分後の本人負担額が借入限度額を超える場合は限度額を基準に計算する", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      yearEndLoanBalanceJpy: 80_000_000,
+      jointDebtShareRatioPercent: 50,
+    });
+
+    // 80,000,000 × 50% = 40,000,000円 > 借入限度額3,000万円
+    expect(result.ownYearEndLoanBalanceJpy.toNumber()).toBe(40_000_000);
+    expect(result.deductibleBalanceJpy.toNumber()).toBe(30_000_000);
+    expect(result.nationalTaxCreditJpy.toNumber()).toBe(210_000);
+  });
+
+  it("連帯債務の負担割合を指定しない場合は年末残高をそのまま本人負担分として扱う(従来通り)", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      yearEndLoanBalanceJpy: 25_000_000,
+    });
+
+    expect(result.ownYearEndLoanBalanceJpy.toNumber()).toBe(25_000_000);
+  });
+
+  it("連帯債務の負担割合が0%以下または100%超だとエラーになる", () => {
+    expect(() =>
+      calculateMortgageDeduction({ ...baseInput(), jointDebtShareRatioPercent: 0 }),
+    ).toThrow();
+    expect(() =>
+      calculateMortgageDeduction({ ...baseInput(), jointDebtShareRatioPercent: -10 }),
+    ).toThrow();
+    expect(() =>
+      calculateMortgageDeduction({ ...baseInput(), jointDebtShareRatioPercent: 100.5 }),
+    ).toThrow();
+  });
+
+  it("連帯債務の負担割合100%は単独債務と同じ結果になる", () => {
+    const result = calculateMortgageDeduction({
+      ...baseInput(),
+      yearEndLoanBalanceJpy: 25_000_000,
+      jointDebtShareRatioPercent: 100,
+    });
+
+    expect(result.ownYearEndLoanBalanceJpy.toNumber()).toBe(25_000_000);
+    expect(result.nationalTaxCreditJpy.toNumber()).toBe(175_000);
+  });
 });
