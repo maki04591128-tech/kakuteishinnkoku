@@ -311,6 +311,15 @@ model ForeignTaxCreditRecord {
   /// 所得税・復興特別所得税・住民税からの控除額の合計)
   totalCreditJpy Decimal
 
+  /// totalCreditJpyのうち所得税額・復興特別所得税額から控除される額
+  /// (ForeignTaxCreditResult.nationalTaxCreditJpy)。`/tax-estimate`の合計税額試算へ
+  /// 税額控除として自動反映するために使う。既存レコード(機能48以前に登録済みの年分)には
+  /// 存在しないため既定値0円とする。
+  nationalTaxCreditJpy Decimal @default(0)
+
+  /// totalCreditJpyのうち住民税額から控除される額(ForeignTaxCreditResult.residentTaxCreditJpy)
+  residentTaxCreditJpy Decimal @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

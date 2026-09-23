@@ -18,8 +18,39 @@ describe("calculateForeignTaxCredit", () => {
     expect(result.totalLimitJpy.toString()).toBe("105680");
     expect(result.creditFromCurrentYearJpy.toString()).toBe("50000");
     expect(result.totalCreditJpy.toString()).toBe("50000");
+    // 所得税・復興特別所得税の限度額(81,680)の範囲内のため全額そちらから控除され、
+    // 住民税分は0円になる
+    expect(result.nationalTaxCreditJpy.toString()).toBe("50000");
+    expect(result.residentTaxCreditJpy.toString()).toBe("0");
     expect(result.newExcessForeignTaxJpy.toString()).toBe("0");
     expect(result.carryforwardToNextYear).toEqual([]);
+  });
+
+  it("控除額が所得税・復興特別所得税の限度額を超える場合、超えた分だけ住民税から控除される", () => {
+    // 所得税額500万円・所得総額500万円(所得税の限度額=所得税額そのもの)・国外所得500万円
+    // → 所得税の限度額500万円、復興特別所得税の限度額500万円×2.1%=105,000円、
+    //   合計(所得税・復興特別所得税)5,105,000円。住民税の限度額=500万円×30%=150万円
+    //   (合計限度額6,605,000円)。外国所得税額660万円は合計限度額の範囲内のため全額
+    //   控除できるが、まず所得税・復興特別所得税の限度額5,105,000円までを充当し、
+    //   残り1,495,000円(住民税の限度額150万円の範囲内)を住民税から控除する。
+    const result = calculateForeignTaxCredit({
+      currentYear: 2025,
+      incomeTaxJpy: 5_000_000,
+      totalIncomeJpy: 5_000_000,
+      foreignSourceIncomeJpy: 5_000_000,
+      foreignIncomeTaxPaidJpy: 6_600_000,
+    });
+
+    expect(result.incomeTaxLimitJpy.toString()).toBe("5000000");
+    expect(result.reconstructionSurtaxLimitJpy.toString()).toBe("105000");
+    expect(result.residentTaxLimitJpy.toString()).toBe("1500000");
+    expect(result.totalLimitJpy.toString()).toBe("6605000");
+    expect(result.totalCreditJpy.toString()).toBe("6600000");
+    expect(result.nationalTaxCreditJpy.toString()).toBe("5105000");
+    expect(result.residentTaxCreditJpy.toString()).toBe("1495000");
+    expect(
+      result.nationalTaxCreditJpy.plus(result.residentTaxCreditJpy).toString(),
+    ).toBe(result.totalCreditJpy.toString());
   });
 
   it("外国所得税額が限度額を超える場合は限度額までしか控除できず、超過額は翌年に繰り越される", () => {

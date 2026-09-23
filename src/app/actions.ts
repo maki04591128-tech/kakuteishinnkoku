@@ -1178,12 +1178,14 @@ export async function carryForwardForeignTaxCreditSpareLimit(
 export async function saveForeignTaxCreditRecord(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const totalCreditJpy = requireString(formData, "totalCreditJpy");
+  const nationalTaxCreditJpy = requireString(formData, "nationalTaxCreditJpy");
+  const residentTaxCreditJpy = requireString(formData, "residentTaxCreditJpy");
 
   const taxYear = await getOrCreateTaxYear(year);
   await prisma.foreignTaxCreditRecord.upsert({
     where: { taxYearId: taxYear.id },
-    create: { taxYearId: taxYear.id, totalCreditJpy },
-    update: { totalCreditJpy },
+    create: { taxYearId: taxYear.id, totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
+    update: { totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
   });
 
   revalidatePath("/foreign-tax-credit");

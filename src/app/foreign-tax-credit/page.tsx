@@ -73,7 +73,7 @@ export default async function ForeignTaxCreditPage({
       {params.foreignTaxCreditSaved !== undefined && (
         <p className="rounded-md bg-green-50 px-4 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
           {year}年分の外国税額控除を登録しました。下書きCSV(データ取り込み画面の
-          エクスポート)の税額控除欄に自動反映されます。
+          エクスポート)の税額控除欄と、`/tax-estimate`の合計税額試算に自動反映されます。
         </p>
       )}
 
@@ -90,7 +90,13 @@ export default async function ForeignTaxCreditPage({
         autoForeignSourceIncomeJpy={autoForeignSourceIncomeJpy}
         autoForeignIncomeTaxPaidJpy={autoForeignIncomeTaxPaidJpy}
         registeredTotalCreditJpy={
-          registeredRecord ? registeredRecord.totalCreditJpy.toNumber() : null
+          registeredRecord
+            ? {
+                totalCreditJpy: registeredRecord.totalCreditJpy.toNumber(),
+                nationalTaxCreditJpy: registeredRecord.nationalTaxCreditJpy.toNumber(),
+                residentTaxCreditJpy: registeredRecord.residentTaxCreditJpy.toNumber(),
+              }
+            : null
         }
       />
 
