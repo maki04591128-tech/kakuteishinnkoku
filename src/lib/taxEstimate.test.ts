@@ -246,6 +246,83 @@ describe("estimateTotalTax", () => {
     expect(result.totalTaxBalanceJpy.toNumber()).toBeCloseTo(result.totalTaxJpy.toNumber(), 6);
   });
 
+  it("予定納税額を入力すると所得税等の納付・還付見込み額からのみ差し引かれる", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 0,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 1_000_000,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      withheldNationalTaxJpy: 50_000,
+      withheldResidentTaxJpy: 30_000,
+      estimatedTaxPrepaymentJpy: 40_000,
+    });
+
+    expect(result.nationalTaxBalanceJpy.toNumber()).toBeCloseTo(
+      result.totalNationalTaxJpy.toNumber() - 50_000 - 40_000,
+      6,
+    );
+    expect(result.residentTaxBalanceJpy.toNumber()).toBeCloseTo(
+      result.totalResidentTaxJpy.toNumber() - 30_000,
+      6,
+    );
+    expect(result.totalTaxBalanceJpy.toNumber()).toBeCloseTo(
+      result.nationalTaxBalanceJpy.toNumber() + result.residentTaxBalanceJpy.toNumber(),
+      6,
+    );
+    expect(result.estimatedTaxPrepaymentJpy.toNumber()).toBe(40_000);
+  });
+
+  it("予定納税額のみ入力した場合も所得税等の見込み額に反映される", () => {
+    const without = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 3_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+    const withPrepayment = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 3_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      estimatedTaxPrepaymentJpy: 10_000,
+    });
+
+    expect(
+      without.nationalTaxBalanceJpy.minus(withPrepayment.nationalTaxBalanceJpy).toNumber(),
+    ).toBe(10_000);
+    expect(without.residentTaxBalanceJpy.toNumber()).toBe(
+      withPrepayment.residentTaxBalanceJpy.toNumber(),
+    );
+  });
+
+  it("予定納税額が0円の場合はデフォルトの源泉徴収税額のみの挙動と一致する", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 3_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+
+    expect(result.estimatedTaxPrepaymentJpy.toNumber()).toBe(0);
+  });
+
+  it("負の予定納税額はエラーになる", () => {
+    expect(() =>
+      estimateTotalTax({
+        otherComprehensiveIncomeJpy: 0,
+        cryptoMiscIncomeJpy: 0,
+        investmentTaxableGainJpy: 0,
+        futuresTaxableGainJpy: 0,
+        dividendIncomeJpy: 0,
+        estimatedTaxPrepaymentJpy: -1,
+      }),
+    ).toThrow();
+  });
+
   it("負の入力値はエラーになる", () => {
     expect(() =>
       estimateTotalTax({

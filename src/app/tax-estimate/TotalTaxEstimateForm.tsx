@@ -81,6 +81,7 @@ export function TotalTaxEstimateForm({
     useState(String(defaultMortgageDeductionResidentTaxCreditJpy));
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
+  const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
 
   const result = useMemo(() => {
     try {
@@ -107,6 +108,8 @@ export function TotalTaxEstimateForm({
             : mortgageDeductionResidentTaxCreditJpy,
         withheldNationalTaxJpy: withheldNationalTaxJpy === "" ? 0 : withheldNationalTaxJpy,
         withheldResidentTaxJpy: withheldResidentTaxJpy === "" ? 0 : withheldResidentTaxJpy,
+        estimatedTaxPrepaymentJpy:
+          estimatedTaxPrepaymentJpy === "" ? 0 : estimatedTaxPrepaymentJpy,
       });
     } catch {
       return null;
@@ -123,6 +126,7 @@ export function TotalTaxEstimateForm({
     mortgageDeductionResidentTaxCreditJpy,
     withheldNationalTaxJpy,
     withheldResidentTaxJpy,
+    estimatedTaxPrepaymentJpy,
   ]);
 
   return (
@@ -234,6 +238,11 @@ export function TotalTaxEstimateForm({
           value={withheldResidentTaxJpy}
           onChange={setWithheldResidentTaxJpy}
         />
+        <Field
+          label="予定納税額(所得税・復興特別所得税の第1期・第2期の納付済み合計額)"
+          value={estimatedTaxPrepaymentJpy}
+          onChange={setEstimatedTaxPrepaymentJpy}
+        />
       </div>
 
       {result === null ? (
@@ -273,15 +282,21 @@ export function TotalTaxEstimateForm({
           </div>
 
           {(result.withheldNationalTaxJpy.greaterThan(0) ||
-            result.withheldResidentTaxJpy.greaterThan(0)) && (
+            result.withheldResidentTaxJpy.greaterThan(0) ||
+            result.estimatedTaxPrepaymentJpy.greaterThan(0)) && (
             <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-              <p className="text-sm text-neutral-500">納付・還付見込み額(源泉徴収税額との差額)</p>
+              <p className="text-sm text-neutral-500">
+                納付・還付見込み額(源泉徴収税額・予定納税額との差額)
+              </p>
               <p className="mt-1 text-2xl font-semibold">
                 {balanceLabel(result.totalTaxBalanceJpy)}
               </p>
               <p className="mt-1 text-xs text-neutral-400">
                 所得税等: {balanceLabel(result.nationalTaxBalanceJpy)}(税額 {" "}
-                {yen(result.totalNationalTaxJpy)} − 源泉徴収 {yen(result.withheldNationalTaxJpy)})
+                {yen(result.totalNationalTaxJpy)} − 源泉徴収 {yen(result.withheldNationalTaxJpy)}
+                {result.estimatedTaxPrepaymentJpy.greaterThan(0) &&
+                  ` − 予定納税 ${yen(result.estimatedTaxPrepaymentJpy)}`}
+                )
               </p>
               <p className="mt-1 text-xs text-neutral-400">
                 住民税: {balanceLabel(result.residentTaxBalanceJpy)}(税額 {" "}
