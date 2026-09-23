@@ -31,7 +31,10 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  *  - `otherComprehensiveIncomeJpy`(給与所得等)は基礎控除等の所得控除を
  *    既に差し引いた課税所得金額としてユーザーが入力する前提であり、
  *    本モジュールは所得控除の計算を行わない。
- *  - 住民税は所得割10%固定(均等割・調整控除は考慮しない)。
+ *  - 住民税所得割は10%固定(調整控除は考慮しない)。均等割(定額部分)は
+ *    自治体・年度により金額が異なり住所情報から自動算出できないため、
+ *    `residentTaxPerCapitaLeviesJpy`にユーザーが入力した場合のみ合計住民税額に
+ *    加算する任意項目とする(下記参照)。
  *  - 源泉徴収税額・予定納税額との相殺(還付・納付額の算出)は任意入力項目
  *    (下記参照)。いずれも未入力(0円)の場合は年間の税額そのものの概算値
  *    のみを返す。延滞税・加算税・予定納税の減額申請は考慮しない。
@@ -57,6 +60,15 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  * 納付・還付見込み額からさらに差し引く任意項目。予定納税は所得税・復興特別
  * 所得税のみの制度で住民税には存在しないため、住民税の納付・還付見込み額には
  * 影響しない。
+ *
+ * 住民税の均等割(`residentTaxPerCapitaLeviesJpy`)は、所得金額にかかわらず定額で
+ * 課される部分(標準税率は道府県民税・市町村民税・森林環境税(国税だが均等割と
+ * あわせて市区町村が徴収)をあわせて年5,000円程度だが、自治体の超過課税により
+ * 上乗せされる場合がある)。本ツールは住所情報を扱わず自治体ごとの金額を
+ * 自動算出できないため、住民税決定通知書等でユーザー自身が確認した金額を
+ * 入力する任意項目とする。所得割と異なり住宅ローン控除・外国税額控除等の
+ * 税額控除の対象にならないため、それらの控除適用後の住民税所得割額に
+ * そのまま加算する(ふるさと納税の上限額試算の基準となる住民税所得割額には含めない)。
  */
 
 export interface TotalTaxEstimateInput {
@@ -100,6 +112,14 @@ export interface TotalTaxEstimateInput {
    * 住民税分には影響しない)
    */
   estimatedTaxPrepaymentJpy?: Decimal.Value;
+  /**
+   * 住民税の均等割(定額部分)。標準税率は年5,000円程度(道府県民税・
+   * 市町村民税・森林環境税の合計)だが自治体の超過課税により異なる場合があるため、
+   * 住民税決定通知書等でユーザー自身が確認した金額を入力する任意項目。
+   * 所得割と異なり税額控除の対象にならないため、控除適用後の住民税所得割額に
+   * そのまま加算する
+   */
+  residentTaxPerCapitaLeviesJpy?: Decimal.Value;
 }
 
 export interface TotalTaxEstimateResult {
@@ -141,7 +161,9 @@ export interface TotalTaxEstimateResult {
   foreignTaxCreditResidentTaxAppliedJpy: Decimal;
   /** 合計の所得税額(復興特別所得税を含む。住宅ローン控除・外国税額控除適用後) */
   totalNationalTaxJpy: Decimal;
-  /** 合計の住民税額(住宅ローン控除・外国税額控除適用後) */
+  /** 入力された住民税の均等割額(所得割とは別に合計住民税額に加算) */
+  residentTaxPerCapitaLeviesJpy: Decimal;
+  /** 合計の住民税額(所得割は住宅ローン控除・外国税額控除適用後。均等割を含む) */
   totalResidentTaxJpy: Decimal;
   /** 合計税額(所得税・復興特別所得税・住民税の合計。住宅ローン控除・外国税額控除適用後) */
   totalTaxJpy: Decimal;
@@ -270,9 +292,13 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
   const totalNationalTaxJpy = totalNationalTaxAfterMortgageDeductionJpy.minus(
     foreignTaxCreditNationalTaxAppliedJpy,
   );
-  const totalResidentTaxJpy = totalResidentTaxAfterMortgageDeductionJpy.minus(
-    foreignTaxCreditResidentTaxAppliedJpy,
-  );
+  const residentTaxPerCapitaLeviesJpy = input.residentTaxPerCapitaLeviesJpy
+    ? new Decimal(input.residentTaxPerCapitaLeviesJpy)
+    : new Decimal(0);
+  requireNonNegative(residentTaxPerCapitaLeviesJpy, "住民税の均等割額");
+  const totalResidentTaxJpy = totalResidentTaxAfterMortgageDeductionJpy
+    .minus(foreignTaxCreditResidentTaxAppliedJpy)
+    .plus(residentTaxPerCapitaLeviesJpy);
 
   const withheldNationalTaxJpy = input.withheldNationalTaxJpy
     ? new Decimal(input.withheldNationalTaxJpy)
@@ -294,9 +320,18 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
 
   const notes: string[] = [
     "給与所得等の課税所得金額は所得控除後の金額を入力する前提であり、本ツールは所得控除額を計算しない。",
-    "住民税は所得割10%固定の概算であり、均等割・調整控除は含まない。",
+    "住民税所得割は10%固定の概算であり、調整控除は含まない。",
     "上場株式等の譲渡所得と先物取引に係る雑所得等は別プールの申告分離課税のため、損益通算はできない。",
   ];
+  if (residentTaxPerCapitaLeviesJpy.greaterThan(0)) {
+    notes.push(
+      "住民税の均等割は入力された金額をそのまま合計住民税額に加算しており、税額控除の対象外(住宅ローン控除・外国税額控除後の所得割額に加算)である。ふるさと納税の上限額試算の基準となる住民税所得割額には含めていない。",
+    );
+  } else {
+    notes.push(
+      "住民税の均等割(自治体ごとに定額で課される部分。標準税率は年5,000円程度)は未入力のため合計住民税額に含めていない。",
+    );
+  }
   if (
     withheldNationalTaxJpy.greaterThan(0) ||
     withheldResidentTaxJpy.greaterThan(0) ||
@@ -386,6 +421,7 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     foreignTaxCreditNationalTaxAppliedJpy,
     foreignTaxCreditResidentTaxAppliedJpy,
     totalNationalTaxJpy,
+    residentTaxPerCapitaLeviesJpy,
     totalResidentTaxJpy,
     totalTaxJpy,
     furusatoNozei,

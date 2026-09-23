@@ -95,6 +95,7 @@ export function TotalTaxEstimateForm({
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
   const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
+  const [residentTaxPerCapitaLeviesJpy, setResidentTaxPerCapitaLeviesJpy] = useState("0");
 
   const result = useMemo(() => {
     try {
@@ -131,6 +132,8 @@ export function TotalTaxEstimateForm({
         withheldResidentTaxJpy: withheldResidentTaxJpy === "" ? 0 : withheldResidentTaxJpy,
         estimatedTaxPrepaymentJpy:
           estimatedTaxPrepaymentJpy === "" ? 0 : estimatedTaxPrepaymentJpy,
+        residentTaxPerCapitaLeviesJpy:
+          residentTaxPerCapitaLeviesJpy === "" ? 0 : residentTaxPerCapitaLeviesJpy,
       });
     } catch {
       return null;
@@ -150,6 +153,7 @@ export function TotalTaxEstimateForm({
     withheldNationalTaxJpy,
     withheldResidentTaxJpy,
     estimatedTaxPrepaymentJpy,
+    residentTaxPerCapitaLeviesJpy,
   ]);
 
   return (
@@ -288,6 +292,11 @@ export function TotalTaxEstimateForm({
           value={estimatedTaxPrepaymentJpy}
           onChange={setEstimatedTaxPrepaymentJpy}
         />
+        <Field
+          label="住民税の均等割(定額部分。標準税率は年5,000円程度。住民税決定通知書等で確認した金額)"
+          value={residentTaxPerCapitaLeviesJpy}
+          onChange={setResidentTaxPerCapitaLeviesJpy}
+        />
       </div>
 
       {result === null ? (
@@ -334,6 +343,11 @@ export function TotalTaxEstimateForm({
                 )}
                 (所得税等 {yen(result.foreignTaxCreditNationalTaxAppliedJpy)} / 住民税{" "}
                 {yen(result.foreignTaxCreditResidentTaxAppliedJpy)})
+              </p>
+            )}
+            {result.residentTaxPerCapitaLeviesJpy.greaterThan(0) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                住民税額には均等割 {yen(result.residentTaxPerCapitaLeviesJpy)} を加算済み(所得割とは別に定額で課される部分)
               </p>
             )}
           </div>
