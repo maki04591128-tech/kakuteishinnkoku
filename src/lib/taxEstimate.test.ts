@@ -379,6 +379,78 @@ describe("estimateTotalTax", () => {
     ).toThrow();
   });
 
+  it("住民税の均等割を入力すると合計住民税額にそのまま加算される", () => {
+    const without = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 3_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+    const withLevy = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 3_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      residentTaxPerCapitaLeviesJpy: 5_000,
+    });
+
+    expect(withLevy.residentTaxPerCapitaLeviesJpy.toNumber()).toBe(5_000);
+    expect(withLevy.totalResidentTaxJpy.minus(without.totalResidentTaxJpy).toNumber()).toBe(5_000);
+    expect(withLevy.totalTaxJpy.minus(without.totalTaxJpy).toNumber()).toBe(5_000);
+  });
+
+  it("住民税の均等割は税額控除(住宅ローン控除・外国税額控除)の対象にならず加算される", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 500_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      mortgageDeductionResidentTaxCreditJpy: 100_000_000,
+      foreignTaxCreditResidentTaxCreditJpy: 100_000_000,
+      residentTaxPerCapitaLeviesJpy: 5_000,
+    });
+
+    expect(result.totalResidentTaxJpy.toNumber()).toBe(5_000);
+  });
+
+  it("住民税の均等割はふるさと納税の上限額試算の基準額に影響しない", () => {
+    const without = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+    });
+    const withLevy = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      residentTaxPerCapitaLeviesJpy: 5_000,
+    });
+
+    expect(withLevy.furusatoNozei.fullDeductionDonationLimitJpy.toNumber()).toBe(
+      without.furusatoNozei.fullDeductionDonationLimitJpy.toNumber(),
+    );
+  });
+
+  it("負の均等割額はエラーになる", () => {
+    expect(() =>
+      estimateTotalTax({
+        otherComprehensiveIncomeJpy: 0,
+        cryptoMiscIncomeJpy: 0,
+        investmentTaxableGainJpy: 0,
+        futuresTaxableGainJpy: 0,
+        dividendIncomeJpy: 0,
+        residentTaxPerCapitaLeviesJpy: -1,
+      }),
+    ).toThrow();
+  });
+
   it("負の入力値はエラーになる", () => {
     expect(() =>
       estimateTotalTax({
