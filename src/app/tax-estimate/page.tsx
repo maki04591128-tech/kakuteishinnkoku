@@ -13,6 +13,7 @@ import { getDistributionAdjustedForeignTaxCreditRecord } from "@/lib/investment/
 import { getResidentTaxAdjustmentDeductionRecord } from "@/lib/residentTaxAdjustmentDeduction";
 import { getDonationTaxCreditRecord } from "@/lib/donationTaxCredit";
 import { getEarthquakeRenovationDeductionRecord } from "@/lib/earthquakeRenovationDeduction";
+import { getEnergySavingRenovationDeductionRecord } from "@/lib/energySavingRenovationDeduction";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -107,6 +108,11 @@ export default async function TaxEstimatePage({
   const registeredEarthquakeRenovationDeductionJpy =
     earthquakeRenovationDeductionRecord?.creditJpy.toNumber() ?? null;
 
+  const energySavingRenovationDeductionRecord =
+    await getEnergySavingRenovationDeductionRecord(year);
+  const registeredEnergySavingRenovationDeductionJpy =
+    energySavingRenovationDeductionRecord?.creditJpy.toNumber() ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -168,6 +174,12 @@ export default async function TaxEstimatePage({
         }
         defaultEarthquakeRenovationDeductionJpy={registeredEarthquakeRenovationDeductionJpy ?? 0}
         registeredEarthquakeRenovationDeductionJpy={registeredEarthquakeRenovationDeductionJpy}
+        defaultEnergySavingRenovationDeductionJpy={
+          registeredEnergySavingRenovationDeductionJpy ?? 0
+        }
+        registeredEnergySavingRenovationDeductionJpy={
+          registeredEnergySavingRenovationDeductionJpy
+        }
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">

@@ -1381,6 +1381,53 @@ export async function deleteEarthquakeRenovationDeductionRecord(
 }
 
 /**
+ * 省エネ改修工事をした場合の住宅特定改修特別税額控除シミュレーター
+ * (/energy-saving-renovation-deduction)の当年分の控除額を
+ * EnergySavingRenovationDeductionRecord として登録する。住宅耐震改修特別控除
+ * (saveEarthquakeRenovationDeductionRecord)と同様、`/tax-estimate`の合計税額
+ * 試算・下書きCSV(/api/export)の税額控除欄への自動反映に使う。既に登録済みの
+ * 場合は上書きする。
+ */
+export async function saveEnergySavingRenovationDeductionRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const creditJpy = requireString(formData, "creditJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.energySavingRenovationDeductionRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, creditJpy },
+    update: { creditJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/energy-saving-renovation-deduction");
+  redirect(`/energy-saving-renovation-deduction?year=${year}&saved=1`);
+}
+
+/**
+ * saveEnergySavingRenovationDeductionRecordで登録した当年分の
+ * EnergySavingRenovationDeductionRecordを削除する
+ * (deleteEarthquakeRenovationDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteEnergySavingRenovationDeductionRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.energySavingRenovationDeductionRecord.deleteMany({
+      where: { taxYearId: taxYear.id },
+    });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/energy-saving-renovation-deduction");
+  redirect(`/energy-saving-renovation-deduction?year=${year}&deleted=1`);
+}
+
+/**
  * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
  * (iDeCo等)・社会保険料控除)で試算した控除額を、その年分の IncomeDeduction
  * として登録する(区分ごとに1件。既に登録済みの場合は上書きする)。
