@@ -107,6 +107,14 @@ export interface TaxFilingSummary {
   energySavingRenovationDeduction?: {
     creditJpy: Decimal;
   };
+  /**
+   * `/barrier-free-renovation-deduction`で登録済みのバリアフリー改修工事の住宅特定
+   * 改修特別税額控除(税額控除・所得税分のみ)。住民税に相当する控除は存在しないため
+   * 住民税額には影響しない。未登録の場合はundefined。
+   */
+  barrierFreeRenovationDeduction?: {
+    creditJpy: Decimal;
+  };
 }
 
 export function buildTaxFilingSummary(
@@ -125,6 +133,7 @@ export function buildTaxFilingSummary(
   residentTaxAdjustmentDeduction?: { adjustmentDeductionJpy: Decimal },
   earthquakeRenovationDeduction?: { creditJpy: Decimal },
   energySavingRenovationDeduction?: { creditJpy: Decimal },
+  barrierFreeRenovationDeduction?: { creditJpy: Decimal },
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
@@ -151,5 +160,6 @@ export function buildTaxFilingSummary(
     residentTaxAdjustmentDeduction,
     earthquakeRenovationDeduction,
     energySavingRenovationDeduction,
+    barrierFreeRenovationDeduction,
   };
 }

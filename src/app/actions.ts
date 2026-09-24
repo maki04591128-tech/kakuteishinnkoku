@@ -1428,6 +1428,53 @@ export async function deleteEnergySavingRenovationDeductionRecord(
 }
 
 /**
+ * バリアフリー改修工事をした場合の住宅特定改修特別税額控除シミュレーター
+ * (/barrier-free-renovation-deduction)の当年分の控除額を
+ * BarrierFreeRenovationDeductionRecord として登録する。省エネ改修工事の住宅特定
+ * 改修特別税額控除(saveEnergySavingRenovationDeductionRecord)と同様、
+ * `/tax-estimate`の合計税額試算・下書きCSV(/api/export)の税額控除欄への
+ * 自動反映に使う。既に登録済みの場合は上書きする。
+ */
+export async function saveBarrierFreeRenovationDeductionRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const creditJpy = requireString(formData, "creditJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.barrierFreeRenovationDeductionRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, creditJpy },
+    update: { creditJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/barrier-free-renovation-deduction");
+  redirect(`/barrier-free-renovation-deduction?year=${year}&saved=1`);
+}
+
+/**
+ * saveBarrierFreeRenovationDeductionRecordで登録した当年分の
+ * BarrierFreeRenovationDeductionRecordを削除する
+ * (deleteEnergySavingRenovationDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteBarrierFreeRenovationDeductionRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.barrierFreeRenovationDeductionRecord.deleteMany({
+      where: { taxYearId: taxYear.id },
+    });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/barrier-free-renovation-deduction");
+  redirect(`/barrier-free-renovation-deduction?year=${year}&deleted=1`);
+}
+
+/**
  * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
  * (iDeCo等)・社会保険料控除)で試算した控除額を、その年分の IncomeDeduction
  * として登録する(区分ごとに1件。既に登録済みの場合は上書きする)。
