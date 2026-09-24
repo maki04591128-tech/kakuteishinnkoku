@@ -11,9 +11,18 @@ import { RECONSTRUCTION_SURTAX_RATE } from "./incomeTax";
  * 選択できる(国税庁タックスアンサーNo.1260「政党等に寄附をしたとき」・
  * No.1263「認定NPO法人に寄附をしたとき」・No.1266「公益社団法人等に寄附をしたとき」で
  * 算式・上限を確認した上で実装した)。この選択はあくまで所得税の計算上の話であり、
- * 住民税の寄附金控除(基本控除)は寄附先が都道府県・市区町村の条例で指定されているかで
- * 別途決まる(全国一律の対象ではない)ため、本モジュールでは住民税への影響は
- * 試算しない(今後の課題)。
+ * 住民税の寄附金控除(基本控除。地方税法37条の2・314条の7)は別枠の制度である。
+ * 総務省の資料(「個人住民税の寄附金税制」)で確認した通り、政党等に対する政治活動に
+ * 関する寄附金は住民税の条例指定寄附金の対象から明確に除外されており、どの自治体でも
+ * 対象にはならない。一方、認定NPO法人等・公益社団法人等への寄附は、寄附先を各都道府県・
+ * 市区町村が条例で個別に指定している場合に限り住民税の寄附金控除(基本控除)の対象になる
+ * (全国一律の対象ではなく、指定の有無は自治体・団体ごとに異なる)。本ツールは住所情報を
+ * 扱わず自治体ごとの条例指定の有無を自動判定できないため、認定NPO法人等・公益社団法人等の
+ * 2区分についてのみ、ユーザー自身が確認した「寄附先が条例指定を受けているか」を入力すると、
+ * `donationDeduction.ts`の住民税基本控除額と同じ算式(道府県民税4%+市区町村民税6%の合計10%。
+ * (min(寄附金の額, 総所得金額等×30%) − 2,000円) × 10%。下限0円)で住民税の控除額
+ * (税額控除)を試算する。政党等寄附金は条例指定の対象外のため入力欄自体を設けず、常に
+ * 住民税の控除額は0円として扱う。
  *
  * 計算式(3区分共通の枠組み):
  *   特別控除額 = (寄附金の額の合計額(総所得金額等の40%が上限) − 2,000円) × 控除率
@@ -49,6 +58,9 @@ const SELF_PAY_JPY = new Decimal(2_000);
 const POLITICAL_PARTY_CREDIT_RATE = 0.3;
 const NPO_AND_PUBLIC_INTEREST_CREDIT_RATE = 0.4;
 const TAX_AMOUNT_CAP_RATE = 0.25;
+/** 住民税の寄附金控除(基本控除)。`donationDeduction.ts`の道府県民税4%+市区町村民税6%と同じ */
+const RESIDENT_TAX_BASIC_DEDUCTION_INCOME_CAP_RATE = 0.3;
+const RESIDENT_TAX_BASIC_DEDUCTION_RATE = 0.1;
 
 function requireNonNegative(value: Decimal, label: string): void {
   if (value.isNegative()) {
@@ -67,6 +79,24 @@ function rawCreditJpy(donationJpy: Decimal, totalIncomeJpy: Decimal, rate: numbe
   return floorToHundredYen(base.times(rate));
 }
 
+/**
+ * 住民税の寄附金控除(基本控除)額。条例指定を受けている場合のみ、寄附金の額
+ * (総所得金額等の30%上限適用後)から2,000円を差し引いた額の10%を試算する
+ * (`donationDeduction.ts`の`residentTaxBasicDeductionJpy`と同じ算式)。
+ */
+function residentTaxBasicDeductionJpy(
+  donationJpy: Decimal,
+  totalIncomeJpy: Decimal,
+  ordinanceDesignated: boolean,
+): Decimal {
+  if (!ordinanceDesignated) return new Decimal(0);
+  const capped = Decimal.min(
+    donationJpy,
+    totalIncomeJpy.times(RESIDENT_TAX_BASIC_DEDUCTION_INCOME_CAP_RATE),
+  );
+  return Decimal.max(0, capped.minus(SELF_PAY_JPY)).times(RESIDENT_TAX_BASIC_DEDUCTION_RATE);
+}
+
 export interface DonationTaxCreditInput {
   /** 政党等(政党・政治資金団体)に対する寄附金の額の合計額 */
   politicalPartyDonationJpy: Decimal.Value;
@@ -78,6 +108,14 @@ export interface DonationTaxCreditInput {
   totalIncomeJpy: Decimal.Value;
   /** この特別控除を適用する前の、その年分の所得税額(25%上限判定に使う) */
   incomeTaxBeforeCreditJpy: Decimal.Value;
+  /**
+   * 認定NPO法人等への寄附先が、住所地の都道府県・市区町村の条例で住民税の
+   * 寄附金控除(基本控除)の対象として指定されているか(ユーザー自身の確認が前提)。
+   * 政党等寄附金は条例指定の対象外の制度のため入力項目自体が無い。
+   */
+  certifiedNpoResidentTaxOrdinanceDesignated?: boolean;
+  /** 公益社団法人等への寄附先が同様に条例指定を受けているか */
+  publicInterestCorporationResidentTaxOrdinanceDesignated?: boolean;
 }
 
 export interface DonationTaxCreditResult {
@@ -96,8 +134,14 @@ export interface DonationTaxCreditResult {
   publicInterestCorporationCreditRawJpy: Decimal;
   /** 認定NPO法人等・公益社団法人等の控除額の合計(25%上限適用後) */
   npoAndPublicInterestCreditJpy: Decimal;
-  /** 3区分合計の特別控除額 */
+  /** 3区分合計の特別控除額(所得税分) */
   totalTaxCreditJpy: Decimal;
+  /** 認定NPO法人等への寄附に係る住民税の寄附金控除(基本控除)額。条例指定が無い場合は0円 */
+  certifiedNpoResidentTaxBasicDeductionJpy: Decimal;
+  /** 公益社団法人等への寄附に係る住民税の寄附金控除(基本控除)額。条例指定が無い場合は0円 */
+  publicInterestCorporationResidentTaxBasicDeductionJpy: Decimal;
+  /** 住民税の寄附金控除(基本控除)額の合計(政党等寄附金は条例指定の対象外のため常に0円) */
+  totalResidentTaxBasicDeductionJpy: Decimal;
   notes: string[];
 }
 
@@ -119,10 +163,17 @@ export function estimateDonationTaxCredit(input: DonationTaxCreditInput): Donati
   requireNonNegative(totalIncomeJpy, "総所得金額等");
   requireNonNegative(incomeTaxBeforeCreditJpy, "特別控除適用前の所得税額");
 
+  const certifiedNpoResidentTaxOrdinanceDesignated = Boolean(
+    input.certifiedNpoResidentTaxOrdinanceDesignated,
+  );
+  const publicInterestCorporationResidentTaxOrdinanceDesignated = Boolean(
+    input.publicInterestCorporationResidentTaxOrdinanceDesignated,
+  );
+
   const notes: string[] = [
     "租税特別措置法41条の18(政党等)・41条の18の2(認定NPO法人等)・41条の18の3(公益社団法人等)に基づく概算値。これらの寄附は、通常の寄附金控除(所得控除)を受けるか、この特別控除(税額控除)を受けるか、所得税の計算上いずれか有利な方を選択できる。",
-    "選択はあくまで所得税の計算上の話であり、住民税の寄附金控除(基本控除)は寄附先が都道府県・市区町村の条例で指定されているかで別途決まる(全国一律の対象ではない)ため、住民税への影響は試算していない。",
-    "2,000円の足切り・総所得金額等40%の上限は各区分に独立に適用する前提であり、複数区分の寄附や通常の寄附金控除対象(ふるさと納税等)が混在する場合の厳密な按分は行わない。",
+    "選択はあくまで所得税の計算上の話であり、住民税の寄附金控除(基本控除)は別枠の制度(地方税法37条の2・314条の7)。政党等寄附金は住民税の条例指定寄附金の対象から除外されているため常に住民税の控除額は0円になる。認定NPO法人等・公益社団法人等への寄附は、寄附先が住所地の都道府県・市区町村の条例で指定されている場合に限り住民税の控除対象になるため、条例指定の有無をユーザー自身で確認した上でチェックすること。",
+    "2,000円の足切り・総所得金額等40%(住民税分は30%)の上限は各区分に独立に適用する前提であり、複数区分の寄附や通常の寄附金控除対象(ふるさと納税等)が混在する場合の厳密な按分は行わない。",
   ];
 
   const taxAmountCapJpy = floorToHundredYen(incomeTaxBeforeCreditJpy.times(TAX_AMOUNT_CAP_RATE));
@@ -164,6 +215,25 @@ export function estimateDonationTaxCredit(input: DonationTaxCreditInput): Donati
 
   const totalTaxCreditJpy = politicalPartyCreditJpy.plus(npoAndPublicInterestCreditJpy);
 
+  const certifiedNpoResidentTaxBasicDeductionJpy = residentTaxBasicDeductionJpy(
+    certifiedNpoDonationJpy,
+    totalIncomeJpy,
+    certifiedNpoResidentTaxOrdinanceDesignated,
+  );
+  const publicInterestCorporationResidentTaxBasicDeductionJpy = residentTaxBasicDeductionJpy(
+    publicInterestCorporationDonationJpy,
+    totalIncomeJpy,
+    publicInterestCorporationResidentTaxOrdinanceDesignated,
+  );
+  const totalResidentTaxBasicDeductionJpy = certifiedNpoResidentTaxBasicDeductionJpy.plus(
+    publicInterestCorporationResidentTaxBasicDeductionJpy,
+  );
+  if (totalResidentTaxBasicDeductionJpy.greaterThan(0)) {
+    notes.push(
+      "住民税の寄附金控除(基本控除)は、条例指定を受けている区分についてのみ(min(寄附金の額, 総所得金額等の30%) − 2,000円) × 10%(道府県民税4%+市区町村民税6%)で試算した。",
+    );
+  }
+
   return {
     politicalPartyDonationJpy,
     certifiedNpoDonationJpy,
@@ -176,6 +246,9 @@ export function estimateDonationTaxCredit(input: DonationTaxCreditInput): Donati
     publicInterestCorporationCreditRawJpy,
     npoAndPublicInterestCreditJpy,
     totalTaxCreditJpy,
+    certifiedNpoResidentTaxBasicDeductionJpy,
+    publicInterestCorporationResidentTaxBasicDeductionJpy,
+    totalResidentTaxBasicDeductionJpy,
     notes,
   };
 }
@@ -262,15 +335,18 @@ export function compareDonationTaxTreatment(
 
 export interface DonationTaxCreditRecordEntry {
   taxYear: number;
-  /** その年分の特別控除額の合計(DonationTaxCreditResult.totalTaxCreditJpy) */
+  /** その年分の特別控除額の合計(DonationTaxCreditResult.totalTaxCreditJpy。所得税分) */
   totalTaxCreditJpy: Decimal;
+  /** その年分の住民税の寄附金控除(基本控除)額の合計(DonationTaxCreditResult.totalResidentTaxBasicDeductionJpy) */
+  residentTaxBasicDeductionJpy: Decimal;
 }
 
 /**
  * `/donation-tax-credit`で登録済みの、指定した年分の政党等・認定NPO法人等・
- * 公益社団法人等寄附金特別控除の合計控除額をDBから読み出す。下書きCSV
- * (`/api/export`)の税額控除欄・`/tax-estimate`の合計税額試算への自動反映に使う。
- * 未登録の年は null を返す。
+ * 公益社団法人等寄附金特別控除の合計控除額(所得税分)と、認定NPO法人等・
+ * 公益社団法人等への寄附のうち条例指定を受けている分の住民税の寄附金控除
+ * (基本控除)額をDBから読み出す。下書きCSV(`/api/export`)の税額控除欄・
+ * `/tax-estimate`の合計税額試算への自動反映に使う。未登録の年は null を返す。
  */
 export async function getDonationTaxCreditRecord(
   year: number,
@@ -286,5 +362,6 @@ export async function getDonationTaxCreditRecord(
   return {
     taxYear: year,
     totalTaxCreditJpy: new Decimal(record.totalTaxCreditJpy.toString()),
+    residentTaxBasicDeductionJpy: new Decimal(record.residentTaxBasicDeductionJpy.toString()),
   };
 }

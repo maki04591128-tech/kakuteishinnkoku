@@ -89,6 +89,69 @@ describe("estimateDonationTaxCredit", () => {
       }),
     ).toThrow();
   });
+
+  it("条例指定の入力が無い場合は住民税の寄附金控除(基本控除)は0円になる", () => {
+    const result = estimateDonationTaxCredit({
+      politicalPartyDonationJpy: 100_000,
+      certifiedNpoDonationJpy: 100_000,
+      publicInterestCorporationDonationJpy: 100_000,
+      totalIncomeJpy: 5_000_000,
+      incomeTaxBeforeCreditJpy: 500_000,
+    });
+
+    expect(result.certifiedNpoResidentTaxBasicDeductionJpy.toNumber()).toBe(0);
+    expect(result.publicInterestCorporationResidentTaxBasicDeductionJpy.toNumber()).toBe(0);
+    expect(result.totalResidentTaxBasicDeductionJpy.toNumber()).toBe(0);
+  });
+
+  it("認定NPO法人等・公益社団法人等の寄附で条例指定を受けている分のみ住民税の寄附金控除(基本控除)を(寄附金-2,000円)×10%で計算する", () => {
+    const result = estimateDonationTaxCredit({
+      politicalPartyDonationJpy: 100_000,
+      certifiedNpoDonationJpy: 50_000,
+      publicInterestCorporationDonationJpy: 30_000,
+      totalIncomeJpy: 5_000_000,
+      incomeTaxBeforeCreditJpy: 500_000,
+      certifiedNpoResidentTaxOrdinanceDesignated: true,
+      publicInterestCorporationResidentTaxOrdinanceDesignated: true,
+    });
+
+    // (50,000 - 2,000) * 10% = 4,800 / (30,000 - 2,000) * 10% = 2,800
+    expect(result.certifiedNpoResidentTaxBasicDeductionJpy.toNumber()).toBe(4_800);
+    expect(result.publicInterestCorporationResidentTaxBasicDeductionJpy.toNumber()).toBe(2_800);
+    expect(result.totalResidentTaxBasicDeductionJpy.toNumber()).toBe(7_600);
+    // 政党等寄附金は条例指定寄附金の対象外のため住民税の控除額に影響しない
+    expect(result.notes.join("")).toContain("住民税の寄附金控除(基本控除)");
+  });
+
+  it("条例指定を受けていても寄附金の額は総所得金額等の30%が上限になる", () => {
+    const result = estimateDonationTaxCredit({
+      politicalPartyDonationJpy: 0,
+      certifiedNpoDonationJpy: 1_000_000,
+      publicInterestCorporationDonationJpy: 0,
+      totalIncomeJpy: 100_000,
+      incomeTaxBeforeCreditJpy: 500_000,
+      certifiedNpoResidentTaxOrdinanceDesignated: true,
+    });
+
+    // 30%上限 = 30,000円。(30,000 - 2,000) * 10% = 2,800
+    expect(result.certifiedNpoResidentTaxBasicDeductionJpy.toNumber()).toBe(2_800);
+  });
+
+  it("片方のみ条例指定を受けている場合、その区分だけ住民税の寄附金控除(基本控除)が発生する", () => {
+    const result = estimateDonationTaxCredit({
+      politicalPartyDonationJpy: 0,
+      certifiedNpoDonationJpy: 50_000,
+      publicInterestCorporationDonationJpy: 30_000,
+      totalIncomeJpy: 5_000_000,
+      incomeTaxBeforeCreditJpy: 500_000,
+      certifiedNpoResidentTaxOrdinanceDesignated: true,
+      publicInterestCorporationResidentTaxOrdinanceDesignated: false,
+    });
+
+    expect(result.certifiedNpoResidentTaxBasicDeductionJpy.toNumber()).toBe(4_800);
+    expect(result.publicInterestCorporationResidentTaxBasicDeductionJpy.toNumber()).toBe(0);
+    expect(result.totalResidentTaxBasicDeductionJpy.toNumber()).toBe(4_800);
+  });
 });
 
 describe("compareDonationTaxTreatment", () => {

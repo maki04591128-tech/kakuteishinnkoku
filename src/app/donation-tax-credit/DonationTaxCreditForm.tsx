@@ -35,7 +35,11 @@ export function DonationTaxCreditForm({
 }: {
   taxYear: number;
   /** `/tax-estimate`と連携するため既に登録済みの寄附金特別控除額(未登録ならnull) */
-  registeredRecord: { taxYear: number; totalTaxCreditJpy: number } | null;
+  registeredRecord: {
+    taxYear: number;
+    totalTaxCreditJpy: number;
+    residentTaxBasicDeductionJpy: number;
+  } | null;
 }) {
   const [politicalPartyDonation, setPoliticalPartyDonation] = useState("0");
   const [certifiedNpoDonation, setCertifiedNpoDonation] = useState("0");
@@ -43,6 +47,9 @@ export function DonationTaxCreditForm({
   const [totalIncome, setTotalIncome] = useState("0");
   const [incomeTaxBeforeCredit, setIncomeTaxBeforeCredit] = useState("0");
   const [marginalRate, setMarginalRate] = useState("0.1");
+  const [certifiedNpoOrdinanceDesignated, setCertifiedNpoOrdinanceDesignated] = useState(false);
+  const [publicInterestCorporationOrdinanceDesignated, setPublicInterestCorporationOrdinanceDesignated] =
+    useState(false);
   const [comparisonCategory, setComparisonCategory] =
     useState<DonationTaxCreditCategory>("CERTIFIED_NPO");
 
@@ -54,6 +61,9 @@ export function DonationTaxCreditForm({
         publicInterestCorporationDonationJpy: publicInterestCorporationDonation || 0,
         totalIncomeJpy: totalIncome || 0,
         incomeTaxBeforeCreditJpy: incomeTaxBeforeCredit || 0,
+        certifiedNpoResidentTaxOrdinanceDesignated: certifiedNpoOrdinanceDesignated,
+        publicInterestCorporationResidentTaxOrdinanceDesignated:
+          publicInterestCorporationOrdinanceDesignated,
       });
     } catch {
       return null;
@@ -64,6 +74,8 @@ export function DonationTaxCreditForm({
     publicInterestCorporationDonation,
     totalIncome,
     incomeTaxBeforeCredit,
+    certifiedNpoOrdinanceDesignated,
+    publicInterestCorporationOrdinanceDesignated,
   ]);
 
   const comparisonDonationJpy =
@@ -123,6 +135,33 @@ export function DonationTaxCreditForm({
         />
       </fieldset>
 
+      <fieldset className="grid grid-cols-1 gap-3 rounded-md border border-neutral-200 p-3 sm:grid-cols-2 dark:border-neutral-800">
+        <legend className="px-1 text-sm font-medium">
+          住民税の寄附金控除(基本控除)の対象(条例指定の有無)
+        </legend>
+        <p className="text-xs text-neutral-500 sm:col-span-2">
+          政党等寄附金は住民税の条例指定寄附金の対象外のため常に住民税の控除額は0円になる。
+          認定NPO法人等・公益社団法人等への寄附は、寄附先が住所地の都道府県・市区町村の条例で
+          個別に指定されている場合のみ住民税の控除対象になる(自治体公式サイトで確認すること)。
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={certifiedNpoOrdinanceDesignated}
+            onChange={(e) => setCertifiedNpoOrdinanceDesignated(e.target.checked)}
+          />
+          認定NPO法人等への寄附先が条例指定を受けている
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={publicInterestCorporationOrdinanceDesignated}
+            onChange={(e) => setPublicInterestCorporationOrdinanceDesignated(e.target.checked)}
+          />
+          公益社団法人等への寄附先が条例指定を受けている
+        </label>
+      </fieldset>
+
       {result === null ? (
         <p className="text-sm text-red-600">入力値を確認してください(0以上の数値)。</p>
       ) : (
@@ -145,12 +184,24 @@ export function DonationTaxCreditForm({
               </p>
             </div>
             <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
-              <p className="text-sm text-neutral-500">特別控除額の合計</p>
+              <p className="text-sm text-neutral-500">特別控除額の合計(所得税分)</p>
               <p className="mt-1 text-2xl font-semibold">{yen(result.totalTaxCreditJpy)}</p>
               <p className="mt-1 text-xs text-neutral-500">
                 所得税額の25%相当額 {yen(result.taxAmountCapJpy)}(政党等/NPO等+公益法人等それぞれの上限)
               </p>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
+            <p className="text-sm text-neutral-500">住民税の寄附金控除(基本控除)額の合計</p>
+            <p className="mt-1 text-2xl font-semibold">
+              {yen(result.totalResidentTaxBasicDeductionJpy)}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              内訳: 認定NPO法人等 {yen(result.certifiedNpoResidentTaxBasicDeductionJpy)} / 公益社団法人等{" "}
+              {yen(result.publicInterestCorporationResidentTaxBasicDeductionJpy)}
+              (いずれも条例指定を受けている場合のみ)
+            </p>
           </div>
 
           <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
@@ -161,6 +212,11 @@ export function DonationTaxCreditForm({
                 name="totalTaxCreditJpy"
                 value={result.totalTaxCreditJpy.toString()}
               />
+              <input
+                type="hidden"
+                name="residentTaxBasicDeductionJpy"
+                value={result.totalResidentTaxBasicDeductionJpy.toString()}
+              />
               <button
                 type="submit"
                 className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
@@ -170,7 +226,8 @@ export function DonationTaxCreditForm({
             </form>
             {registeredRecord !== null && (
               <p className="mt-2 text-xs text-neutral-500">
-                登録済み({registeredRecord.taxYear}年分): {yen(registeredRecord.totalTaxCreditJpy)}
+                登録済み({registeredRecord.taxYear}年分): 所得税分 {yen(registeredRecord.totalTaxCreditJpy)}
+                / 住民税分 {yen(registeredRecord.residentTaxBasicDeductionJpy)}
                 (/tax-estimateの初期値・下書きCSVに反映)
               </p>
             )}
