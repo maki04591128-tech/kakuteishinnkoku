@@ -368,8 +368,11 @@ model DonationTaxCreditRecord {
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
 
-  /// その年分の特別控除額の合計(DonationTaxCreditResult.totalTaxCreditJpy)
+  /// その年分の特別控除額の合計(DonationTaxCreditResult.totalTaxCreditJpy。所得税分)
   totalTaxCreditJpy Decimal
+  /// 認定NPO法人等・公益社団法人等への寄附のうち条例指定を受けている分の住民税の
+  /// 寄附金控除(基本控除)額の合計(DonationTaxCreditResult.totalResidentTaxBasicDeductionJpy)
+  residentTaxBasicDeductionJpy Decimal @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

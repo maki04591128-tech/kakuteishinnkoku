@@ -18,6 +18,8 @@ export default async function DonationTaxCreditPage({
     ? {
         taxYear: donationTaxCreditRecord.taxYear,
         totalTaxCreditJpy: donationTaxCreditRecord.totalTaxCreditJpy.toNumber(),
+        residentTaxBasicDeductionJpy:
+          donationTaxCreditRecord.residentTaxBasicDeductionJpy.toNumber(),
       }
     : null;
 
@@ -47,14 +49,17 @@ export default async function DonationTaxCreditPage({
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         租税特別措置法41条の18(政党等)・41条の18の2(認定NPO法人等)・41条の18の3
         (公益社団法人等)に基づく概算値。この選択はあくまで所得税の計算上の話であり、住民税の
-        寄附金控除(基本控除)は寄附先が都道府県・市区町村の条例で指定されているかで別途決まる
-        (全国一律の対象ではない)ため、住民税への影響は試算していない。「総所得金額等」・
+        寄附金控除(基本控除)は別枠の制度(地方税法37条の2・314条の7)。政党等寄附金は
+        住民税の条例指定寄附金の対象から除外されているため常に住民税の控除額は0円になるが、
+        認定NPO法人等・公益社団法人等への寄附は寄附先が都道府県・市区町村の条例で指定されて
+        いるかで住民税の控除対象になるかが別途決まる(全国一律の対象ではない)ため、下の
+        チェックボックスでユーザー自身が確認した条例指定の有無を入力する。「総所得金額等」・
         「特別控除適用前の所得税額」・「所得税の限界税率」は
         <Link href={`/tax-estimate?year=${year}`} className="underline">
           所得税・住民税の概算合計税額試算
         </Link>
         の結果を参考に入力すること。試算結果は「登録する」ボタンで年分ごとに保存でき、
-        `/tax-estimate`の合計税額試算(所得税分の税額控除)・下書きCSVの税額控除欄に
+        `/tax-estimate`の合計税額試算(所得税分・住民税分の税額控除)・下書きCSVの税額控除欄に
         自動反映される(初期値のみで、手入力で上書き可能)。
       </p>
     </div>

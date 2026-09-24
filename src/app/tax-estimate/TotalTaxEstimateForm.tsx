@@ -44,6 +44,8 @@ export function TotalTaxEstimateForm({
   registeredMortgageDeduction,
   defaultDonationTaxCreditJpy,
   registeredDonationTaxCreditJpy,
+  defaultDonationTaxCreditResidentTaxJpy,
+  registeredDonationTaxCreditResidentTaxJpy,
   defaultForeignTaxCreditNationalTaxCreditJpy,
   defaultForeignTaxCreditResidentTaxCreditJpy,
   registeredForeignTaxCredit,
@@ -72,10 +74,14 @@ export function TotalTaxEstimateForm({
   defaultMortgageDeductionResidentTaxCreditJpy: number;
   /** `/mortgage-deduction`で登録済みの住宅ローン控除額(参考表示。未登録ならnull) */
   registeredMortgageDeduction: { nationalTaxCreditJpy: number; residentTaxCreditJpy: number } | null;
-  /** `/donation-tax-credit`で登録済みの寄附金特別控除額(所得税のみ)の初期値 */
+  /** `/donation-tax-credit`で登録済みの寄附金特別控除額(所得税分)の初期値 */
   defaultDonationTaxCreditJpy: number;
-  /** `/donation-tax-credit`で登録済みの寄附金特別控除額(参考表示。未登録ならnull) */
+  /** `/donation-tax-credit`で登録済みの寄附金特別控除額(所得税分。参考表示。未登録ならnull) */
   registeredDonationTaxCreditJpy: number | null;
+  /** `/donation-tax-credit`で登録済みの住民税の寄附金控除(基本控除)額の初期値 */
+  defaultDonationTaxCreditResidentTaxJpy: number;
+  /** `/donation-tax-credit`で登録済みの住民税の寄附金控除(基本控除)額(参考表示。未登録ならnull) */
+  registeredDonationTaxCreditResidentTaxJpy: number | null;
   /** `/foreign-tax-credit`で登録済みの外国税額控除額(所得税・復興特別所得税分)の初期値 */
   defaultForeignTaxCreditNationalTaxCreditJpy: number;
   /** `/foreign-tax-credit`で登録済みの外国税額控除額(住民税分)の初期値 */
@@ -111,6 +117,9 @@ export function TotalTaxEstimateForm({
     useState(String(defaultMortgageDeductionResidentTaxCreditJpy));
   const [donationTaxCreditJpy, setDonationTaxCreditJpy] = useState(
     String(defaultDonationTaxCreditJpy),
+  );
+  const [donationTaxCreditResidentTaxJpy, setDonationTaxCreditResidentTaxJpy] = useState(
+    String(defaultDonationTaxCreditResidentTaxJpy),
   );
   const [foreignTaxCreditNationalTaxCreditJpy, setForeignTaxCreditNationalTaxCreditJpy] =
     useState(String(defaultForeignTaxCreditNationalTaxCreditJpy));
@@ -149,6 +158,8 @@ export function TotalTaxEstimateForm({
             ? 0
             : mortgageDeductionResidentTaxCreditJpy,
         donationTaxCreditJpy: donationTaxCreditJpy === "" ? 0 : donationTaxCreditJpy,
+        donationTaxCreditResidentTaxJpy:
+          donationTaxCreditResidentTaxJpy === "" ? 0 : donationTaxCreditResidentTaxJpy,
         foreignTaxCreditNationalTaxCreditJpy:
           foreignTaxCreditNationalTaxCreditJpy === ""
             ? 0
@@ -180,6 +191,7 @@ export function TotalTaxEstimateForm({
     mortgageDeductionNationalTaxCreditJpy,
     mortgageDeductionResidentTaxCreditJpy,
     donationTaxCreditJpy,
+    donationTaxCreditResidentTaxJpy,
     foreignTaxCreditNationalTaxCreditJpy,
     foreignTaxCreditResidentTaxCreditJpy,
     withheldNationalTaxJpy,
@@ -311,7 +323,7 @@ export function TotalTaxEstimateForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
-          label={`寄附金特別控除(政党等・認定NPO法人等・公益社団法人等・税額控除・所得税のみ)${
+          label={`寄附金特別控除(政党等・認定NPO法人等・公益社団法人等・税額控除・所得税分)${
             registeredDonationTaxCreditJpy !== null
               ? " — 初期値は/donation-tax-creditの登録値"
               : ""
@@ -319,10 +331,21 @@ export function TotalTaxEstimateForm({
           value={donationTaxCreditJpy}
           onChange={setDonationTaxCreditJpy}
         />
+        <Field
+          label={`寄附金特別控除(住民税の寄附金控除(基本控除)分・条例指定分のみ)${
+            registeredDonationTaxCreditResidentTaxJpy !== null
+              ? " — 初期値は/donation-tax-creditの登録値"
+              : ""
+          }`}
+          value={donationTaxCreditResidentTaxJpy}
+          onChange={setDonationTaxCreditResidentTaxJpy}
+        />
       </div>
-      {registeredDonationTaxCreditJpy !== null && (
+      {(registeredDonationTaxCreditJpy !== null ||
+        registeredDonationTaxCreditResidentTaxJpy !== null) && (
         <p className="text-xs text-neutral-500">
-          /donation-tax-creditで登録済み: {yen(registeredDonationTaxCreditJpy)}
+          /donation-tax-creditで登録済み: 所得税分 {yen(registeredDonationTaxCreditJpy ?? 0)} /
+          住民税分 {yen(registeredDonationTaxCreditResidentTaxJpy ?? 0)}
         </p>
       )}
 
@@ -411,9 +434,16 @@ export function TotalTaxEstimateForm({
                 {yen(result.mortgageDeductionResidentTaxAppliedJpy)})
               </p>
             )}
-            {result.donationTaxCreditAppliedJpy.greaterThan(0) && (
+            {(result.donationTaxCreditAppliedJpy.greaterThan(0) ||
+              result.donationTaxCreditResidentTaxAppliedJpy.greaterThan(0)) && (
               <p className="mt-1 text-xs text-neutral-400">
-                − 寄附金特別控除 {yen(result.donationTaxCreditAppliedJpy)}(所得税のみ)
+                − 寄附金特別控除 {yen(
+                  result.donationTaxCreditAppliedJpy.plus(
+                    result.donationTaxCreditResidentTaxAppliedJpy,
+                  ),
+                )}
+                (所得税分 {yen(result.donationTaxCreditAppliedJpy)} / 住民税分{" "}
+                {yen(result.donationTaxCreditResidentTaxAppliedJpy)})
               </p>
             )}
             {(result.foreignTaxCreditNationalTaxAppliedJpy.greaterThan(0) ||

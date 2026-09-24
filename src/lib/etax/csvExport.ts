@@ -188,11 +188,20 @@ export function buildTaxFilingDraftCsv(
     if (summary.donationTaxCredit) {
       lines.push(
         toCsvLine([
-          "政党等・認定NPO法人等・公益社団法人等寄附金特別控除額(所得税のみ。住民税分は含まない)",
+          "政党等・認定NPO法人等・公益社団法人等寄附金特別控除額: 所得税からの控除額",
           formatYen(summary.donationTaxCredit.totalCreditJpy),
           "申告書第一表 税額控除(政党等寄附金等特別控除) / 寄附金(税額)控除の計算明細書",
         ]),
       );
+      if (summary.donationTaxCredit.residentTaxBasicDeductionJpy.greaterThan(0)) {
+        lines.push(
+          toCsvLine([
+            "認定NPO法人等・公益社団法人等寄附金の住民税の寄附金控除(基本控除): 住民税からの控除額(条例指定分のみ)",
+            formatYen(summary.donationTaxCredit.residentTaxBasicDeductionJpy),
+            "住民税は市区町村側で自動計算されるため申告書への記載は不要(確定申告書第二表の住民税に関する事項欄への寄附先記載は必要)",
+          ]),
+        );
+      }
     }
     if (summary.foreignTaxCredit) {
       lines.push(

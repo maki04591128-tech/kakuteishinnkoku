@@ -68,10 +68,13 @@ export interface TaxFilingSummary {
   };
   /**
    * `/donation-tax-credit`で登録済みの政党等・認定NPO法人等・公益社団法人等
-   * 寄附金特別控除(税額控除)の合計控除額。未登録の場合はundefined。
+   * 寄附金特別控除(税額控除)の合計控除額(所得税分)と、認定NPO法人等・
+   * 公益社団法人等への寄附のうち条例指定を受けている分の住民税の寄附金控除
+   * (基本控除)額。未登録の場合はundefined。
    */
   donationTaxCredit?: {
     totalCreditJpy: Decimal;
+    residentTaxBasicDeductionJpy: Decimal;
   };
 }
 
@@ -86,7 +89,7 @@ export function buildTaxFilingSummary(
   mortgageDeduction?: { nationalTaxCreditJpy: Decimal; residentTaxCreditJpy: Decimal },
   foreignTaxCredit?: { totalCreditJpy: Decimal },
   investmentNonListed?: InvestmentPortfolioYearResult,
-  donationTaxCredit?: { totalCreditJpy: Decimal },
+  donationTaxCredit?: { totalCreditJpy: Decimal; residentTaxBasicDeductionJpy: Decimal },
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);

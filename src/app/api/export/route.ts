@@ -42,7 +42,10 @@ export async function GET(request: NextRequest) {
       : undefined,
     report.investmentNonListed,
     donationTaxCreditRecord
-      ? { totalCreditJpy: donationTaxCreditRecord.totalTaxCreditJpy }
+      ? {
+          totalCreditJpy: donationTaxCreditRecord.totalTaxCreditJpy,
+          residentTaxBasicDeductionJpy: donationTaxCreditRecord.residentTaxBasicDeductionJpy,
+        }
       : undefined,
   );
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);

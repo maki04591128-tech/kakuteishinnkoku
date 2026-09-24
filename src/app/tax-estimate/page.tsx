@@ -93,6 +93,8 @@ export default async function TaxEstimatePage({
   const donationTaxCreditRecord = await getDonationTaxCreditRecord(year);
   const registeredDonationTaxCreditJpy =
     donationTaxCreditRecord?.totalTaxCreditJpy.toNumber() ?? null;
+  const registeredDonationTaxCreditResidentTaxJpy =
+    donationTaxCreditRecord?.residentTaxBasicDeductionJpy.toNumber() ?? null;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -138,6 +140,8 @@ export default async function TaxEstimatePage({
         registeredMortgageDeduction={registeredMortgageDeduction}
         defaultDonationTaxCreditJpy={registeredDonationTaxCreditJpy ?? 0}
         registeredDonationTaxCreditJpy={registeredDonationTaxCreditJpy}
+        defaultDonationTaxCreditResidentTaxJpy={registeredDonationTaxCreditResidentTaxJpy ?? 0}
+        registeredDonationTaxCreditResidentTaxJpy={registeredDonationTaxCreditResidentTaxJpy}
         defaultForeignTaxCreditNationalTaxCreditJpy={
           registeredForeignTaxCredit?.nationalTaxCreditJpy ?? 0
         }
