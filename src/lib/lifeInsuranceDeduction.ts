@@ -36,6 +36,19 @@ import { Decimal } from "decimal.js";
  *  - 個人年金保険料は税制適格特約が付加された契約を前提とする(付加されていない
  *    個人年金保険料は一般生命保険料の区分になるが、本ツールでは区分の判定は
  *    ユーザー自身が行う前提とする)。
+ *
+ * **子育て世帯等に対する一般生命保険料控除の拡充(令和7年度税制改正・令和8年分/
+ * 令和9年分限定の時限特例):** 23歳未満の扶養親族(判定基準日はその年12月31日)が
+ * いる場合、一般生命保険料(新制度分のみ)の所得税の控除上限が4万円から6万円に
+ * 引き上げられる。速算式も次のとおり拡大される(いずれも保険会社・税理士事務所
+ * 等の複数の独立した情報源で数値が一致することを確認済み):
+ *   3万円以下            → 全額
+ *   3万円超6万円以下     → 支払保険料 × 1/2 + 1.5万円
+ *   6万円超12万円以下    → 支払保険料 × 1/4 + 3万円
+ *   12万円超             → 一律6万円
+ * 3区分合計の適用限度額(所得税12万円)自体は変更されない。住民税はこの特例の
+ * 対象外(従来どおり一般生命保険料の上限2.8万円のまま)。対象となる23歳未満の
+ * 扶養親族の合計所得金額要件等、判定の詳細な要件はユーザー自身の確認事項とする。
  */
 
 export type LifeInsuranceCategory = "general" | "medicalCare" | "individualPension";
@@ -54,6 +67,17 @@ export interface LifeInsurancePremiumInput {
   medicalCare: { newPremiumJpy: Decimal.Value };
   /** 個人年金保険料 */
   individualPension: LifeInsuranceCategoryInput;
+  /**
+   * 課税年分(西暦)。令和8年分(2026)・令和9年分(2027)は、23歳未満の扶養親族が
+   * いる場合の一般生命保険料控除の拡充の対象年分になりうる。省略時は特例を適用しない。
+   */
+  year?: number;
+  /**
+   * その年12月31日時点で23歳未満の扶養親族がいるかどうか。trueかつ`year`が
+   * 令和8年分・令和9年分のいずれかの場合のみ、一般生命保険料(新制度)の
+   * 所得税の控除上限を6万円に引き上げる特例を適用する。
+   */
+  hasDependentUnder23?: boolean;
 }
 
 export interface LifeInsuranceCategoryResult {
@@ -80,6 +104,10 @@ const INCOME_TAX_CATEGORY_MAX_JPY = new Decimal(40_000);
 const INCOME_TAX_CATEGORY_MAX_OLD_JPY = new Decimal(50_000);
 const INCOME_TAX_TOTAL_MAX_JPY = new Decimal(120_000);
 
+/** 子育て世帯等に対する一般生命保険料控除の拡充が適用される年分(令和8年分・令和9年分) */
+const CHILD_REARING_SPECIAL_MEASURE_YEARS = [2026, 2027];
+const INCOME_TAX_CATEGORY_MAX_CHILD_REARING_JPY = new Decimal(60_000);
+
 const RESIDENT_TAX_CATEGORY_MAX_JPY = new Decimal(28_000);
 const RESIDENT_TAX_CATEGORY_MAX_OLD_JPY = new Decimal(35_000);
 const RESIDENT_TAX_TOTAL_MAX_JPY = new Decimal(70_000);
@@ -95,6 +123,14 @@ function newFormulaIncomeTax(premium: Decimal): Decimal {
   if (premium.lessThanOrEqualTo(40_000)) return premium.dividedBy(2).plus(10_000);
   if (premium.lessThanOrEqualTo(80_000)) return premium.dividedBy(4).plus(20_000);
   return INCOME_TAX_CATEGORY_MAX_JPY;
+}
+
+/** 子育て世帯等に対する一般生命保険料控除の拡充(令和8年分・令和9年分限定)の速算式 */
+function newFormulaIncomeTaxChildRearing(premium: Decimal): Decimal {
+  if (premium.lessThanOrEqualTo(30_000)) return premium;
+  if (premium.lessThanOrEqualTo(60_000)) return premium.dividedBy(2).plus(15_000);
+  if (premium.lessThanOrEqualTo(120_000)) return premium.dividedBy(4).plus(30_000);
+  return INCOME_TAX_CATEGORY_MAX_CHILD_REARING_JPY;
 }
 
 function oldFormulaIncomeTax(premium: Decimal): Decimal {
@@ -125,11 +161,17 @@ function bestOf(...values: Decimal[]): Decimal {
 function calculateCategory(
   newPremiumJpy: Decimal,
   oldPremiumJpy: Decimal,
+  applyChildRearingSpecialMeasure = false,
 ): LifeInsuranceCategoryResult {
-  const newIncomeTax = newFormulaIncomeTax(newPremiumJpy);
+  const incomeTaxCategoryMaxJpy = applyChildRearingSpecialMeasure
+    ? INCOME_TAX_CATEGORY_MAX_CHILD_REARING_JPY
+    : INCOME_TAX_CATEGORY_MAX_JPY;
+  const newIncomeTax = applyChildRearingSpecialMeasure
+    ? newFormulaIncomeTaxChildRearing(newPremiumJpy)
+    : newFormulaIncomeTax(newPremiumJpy);
   const oldIncomeTax = oldFormulaIncomeTax(oldPremiumJpy);
   const combinedIncomeTax = Decimal.min(
-    INCOME_TAX_CATEGORY_MAX_JPY,
+    incomeTaxCategoryMaxJpy,
     newIncomeTax.plus(oldIncomeTax),
   );
   const incomeTaxDeductionJpy = bestOf(newIncomeTax, oldIncomeTax, combinedIncomeTax);
@@ -165,7 +207,17 @@ export function estimateLifeInsurancePremiumDeduction(
   requireNonNegative(individualPensionNewPremiumJpy, "個人年金保険料(新制度)");
   requireNonNegative(individualPensionOldPremiumJpy, "個人年金保険料(旧制度)");
 
-  const general = calculateCategory(generalNewPremiumJpy, generalOldPremiumJpy);
+  const isChildRearingSpecialMeasureYear = CHILD_REARING_SPECIAL_MEASURE_YEARS.includes(
+    input.year ?? 0,
+  );
+  const applyChildRearingSpecialMeasure =
+    isChildRearingSpecialMeasureYear && (input.hasDependentUnder23 ?? false);
+
+  const general = calculateCategory(
+    generalNewPremiumJpy,
+    generalOldPremiumJpy,
+    applyChildRearingSpecialMeasure,
+  );
   const medicalCare = calculateCategory(medicalCareNewPremiumJpy, new Decimal(0));
   const individualPension = calculateCategory(
     individualPensionNewPremiumJpy,
@@ -191,6 +243,16 @@ export function estimateLifeInsurancePremiumDeduction(
     "介護医療保険料は新制度にのみ存在する区分のため、旧制度の入力欄は設けていない。",
     "個人年金保険料は税制適格特約付きの契約を前提とする。特約が無い個人年金保険料は一般生命保険料の区分に該当するため、区分はユーザー自身で確認すること。",
   ];
+
+  if (applyChildRearingSpecialMeasure) {
+    notes.push(
+      "23歳未満の扶養親族がいる場合の一般生命保険料控除(新制度)の拡充の時限特例(令和8年分・令和9年分限定)を適用し、所得税の上限を4万円から6万円に引き上げて計算している。住民税はこの特例の対象外(従来どおり上限2.8万円)。扶養親族の年齢はその年12月31日時点で判定し、該当の有無・合計所得金額等の要件はユーザー自身が確認すること。",
+    );
+  } else if (isChildRearingSpecialMeasureYear) {
+    notes.push(
+      "令和8年分・令和9年分は23歳未満の扶養親族がいる場合、一般生命保険料控除(新制度)の所得税の上限が4万円から6万円に引き上げられる時限特例があるが、該当のチェックが入っていないため通常の上限(4万円)で計算している。",
+    );
+  }
 
   return {
     general,
