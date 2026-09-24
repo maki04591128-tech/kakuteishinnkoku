@@ -172,10 +172,20 @@ export function buildTaxFilingDraftCsv(
     summary.mortgageDeduction ||
     summary.donationTaxCredit ||
     summary.foreignTaxCredit ||
-    summary.distributionAdjustedForeignTaxCredit
+    summary.distributionAdjustedForeignTaxCredit ||
+    summary.residentTaxAdjustmentDeduction
   ) {
     lines.push(toCsvLine(["■ 税額控除"]));
     lines.push(toCsvLine(["区分", "金額(円)", "申告書での主な記載箇所"]));
+    if (summary.residentTaxAdjustmentDeduction) {
+      lines.push(
+        toCsvLine([
+          "住民税の調整控除: 住民税からの控除額(所得税に対応する控除は無し)",
+          formatYen(summary.residentTaxAdjustmentDeduction.adjustmentDeductionJpy),
+          "住民税は市区町村側で自動計算されるため申告書への記載は不要",
+        ]),
+      );
+    }
     if (summary.mortgageDeduction) {
       lines.push(
         toCsvLine([

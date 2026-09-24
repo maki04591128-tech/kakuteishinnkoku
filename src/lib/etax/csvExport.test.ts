@@ -276,6 +276,55 @@ describe("buildTaxFilingDraftCsv", () => {
     expect(csv.split("\n").length).toBeGreaterThan(5);
   });
 
+  it("登録済みの住民税の調整控除を税額控除欄に出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { adjustmentDeductionJpy: new Decimal(2_500) },
+    );
+
+    const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
+
+    expect(csv).toContain("■ 税額控除");
+    expect(csv).toContain("住民税の調整控除");
+    expect(csv).toContain("2500");
+  });
+
+  it("住民税の調整控除が未登録の場合、住宅ローン控除等が登録されていれば税額控除欄には含めない", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        nationalTaxCreditJpy: new Decimal(210_000),
+        residentTaxCreditJpy: new Decimal(15_000),
+      },
+    );
+
+    const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
+
+    expect(csv).toContain("■ 税額控除");
+    expect(csv).not.toContain("住民税の調整控除");
+  });
+
   it("一般株式等(非上場株式)の譲渡所得等を上場株式等とは別区分で出力する", () => {
     const crypto = calculateCryptoPortfolioYear([]);
     const investment = calculateInvestmentPortfolioYear([]);
