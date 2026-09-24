@@ -29,11 +29,21 @@ import { prisma } from "./db";
  * (国税庁タックスアンサー等が出典)から機械的に計算できる差額と一致することを、
  * 洲本市の公式ページの一覧表と突き合わせて確認済み。基礎控除のみ、所得税の基礎控除が
  * 合計所得金額に応じた段階表(`src/lib/basicDeduction.ts`の
- * `NATIONAL_BASIC_DEDUCTION_TABLE_AFTER_REFORM`)に変わったことに伴い、単純な差額
+ * `NATIONAL_BASIC_DEDUCTION_TABLE_R7_R8`)に変わったことに伴い、単純な差額
  * (最大52万円)ではなく、合計所得金額336万円以下の層は「税制改正前の人的控除差5万円を
  * そのまま引き継ぐ」経過措置により5万円に据え置かれる(洲本市ページの脚注※1に明記)。
  * 336万円超の層は所得税・住民税の基礎控除額の単純な差額(25万円/20万円/15万円)がそのまま
  * 人的控除額の差になる。
+ *
+ * **令和9年分(2027年分)以後の扱い(未検証・今後の課題):** `src/lib/basicDeduction.ts`で
+ * 確認した通り、所得税の基礎控除の132万円超655万円以下の時限的な上乗せ(88万円/68万円/
+ * 63万円)は令和7年分・8年分限定で、令和9年分以後は58万円に統一される。この場合、
+ * 336万円以下の層を5万円に据え置く経過措置が令和9年分以後も続くのか(続く場合、
+ * その据え置き自体が対象とする所得区分が132万円超336万円以下のままか、あるいは655万円まで
+ * 広がるのか)は洲本市ページを含む一次情報で確認できていない。誤って過大な調整控除額を
+ * 案内するリスクを避けるため、本モジュールは令和9年分以後も暫定的に令和7・8年分の表
+ * (`BASIC_DEDUCTION_DIFF_AFTER_REFORM`)をそのまま適用し、`estimateResidentTaxAdjustmentDeduction`
+ * の返り値`notes`にその年分は未検証である旨を明記する。
  *
  * 配偶者特別控除・特定親族特別控除(令和7年度税制改正で新設)は、いずれも人的控除額の
  * 差の対象に含まれない(洲本市ページの一覧表に記載が無く、配偶者控除・扶養控除の
@@ -46,6 +56,8 @@ import { prisma } from "./db";
  */
 
 const REFORM_YEAR = 2025;
+/** この年分以後は基礎控除の人的控除額の差の扱いが一次情報で確認できておらず、令和7・8年分の表を暫定適用する */
+const REFORM_R9_ONWARD_UNVERIFIED_YEAR = 2027;
 
 interface DiffBracket {
   /** この金額以下ならこの区分を適用する(合計所得金額) */
@@ -305,6 +317,12 @@ export function estimateResidentTaxAdjustmentDeduction(
 
   const taxpayerTotalIncomeJpy = new Decimal(input.personalDeductionDifference.taxpayerTotalIncomeJpy);
   const notes: string[] = [];
+
+  if ((input.personalDeductionDifference.year ?? 0) >= REFORM_R9_ONWARD_UNVERIFIED_YEAR) {
+    notes.push(
+      "令和9年分(2027年分)以後は、所得税の基礎控除の時限的な上乗せ終了(令和7・8年分限定)が住民税の調整控除の人的控除額の差にどう反映されるか一次情報で確認できていないため、令和7・8年分の表を暫定適用した参考値である。",
+    );
+  }
 
   if (taxpayerTotalIncomeJpy.greaterThan(TOTAL_INCOME_LIMIT_JPY)) {
     notes.push("合計所得金額が2,500万円を超えるため、調整控除は適用されない(令和3年度税制改正)。");
