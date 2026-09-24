@@ -38,7 +38,10 @@ describe("calculatePersonalDeductionDifference", () => {
     expect(mid.totalJpy.toNumber()).toBe(50_000);
   });
 
-  it("基礎控除のみの場合、令和7年分以後は合計所得金額336万円超655万円以下で所得税・住民税の実差額になる", () => {
+  it("基礎控除のみの場合、令和7年分以後は合計所得金額336万円超655万円以下も経過措置により5万円に据え置かれる(所得税・住民税の実差額25万円/20万円にはならない)", () => {
+    // 洲本市「個人市県民税の税額控除(令和8年度課税以降適用)」・境港市の同種の案内で、
+    // 基礎控除の人的控除額の差は合計所得金額2,500万円以下の全区分で一律5万円と
+    // 明記されている(実差額ではなく税制改正前の差額をそのまま据え置く経過措置)。
     const band489 = calculatePersonalDeductionDifference({
       year: 2025,
       taxpayerTotalIncomeJpy: 4_000_000,
@@ -48,8 +51,22 @@ describe("calculatePersonalDeductionDifference", () => {
       taxpayerTotalIncomeJpy: 6_000_000,
     });
 
-    expect(band489.totalJpy.toNumber()).toBe(250_000);
-    expect(band655.totalJpy.toNumber()).toBe(200_000);
+    expect(band489.totalJpy.toNumber()).toBe(50_000);
+    expect(band655.totalJpy.toNumber()).toBe(50_000);
+  });
+
+  it("基礎控除のみの場合、令和7年分以後は合計所得金額2,400万円超2,500万円以下の高所得逓減区分も一律5万円に据え置かれる(所得税・住民税の実差額3万円/1万円にはならない)", () => {
+    const band2450 = calculatePersonalDeductionDifference({
+      year: 2025,
+      taxpayerTotalIncomeJpy: 24_400_000,
+    });
+    const band2500 = calculatePersonalDeductionDifference({
+      year: 2025,
+      taxpayerTotalIncomeJpy: 24_900_000,
+    });
+
+    expect(band2450.totalJpy.toNumber()).toBe(50_000);
+    expect(band2500.totalJpy.toNumber()).toBe(50_000);
   });
 
   it("配偶者控除(一般)は合計所得金額900万円以下で5万円になる(基礎控除5万円と合算)", () => {
