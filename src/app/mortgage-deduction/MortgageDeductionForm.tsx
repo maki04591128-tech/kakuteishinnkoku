@@ -29,6 +29,7 @@ export function MortgageDeductionForm({
   const [moveInYear, setMoveInYear] = useState(String(defaultTaxYear));
   const [housingCategory, setHousingCategory] = useState<HousingCategory>("ENERGY_SAVING");
   const [isExistingHome, setIsExistingHome] = useState(false);
+  const [isBuyAndResaleHome, setIsBuyAndResaleHome] = useState(false);
   const [isChildRearingHousehold, setIsChildRearingHousehold] = useState(false);
   const [isSmallFloorArea, setIsSmallFloorArea] = useState(false);
   const [otherHousingTransitionalMeasure, setOtherHousingTransitionalMeasure] = useState(false);
@@ -52,6 +53,7 @@ export function MortgageDeductionForm({
         moveInYear: Number(moveInYear),
         housingCategory,
         isExistingHome,
+        isBuyAndResaleHome,
         isChildRearingHousehold,
         isSmallFloorArea,
         otherHousingTransitionalMeasure,
@@ -87,6 +89,7 @@ export function MortgageDeductionForm({
     moveInYear,
     housingCategory,
     isExistingHome,
+    isBuyAndResaleHome,
     isChildRearingHousehold,
     isSmallFloorArea,
     otherHousingTransitionalMeasure,
@@ -129,10 +132,23 @@ export function MortgageDeductionForm({
           <input
             type="checkbox"
             checked={isExistingHome}
-            onChange={(e) => setIsExistingHome(e.target.checked)}
+            onChange={(e) => {
+              setIsExistingHome(e.target.checked);
+              if (e.target.checked) setIsBuyAndResaleHome(false);
+            }}
           />
           既存住宅(中古)の取得
         </label>
+        {!isExistingHome && (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isBuyAndResaleHome}
+              onChange={(e) => setIsBuyAndResaleHome(e.target.checked)}
+            />
+            買取再販住宅(宅地建物取引業者が既存住宅を改修して再販した住宅)の取得
+          </label>
+        )}
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -227,7 +243,7 @@ export function MortgageDeductionForm({
         )}
         <Field
           label={
-            isSmallFloorArea && !isExistingHome
+            isSmallFloorArea && !isExistingHome && !isBuyAndResaleHome
               ? "その年の合計所得金額(床面積特例のため1,000万円超は適用不可)"
               : "その年の合計所得金額(2,000万円超は適用不可)"
           }

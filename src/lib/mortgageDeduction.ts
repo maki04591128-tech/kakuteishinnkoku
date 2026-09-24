@@ -21,9 +21,12 @@ import { prisma } from "./db";
  *    令和8年(2026年)入居分からは既存住宅(中古)にも拡大)
  *
  * 控除期間は、新築等かつ認定住宅・ZEH水準省エネ住宅・省エネ基準適合住宅の
- * いずれかに該当する場合は13年間、それ以外(新築等の「その他の住宅」・
- * 令和4〜7年入居の既存住宅)は10年間。令和8年(2026年)以降入居の既存住宅は
- * 「その他の住宅」を除き控除期間が13年間に拡充される。
+ * いずれかに該当する場合は13年間。新築等の「その他の住宅」は、令和4・5年
+ * (2022・2023年)入居分に限り(省エネ基準への適合を問わず経過措置として)
+ * 他の区分と同じ13年間になり、令和6年(2024年)以降入居分は原則対象外(0円)、
+ * 経過措置適用時は10年間になる(国税庁タックスアンサーNo.1211-1の借入限度額表で
+ * 確認。令和4〜7年入居の既存住宅は区分によらず10年間)。令和8年(2026年)以降入居の
+ * 既存住宅は「その他の住宅」を除き控除期間が13年間に拡充される。
  *
  * 床面積40㎡以上50㎡未満の特例(isSmallFloorArea)は、新築等(既存住宅・買取再販を除く)
  * の場合に限り、合計所得金額の上限を2,000万円ではなく1,000万円として判定する
@@ -72,9 +75,28 @@ import { prisma } from "./db";
  *    既存住宅・リフォームは対象)。この判定はこのモジュールでは行わないため、
  *    該当の可能性がある場合はユーザー自身が確認すること。
  *
+ * **買取再販住宅(isBuyAndResaleHome)への対応:** 宅地建物取引業者が既存住宅を
+ * 取得しリフォーム等をして再販した住宅(買取再販住宅)を取得した場合、国税庁
+ * タックスアンサーNo.1211-2に、新築住宅(No.1211-1)とは別の借入限度額表がある。
+ * 認定住宅・ZEH水準省エネ住宅・省エネ基準適合住宅(令和8・9年入居分まで)は
+ * 新築住宅と全く同じ限度額・控除期間のため`isBuyAndResaleHome`は結果に影響しない。
+ * 次の3点のみ新築住宅と異なるため`isBuyAndResaleHome`をtrueにすると反映する
+ * (両方のタックスアンサーページの借入限度額表を突き合わせて確認)。
+ *  - 「その他の住宅」は令和6年(2024年)以降入居分も、新築住宅のような
+ *    経過措置の適用有無(`otherHousingTransitionalMeasure`)によらず、常に
+ *    借入限度額2,000万円・控除期間10年になる(新築住宅は経過措置未適用だと0円)。
+ *  - 省エネ基準適合住宅は令和10年(2028年)以降入居分も、新築住宅のような
+ *    経過措置の適用有無(`energySavingTransitionalMeasure`)によらず、常に
+ *    借入限度額2,000万円・控除期間13年になる(新築住宅は経過措置未適用だと0円、
+ *    経過措置適用時も控除期間は10年に短縮される点が買取再販住宅と異なる)。
+ *  - 認定住宅の子育て世帯等向け上乗せ措置(5,000万円)は、令和8年(2026年)以降
+ *    入居分の買取再販住宅には適用されない(新築住宅では引き続き適用される)。
+ * 買取再販住宅は既存住宅(中古)そのものではなく新築住宅に準じた区分のため、
+ * `isExistingHome`と同時にtrueを指定するとエラーにする。また床面積40㎡以上
+ * 50㎡未満の特例(`isSmallFloorArea`)は買取再販住宅を除く新築等のみが対象のため、
+ * `isBuyAndResaleHome`がtrueの場合は既存住宅と同様に反映しない。
+ *
  * 簡略化している点(今後の課題):
- *  - 「買取再販住宅」固有の限度額差異(認定住宅等以外の区分で新築と異なる場合が
- *    ある)は反映せず、新築住宅と同じ限度額として扱う。
  *  - 子育て世帯等に該当するかどうかの判定(年齢・扶養親族の有無)はユーザー自身が
  *    行う前提とし、本モジュールは入力されたフラグをそのまま使う。
  *  - 令和10年(2028年)以降入居分の新築住宅における「災害レッドゾーン」要件は、
@@ -212,6 +234,15 @@ export interface MortgageDeductionInput {
   /** 既存住宅(中古)の取得かどうか(false=新築等・買取再販) */
   isExistingHome: boolean;
   /**
+   * 買取再販住宅(宅地建物取引業者が既存住宅を取得しリフォーム等をして再販した
+   * 住宅)を取得したかどうか(国税庁タックスアンサーNo.1211-2)。`isExistingHome`が
+   * falseの場合のみ指定できる(既存住宅(中古)そのものではなく新築住宅に準じた
+   * 区分のため。両方trueにするとエラーになる)。新築住宅と借入限度額・控除期間が
+   * 異なる区分(「その他の住宅」・令和10年(2028年)以降入居の省エネ基準適合住宅・
+   * 令和8年(2026年)以降入居の認定住宅の子育て世帯等向け上乗せ措置)にのみ影響する。
+   */
+  isBuyAndResaleHome?: boolean;
+  /**
    * 子育て世帯等(令和6年(2024年)以降入居の新築等、または令和8年(2026年)以降
    * 入居の既存住宅(中古)が上乗せ措置の対象。「その他の住宅」・令和10年(2028年)
    * 以降入居の省エネ基準適合住宅の経過措置には適用されない)
@@ -336,6 +367,7 @@ function resolveBorrowingLimitJpy(
   moveInYear: number,
   housingCategory: HousingCategory,
   isExistingHome: boolean,
+  isBuyAndResaleHome: boolean,
   isChildRearingHousehold: boolean,
   otherHousingTransitionalMeasure: boolean,
   energySavingTransitionalMeasure: boolean,
@@ -364,7 +396,7 @@ function resolveBorrowingLimitJpy(
       const bonus = CHILD_REARING_BONUS_LIMITS_R6_R7[housingCategory];
       if (bonus !== undefined) return new Decimal(bonus);
     }
-    if (housingCategory === "OTHER" && otherHousingTransitionalMeasure) {
+    if (housingCategory === "OTHER" && (isBuyAndResaleHome || otherHousingTransitionalMeasure)) {
       return new Decimal(OTHER_HOUSING_TRANSITIONAL_MEASURE_LIMIT_JPY);
     }
     return new Decimal(NEW_BUILD_LIMITS_R6_R7[housingCategory]);
@@ -372,16 +404,16 @@ function resolveBorrowingLimitJpy(
 
   if (isR8ToR12MoveIn(moveInYear)) {
     if (housingCategory === "OTHER") {
-      return otherHousingTransitionalMeasure
+      return isBuyAndResaleHome || otherHousingTransitionalMeasure
         ? new Decimal(OTHER_HOUSING_TRANSITIONAL_MEASURE_LIMIT_JPY)
         : new Decimal(0);
     }
     if (housingCategory === "ENERGY_SAVING" && moveInYear >= 2028) {
-      return energySavingTransitionalMeasure
+      return isBuyAndResaleHome || energySavingTransitionalMeasure
         ? new Decimal(ENERGY_SAVING_TRANSITIONAL_MEASURE_LIMIT_JPY)
         : new Decimal(0);
     }
-    if (isChildRearingHousehold) {
+    if (isChildRearingHousehold && !(isBuyAndResaleHome && housingCategory === "CERTIFIED")) {
       const bonus = CHILD_REARING_BONUS_LIMITS_R8_R12[housingCategory];
       if (bonus !== undefined) return new Decimal(bonus);
     }
@@ -397,6 +429,7 @@ function controlPeriodYears(
   moveInYear: number,
   housingCategory: HousingCategory,
   isExistingHome: boolean,
+  isBuyAndResaleHome: boolean,
 ): number {
   if (isExistingHome) {
     if (isR8ToR12MoveIn(moveInYear)) {
@@ -404,11 +437,18 @@ function controlPeriodYears(
     }
     return 10;
   }
-  if (housingCategory === "OTHER") return 10;
+  if (housingCategory === "OTHER") {
+    // 令和4・5年(2022・2023年)入居分は他の区分と同じ13年間(国税庁タックスアンサー
+    // No.1211-1)。令和6年(2024年)以降入居分は原則対象外(borrowingLimitJpyが0円で
+    // eligible=falseになる)だが、経過措置(otherHousingTransitionalMeasure)または
+    // 買取再販住宅(isBuyAndResaleHome)の場合は10年間になる。
+    return moveInYear === 2022 || moveInYear === 2023 ? 13 : 10;
+  }
   if (isR8ToR12MoveIn(moveInYear) && housingCategory === "ENERGY_SAVING" && moveInYear >= 2028) {
-    // 経過措置(energySavingTransitionalMeasure)適用時の控除期間。対象外の場合は
-    // borrowingLimitJpyが0円になりeligible=falseで返る。
-    return 10;
+    // 買取再販住宅は経過措置の有無によらず常に13年間(borrowingLimitJpyも常に
+    // 2,000万円)。新築住宅は経過措置(energySavingTransitionalMeasure)適用時のみ
+    // 10年間で、対象外の場合はborrowingLimitJpyが0円になりeligible=falseで返る。
+    return isBuyAndResaleHome ? 13 : 10;
   }
   return 13;
 }
@@ -422,6 +462,7 @@ export function calculateMortgageDeduction(
   const isSmallFloorArea = input.isSmallFloorArea ?? false;
   const otherHousingTransitionalMeasure = input.otherHousingTransitionalMeasure ?? false;
   const energySavingTransitionalMeasure = input.energySavingTransitionalMeasure ?? false;
+  const isBuyAndResaleHome = input.isBuyAndResaleHome ?? false;
 
   requireNonNegative(yearEndLoanBalanceJpy, "年末借入金残高");
   requireNonNegative(totalIncomeJpy, "合計所得金額");
@@ -431,11 +472,17 @@ export function calculateMortgageDeduction(
       "居住年は令和4年(2022年)〜令和12年(2030年)の範囲で入力してください(本ツールは令和13年以降の入居に未対応)",
     );
   }
+  if (isBuyAndResaleHome && input.isExistingHome) {
+    throw new Error(
+      "買取再販住宅と既存住宅(中古)は同時に指定できません(買取再販住宅は既存住宅そのものではなく新築住宅に準じた区分として扱います)",
+    );
+  }
 
   const borrowingLimitJpy = resolveBorrowingLimitJpy(
     input.moveInYear,
     input.housingCategory,
     input.isExistingHome,
+    isBuyAndResaleHome,
     isChildRearingHousehold,
     otherHousingTransitionalMeasure,
     energySavingTransitionalMeasure,
@@ -444,12 +491,14 @@ export function calculateMortgageDeduction(
     input.moveInYear,
     input.housingCategory,
     input.isExistingHome,
+    isBuyAndResaleHome,
   );
   const controlPeriodEndYear = input.moveInYear + periodYears - 1;
   const floorAreaBonusConflict =
     isSmallFloorArea &&
     isChildRearingHousehold &&
     !input.isExistingHome &&
+    !isBuyAndResaleHome &&
     isR8ToR12MoveIn(input.moveInYear);
 
   const notes: string[] = [
@@ -527,6 +576,10 @@ export function calculateMortgageDeduction(
       notes.push(
         "床面積40㎡以上50㎡未満の特例は新築等(買取再販住宅・既存住宅を除く)のみが対象のため、既存住宅(中古)にチェックした場合は反映していない。",
       );
+    } else if (isBuyAndResaleHome) {
+      notes.push(
+        "床面積40㎡以上50㎡未満の特例は買取再販住宅を除く新築等のみが対象のため、買取再販住宅にチェックした場合は反映していない。",
+      );
     } else if (isR8ToR12MoveIn(input.moveInYear)) {
       notes.push(
         "令和8年(2026年)以降入居分は床面積40㎡以上が恒久的な要件になったため、期限付きの建築確認要件はない。ただし合計所得金額が1,000万円を超える場合、または子育て世帯等向けの上乗せ措置を利用する場合は床面積50㎡以上が必要なため、合計所得金額の要件を2,000万円ではなく1,000万円として判定している。",
@@ -540,7 +593,8 @@ export function calculateMortgageDeduction(
     notes.push("床面積50㎡以上の住宅を前提とする(40㎡以上50㎡未満の特例は入力欄から選択可能)。");
   }
 
-  const applySmallFloorAreaLimit = isSmallFloorArea && !input.isExistingHome;
+  const applySmallFloorAreaLimit =
+    isSmallFloorArea && !input.isExistingHome && !isBuyAndResaleHome;
   const totalIncomeLimitJpy = applySmallFloorAreaLimit
     ? SMALL_FLOOR_AREA_TOTAL_INCOME_LIMIT_JPY
     : TOTAL_INCOME_LIMIT_JPY;
@@ -635,10 +689,24 @@ export function calculateMortgageDeduction(
   if (isChildRearingHousehold && !input.isExistingHome && input.housingCategory === "OTHER") {
     notes.push("子育て世帯等向けの上乗せ措置は「その他の住宅」には適用されない(引き続き対象外)。");
   }
+  if (
+    isChildRearingHousehold &&
+    isBuyAndResaleHome &&
+    input.housingCategory === "CERTIFIED" &&
+    isR8ToR12MoveIn(input.moveInYear)
+  ) {
+    notes.push(
+      "買取再販住宅の認定住宅は、令和8年(2026年)以降入居分は子育て世帯等向けの上乗せ措置の対象外のため、通常の借入限度額(4,500万円)で計算した(新築住宅は引き続き上乗せ措置の対象。国税庁タックスアンサーNo.1211-2)。",
+    );
+  }
 
   const otherHousingTransitionalMeasureApplicable =
     !input.isExistingHome && input.housingCategory === "OTHER" && input.moveInYear >= 2024;
-  if (otherHousingTransitionalMeasure && otherHousingTransitionalMeasureApplicable) {
+  if (isBuyAndResaleHome && otherHousingTransitionalMeasureApplicable) {
+    notes.push(
+      "買取再販住宅の「その他の住宅」は、新築住宅のような経過措置の適用有無によらず、常に借入限度額2,000万円・控除期間10年になる(国税庁タックスアンサーNo.1211-2)。",
+    );
+  } else if (otherHousingTransitionalMeasure && otherHousingTransitionalMeasureApplicable) {
     notes.push(
       "新築等の「その他の住宅」の経過措置(令和5年12月31日までの建築確認、または令和6年6月30日までの建築)により、借入限度額を2,000万円として計算した。この期限内であることの確認自体はユーザー自身が行う前提とする。",
     );
@@ -648,7 +716,7 @@ export function calculateMortgageDeduction(
     );
   } else if (otherHousingTransitionalMeasureApplicable) {
     notes.push(
-      "新築等の「その他の住宅」は令和6年(2024年)以降入居の場合、原則対象外だが、令和5年12月31日までの建築確認(または令和6年6月30日までの建築)があれば経過措置により借入限度額2,000万円・控除期間10年の対象になる。該当する場合は経過措置のチェックを入れること。",
+      "新築等の「その他の住宅」は令和6年(2024年)以降入居の場合、原則対象外だが、令和5年12月31日までの建築確認(または令和6年6月30日までの建築)があれば経過措置により借入限度額2,000万円・控除期間10年の対象になる(買取再販住宅の場合は経過措置の有無を問わず常に対象になるため、買取再販住宅のチェックを入れること)。該当する場合は経過措置のチェックを入れること。",
     );
   }
 
@@ -657,7 +725,11 @@ export function calculateMortgageDeduction(
     input.housingCategory === "ENERGY_SAVING" &&
     isR8ToR12MoveIn(input.moveInYear) &&
     input.moveInYear >= 2028;
-  if (energySavingTransitionalMeasure && energySavingTransitionalMeasureApplicable) {
+  if (isBuyAndResaleHome && energySavingTransitionalMeasureApplicable) {
+    notes.push(
+      "買取再販住宅の省エネ基準適合住宅は、新築住宅のような経過措置の適用有無によらず、常に借入限度額2,000万円・控除期間13年になる(新築住宅は経過措置適用時でも控除期間が10年に短縮される点が異なる。国税庁タックスアンサーNo.1211-2)。",
+    );
+  } else if (energySavingTransitionalMeasure && energySavingTransitionalMeasureApplicable) {
     notes.push(
       "新築等の省エネ基準適合住宅の経過措置(令和9年(2027年)末までの建築確認、または令和10年6月30日までの建築)により、借入限度額を2,000万円(子育て世帯等の上乗せなし)・控除期間10年として計算した。この期限内であることの確認自体はユーザー自身が行う前提とする。",
     );
@@ -667,7 +739,7 @@ export function calculateMortgageDeduction(
     );
   } else if (energySavingTransitionalMeasureApplicable) {
     notes.push(
-      "新築等の省エネ基準適合住宅は令和10年(2028年)以降入居の場合、原則対象外だが、令和9年(2027年)末までの建築確認(または令和10年6月30日までの建築)があれば経過措置により借入限度額2,000万円・控除期間10年の対象になる。該当する場合は経過措置のチェックを入れること。",
+      "新築等の省エネ基準適合住宅は令和10年(2028年)以降入居の場合、原則対象外だが、令和9年(2027年)末までの建築確認(または令和10年6月30日までの建築)があれば経過措置により借入限度額2,000万円・控除期間10年の対象になる(買取再販住宅の場合は経過措置の有無を問わず常に借入限度額2,000万円・控除期間13年で対象になるため、買取再販住宅のチェックを入れること)。該当する場合は経過措置のチェックを入れること。",
     );
   }
 

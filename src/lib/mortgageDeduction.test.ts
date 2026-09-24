@@ -13,13 +13,13 @@ function baseInput() {
 }
 
 describe("calculateMortgageDeduction", () => {
-  it("令和4・5年入居の新築「その他の住宅」は借入限度額3,000万円・控除期間10年になる", () => {
+  it("令和4・5年入居の新築「その他の住宅」は借入限度額3,000万円・控除期間13年になる(他の区分と同じ経過措置)", () => {
     const result = calculateMortgageDeduction(baseInput());
 
     expect(result.eligible).toBe(true);
     expect(result.borrowingLimitJpy.toNumber()).toBe(30_000_000);
-    expect(result.controlPeriodYears).toBe(10);
-    expect(result.controlPeriodEndYear).toBe(2031);
+    expect(result.controlPeriodYears).toBe(13);
+    expect(result.controlPeriodEndYear).toBe(2034);
   });
 
   it("年末残高が借入限度額以下の場合は残高全額に控除率0.7%を乗じた額になる", () => {
@@ -203,7 +203,7 @@ describe("calculateMortgageDeduction", () => {
     const result = calculateMortgageDeduction({
       ...baseInput(),
       moveInYear: 2022,
-      taxYear: 2032,
+      taxYear: 2035,
     });
 
     expect(result.eligible).toBe(false);
@@ -737,6 +737,114 @@ describe("calculateMortgageDeduction", () => {
       expect(result.eligible).toBe(true);
       expect(result.borrowingLimitJpy.toNumber()).toBe(35_000_000);
       expect(result.controlPeriodEndYear).toBe(2042);
+    });
+  });
+
+  describe("買取再販住宅(isBuyAndResaleHome。国税庁タックスアンサーNo.1211-2)", () => {
+    it("令和4・5年入居は新築住宅と同じ限度額・控除期間になる(認定住宅5,000万円・13年)", () => {
+      const result = calculateMortgageDeduction({
+        ...baseInput(),
+        housingCategory: "CERTIFIED",
+        isBuyAndResaleHome: true,
+        yearEndLoanBalanceJpy: 60_000_000,
+      });
+
+      expect(result.borrowingLimitJpy.toNumber()).toBe(50_000_000);
+      expect(result.controlPeriodYears).toBe(13);
+    });
+
+    it("令和6・7年入居の「その他の住宅」は経過措置チェックなしでも借入限度額2,000万円・控除期間10年になる", () => {
+      const result = calculateMortgageDeduction({
+        ...baseInput(),
+        moveInYear: 2024,
+        taxYear: 2024,
+        housingCategory: "OTHER",
+        isBuyAndResaleHome: true,
+      });
+
+      expect(result.eligible).toBe(true);
+      expect(result.borrowingLimitJpy.toNumber()).toBe(20_000_000);
+      expect(result.controlPeriodYears).toBe(10);
+    });
+
+    it("令和8年〜令和12年入居の「その他の住宅」も経過措置チェックなしで借入限度額2,000万円・控除期間10年になる", () => {
+      const result = calculateMortgageDeduction({
+        ...baseInput(),
+        moveInYear: 2026,
+        taxYear: 2026,
+        housingCategory: "OTHER",
+        isBuyAndResaleHome: true,
+      });
+
+      expect(result.eligible).toBe(true);
+      expect(result.borrowingLimitJpy.toNumber()).toBe(20_000_000);
+      expect(result.controlPeriodYears).toBe(10);
+    });
+
+    it("令和10年(2028年)以降入居の省エネ基準適合住宅は経過措置チェックなしでも借入限度額2,000万円・控除期間13年になる(新築住宅は経過措置適用時でも10年)", () => {
+      const result = calculateMortgageDeduction({
+        ...baseInput(),
+        moveInYear: 2028,
+        taxYear: 2028,
+        housingCategory: "ENERGY_SAVING",
+        isBuyAndResaleHome: true,
+      });
+
+      expect(result.eligible).toBe(true);
+      expect(result.borrowingLimitJpy.toNumber()).toBe(20_000_000);
+      expect(result.controlPeriodYears).toBe(13);
+      expect(result.controlPeriodEndYear).toBe(2040);
+    });
+
+    it("令和8年以降入居の認定住宅は子育て世帯等でも上乗せ措置の対象外になる(通常の借入限度額のまま)", () => {
+      const result = calculateMortgageDeduction({
+        ...baseInput(),
+        moveInYear: 2026,
+        taxYear: 2026,
+        housingCategory: "CERTIFIED",
+        isBuyAndResaleHome: true,
+        isChildRearingHousehold: true,
+        yearEndLoanBalanceJpy: 60_000_000,
+      });
+
+      expect(result.borrowingLimitJpy.toNumber()).toBe(45_000_000);
+    });
+
+    it("令和6・7年入居の認定住宅は子育て世帯等の上乗せ措置が引き続き適用される(令和8年以降限定の除外)", () => {
+      const result = calculateMortgageDeduction({
+        ...baseInput(),
+        moveInYear: 2024,
+        taxYear: 2024,
+        housingCategory: "CERTIFIED",
+        isBuyAndResaleHome: true,
+        isChildRearingHousehold: true,
+        yearEndLoanBalanceJpy: 60_000_000,
+      });
+
+      expect(result.borrowingLimitJpy.toNumber()).toBe(50_000_000);
+    });
+
+    it("床面積40㎡以上50㎡未満の特例は買取再販住宅には適用されない(所得要件は2,000万円のまま)", () => {
+      const result = calculateMortgageDeduction({
+        ...baseInput(),
+        housingCategory: "CERTIFIED",
+        isBuyAndResaleHome: true,
+        isSmallFloorArea: true,
+        totalIncomeJpy: 15_000_000,
+        yearEndLoanBalanceJpy: 60_000_000,
+      });
+
+      expect(result.eligible).toBe(true);
+    });
+
+    it("既存住宅(中古)と同時に指定するとエラーになる", () => {
+      expect(() =>
+        calculateMortgageDeduction({
+          ...baseInput(),
+          isExistingHome: true,
+          isBuyAndResaleHome: true,
+        }),
+      ).toThrow();
     });
   });
 });
