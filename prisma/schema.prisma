@@ -48,6 +48,7 @@ model TaxYear {
   residentTaxAdjustmentDeductionRecords       ResidentTaxAdjustmentDeductionRecord[]
   donationTaxCreditRecords                    DonationTaxCreditRecord[]
   distributionAdjustedForeignTaxCreditRecords DistributionAdjustedForeignTaxCreditRecord[]
+  earthquakeRenovationDeductionRecords        EarthquakeRenovationDeductionRecord[]
 }
 
 enum CryptoCostMethod {
@@ -395,6 +396,26 @@ model DistributionAdjustedForeignTaxCreditRecord {
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
 
   /// その年分の控除額(所得税・復興特別所得税分)
+  creditJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 住宅耐震改修特別控除(租税特別措置法41条の19の2。src/lib/
+/// earthquakeRenovationDeduction.ts)の当年分の登録額を年分ごとに保存し、
+/// `/tax-estimate`の合計税額試算・下書きCSVへ自動反映するためのデータ。
+/// 住宅ローン控除(MortgageDeductionRecord)と異なり住民税への振替制度が無く、
+/// 所得税分のみを保持する。`/earthquake-renovation-deduction`の「この試算結果を
+/// ◯年分の住宅耐震改修特別控除として登録する」ボタンから登録する。
+model EarthquakeRenovationDeductionRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の控除額(所得税分のみ)
   creditJpy Decimal
 
   createdAt DateTime @default(now())

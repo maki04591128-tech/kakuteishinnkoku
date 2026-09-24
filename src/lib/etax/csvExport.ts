@@ -171,6 +171,7 @@ export function buildTaxFilingDraftCsv(
   if (
     summary.mortgageDeduction ||
     summary.donationTaxCredit ||
+    summary.earthquakeRenovationDeduction ||
     summary.foreignTaxCredit ||
     summary.distributionAdjustedForeignTaxCredit ||
     summary.residentTaxAdjustmentDeduction
@@ -221,6 +222,15 @@ export function buildTaxFilingDraftCsv(
           ]),
         );
       }
+    }
+    if (summary.earthquakeRenovationDeduction) {
+      lines.push(
+        toCsvLine([
+          "住宅耐震改修特別控除額: 所得税からの控除額(住民税に相当する控除は無し)",
+          formatYen(summary.earthquakeRenovationDeduction.creditJpy),
+          "申告書第一表 税額控除(住宅耐震改修特別控除等) / 住宅耐震改修特別控除額の計算明細書",
+        ]),
+      );
     }
     if (summary.foreignTaxCredit) {
       lines.push(

@@ -7,6 +7,7 @@ import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { getDistributionAdjustedForeignTaxCreditRecord } from "@/lib/investment/distributionAdjustedForeignTaxCredit";
 import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
 import { getResidentTaxAdjustmentDeductionRecord } from "@/lib/residentTaxAdjustmentDeduction";
+import { getEarthquakeRenovationDeductionRecord } from "@/lib/earthquakeRenovationDeduction";
 import { buildYearReport } from "@/lib/reporting";
 
 export async function GET(request: NextRequest) {
@@ -24,12 +25,14 @@ export async function GET(request: NextRequest) {
     donationTaxCreditRecord,
     distributionAdjustedForeignTaxCreditRecord,
     residentTaxAdjustmentDeductionRecord,
+    earthquakeRenovationDeductionRecord,
   ] = await Promise.all([
     getMortgageDeductionRecord(year),
     getForeignTaxCreditRecord(year),
     getDonationTaxCreditRecord(year),
     getDistributionAdjustedForeignTaxCreditRecord(year),
     getResidentTaxAdjustmentDeductionRecord(year),
+    getEarthquakeRenovationDeductionRecord(year),
   ]);
 
   const summary = buildTaxFilingSummary(
@@ -61,6 +64,9 @@ export async function GET(request: NextRequest) {
       : undefined,
     residentTaxAdjustmentDeductionRecord
       ? { adjustmentDeductionJpy: residentTaxAdjustmentDeductionRecord.adjustmentDeductionJpy }
+      : undefined,
+    earthquakeRenovationDeductionRecord
+      ? { creditJpy: earthquakeRenovationDeductionRecord.creditJpy }
       : undefined,
   );
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);

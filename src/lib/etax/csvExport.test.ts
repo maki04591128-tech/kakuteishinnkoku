@@ -325,6 +325,33 @@ describe("buildTaxFilingDraftCsv", () => {
     expect(csv).not.toContain("住民税の調整控除");
   });
 
+  it("住宅耐震改修特別控除が登録されていれば税額控除欄に金額付きで出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([]);
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { creditJpy: new Decimal(250_000) },
+    );
+
+    const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
+
+    expect(csv).toContain("■ 税額控除");
+    expect(csv).toContain("住宅耐震改修特別控除額");
+    expect(csv).toContain("250000");
+  });
+
   it("一般株式等(非上場株式)の譲渡所得等を上場株式等とは別区分で出力する", () => {
     const crypto = calculateCryptoPortfolioYear([]);
     const investment = calculateInvestmentPortfolioYear([]);
