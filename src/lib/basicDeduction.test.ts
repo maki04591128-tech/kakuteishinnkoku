@@ -20,22 +20,41 @@ describe("estimateBasicDeduction", () => {
     expect(result.residentTaxAmountJpy.toNumber()).toBe(430_000);
   });
 
-  it("令和7年分の所得税基礎控除の段階表(132万円超336万円以下は88万円等)", () => {
-    expect(
-      estimateBasicDeduction({ totalIncomeJpy: 3_360_000, year: 2025 }).incomeTaxAmountJpy.toNumber(),
-    ).toBe(880_000);
-    expect(
-      estimateBasicDeduction({ totalIncomeJpy: 4_890_000, year: 2025 }).incomeTaxAmountJpy.toNumber(),
-    ).toBe(680_000);
-    expect(
-      estimateBasicDeduction({ totalIncomeJpy: 6_550_000, year: 2025 }).incomeTaxAmountJpy.toNumber(),
-    ).toBe(630_000);
+  it("令和7年分・8年分の所得税基礎控除の段階表(132万円超336万円以下は88万円等、時限的な上乗せ)", () => {
+    for (const year of [2025, 2026]) {
+      expect(
+        estimateBasicDeduction({ totalIncomeJpy: 3_360_000, year }).incomeTaxAmountJpy.toNumber(),
+      ).toBe(880_000);
+      expect(
+        estimateBasicDeduction({ totalIncomeJpy: 4_890_000, year }).incomeTaxAmountJpy.toNumber(),
+      ).toBe(680_000);
+      expect(
+        estimateBasicDeduction({ totalIncomeJpy: 6_550_000, year }).incomeTaxAmountJpy.toNumber(),
+      ).toBe(630_000);
+    }
   });
 
   it("令和7年分は合計所得金額655万円超2,350万円以下だと所得税58万円", () => {
     const result = estimateBasicDeduction({ totalIncomeJpy: 10_000_000, year: 2025 });
     expect(result.incomeTaxAmountJpy.toNumber()).toBe(580_000);
     expect(result.residentTaxAmountJpy.toNumber()).toBe(430_000);
+  });
+
+  it("令和9年分以後は132万円超655万円以下の時限的な上乗せが終了し58万円に統一される", () => {
+    for (const totalIncomeJpy of [3_360_000, 4_890_000, 6_550_000]) {
+      const result = estimateBasicDeduction({ totalIncomeJpy, year: 2027 });
+      expect(result.incomeTaxAmountJpy.toNumber()).toBe(580_000);
+      expect(result.residentTaxAmountJpy.toNumber()).toBe(430_000);
+    }
+  });
+
+  it("令和9年分以後も132万円以下(95万円)・655万円超2,350万円以下(58万円)は変わらない", () => {
+    expect(
+      estimateBasicDeduction({ totalIncomeJpy: 1_320_000, year: 2027 }).incomeTaxAmountJpy.toNumber(),
+    ).toBe(950_000);
+    expect(
+      estimateBasicDeduction({ totalIncomeJpy: 10_000_000, year: 2028 }).incomeTaxAmountJpy.toNumber(),
+    ).toBe(580_000);
   });
 
   it("高所得層側の逓減・消失は年分に関わらず所得税・住民税とも従来通り", () => {
