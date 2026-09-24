@@ -46,6 +46,7 @@ model TaxYear {
   mortgageDeductionRecords                MortgageDeductionRecord[]
   foreignTaxCreditRecords                 ForeignTaxCreditRecord[]
   residentTaxAdjustmentDeductionRecords   ResidentTaxAdjustmentDeductionRecord[]
+  donationTaxCreditRecords                DonationTaxCreditRecord[]
 }
 
 enum CryptoCostMethod {
@@ -348,6 +349,27 @@ model ResidentTaxAdjustmentDeductionRecord {
 
   /// その年分の調整控除額(ResidentTaxAdjustmentDeductionResult.adjustmentDeductionJpy)
   adjustmentDeductionJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 政党等・認定NPO法人等・公益社団法人等寄附金特別控除(税額控除。
+/// src/lib/donationTaxCredit.ts)の当年分の試算結果を年分ごとに保存し、
+/// `/tax-estimate`の合計税額試算・下書きCSVへ自動反映するためのデータ。
+/// 住宅ローン控除(MortgageDeductionRecord)・外国税額控除(ForeignTaxCreditRecord)と
+/// 同様、`/donation-tax-credit`の「この年分の寄附金特別控除として登録する」ボタンから
+/// 登録する。この特別控除は所得税のみの制度(住民税の寄附金控除は別途条例指定の有無で
+/// 決まり本モジュールでは試算しない)のため、所得税分の控除額1列のみを保持する。
+model DonationTaxCreditRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の特別控除額の合計(DonationTaxCreditResult.totalTaxCreditJpy)
+  totalTaxCreditJpy Decimal
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -10,6 +10,7 @@ import {
 import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
 import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { getResidentTaxAdjustmentDeductionRecord } from "@/lib/residentTaxAdjustmentDeduction";
+import { getDonationTaxCreditRecord } from "@/lib/donationTaxCredit";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -89,6 +90,10 @@ export default async function TaxEstimatePage({
   const registeredResidentTaxAdjustmentDeductionJpy =
     residentTaxAdjustmentDeductionRecord?.adjustmentDeductionJpy.toNumber() ?? null;
 
+  const donationTaxCreditRecord = await getDonationTaxCreditRecord(year);
+  const registeredDonationTaxCreditJpy =
+    donationTaxCreditRecord?.totalTaxCreditJpy.toNumber() ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -131,6 +136,8 @@ export default async function TaxEstimatePage({
           registeredMortgageDeduction?.residentTaxCreditJpy ?? 0
         }
         registeredMortgageDeduction={registeredMortgageDeduction}
+        defaultDonationTaxCreditJpy={registeredDonationTaxCreditJpy ?? 0}
+        registeredDonationTaxCreditJpy={registeredDonationTaxCreditJpy}
         defaultForeignTaxCreditNationalTaxCreditJpy={
           registeredForeignTaxCredit?.nationalTaxCreditJpy ?? 0
         }
@@ -167,11 +174,21 @@ export default async function TaxEstimatePage({
           変動は含めていない。
         </p>
         <p>
+          政党等・認定NPO法人等・公益社団法人等寄附金特別控除(税額控除)は
+          <Link href={`/donation-tax-credit?year=${year}`} className="underline">
+            /donation-tax-credit
+          </Link>
+          で「この年分の寄附金特別控除として登録する」を実行済みの場合、その控除額を
+          初期値として表示する。所得税のみの制度(住民税分は無い)のため、住宅ローン控除
+          適用後の所得税額からのみ差し引く。
+        </p>
+        <p>
           外国税額控除(税額控除)は`/foreign-tax-credit`で「この年分の外国税額控除として
           登録する」を実行済みの場合、所得税・復興特別所得税から控除される額と住民税から
           控除される額(実際の控除順序である所得税→復興特別所得税→住民税の順に振り分けた
-          金額)を初期値として表示する。住宅ローン控除を適用した後の税額からさらに
-          差し引くため、控除額の合計が合計税額を上回っても0円が下限(還付は生じない)。
+          金額)を初期値として表示する。住宅ローン控除・寄附金特別控除を適用した後の
+          税額からさらに差し引くため、控除額の合計が合計税額を上回っても0円が下限
+          (還付は生じない)。
         </p>
         <p>
           住民税所得割は10%固定の概算であり、調整控除は`/resident-tax-adjustment-deduction`で

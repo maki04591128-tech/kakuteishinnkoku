@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildTaxFilingDraftCsv, UTF8_BOM } from "@/lib/etax/csvExport";
 import { buildTaxFilingSummary } from "@/lib/etax/summary";
 import { getIncomeDeductionEntries, summarizeIncomeDeductions } from "@/lib/incomeDeduction";
+import { getDonationTaxCreditRecord } from "@/lib/donationTaxCredit";
 import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
 import { buildYearReport } from "@/lib/reporting";
@@ -15,10 +16,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "指定された年分のデータがありません" }, { status: 404 });
   }
 
-  const [mortgageDeductionRecord, foreignTaxCreditRecord] = await Promise.all([
-    getMortgageDeductionRecord(year),
-    getForeignTaxCreditRecord(year),
-  ]);
+  const [mortgageDeductionRecord, foreignTaxCreditRecord, donationTaxCreditRecord] =
+    await Promise.all([
+      getMortgageDeductionRecord(year),
+      getForeignTaxCreditRecord(year),
+      getDonationTaxCreditRecord(year),
+    ]);
 
   const summary = buildTaxFilingSummary(
     year,
@@ -38,6 +41,9 @@ export async function GET(request: NextRequest) {
       ? { totalCreditJpy: foreignTaxCreditRecord.totalCreditJpy }
       : undefined,
     report.investmentNonListed,
+    donationTaxCreditRecord
+      ? { totalCreditJpy: donationTaxCreditRecord.totalTaxCreditJpy }
+      : undefined,
   );
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);
   const incomeDeductions = summarizeIncomeDeductions(incomeDeductionEntries);

@@ -1225,6 +1225,30 @@ export async function saveForeignTaxCreditRecord(formData: FormData): Promise<vo
 }
 
 /**
+ * 政党等・認定NPO法人等・公益社団法人等寄附金特別控除シミュレーター
+ * (/donation-tax-credit)の当年分の試算結果(合計控除額)を DonationTaxCreditRecord
+ * として登録する。住宅ローン控除(saveMortgageDeductionRecord)・外国税額控除
+ * (saveForeignTaxCreditRecord)と同様、`/tax-estimate`の合計税額試算・下書きCSV
+ * (/api/export)の税額控除欄への自動反映に使う。この特別控除は所得税のみの制度
+ * (住民税分は無い)ため、合計控除額1件のみを保存する。既に登録済みの場合は上書きする。
+ */
+export async function saveDonationTaxCreditRecord(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const totalTaxCreditJpy = requireString(formData, "totalTaxCreditJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.donationTaxCreditRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, totalTaxCreditJpy },
+    update: { totalTaxCreditJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/donation-tax-credit");
+  redirect(`/donation-tax-credit?year=${year}&donationTaxCreditSaved=1`);
+}
+
+/**
  * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
  * (iDeCo等)・社会保険料控除)で試算した控除額を、その年分の IncomeDeduction
  * として登録する(区分ごとに1件。既に登録済みの場合は上書きする)。

@@ -164,7 +164,7 @@ export function buildTaxFilingDraftCsv(
   );
   lines.push("");
 
-  if (summary.mortgageDeduction || summary.foreignTaxCredit) {
+  if (summary.mortgageDeduction || summary.donationTaxCredit || summary.foreignTaxCredit) {
     lines.push(toCsvLine(["■ 税額控除"]));
     lines.push(toCsvLine(["区分", "金額(円)", "申告書での主な記載箇所"]));
     if (summary.mortgageDeduction) {
@@ -184,6 +184,15 @@ export function buildTaxFilingDraftCsv(
           ]),
         );
       }
+    }
+    if (summary.donationTaxCredit) {
+      lines.push(
+        toCsvLine([
+          "政党等・認定NPO法人等・公益社団法人等寄附金特別控除額(所得税のみ。住民税分は含まない)",
+          formatYen(summary.donationTaxCredit.totalCreditJpy),
+          "申告書第一表 税額控除(政党等寄附金等特別控除) / 寄附金(税額)控除の計算明細書",
+        ]),
+      );
     }
     if (summary.foreignTaxCredit) {
       lines.push(
