@@ -89,6 +89,13 @@ import { prisma } from "./db";
  *    No.1234)。負担割合は連帯債務者間の合意で定める割合で、実務上は持分登記割合や
  *    出資割合と一致させることが多いが、この判定自体はユーザー自身が行う前提とする。
  *    未指定の場合は従来どおり`yearEndLoanBalanceJpy`を本人負担分の金額として扱う。
+ *    さらに負担割合が持分割合と異なる場合、`jointDebtAcquisitionPriceJpy`
+ *    (取得対価の総額)・`jointDebtOwnershipSharePercent`(本人の持分割合)・
+ *    `jointDebtOwnFundsJpy`(本人が負担した頭金等の自己資金額)をあわせて指定すると、
+ *    本人の持分相当額(取得対価の総額×持分割合-自己資金額)を上限として按分後の
+ *    年末残高をさらに制限する(国税庁質疑応答事例「共有の家屋を連帯債務により
+ *    取得した場合の借入金の額の計算」、租税特別措置法41条。負担割合と持分割合が
+ *    異なる場合、その差額に相当する負担は連帯債務者間の贈与とみなされる)。
  */
 
 export type HousingCategory = "CERTIFIED" | "ZEH" | "ENERGY_SAVING" | "OTHER";
@@ -249,6 +256,28 @@ export interface MortgageDeductionInput {
    * 指定不要(未指定)。
    */
   jointDebtShareRatioPercent?: Decimal.Value;
+  /**
+   * 連帯債務(共有名義)の場合、家屋及びその敷地の取得対価の総額。
+   * `jointDebtOwnershipSharePercent`とあわせて指定すると、本人の持分に対応する
+   * 取得対価相当額(取得対価の総額×持分割合-本人が自己資金で負担した頭金等)を
+   * 上限として、負担割合による按分後の年末残高をさらに制限する(国税庁質疑応答
+   * 事例「共有の家屋を連帯債務により取得した場合の借入金の額の計算」、租税特別
+   * 措置法41条)。未指定の場合はこの上限判定を行わない。
+   */
+  jointDebtAcquisitionPriceJpy?: Decimal.Value;
+  /**
+   * 連帯債務(共有名義)の場合、家屋及びその敷地に対する本人の持分割合(%。
+   * 0より大きく100以下)。`jointDebtAcquisitionPriceJpy`とあわせて指定する。
+   * 負担割合(`jointDebtShareRatioPercent`)とは異なる概念(持分割合は登記上の
+   * 共有持分、負担割合は連帯債務者間で定めた内部的な返済負担の割合)なので
+   * 混同しないこと。
+   */
+  jointDebtOwnershipSharePercent?: Decimal.Value;
+  /**
+   * 連帯債務(共有名義)の場合、本人が自己資金(頭金等、借入金以外の自己負担分)
+   * として負担した金額。未指定の場合は0円として扱う。
+   */
+  jointDebtOwnFundsJpy?: Decimal.Value;
   /** その年の合計所得金額(2,000万円超の年は適用不可) */
   totalIncomeJpy: Decimal.Value;
   /**
@@ -442,6 +471,51 @@ export function calculateMortgageDeduction(
     notes.push(
       `連帯債務(共有名義)の負担割合${jointDebtShareRatioPercent}%により、年末残高の合計額を本人の年末残高${ownYearEndLoanBalanceJpy.toFixed(0)}円に按分して計算した(国税庁タックスアンサーNo.1234)。負担割合は連帯債務者間の合意で定める割合で、実務上は持分登記割合・出資割合と一致させることが多い。`,
     );
+
+    if (
+      input.jointDebtAcquisitionPriceJpy !== undefined &&
+      input.jointDebtOwnershipSharePercent !== undefined
+    ) {
+      const acquisitionPriceJpy = new Decimal(input.jointDebtAcquisitionPriceJpy);
+      const ownershipSharePercent = new Decimal(input.jointDebtOwnershipSharePercent);
+      const ownFundsJpy = new Decimal(input.jointDebtOwnFundsJpy ?? 0);
+      requireNonNegative(acquisitionPriceJpy, "家屋及びその敷地の取得対価の総額");
+      requireNonNegative(ownFundsJpy, "本人が負担した頭金等の自己資金額");
+      if (ownershipSharePercent.lessThanOrEqualTo(0) || ownershipSharePercent.greaterThan(100)) {
+        throw new Error("連帯債務の持分割合は0%超100%以下で入力してください");
+      }
+
+      const ownershipEntitlementJpy = acquisitionPriceJpy
+        .times(ownershipSharePercent)
+        .dividedBy(100);
+      const acquisitionPriceCapJpy = Decimal.max(
+        ownershipEntitlementJpy.minus(ownFundsJpy),
+        0,
+      );
+      const balanceBeforeCap = ownYearEndLoanBalanceJpy;
+      ownYearEndLoanBalanceJpy = Decimal.min(ownYearEndLoanBalanceJpy, acquisitionPriceCapJpy);
+
+      if (ownYearEndLoanBalanceJpy.lessThan(balanceBeforeCap)) {
+        notes.push(
+          `取得対価の総額${acquisitionPriceJpy.toFixed(0)}円×持分割合${ownershipSharePercent}%-自己資金${ownFundsJpy.toFixed(0)}円=持分相当額${acquisitionPriceCapJpy.toFixed(0)}円が、負担割合による按分額${balanceBeforeCap.toFixed(0)}円を下回るため、本人の年末残高を${ownYearEndLoanBalanceJpy.toFixed(0)}円に制限した(国税庁質疑応答事例「共有の家屋を連帯債務により取得した場合の借入金の額の計算」。負担割合と持分割合が異なる場合、その差額は連帯債務者間の贈与とみなされる点に注意)。`,
+        );
+      } else {
+        notes.push(
+          `取得対価の総額・持分割合から算出した持分相当額${acquisitionPriceCapJpy.toFixed(0)}円は、負担割合による按分額${balanceBeforeCap.toFixed(0)}円以上のため、本人の年末残高への影響はない。`,
+        );
+      }
+    } else if (
+      input.jointDebtAcquisitionPriceJpy !== undefined ||
+      input.jointDebtOwnershipSharePercent !== undefined
+    ) {
+      throw new Error(
+        "取得対価の総額と持分割合は両方入力してください(いずれか一方のみの入力はできません)",
+      );
+    } else {
+      notes.push(
+        "負担割合(内部的な返済負担の割合)が持分割合(登記上の共有持分)と異なる場合、取得対価の総額・持分割合・本人が負担した頭金等の自己資金額をあわせて入力すると、持分相当額を上限とする制限を試算に反映できる(国税庁質疑応答事例「共有の家屋を連帯債務により取得した場合の借入金の額の計算」)。",
+      );
+    }
   } else {
     notes.push(
       "連帯債務(共有名義)の場合は、年末借入金残高に連帯債務者全員分の合計額を入力したうえで本人の負担割合(%)を指定すると、本人負担分への按分を自動計算する。未指定の場合、年末借入金残高は本人負担分の金額を入力すること。",

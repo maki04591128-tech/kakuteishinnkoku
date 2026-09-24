@@ -35,6 +35,10 @@ export function MortgageDeductionForm({
   const [energySavingTransitionalMeasure, setEnergySavingTransitionalMeasure] = useState(false);
   const [isJointDebt, setIsJointDebt] = useState(false);
   const [jointDebtShareRatioPercent, setJointDebtShareRatioPercent] = useState("50");
+  const [useJointDebtAcquisitionPriceCap, setUseJointDebtAcquisitionPriceCap] = useState(false);
+  const [jointDebtAcquisitionPriceJpy, setJointDebtAcquisitionPriceJpy] = useState("");
+  const [jointDebtOwnershipSharePercent, setJointDebtOwnershipSharePercent] = useState("50");
+  const [jointDebtOwnFundsJpy, setJointDebtOwnFundsJpy] = useState("0");
   const [yearEndLoanBalanceJpy, setYearEndLoanBalanceJpy] = useState("30000000");
   const [totalIncomeJpy, setTotalIncomeJpy] = useState("6000000");
   const [residentTaxTaxableIncomeJpy, setResidentTaxTaxableIncomeJpy] = useState("");
@@ -55,6 +59,18 @@ export function MortgageDeductionForm({
         yearEndLoanBalanceJpy: yearEndLoanBalanceJpy === "" ? 0 : yearEndLoanBalanceJpy,
         jointDebtShareRatioPercent:
           isJointDebt && jointDebtShareRatioPercent !== "" ? jointDebtShareRatioPercent : undefined,
+        jointDebtAcquisitionPriceJpy:
+          isJointDebt && useJointDebtAcquisitionPriceCap && jointDebtAcquisitionPriceJpy !== ""
+            ? jointDebtAcquisitionPriceJpy
+            : undefined,
+        jointDebtOwnershipSharePercent:
+          isJointDebt && useJointDebtAcquisitionPriceCap && jointDebtOwnershipSharePercent !== ""
+            ? jointDebtOwnershipSharePercent
+            : undefined,
+        jointDebtOwnFundsJpy:
+          isJointDebt && useJointDebtAcquisitionPriceCap && jointDebtOwnFundsJpy !== ""
+            ? jointDebtOwnFundsJpy
+            : undefined,
         totalIncomeJpy: totalIncomeJpy === "" ? 0 : totalIncomeJpy,
         residentTaxTaxableIncomeJpy:
           residentTaxTaxableIncomeJpy === "" ? undefined : residentTaxTaxableIncomeJpy,
@@ -77,6 +93,10 @@ export function MortgageDeductionForm({
     energySavingTransitionalMeasure,
     isJointDebt,
     jointDebtShareRatioPercent,
+    useJointDebtAcquisitionPriceCap,
+    jointDebtAcquisitionPriceJpy,
+    jointDebtOwnershipSharePercent,
+    jointDebtOwnFundsJpy,
     yearEndLoanBalanceJpy,
     totalIncomeJpy,
     residentTaxTaxableIncomeJpy,
@@ -157,6 +177,16 @@ export function MortgageDeductionForm({
           />
           連帯債務(共有名義)の持分按分を行う
         </label>
+        {isJointDebt && (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={useJointDebtAcquisitionPriceCap}
+              onChange={(e) => setUseJointDebtAcquisitionPriceCap(e.target.checked)}
+            />
+            負担割合が持分割合と異なる(取得対価相当額を上限として制限する)
+          </label>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -175,6 +205,25 @@ export function MortgageDeductionForm({
             value={jointDebtShareRatioPercent}
             onChange={setJointDebtShareRatioPercent}
           />
+        )}
+        {isJointDebt && useJointDebtAcquisitionPriceCap && (
+          <>
+            <Field
+              label="家屋及びその敷地の取得対価の総額"
+              value={jointDebtAcquisitionPriceJpy}
+              onChange={setJointDebtAcquisitionPriceJpy}
+            />
+            <Field
+              label="本人の持分割合(%。登記上の共有持分)"
+              value={jointDebtOwnershipSharePercent}
+              onChange={setJointDebtOwnershipSharePercent}
+            />
+            <Field
+              label="本人が負担した頭金等の自己資金額"
+              value={jointDebtOwnFundsJpy}
+              onChange={setJointDebtOwnFundsJpy}
+            />
+          </>
         )}
         <Field
           label={
