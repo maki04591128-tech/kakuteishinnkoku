@@ -392,6 +392,107 @@ describe("calculateMortgageDeduction", () => {
     expect(result.nationalTaxCreditJpy.toNumber()).toBe(175_000);
   });
 
+  describe("連帯債務の負担割合と持分割合が異なる場合の取得対価相当額による上限(国税庁質疑応答事例)", () => {
+    // 国税庁質疑応答事例「共有の家屋を連帯債務により取得した場合の借入金の額の計算」の
+    // 設例をそのまま検証する。家屋等の取得対価4,500万円(夫婦2分の1ずつの共有)、
+    // 頭金500万円、連帯債務(借入金)4,000万円、負担割合は夫6:妻4。
+    it("設例1: 頭金を持分割合(50%ずつ)で負担した場合、夫は2,000万円・妻は1,600万円に制限される", () => {
+      const husband = calculateMortgageDeduction({
+        ...baseInput(),
+        yearEndLoanBalanceJpy: 40_000_000,
+        jointDebtShareRatioPercent: 60,
+        jointDebtAcquisitionPriceJpy: 45_000_000,
+        jointDebtOwnershipSharePercent: 50,
+        jointDebtOwnFundsJpy: 2_500_000, // 頭金500万円のうち持分割合(50%)に応じた負担分
+      });
+      // 按分額 4,000万×60%=2,400万円 > 持分相当額 4,500万×50%-250万=2,000万円
+      expect(husband.ownYearEndLoanBalanceJpy.toNumber()).toBe(20_000_000);
+
+      const wife = calculateMortgageDeduction({
+        ...baseInput(),
+        yearEndLoanBalanceJpy: 40_000_000,
+        jointDebtShareRatioPercent: 40,
+        jointDebtAcquisitionPriceJpy: 45_000_000,
+        jointDebtOwnershipSharePercent: 50,
+        jointDebtOwnFundsJpy: 2_500_000,
+      });
+      // 按分額 4,000万×40%=1,600万円 <= 持分相当額 4,500万×50%-250万=2,000万円(上限は効かない)
+      expect(wife.ownYearEndLoanBalanceJpy.toNumber()).toBe(16_000_000);
+    });
+
+    it("設例2: 頭金を夫が1人で負担した場合、夫は1,750万円に制限され、妻は按分額1,600万円のままになる", () => {
+      const husband = calculateMortgageDeduction({
+        ...baseInput(),
+        yearEndLoanBalanceJpy: 40_000_000,
+        jointDebtShareRatioPercent: 60,
+        jointDebtAcquisitionPriceJpy: 45_000_000,
+        jointDebtOwnershipSharePercent: 50,
+        jointDebtOwnFundsJpy: 5_000_000,
+      });
+      // 按分額 4,000万×60%=2,400万円 > 持分相当額 4,500万×50%-500万=1,750万円
+      expect(husband.ownYearEndLoanBalanceJpy.toNumber()).toBe(17_500_000);
+
+      const wife = calculateMortgageDeduction({
+        ...baseInput(),
+        yearEndLoanBalanceJpy: 40_000_000,
+        jointDebtShareRatioPercent: 40,
+        jointDebtAcquisitionPriceJpy: 45_000_000,
+        jointDebtOwnershipSharePercent: 50,
+        jointDebtOwnFundsJpy: 0,
+      });
+      // 按分額 4,000万×40%=1,600万円 <= 持分相当額 4,500万×50%-0=2,250万円(上限は効かない)
+      expect(wife.ownYearEndLoanBalanceJpy.toNumber()).toBe(16_000_000);
+    });
+
+    it("取得対価の総額と持分割合の両方を指定しないと上限判定は行われない", () => {
+      const result = calculateMortgageDeduction({
+        ...baseInput(),
+        yearEndLoanBalanceJpy: 40_000_000,
+        jointDebtShareRatioPercent: 60,
+      });
+
+      expect(result.ownYearEndLoanBalanceJpy.toNumber()).toBe(24_000_000);
+    });
+
+    it("取得対価の総額・持分割合のいずれか一方だけを指定するとエラーになる", () => {
+      expect(() =>
+        calculateMortgageDeduction({
+          ...baseInput(),
+          yearEndLoanBalanceJpy: 40_000_000,
+          jointDebtShareRatioPercent: 60,
+          jointDebtAcquisitionPriceJpy: 45_000_000,
+        }),
+      ).toThrow();
+      expect(() =>
+        calculateMortgageDeduction({
+          ...baseInput(),
+          yearEndLoanBalanceJpy: 40_000_000,
+          jointDebtShareRatioPercent: 60,
+          jointDebtOwnershipSharePercent: 50,
+        }),
+      ).toThrow();
+    });
+
+    it("持分割合が0%以下または100%超だとエラーになる", () => {
+      expect(() =>
+        calculateMortgageDeduction({
+          ...baseInput(),
+          jointDebtShareRatioPercent: 60,
+          jointDebtAcquisitionPriceJpy: 45_000_000,
+          jointDebtOwnershipSharePercent: 0,
+        }),
+      ).toThrow();
+      expect(() =>
+        calculateMortgageDeduction({
+          ...baseInput(),
+          jointDebtShareRatioPercent: 60,
+          jointDebtAcquisitionPriceJpy: 45_000_000,
+          jointDebtOwnershipSharePercent: 100.5,
+        }),
+      ).toThrow();
+    });
+  });
+
   describe("令和8年(2026年)〜令和12年(2030年)入居分(令和8年度税制改正)", () => {
     it("新築の認定住宅(長期優良・低炭素)は借入限度額4,500万円・控除期間13年になる", () => {
       const result = calculateMortgageDeduction({
