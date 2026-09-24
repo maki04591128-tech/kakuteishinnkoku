@@ -22,6 +22,9 @@ export function LifeInsuranceDeductionForm({
   const [medicalCareNew, setMedicalCareNew] = useState("0");
   const [pensionNew, setPensionNew] = useState("0");
   const [pensionOld, setPensionOld] = useState("0");
+  const [hasDependentUnder23, setHasDependentUnder23] = useState(false);
+
+  const isChildRearingSpecialMeasureYear = year === 2026 || year === 2027;
 
   const result = useMemo(() => {
     try {
@@ -37,11 +40,13 @@ export function LifeInsuranceDeductionForm({
           newPremiumJpy: pensionNew === "" ? 0 : pensionNew,
           oldPremiumJpy: pensionOld === "" ? 0 : pensionOld,
         },
+        year,
+        hasDependentUnder23,
       });
     } catch {
       return null;
     }
-  }, [generalNew, generalOld, medicalCareNew, pensionNew, pensionOld]);
+  }, [generalNew, generalOld, medicalCareNew, pensionNew, pensionOld, year, hasDependentUnder23]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,6 +58,21 @@ export function LifeInsuranceDeductionForm({
           oldValue={generalOld}
           onOldChange={setGeneralOld}
         />
+        {isChildRearingSpecialMeasureYear && (
+          <label className="flex items-start gap-2 rounded-md border border-dashed border-neutral-300 p-3 text-sm dark:border-neutral-700">
+            <input
+              type="checkbox"
+              checked={hasDependentUnder23}
+              onChange={(e) => setHasDependentUnder23(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              23歳未満の扶養親族がいる({year}年12月31日時点。子育て世帯等に対する
+              一般生命保険料控除の拡充の時限特例(令和8年分・令和9年分限定)を適用し、
+              一般生命保険料(新制度)の所得税の上限を4万円から6万円に引き上げて計算する)
+            </span>
+          </label>
+        )}
         <CategoryFields
           title="介護医療保険料"
           newValue={medicalCareNew}

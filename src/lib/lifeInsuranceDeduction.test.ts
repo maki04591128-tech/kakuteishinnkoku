@@ -88,6 +88,54 @@ describe("estimateLifeInsurancePremiumDeduction", () => {
     expect(result.totalResidentTaxDeductionJpy.toNumber()).toBe(0);
   });
 
+  it("令和8年分で23歳未満の扶養親族ありの場合、一般生命保険料(新制度)の上限が6万円に引き上がる", () => {
+    const result = estimateLifeInsurancePremiumDeduction({
+      ...emptyInput(),
+      general: { newPremiumJpy: 200_000, oldPremiumJpy: 0 },
+      year: 2026,
+      hasDependentUnder23: true,
+    });
+
+    expect(result.general.incomeTaxDeductionJpy.toNumber()).toBe(60_000);
+    // 住民税はこの特例の対象外のため従来どおり上限2.8万円のまま
+    expect(result.general.residentTaxDeductionJpy.toNumber()).toBe(28_000);
+    expect(result.notes.some((note) => note.includes("時限特例"))).toBe(true);
+  });
+
+  it("令和9年分で23歳未満の扶養親族ありの場合も特例の速算表どおりに計算する", () => {
+    const result = estimateLifeInsurancePremiumDeduction({
+      ...emptyInput(),
+      general: { newPremiumJpy: 45_000, oldPremiumJpy: 0 },
+      year: 2027,
+      hasDependentUnder23: true,
+    });
+
+    // 45,000円 × 1/2 + 15,000円 = 37,500円
+    expect(result.general.incomeTaxDeductionJpy.toNumber()).toBe(37_500);
+  });
+
+  it("令和8年分でも23歳未満の扶養親族のチェックが無ければ従来どおり上限4万円のまま", () => {
+    const result = estimateLifeInsurancePremiumDeduction({
+      ...emptyInput(),
+      general: { newPremiumJpy: 200_000, oldPremiumJpy: 0 },
+      year: 2026,
+      hasDependentUnder23: false,
+    });
+
+    expect(result.general.incomeTaxDeductionJpy.toNumber()).toBe(40_000);
+  });
+
+  it("令和10年分は特例の対象年分外のため扶養親族ありでも従来どおり上限4万円のまま", () => {
+    const result = estimateLifeInsurancePremiumDeduction({
+      ...emptyInput(),
+      general: { newPremiumJpy: 200_000, oldPremiumJpy: 0 },
+      year: 2028,
+      hasDependentUnder23: true,
+    });
+
+    expect(result.general.incomeTaxDeductionJpy.toNumber()).toBe(40_000);
+  });
+
   it("負の入力値はエラーになる", () => {
     expect(() =>
       estimateLifeInsurancePremiumDeduction({
