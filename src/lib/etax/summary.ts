@@ -83,6 +83,14 @@ export interface TaxFilingSummary {
   distributionAdjustedForeignTaxCredit?: {
     creditJpy: Decimal;
   };
+  /**
+   * `/resident-tax-adjustment-deduction`で登録済みの住民税の調整控除(税額控除・
+   * 住民税所得割分のみ)。所得税に対応する控除は無いため所得税額には影響しない。
+   * 未登録の場合はundefined。
+   */
+  residentTaxAdjustmentDeduction?: {
+    adjustmentDeductionJpy: Decimal;
+  };
 }
 
 export function buildTaxFilingSummary(
@@ -98,6 +106,7 @@ export function buildTaxFilingSummary(
   investmentNonListed?: InvestmentPortfolioYearResult,
   donationTaxCredit?: { totalCreditJpy: Decimal; residentTaxBasicDeductionJpy: Decimal },
   distributionAdjustedForeignTaxCredit?: { creditJpy: Decimal },
+  residentTaxAdjustmentDeduction?: { adjustmentDeductionJpy: Decimal },
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
@@ -121,5 +130,6 @@ export function buildTaxFilingSummary(
     foreignTaxCredit,
     donationTaxCredit,
     distributionAdjustedForeignTaxCredit,
+    residentTaxAdjustmentDeduction,
   };
 }
