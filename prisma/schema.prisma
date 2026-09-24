@@ -27,26 +27,27 @@ model TaxYear {
   /// 届出書)が必要で、一度選択すると原則3年間変更できない点に注意。
   cryptoCostMethod CryptoCostMethod @default(AVERAGE)
 
-  cryptoTrades                            CryptoTrade[]
-  cryptoMarginTrades                      CryptoMarginTrade[]
-  futuresTrades                           FuturesTrade[]
-  investmentTrades                        InvestmentTrade[]
-  importBatches                           ImportBatch[]
-  openingBalances                         OpeningBalance[]
-  openingBalancesByInstitution            OpeningBalanceByInstitution[]
-  investmentLossCarryforwards             InvestmentLossCarryforward[]
-  futuresLossCarryforwards                FuturesLossCarryforward[]
-  brokerAnnualReports                     BrokerAnnualReport[]
-  assetBalanceSnapshots                   AssetBalanceSnapshot[]
-  foreignTaxCreditCarryforwards           ForeignTaxCreditCarryforward[]
-  foreignTaxCreditSpareLimitCarryforwards ForeignTaxCreditSpareLimitCarryforward[]
-  incomeDeductions                        IncomeDeduction[]
-  nisaLifetimeQuotas                      NisaLifetimeQuota[]
-  casualtyLossCarryforwards               CasualtyLossCarryforward[]
-  mortgageDeductionRecords                MortgageDeductionRecord[]
-  foreignTaxCreditRecords                 ForeignTaxCreditRecord[]
-  residentTaxAdjustmentDeductionRecords   ResidentTaxAdjustmentDeductionRecord[]
-  donationTaxCreditRecords                DonationTaxCreditRecord[]
+  cryptoTrades                                CryptoTrade[]
+  cryptoMarginTrades                          CryptoMarginTrade[]
+  futuresTrades                               FuturesTrade[]
+  investmentTrades                            InvestmentTrade[]
+  importBatches                               ImportBatch[]
+  openingBalances                             OpeningBalance[]
+  openingBalancesByInstitution                OpeningBalanceByInstitution[]
+  investmentLossCarryforwards                 InvestmentLossCarryforward[]
+  futuresLossCarryforwards                    FuturesLossCarryforward[]
+  brokerAnnualReports                         BrokerAnnualReport[]
+  assetBalanceSnapshots                       AssetBalanceSnapshot[]
+  foreignTaxCreditCarryforwards               ForeignTaxCreditCarryforward[]
+  foreignTaxCreditSpareLimitCarryforwards     ForeignTaxCreditSpareLimitCarryforward[]
+  incomeDeductions                            IncomeDeduction[]
+  nisaLifetimeQuotas                          NisaLifetimeQuota[]
+  casualtyLossCarryforwards                   CasualtyLossCarryforward[]
+  mortgageDeductionRecords                    MortgageDeductionRecord[]
+  foreignTaxCreditRecords                     ForeignTaxCreditRecord[]
+  residentTaxAdjustmentDeductionRecords       ResidentTaxAdjustmentDeductionRecord[]
+  donationTaxCreditRecords                    DonationTaxCreditRecord[]
+  distributionAdjustedForeignTaxCreditRecords DistributionAdjustedForeignTaxCreditRecord[]
 }
 
 enum CryptoCostMethod {
@@ -369,10 +370,32 @@ model DonationTaxCreditRecord {
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
 
   /// その年分の特別控除額の合計(DonationTaxCreditResult.totalTaxCreditJpy。所得税分)
-  totalTaxCreditJpy Decimal
+  totalTaxCreditJpy            Decimal
   /// 認定NPO法人等・公益社団法人等への寄附のうち条例指定を受けている分の住民税の
   /// 寄附金控除(基本控除)額の合計(DonationTaxCreditResult.totalResidentTaxBasicDeductionJpy)
   residentTaxBasicDeductionJpy Decimal @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 分配時調整外国税相当額控除(所得税法93条の2。src/lib/investment/
+/// distributionAdjustedForeignTaxCredit.ts)の当年分の登録額を年分ごとに保存し、
+/// `/tax-estimate`の合計税額試算・下書きCSVへ自動反映するためのデータ。
+/// 外国税額控除(ForeignTaxCreditRecord)のような限度額計算・繰越は無く、
+/// 特定口座年間取引報告書等に記載された金額をそのまま所得税額・復興特別
+/// 所得税額から控除する(住民税分は本ツールでは試算しない。今後の課題)。
+/// `/distribution-adjusted-foreign-tax-credit`の「この年分の分配時調整外国税
+/// 相当額控除として登録する」ボタンから登録する。
+model DistributionAdjustedForeignTaxCreditRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の控除額(所得税・復興特別所得税分)
+  creditJpy Decimal
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -667,6 +690,15 @@ model InvestmentTrade {
   /// (日本円換算、isForeign=trueの場合のみ入力する想定)。
   /// `/foreign-tax-credit`の外国所得税額の自動集計に使う。
   foreignTaxWithheldJpy Decimal @default(0)
+
+  /// 配当・分配金(type=DIVIDEND)につき、特定口座年間取引報告書等に記載された
+  /// 分配時調整外国税相当額(所得税法93条の2。日本円換算)。投資信託等が保有する
+  /// 国外資産から生じた利子・配当等につき信託段階で源泉徴収された外国所得税額の
+  /// うち、受益者の所得金額の計算上必要経費又は取得費に算入されない部分として
+  /// 計算された金額で、isForeign(銘柄自体が国外発行かどうか)を問わず、国内籍の
+  /// 投資信託・ETFの分配金にも生じうる。`/distribution-adjusted-foreign-tax-credit`
+  /// の自動集計に使う。
+  distributionAdjustedForeignTaxJpy Decimal @default(0)
 
   broker String?
   memo   String?

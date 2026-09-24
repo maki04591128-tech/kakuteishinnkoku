@@ -1828,6 +1828,15 @@ export default async function ImportPage({
               className={inputClass}
             />
           </Field>
+          <Field label="分配時調整外国税相当額(円・特定口座年間取引報告書等に記載がある場合のみ)">
+            <input
+              type="number"
+              step="any"
+              name="distributionAdjustedForeignTaxJpy"
+              defaultValue={0}
+              className={inputClass}
+            />
+          </Field>
           <label className="col-span-full flex items-center gap-2 text-sm">
             <input type="checkbox" name="isListed" defaultChecked /> 上場株式等(外すと一般株式等
             (非上場株式)として登録する。上場株式等とは別プールの申告分離課税で損益通算は
@@ -1908,6 +1917,9 @@ export default async function ImportPage({
                           ? `国外 (源泉税 ${yen(t.foreignTaxWithheldJpy)})`
                           : "国外"
                         : "-"}
+                      {t.type === "DIVIDEND" && !t.distributionAdjustedForeignTaxJpy.isZero() && (
+                        <> / 分配時調整外国税相当額 {yen(t.distributionAdjustedForeignTaxJpy)}</>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       <form action={deleteInvestmentTrade}>

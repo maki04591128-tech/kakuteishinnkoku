@@ -166,7 +166,12 @@ export function buildTaxFilingDraftCsv(
   );
   lines.push("");
 
-  if (summary.mortgageDeduction || summary.donationTaxCredit || summary.foreignTaxCredit) {
+  if (
+    summary.mortgageDeduction ||
+    summary.donationTaxCredit ||
+    summary.foreignTaxCredit ||
+    summary.distributionAdjustedForeignTaxCredit
+  ) {
     lines.push(toCsvLine(["■ 税額控除"]));
     lines.push(toCsvLine(["区分", "金額(円)", "申告書での主な記載箇所"]));
     if (summary.mortgageDeduction) {
@@ -217,6 +222,21 @@ export function buildTaxFilingDraftCsv(
       lines.push(
         toCsvLine([
           "# 外国税額控除は/foreign-tax-creditで登録されていないため本CSVには含まれない。試算結果を登録するか、別途申告書第一表・第二表へ転記すること。",
+        ]),
+      );
+    }
+    if (summary.distributionAdjustedForeignTaxCredit) {
+      lines.push(
+        toCsvLine([
+          "分配時調整外国税相当額控除額(所得税・復興特別所得税からの控除額。住民税分は含まない)",
+          formatYen(summary.distributionAdjustedForeignTaxCredit.creditJpy),
+          "申告書第一表 税額控除(外国税額控除等) / 分配時調整外国税相当額控除に関する明細書",
+        ]),
+      );
+    } else {
+      lines.push(
+        toCsvLine([
+          "# 分配時調整外国税相当額控除は/distribution-adjusted-foreign-tax-creditで登録されていないため本CSVには含まれない。試算結果を登録するか、別途申告書第一表・第二表へ転記すること。",
         ]),
       );
     }

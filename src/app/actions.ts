@@ -279,6 +279,8 @@ export async function addInvestmentTrade(formData: FormData): Promise<void> {
       nisaType: optionalString(formData, "nisaType") as never,
       isForeign: formData.get("isForeign") === "on",
       foreignTaxWithheldJpy: optionalString(formData, "foreignTaxWithheldJpy") ?? "0",
+      distributionAdjustedForeignTaxJpy:
+        optionalString(formData, "distributionAdjustedForeignTaxJpy") ?? "0",
       broker: optionalString(formData, "broker"),
       memo: optionalString(formData, "memo"),
       source: "manual",
@@ -1247,6 +1249,30 @@ export async function saveDonationTaxCreditRecord(formData: FormData): Promise<v
   revalidatePath("/tax-estimate");
   revalidatePath("/donation-tax-credit");
   redirect(`/donation-tax-credit?year=${year}&donationTaxCreditSaved=1`);
+}
+
+/**
+ * 分配時調整外国税相当額控除シミュレーター(/distribution-adjusted-foreign-tax-credit)
+ * の当年分の控除額を DistributionAdjustedForeignTaxCreditRecord として登録する。
+ * 外国税額控除(saveForeignTaxCreditRecord)と同様、`/tax-estimate`の合計税額試算・
+ * 下書きCSV(/api/export)の税額控除欄への自動反映に使う。既に登録済みの場合は上書きする。
+ */
+export async function saveDistributionAdjustedForeignTaxCreditRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const creditJpy = requireString(formData, "creditJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.distributionAdjustedForeignTaxCreditRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, creditJpy },
+    update: { creditJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/distribution-adjusted-foreign-tax-credit");
+  redirect(`/distribution-adjusted-foreign-tax-credit?year=${year}&saved=1`);
 }
 
 /**

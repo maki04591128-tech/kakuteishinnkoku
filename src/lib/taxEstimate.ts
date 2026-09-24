@@ -41,10 +41,12 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  *
  * 住民税の調整控除(`residentTaxAdjustmentDeduction.ts`)・住宅ローン控除
  * (`mortgageDeduction.ts`)・政党等・認定NPO法人等・公益社団法人等寄附金特別控除
- * (`donationTaxCredit.ts`)・外国税額控除(`investment/foreignTaxCredit.ts`)は
+ * (`donationTaxCredit.ts`)・外国税額控除(`investment/foreignTaxCredit.ts`)・
+ * 分配時調整外国税相当額控除(`investment/distributionAdjustedForeignTaxCredit.ts`)は
  * いずれも所得控除ではなく税額控除のため、上記の各所得区分の税額を合算した後の
  * 合計税額から直接差し引く。`/resident-tax-adjustment-deduction`・
- * `/mortgage-deduction`・`/donation-tax-credit`・`/foreign-tax-credit`の試算結果
+ * `/mortgage-deduction`・`/donation-tax-credit`・`/foreign-tax-credit`・
+ * `/distribution-adjusted-foreign-tax-credit`の試算結果
  * (または`IncomeDeduction`と同様にDB登録した値)をそのまま「その年に適用される控除額」
  * として受け取り、本モジュール側では所得税額・住民税所得割額の限度判定(住民税へ
  * 繰り越す額の算出、外国税額控除の3限度額の判定)を再計算しない。自治体公式サイトで
@@ -56,6 +58,10 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  * 条例指定を受けている分の住民税の寄附金控除(基本控除)のみが対象。政党等寄附金は
  * 条例指定寄附金の対象外のため住民税分は常に0円)をそれぞれ所得税額・住民税所得割額から
  * 差し引く。いずれも控除額が残りの税額を上回る場合は0円が下限(還付は生じない)。
+ * 分配時調整外国税相当額控除(`distributionAdjustedForeignTaxCreditJpy`)は外国税額控除と
+ * 制度が近いため外国税額控除の直後(合計税額から見て最後)に所得税額(復興特別所得税を
+ * 含む)からのみ差し引く(住民税分は一次情報で条文・算式を確認できておらず対象外。
+ * `investment/distributionAdjustedForeignTaxCredit.ts`参照)。
  *
  * 源泉徴収税額(`withheldNationalTaxJpy`/`withheldResidentTaxJpy`)は、給与の
  * 源泉徴収税額や、配当等・特定口座(源泉徴収あり)内の株式等譲渡益について
@@ -132,6 +138,12 @@ export interface TotalTaxEstimateInput {
   foreignTaxCreditNationalTaxCreditJpy?: Decimal.Value;
   /** 外国税額控除(税額控除)のうち、その年の住民税額から控除する額 */
   foreignTaxCreditResidentTaxCreditJpy?: Decimal.Value;
+  /**
+   * 分配時調整外国税相当額控除(税額控除)額。外国税額控除適用後の所得税額
+   * (復興特別所得税を含む)から控除する(限度額計算・繰越は無く、住民税分は
+   * 対象外。`/distribution-adjusted-foreign-tax-credit`の試算結果を前提とする)
+   */
+  distributionAdjustedForeignTaxCreditJpy?: Decimal.Value;
   /**
    * 既に源泉徴収された所得税及び復興特別所得税の合計額(給与の源泉徴収税額・
    * 配当等の源泉徴収税額・特定口座(源泉徴収あり)内の株式等譲渡益の
@@ -221,7 +233,12 @@ export interface TotalTaxEstimateResult {
   foreignTaxCreditNationalTaxAppliedJpy: Decimal;
   /** 実際に適用された外国税額控除額(住民税分。入力値と寄附金特別控除適用後の住民税額のいずれか少ない方) */
   foreignTaxCreditResidentTaxAppliedJpy: Decimal;
-  /** 合計の所得税額(復興特別所得税を含む。住宅ローン控除・外国税額控除適用後) */
+  /**
+   * 実際に適用された分配時調整外国税相当額控除額(入力値と外国税額控除適用後の
+   * 所得税額のいずれか少ない方。限度額計算・繰越は無く、住民税分は対象外)
+   */
+  distributionAdjustedForeignTaxCreditAppliedJpy: Decimal;
+  /** 合計の所得税額(復興特別所得税を含む。住宅ローン控除・外国税額控除・分配時調整外国税相当額控除適用後) */
   totalNationalTaxJpy: Decimal;
   /** 入力された住民税の均等割額(所得割とは別に合計住民税額に加算) */
   residentTaxPerCapitaLeviesJpy: Decimal;
@@ -398,8 +415,20 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     foreignTaxCreditResidentTaxCreditJpy,
     totalResidentTaxAfterDonationTaxCreditJpy,
   );
-  const totalNationalTaxJpy = totalNationalTaxAfterDonationTaxCreditJpy.minus(
+  const totalNationalTaxAfterForeignTaxCreditJpy = totalNationalTaxAfterDonationTaxCreditJpy.minus(
     foreignTaxCreditNationalTaxAppliedJpy,
+  );
+
+  const distributionAdjustedForeignTaxCreditJpy = input.distributionAdjustedForeignTaxCreditJpy
+    ? new Decimal(input.distributionAdjustedForeignTaxCreditJpy)
+    : new Decimal(0);
+  requireNonNegative(distributionAdjustedForeignTaxCreditJpy, "分配時調整外国税相当額控除額");
+  const distributionAdjustedForeignTaxCreditAppliedJpy = Decimal.min(
+    distributionAdjustedForeignTaxCreditJpy,
+    totalNationalTaxAfterForeignTaxCreditJpy,
+  );
+  const totalNationalTaxJpy = totalNationalTaxAfterForeignTaxCreditJpy.minus(
+    distributionAdjustedForeignTaxCreditAppliedJpy,
   );
   const residentTaxPerCapitaLeviesJpy = input.residentTaxPerCapitaLeviesJpy
     ? new Decimal(input.residentTaxPerCapitaLeviesJpy)
@@ -521,6 +550,16 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
       );
     }
   }
+  if (distributionAdjustedForeignTaxCreditJpy.greaterThan(0)) {
+    notes.push(
+      "分配時調整外国税相当額控除(税額控除)は外国税額控除適用後の所得税額(復興特別所得税を含む)からのみ差し引く。外国税額控除と異なり控除限度額の計算・繰越は無く、住民税分は一次情報で条文・算式を確認できていないため対象外(`/distribution-adjusted-foreign-tax-credit`の試算結果を前提とする)。",
+    );
+    if (distributionAdjustedForeignTaxCreditAppliedJpy.lessThan(distributionAdjustedForeignTaxCreditJpy)) {
+      notes.push(
+        "分配時調整外国税相当額控除額が控除適用後の所得税額を上回ったため、超過分は切り捨てて0円を下限とした(繰越・還付は生じない)。",
+      );
+    }
+  }
 
   // ふるさと納税の上限額計算で使う所得税の限界税率は、超過累進税率が適用される
   // 総合課税分の課税所得金額(配当所得を総合課税で選んだ場合はそれも上乗せした金額)に
@@ -567,6 +606,7 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     totalResidentTaxAfterMortgageDeductionJpy,
     foreignTaxCreditNationalTaxAppliedJpy,
     foreignTaxCreditResidentTaxAppliedJpy,
+    distributionAdjustedForeignTaxCreditAppliedJpy,
     totalNationalTaxJpy,
     residentTaxPerCapitaLeviesJpy,
     totalResidentTaxJpy,

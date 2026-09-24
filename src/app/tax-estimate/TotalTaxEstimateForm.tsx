@@ -49,6 +49,8 @@ export function TotalTaxEstimateForm({
   defaultForeignTaxCreditNationalTaxCreditJpy,
   defaultForeignTaxCreditResidentTaxCreditJpy,
   registeredForeignTaxCredit,
+  defaultDistributionAdjustedForeignTaxCreditJpy,
+  registeredDistributionAdjustedForeignTaxCreditJpy,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -88,6 +90,10 @@ export function TotalTaxEstimateForm({
   defaultForeignTaxCreditResidentTaxCreditJpy: number;
   /** `/foreign-tax-credit`で登録済みの外国税額控除額(参考表示。未登録ならnull) */
   registeredForeignTaxCredit: { nationalTaxCreditJpy: number; residentTaxCreditJpy: number } | null;
+  /** `/distribution-adjusted-foreign-tax-credit`で登録済みの分配時調整外国税相当額控除額の初期値 */
+  defaultDistributionAdjustedForeignTaxCreditJpy: number;
+  /** `/distribution-adjusted-foreign-tax-credit`で登録済みの控除額(参考表示。未登録ならnull) */
+  registeredDistributionAdjustedForeignTaxCreditJpy: number | null;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -125,6 +131,10 @@ export function TotalTaxEstimateForm({
     useState(String(defaultForeignTaxCreditNationalTaxCreditJpy));
   const [foreignTaxCreditResidentTaxCreditJpy, setForeignTaxCreditResidentTaxCreditJpy] =
     useState(String(defaultForeignTaxCreditResidentTaxCreditJpy));
+  const [
+    distributionAdjustedForeignTaxCreditJpy,
+    setDistributionAdjustedForeignTaxCreditJpy,
+  ] = useState(String(defaultDistributionAdjustedForeignTaxCreditJpy));
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
   const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
@@ -168,6 +178,10 @@ export function TotalTaxEstimateForm({
           foreignTaxCreditResidentTaxCreditJpy === ""
             ? 0
             : foreignTaxCreditResidentTaxCreditJpy,
+        distributionAdjustedForeignTaxCreditJpy:
+          distributionAdjustedForeignTaxCreditJpy === ""
+            ? 0
+            : distributionAdjustedForeignTaxCreditJpy,
         withheldNationalTaxJpy: withheldNationalTaxJpy === "" ? 0 : withheldNationalTaxJpy,
         withheldResidentTaxJpy: withheldResidentTaxJpy === "" ? 0 : withheldResidentTaxJpy,
         estimatedTaxPrepaymentJpy:
@@ -194,6 +208,7 @@ export function TotalTaxEstimateForm({
     donationTaxCreditResidentTaxJpy,
     foreignTaxCreditNationalTaxCreditJpy,
     foreignTaxCreditResidentTaxCreditJpy,
+    distributionAdjustedForeignTaxCreditJpy,
     withheldNationalTaxJpy,
     withheldResidentTaxJpy,
     estimatedTaxPrepaymentJpy,
@@ -373,6 +388,24 @@ export function TotalTaxEstimateForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
+          label={`分配時調整外国税相当額控除(税額控除・所得税分。住民税分は無し)${
+            registeredDistributionAdjustedForeignTaxCreditJpy !== null
+              ? " — 初期値は/distribution-adjusted-foreign-tax-creditの登録値"
+              : ""
+          }`}
+          value={distributionAdjustedForeignTaxCreditJpy}
+          onChange={setDistributionAdjustedForeignTaxCreditJpy}
+        />
+      </div>
+      {registeredDistributionAdjustedForeignTaxCreditJpy !== null && (
+        <p className="text-xs text-neutral-500">
+          /distribution-adjusted-foreign-tax-creditで登録済み:{" "}
+          {yen(registeredDistributionAdjustedForeignTaxCreditJpy)}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
           label="源泉徴収税額(所得税・復興特別所得税分。給与・配当・特定口座内の譲渡益等の合計)"
           value={withheldNationalTaxJpy}
           onChange={setWithheldNationalTaxJpy}
@@ -456,6 +489,12 @@ export function TotalTaxEstimateForm({
                 )}
                 (所得税等 {yen(result.foreignTaxCreditNationalTaxAppliedJpy)} / 住民税{" "}
                 {yen(result.foreignTaxCreditResidentTaxAppliedJpy)})
+              </p>
+            )}
+            {result.distributionAdjustedForeignTaxCreditAppliedJpy.greaterThan(0) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                − 分配時調整外国税相当額控除{" "}
+                {yen(result.distributionAdjustedForeignTaxCreditAppliedJpy)}(所得税分のみ)
               </p>
             )}
             {result.residentTaxPerCapitaLeviesJpy.greaterThan(0) && (

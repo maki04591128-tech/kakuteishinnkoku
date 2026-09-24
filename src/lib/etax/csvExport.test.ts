@@ -192,6 +192,9 @@ describe("buildTaxFilingDraftCsv", () => {
         residentTaxCreditJpy: new Decimal(15_000),
       },
       { totalCreditJpy: new Decimal(45_000) },
+      undefined,
+      undefined,
+      { creditJpy: new Decimal(3_000) },
     );
 
     const csv = buildTaxFilingDraftCsv(summary, crypto.bySymbol, investment.bySymbol);
@@ -201,6 +204,8 @@ describe("buildTaxFilingDraftCsv", () => {
     expect(csv).toContain("15000");
     expect(csv).toContain("外国税額控除額");
     expect(csv).toContain("45000");
+    expect(csv).toContain("分配時調整外国税相当額控除額");
+    expect(csv).toContain("3000");
     expect(csv).not.toContain("登録されていないため本CSVには含まれない");
   });
 
@@ -263,6 +268,7 @@ describe("buildTaxFilingDraftCsv", () => {
         totalForeignTaxWithheldJpy: new Decimal(0),
         totalForeignSourceCapitalGainJpy: new Decimal(0),
         totalForeignSourceIncomeJpy: new Decimal(0),
+        totalDistributionAdjustedForeignTaxJpy: new Decimal(0),
       },
     );
     const csv = buildTaxFilingDraftCsv(summary, [], []);
