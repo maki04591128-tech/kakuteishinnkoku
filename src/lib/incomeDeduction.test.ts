@@ -48,6 +48,19 @@ describe("summarizeIncomeDeductions", () => {
     expect(summary.totalResidentTaxAmountJpy.toNumber()).toBe(450_000);
     expect(summary.notes.join("")).toContain("医療費控除");
   });
+
+  it("特定支出控除が登録されている場合は所得控除ではない旨の注記を付ける", () => {
+    const summary = summarizeIncomeDeductions([
+      {
+        type: "SPECIFIC_EXPENSE",
+        incomeTaxAmountJpy: 80_000,
+        residentTaxAmountJpy: 80_000,
+      },
+    ]);
+
+    expect(summary.totalIncomeTaxAmountJpy.toNumber()).toBe(80_000);
+    expect(summary.notes.join("")).toContain("特定支出控除");
+  });
 });
 
 describe("findIncomeDeductionEntry", () => {
