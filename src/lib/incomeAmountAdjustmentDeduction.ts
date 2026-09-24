@@ -27,6 +27,12 @@ import { employmentIncomeDeductionJpy } from "./specificExpenseDeduction";
  */
 
 export interface IncomeAmountAdjustmentDeductionInput {
+  /**
+   * 課税年分(西暦)。給与所得控除の最低保障額の引上げを`employmentIncomeDeductionJpy`に
+   * 反映するために使う(詳細は`src/lib/specificExpenseDeduction.ts`参照)。省略時は
+   * 令和6年分以前(最低保障額55万円)を適用する。
+   */
+  year?: number;
   /** その年の給与収入金額 */
   salaryIncomeJpy: Decimal.Value;
   /** 納税者本人が特別障害者に該当するか(①の要件) */
@@ -84,7 +90,7 @@ export function estimateIncomeAmountAdjustmentDeduction(
   requireNonNegative(salaryIncomeJpy, "給与収入金額");
   requireNonNegative(publicPensionMiscIncomeJpy, "公的年金等に係る雑所得の金額");
 
-  const employmentIncomeDeduction = employmentIncomeDeductionJpy(salaryIncomeJpy);
+  const employmentIncomeDeduction = employmentIncomeDeductionJpy(salaryIncomeJpy, input.year);
   const employmentIncomeBeforeAdjustmentJpy = salaryIncomeJpy.minus(employmentIncomeDeduction);
 
   const isEligibleForChildOrDisabilityAdjustment =
@@ -129,6 +135,7 @@ export function estimateIncomeAmountAdjustmentDeduction(
     "①(子育て・特別障害者等)の対象となる特別障害者・扶養親族(23歳未満)の該当性判定自体はユーザー自身が行う前提とする。",
     "②(給与所得・公的年金等雑所得の双方がある者)の給与所得金額は、①が適用される場合はその適用後の金額を用いる(両方に該当する場合の国税庁の取扱いに基づく)。",
     "給与所得控除額は速算表による概算値。実際の申告では「給与所得控除後の給与等の金額の表」の1円単位の値と若干異なる場合がある。",
+    "給与所得控除の最低保障額は令和7年分65万円・令和8年分及び令和9年分74万円・令和10年分以後69万円へ段階的に引き上げられている(課税年分を指定していない場合は引上げ前の55万円を適用)。",
   ];
 
   return {

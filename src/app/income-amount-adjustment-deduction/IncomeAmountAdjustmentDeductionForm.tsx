@@ -27,6 +27,7 @@ export function IncomeAmountAdjustmentDeductionForm({
   const result = useMemo(() => {
     try {
       return estimateIncomeAmountAdjustmentDeduction({
+        year,
         salaryIncomeJpy: salaryIncome === "" ? 0 : salaryIncome,
         isTaxpayerSpecialDisability,
         hasSpecialDisabilityDependentOrSpouse,
@@ -37,6 +38,7 @@ export function IncomeAmountAdjustmentDeductionForm({
       return null;
     }
   }, [
+    year,
     salaryIncome,
     isTaxpayerSpecialDisability,
     hasSpecialDisabilityDependentOrSpouse,
