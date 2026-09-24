@@ -1,4 +1,5 @@
 import { Decimal } from "decimal.js";
+import { prisma } from "./db";
 import { RECONSTRUCTION_SURTAX_RATE } from "./incomeTax";
 
 /**
@@ -256,5 +257,34 @@ export function compareDonationTaxTreatment(
     incomeDeductionIncomeTaxSavingsJpy,
     recommended,
     advantageJpy,
+  };
+}
+
+export interface DonationTaxCreditRecordEntry {
+  taxYear: number;
+  /** その年分の特別控除額の合計(DonationTaxCreditResult.totalTaxCreditJpy) */
+  totalTaxCreditJpy: Decimal;
+}
+
+/**
+ * `/donation-tax-credit`で登録済みの、指定した年分の政党等・認定NPO法人等・
+ * 公益社団法人等寄附金特別控除の合計控除額をDBから読み出す。下書きCSV
+ * (`/api/export`)の税額控除欄・`/tax-estimate`の合計税額試算への自動反映に使う。
+ * 未登録の年は null を返す。
+ */
+export async function getDonationTaxCreditRecord(
+  year: number,
+): Promise<DonationTaxCreditRecordEntry | null> {
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (!taxYear) return null;
+
+  const record = await prisma.donationTaxCreditRecord.findUnique({
+    where: { taxYearId: taxYear.id },
+  });
+  if (!record) return null;
+
+  return {
+    taxYear: year,
+    totalTaxCreditJpy: new Decimal(record.totalTaxCreditJpy.toString()),
   };
 }

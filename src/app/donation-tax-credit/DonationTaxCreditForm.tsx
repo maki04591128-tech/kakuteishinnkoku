@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { saveDonationTaxCreditRecord } from "@/app/actions";
 import {
   DONATION_TAX_CREDIT_CATEGORY_LABELS,
   type DonationTaxCreditCategory,
@@ -28,7 +29,14 @@ const RECOMMENDATION_LABELS: Record<string, string> = {
   EITHER: "どちらでも同額(差なし)",
 };
 
-export function DonationTaxCreditForm() {
+export function DonationTaxCreditForm({
+  taxYear,
+  registeredRecord,
+}: {
+  taxYear: number;
+  /** `/tax-estimate`と連携するため既に登録済みの寄附金特別控除額(未登録ならnull) */
+  registeredRecord: { taxYear: number; totalTaxCreditJpy: number } | null;
+}) {
   const [politicalPartyDonation, setPoliticalPartyDonation] = useState("0");
   const [certifiedNpoDonation, setCertifiedNpoDonation] = useState("0");
   const [publicInterestCorporationDonation, setPublicInterestCorporationDonation] = useState("0");
@@ -143,6 +151,29 @@ export function DonationTaxCreditForm() {
                 所得税額の25%相当額 {yen(result.taxAmountCapJpy)}(政党等/NPO等+公益法人等それぞれの上限)
               </p>
             </div>
+          </div>
+
+          <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+            <form action={saveDonationTaxCreditRecord}>
+              <input type="hidden" name="year" value={taxYear} />
+              <input
+                type="hidden"
+                name="totalTaxCreditJpy"
+                value={result.totalTaxCreditJpy.toString()}
+              />
+              <button
+                type="submit"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              >
+                この試算結果を{taxYear}年分の寄附金特別控除として登録する
+              </button>
+            </form>
+            {registeredRecord !== null && (
+              <p className="mt-2 text-xs text-neutral-500">
+                登録済み({registeredRecord.taxYear}年分): {yen(registeredRecord.totalTaxCreditJpy)}
+                (/tax-estimateの初期値・下書きCSVに反映)
+              </p>
+            )}
           </div>
 
           <fieldset className="grid grid-cols-1 gap-4 rounded-md border border-neutral-200 p-3 sm:grid-cols-2 dark:border-neutral-800">

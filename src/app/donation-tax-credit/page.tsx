@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listTaxYears } from "@/lib/taxYear";
+import { getDonationTaxCreditRecord } from "@/lib/donationTaxCredit";
 import { DonationTaxCreditForm } from "./DonationTaxCreditForm";
 
 export default async function DonationTaxCreditPage({
@@ -11,6 +12,14 @@ export default async function DonationTaxCreditPage({
   const availableYears = await listTaxYears();
   const currentCalendarYear = new Date().getFullYear();
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
+
+  const donationTaxCreditRecord = await getDonationTaxCreditRecord(year);
+  const registeredRecord = donationTaxCreditRecord
+    ? {
+        taxYear: donationTaxCreditRecord.taxYear,
+        totalTaxCreditJpy: donationTaxCreditRecord.totalTaxCreditJpy.toNumber(),
+      }
+    : null;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -33,7 +42,7 @@ export default async function DonationTaxCreditPage({
         </p>
       </header>
 
-      <DonationTaxCreditForm />
+      <DonationTaxCreditForm taxYear={year} registeredRecord={registeredRecord} />
 
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         租税特別措置法41条の18(政党等)・41条の18の2(認定NPO法人等)・41条の18の3
@@ -44,9 +53,9 @@ export default async function DonationTaxCreditPage({
         <Link href={`/tax-estimate?year=${year}`} className="underline">
           所得税・住民税の概算合計税額試算
         </Link>
-        の結果を参考に入力すること。本ツールはこの試算結果のDB保存・
-        `/tax-estimate`への自動反映には対応していない(今後の課題。試算結果は別途申告書へ
-        転記すること)。
+        の結果を参考に入力すること。試算結果は「登録する」ボタンで年分ごとに保存でき、
+        `/tax-estimate`の合計税額試算(所得税分の税額控除)・下書きCSVの税額控除欄に
+        自動反映される(初期値のみで、手入力で上書き可能)。
       </p>
     </div>
   );
