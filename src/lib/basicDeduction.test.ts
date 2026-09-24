@@ -20,18 +20,16 @@ describe("estimateBasicDeduction", () => {
     expect(result.residentTaxAmountJpy.toNumber()).toBe(430_000);
   });
 
-  it("令和7年分・8年分の所得税基礎控除の段階表(132万円超336万円以下は88万円等、時限的な上乗せ)", () => {
-    for (const year of [2025, 2026]) {
-      expect(
-        estimateBasicDeduction({ totalIncomeJpy: 3_360_000, year }).incomeTaxAmountJpy.toNumber(),
-      ).toBe(880_000);
-      expect(
-        estimateBasicDeduction({ totalIncomeJpy: 4_890_000, year }).incomeTaxAmountJpy.toNumber(),
-      ).toBe(680_000);
-      expect(
-        estimateBasicDeduction({ totalIncomeJpy: 6_550_000, year }).incomeTaxAmountJpy.toNumber(),
-      ).toBe(630_000);
-    }
+  it("令和7年分の所得税基礎控除の段階表(132万円超336万円以下は88万円等)", () => {
+    expect(
+      estimateBasicDeduction({ totalIncomeJpy: 3_360_000, year: 2025 }).incomeTaxAmountJpy.toNumber(),
+    ).toBe(880_000);
+    expect(
+      estimateBasicDeduction({ totalIncomeJpy: 4_890_000, year: 2025 }).incomeTaxAmountJpy.toNumber(),
+    ).toBe(680_000);
+    expect(
+      estimateBasicDeduction({ totalIncomeJpy: 6_550_000, year: 2025 }).incomeTaxAmountJpy.toNumber(),
+    ).toBe(630_000);
   });
 
   it("令和7年分は合計所得金額655万円超2,350万円以下だと所得税58万円", () => {
@@ -40,21 +38,39 @@ describe("estimateBasicDeduction", () => {
     expect(result.residentTaxAmountJpy.toNumber()).toBe(430_000);
   });
 
-  it("令和9年分以後は132万円超655万円以下の時限的な上乗せが終了し58万円に統一される", () => {
-    for (const totalIncomeJpy of [3_360_000, 4_890_000, 6_550_000]) {
-      const result = estimateBasicDeduction({ totalIncomeJpy, year: 2027 });
-      expect(result.incomeTaxAmountJpy.toNumber()).toBe(580_000);
-      expect(result.residentTaxAmountJpy.toNumber()).toBe(430_000);
+  it("令和8年度税制改正により令和8年分・9年分は132万円以下〜336万円超489万円以下がいずれも104万円に統一される", () => {
+    for (const year of [2026, 2027]) {
+      for (const totalIncomeJpy of [1_320_000, 3_360_000, 4_890_000]) {
+        expect(
+          estimateBasicDeduction({ totalIncomeJpy, year }).incomeTaxAmountJpy.toNumber(),
+        ).toBe(1_040_000);
+      }
+      expect(
+        estimateBasicDeduction({ totalIncomeJpy: 6_550_000, year }).incomeTaxAmountJpy.toNumber(),
+      ).toBe(670_000);
+      expect(
+        estimateBasicDeduction({ totalIncomeJpy: 10_000_000, year }).incomeTaxAmountJpy.toNumber(),
+      ).toBe(620_000);
+      expect(
+        estimateBasicDeduction({ totalIncomeJpy: 6_550_000, year }).residentTaxAmountJpy.toNumber(),
+      ).toBe(430_000);
     }
   });
 
-  it("令和9年分以後も132万円以下(95万円)・655万円超2,350万円以下(58万円)は変わらない", () => {
+  it("令和10年分以後は132万円以下99万円、132万円超2,350万円以下62万円に統一される", () => {
     expect(
-      estimateBasicDeduction({ totalIncomeJpy: 1_320_000, year: 2027 }).incomeTaxAmountJpy.toNumber(),
-    ).toBe(950_000);
-    expect(
-      estimateBasicDeduction({ totalIncomeJpy: 10_000_000, year: 2028 }).incomeTaxAmountJpy.toNumber(),
-    ).toBe(580_000);
+      estimateBasicDeduction({ totalIncomeJpy: 1_320_000, year: 2028 }).incomeTaxAmountJpy.toNumber(),
+    ).toBe(990_000);
+    for (const totalIncomeJpy of [1_320_001, 3_360_000, 4_890_000, 6_550_000, 10_000_000]) {
+      expect(
+        estimateBasicDeduction({ totalIncomeJpy, year: 2028 }).incomeTaxAmountJpy.toNumber(),
+      ).toBe(620_000);
+    }
+  });
+
+  it("令和12年分以後も一次情報未公表のため令和10年分の数値を暫定適用する", () => {
+    const result = estimateBasicDeduction({ totalIncomeJpy: 1_320_000, year: 2030 });
+    expect(result.incomeTaxAmountJpy.toNumber()).toBe(990_000);
   });
 
   it("高所得層側の逓減・消失は年分に関わらず所得税・住民税とも従来通り", () => {
