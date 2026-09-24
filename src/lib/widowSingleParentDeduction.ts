@@ -26,7 +26,12 @@ import { Decimal } from "decimal.js";
  *     事実上婚姻関係と同様の事情にある者がいないこと。
  *   勤労学生控除: 学校教育法上の学校等の学生・生徒等で、自己の勤労による
  *     事業所得・給与所得等があり、合計所得金額75万円以下(かつ給与所得等以外の
- *     所得が10万円以下)であること。
+ *     所得が10万円以下)であること。この所得要件は令和7年度税制改正・令和8年度
+ *     税制改正により段階的に引き上げられており(令和6年分以前75万円→令和7年分
+ *     〔2025年分〕85万円→令和8年分〔2026年分〕以後89万円。国税庁タックスアンサー
+ *     No.1175「勤労学生控除」参照)、控除額自体(所得税27万円・住民税26万円)は
+ *     いずれの年分も変わらない。この試算は要件適合性を判定しないため(冒頭の
+ *     `year`引数の説明を参照)、注記文言の年分表示のみを切り替える。
  */
 
 export type WidowSingleParentCategory = "NONE" | "WIDOW" | "SINGLE_PARENT";
@@ -36,6 +41,13 @@ export interface WidowSingleParentDeductionInput {
   category: WidowSingleParentCategory;
   /** 勤労学生控除に該当するか(寡婦・ひとり親控除とは独立した別要件) */
   workingStudent: boolean;
+  /**
+   * 課税年分(西暦)。勤労学生控除の合計所得金額要件(注記文言のみに使用。控除額
+   * 自体には影響しない)を年分に応じて表示する: 令和8年分(2026年分)以後は89万円、
+   * 令和7年分(2025年分)は85万円、令和6年分(2024年分)以前は75万円。省略時は
+   * 令和6年分以前(75万円)の表示を使う。
+   */
+  year?: number;
 }
 
 export interface WidowSingleParentDeductionResult {
@@ -74,6 +86,12 @@ function categoryDeduction(category: WidowSingleParentCategory): {
   }
 }
 
+function workingStudentIncomeLimitLabel(year: number): string {
+  if (year >= 2026) return "89万円";
+  if (year >= 2025) return "85万円";
+  return "75万円";
+}
+
 export function estimateWidowSingleParentDeduction(
   input: WidowSingleParentDeductionInput,
 ): WidowSingleParentDeductionResult {
@@ -85,8 +103,9 @@ export function estimateWidowSingleParentDeduction(
     ? WORKING_STUDENT_RESIDENT_TAX_JPY
     : new Decimal(0);
 
+  const workingStudentIncomeLimitJpyLabel = workingStudentIncomeLimitLabel(input.year ?? 0);
   const notes: string[] = [
-    "国税庁タックスアンサーNo.1170(寡婦控除)・No.1171(ひとり親控除)・No.1175(勤労学生控除)の速算表による概算値。合計所得金額の要件(寡婦・ひとり親は500万円以下、勤労学生は75万円以下かつ給与所得等以外10万円以下)等の適用可否はこの試算では判定しないため、必ず自身で確認すること。",
+    `国税庁タックスアンサーNo.1170(寡婦控除)・No.1171(ひとり親控除)・No.1175(勤労学生控除)の速算表による概算値。合計所得金額の要件(寡婦・ひとり親は500万円以下、勤労学生は${workingStudentIncomeLimitJpyLabel}以下かつ給与所得等以外10万円以下)等の適用可否はこの試算では判定しないため、必ず自身で確認すること。`,
     "寡婦控除とひとり親控除は選択制で併用できない(ひとり親控除の要件を満たす場合、寡婦控除は適用されない)。",
     "勤労学生控除は寡婦控除・ひとり親控除とは独立した別要件のため、理論上は併用できる。",
   ];

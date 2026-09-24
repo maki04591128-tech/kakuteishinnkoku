@@ -57,4 +57,38 @@ describe("estimateWidowSingleParentDeduction", () => {
     // ひとり親30万円 + 勤労学生26万円 = 56万円
     expect(result.totalResidentTaxDeductionJpy.toNumber()).toBe(560_000);
   });
+
+  it("勤労学生控除の所得要件の注記は年分に応じて75万円/85万円/89万円に切り替わる(控除額自体は不変)", () => {
+    const result2024 = estimateWidowSingleParentDeduction({
+      category: "NONE",
+      workingStudent: true,
+      year: 2024,
+    });
+    expect(result2024.notes.some((n) => n.includes("75万円以下"))).toBe(true);
+    expect(result2024.workingStudentIncomeTaxDeductionJpy.toNumber()).toBe(270_000);
+
+    const result2025 = estimateWidowSingleParentDeduction({
+      category: "NONE",
+      workingStudent: true,
+      year: 2025,
+    });
+    expect(result2025.notes.some((n) => n.includes("85万円以下"))).toBe(true);
+    expect(result2025.workingStudentIncomeTaxDeductionJpy.toNumber()).toBe(270_000);
+
+    const result2026 = estimateWidowSingleParentDeduction({
+      category: "NONE",
+      workingStudent: true,
+      year: 2026,
+    });
+    expect(result2026.notes.some((n) => n.includes("89万円以下"))).toBe(true);
+    expect(result2026.workingStudentIncomeTaxDeductionJpy.toNumber()).toBe(270_000);
+  });
+
+  it("yearを省略した場合は令和6年分以前(75万円)の注記になる", () => {
+    const result = estimateWidowSingleParentDeduction({
+      category: "NONE",
+      workingStudent: true,
+    });
+    expect(result.notes.some((n) => n.includes("75万円以下"))).toBe(true);
+  });
 });

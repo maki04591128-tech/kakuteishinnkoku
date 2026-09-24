@@ -29,8 +29,8 @@ export function WidowSingleParentDeductionForm({
   const [workingStudent, setWorkingStudent] = useState(false);
 
   const result = useMemo(
-    () => estimateWidowSingleParentDeduction({ category, workingStudent }),
-    [category, workingStudent],
+    () => estimateWidowSingleParentDeduction({ category, workingStudent, year }),
+    [category, workingStudent, year],
   );
 
   return (

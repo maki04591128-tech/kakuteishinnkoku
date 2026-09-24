@@ -25,6 +25,21 @@ import { Decimal } from "decimal.js";
  * 税理士事務所の解説で一致して確認できたため実装した(旧`residentTaxAmountUnverified`
  * フラグは撤去)。
  *
+ * **令和8年度税制改正による所得要件の再引き上げ(58万円→62万円):** 扶養親族・
+ * 同一生計配偶者の合計所得金額要件は、所得税は令和8年分(2026年分)以後・住民税は
+ * 令和9年度分以後(=令和8年分の所得に対する住民税)、58万円以下から62万円以下へ
+ * さらに引き上げられる(国税庁タックスアンサーNo.1177「特定親族特別控除」
+ * 〔令和8年4月1日現在法令等〕
+ * https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1177.htm で確認)。
+ * 特定親族特別控除の対象所得区分もこれに伴い「62万円超123万円以下」に変わるが、
+ * 同ページに掲載された令和8年分以後の控除額の段階表(62万円超85万円以下63万円〜
+ * 120万円超123万円以下3万円)は上限(123万円)・各区分の上限額・控除額いずれも
+ * 令和7年分の表(`SPECIFIED_SPECIAL_DEDUCTION_TABLE`)と同一で、変わるのは
+ * 対象範囲の下限(58万円→62万円)のみだったため、テーブル自体の変更は不要で
+ * `dependentIncomeLimitForYear`の年分判定を追加するだけで対応できた。配偶者特別控除の
+ * 上限(133万円)・段階表も同様に変更が無い(配偶者の合計所得金額の下限のみ
+ * 58万円→62万円)ことを確認済み。
+ *
  * **基礎控除の引き上げ(令和7年度税制改正)** は`src/lib/basicDeduction.ts`に
  * 分離して実装した(本ファイルの対象外)。
  */
@@ -32,7 +47,11 @@ import { Decimal } from "decimal.js";
 /** 扶養親族・同一生計配偶者の合計所得金額要件が48万円→58万円に引き上げられた年分(令和7年度税制改正) */
 const REFORM_YEAR_INCOME_REQUIREMENT_580K = 2025;
 
+/** 扶養親族・同一生計配偶者の合計所得金額要件が58万円→62万円に引き上げられた年分(令和8年度税制改正) */
+const REFORM_YEAR_INCOME_REQUIREMENT_620K = 2026;
+
 function dependentIncomeLimitForYear(year: number): number {
+  if (year >= REFORM_YEAR_INCOME_REQUIREMENT_620K) return 620_000;
   return year >= REFORM_YEAR_INCOME_REQUIREMENT_580K ? 580_000 : 480_000;
 }
 
@@ -92,7 +111,8 @@ export interface SpouseDeductionInput {
   spouseIsElderly: boolean;
   /**
    * 課税年分(西暦)。令和7年分(2025年分)以後は同一生計配偶者の合計所得金額要件が
-   * 58万円以下(令和6年分以前は48万円以下)になる。省略時は令和6年分以前(48万円)を適用する。
+   * 58万円以下(令和6年分以前は48万円以下)になり、令和8年分(2026年分)以後は
+   * さらに62万円以下に引き上げられる。省略時は令和6年分以前(48万円)を適用する。
    */
   year?: number;
 }
@@ -136,7 +156,12 @@ export function estimateSpouseDeduction(input: SpouseDeductionInput): SpouseDedu
   const bandIndex = BAND_INDEX[band];
 
   const spouseIncomeLimitForRegularDeduction = dependentIncomeLimitForYear(input.year ?? 0);
-  const spouseIncomeLimitJpyLabel = spouseIncomeLimitForRegularDeduction === 580_000 ? "58万円" : "48万円";
+  const spouseIncomeLimitJpyLabel =
+    spouseIncomeLimitForRegularDeduction === 620_000
+      ? "62万円"
+      : spouseIncomeLimitForRegularDeduction === 580_000
+        ? "58万円"
+        : "48万円";
 
   if (spouseTotalIncomeJpy.lessThanOrEqualTo(spouseIncomeLimitForRegularDeduction)) {
     const amounts = input.spouseIsElderly
@@ -236,7 +261,8 @@ export interface DependentInput {
   cohabitingElderlyRelative?: boolean;
   /**
    * 課税年分(西暦)。令和7年分(2025年分)以後は扶養親族の合計所得金額要件が
-   * 58万円以下(令和6年分以前は48万円以下)になる。省略時は令和6年分以前(48万円)を適用する。
+   * 58万円以下(令和6年分以前は48万円以下)になり、令和8年分(2026年分)以後は
+   * さらに62万円以下に引き上げられる。省略時は令和6年分以前(48万円)を適用する。
    */
   year?: number;
 }
@@ -291,9 +317,10 @@ export function estimateDependentDeduction(input: DependentInput): DependentResu
     );
     const incomeTaxAmountJpy = new Decimal(row?.incomeTaxJpy ?? 0);
     const residentTaxAmountJpy = new Decimal(row?.residentTaxJpy ?? 0);
+    const lowerLimitLabel = dependentIncomeLimit === 620_000 ? "62万円" : "58万円";
     return {
       category,
-      categoryLabel: "特定親族特別控除の対象(19〜22歳・合計所得金額58万円超123万円以下)",
+      categoryLabel: `特定親族特別控除の対象(19〜22歳・合計所得金額${lowerLimitLabel}超123万円以下)`,
       eligible: true,
       incomeTaxAmountJpy,
       residentTaxAmountJpy,
