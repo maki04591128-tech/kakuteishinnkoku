@@ -157,6 +157,7 @@ export async function buildYearReport(year: number): Promise<{
     assetType: t.assetType,
     isReit: t.isReit,
     mutualFundHighForeignRatio: t.mutualFundHighForeignRatio,
+    mutualFundVeryHighForeignRatio: t.mutualFundVeryHighForeignRatio,
   });
 
   const investment = calculateInvestmentPortfolioYear(

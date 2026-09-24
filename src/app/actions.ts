@@ -259,6 +259,13 @@ export async function addInvestmentTrade(formData: FormData): Promise<void> {
       "外貨建資産等の組入割合50%超75%以下は資産種別「投資信託」の場合のみ指定できます",
     );
   }
+  const mutualFundVeryHighForeignRatio =
+    formData.get("mutualFundVeryHighForeignRatio") === "on";
+  if (mutualFundVeryHighForeignRatio && assetType !== "MUTUAL_FUND") {
+    throw new Error(
+      "外貨建資産等の組入割合75%超は資産種別「投資信託」の場合のみ指定できます",
+    );
+  }
 
   await prisma.investmentTrade.create({
     data: {
@@ -269,6 +276,7 @@ export async function addInvestmentTrade(formData: FormData): Promise<void> {
       assetType: assetType as never,
       isReit,
       mutualFundHighForeignRatio,
+      mutualFundVeryHighForeignRatio,
       isListed,
       type: requireString(formData, "type") as never,
       quantity: requireString(formData, "quantity"),

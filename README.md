@@ -1529,6 +1529,30 @@ J-REIT)から受ける配当等」が除外されている旨を確認)。取引
 引き続き独立して行う(合算した場合の税率区分への影響までは織り込まない、
 配当控除の1,000万円閾値判定のみの対応)。
 
+### 67. 配当所得の課税方式シミュレーションに株式投資信託の組入割合75%超(配当控除対象外)区分を追加 — `src/lib/investment/calculator.ts`・`prisma/schema.prisma`・`/import`
+
+機能57で「株式投資信託の1/4税率(組入割合50%超75%以下)を実装したが、組入割合
+75%超は本来配当控除の対象外(NONE)になるところ、この区分までは細分化しておらず
+75%超もQUARTER(対象外より有利な区分)として扱う簡略化とした(今後の課題)」と
+していた点に対応した。国税庁タックスアンサーNo.1250「配当所得があるとき(配当控除)」
+の速算表で、証券投資信託の収益の分配に係る配当控除率が組入割合50%以下(通常の
+1/2)・50%超75%以下(通常の1/4)・75%超(対象外)の3段階に分かれていることを
+機能57の時点で既に確認済みだったため、残る75%超区分を新規実装した。
+
+`InvestmentTrade`に`mutualFundVeryHighForeignRatio`区分(既定値false。機能追加前の
+登録済みデータはすべて組入割合75%以下として扱われ挙動は変わらない)を追加し、
+`dividendCreditCategory`(`src/lib/investment/calculator.ts`)が
+`assetType="MUTUAL_FUND"`かつ`mutualFundVeryHighForeignRatio=true`の場合、
+`mutualFundHighForeignRatio`の値に関わらず`NONE`区分に振り分けるよう変更した
+(75%超であれば当然50%超でもあるため、`mutualFundVeryHighForeignRatio`を
+`mutualFundHighForeignRatio`より優先する判定)。`dividendTaxSimulation.ts`側は
+機能57で既にQUARTER・NONEそれぞれの内訳(`quarterCreditJpy`・`noCreditJpy`)を
+受け取る設計だったため変更不要だった。`/import`の株式・投資信託等取引フォームに
+「外貨建資産等の組入割合が75%超」チェックボックス(資産種別が投資信託の場合のみ
+指定する想定。それ以外を選んだままチェックすると登録時にエラーとする)を追加し、
+`/dividend-simulation`側は機能57で既に対応済みのNONE区分の内訳入力欄
+(`totalDividendNoCreditJpy`の自動集計)をそのまま使う設計のため変更不要だった。
+
 ## データモデル
 
 `prisma/schema.prisma` を参照。主なテーブル:
@@ -1638,6 +1662,15 @@ J-REIT)から受ける配当等」が除外されている旨を確認)。取引
 実現可能なものを選んで対応するのが妥当と考えられる。
 
 ### 完了済み
+
+- **配当所得の課税方式シミュレーションに株式投資信託の組入割合75%超(配当控除
+  対象外)区分を追加**(`src/lib/investment/calculator.ts`・`prisma/schema.prisma`・
+  `/import`。機能67参照)。機能57で「組入割合75%超は本来配当控除の対象外(NONE)
+  になるが、この区分まではフラグを細分化しておらず75%超もQUARTER(対象外より
+  有利な区分)として扱う簡略化」としていた今後の課題に対応した。国税庁の速算表の
+  3段階区分(50%以下・50%超75%以下・75%超)のうち、機能57時点で未実装だった
+  75%超(対象外)区分を新設の`mutualFundVeryHighForeignRatio`フラグで判定できる
+  ようにした。
 
 - **配当所得の課税方式シミュレーションの配当控除1,000万円閾値を上場株式等・
   一般株式等の合算で判定**(`src/lib/investment/dividendTaxSimulation.ts`・
