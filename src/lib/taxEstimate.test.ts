@@ -444,6 +444,77 @@ describe("estimateTotalTax", () => {
     ).toBe(30_000);
   });
 
+  it("住宅耐震改修特別控除は寄附金特別控除適用後の所得税額からのみ差し引かれる(住民税分は無し)", () => {
+    const withDonationCreditOnly = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      donationTaxCreditJpy: 40_000,
+    });
+    const withBoth = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      donationTaxCreditJpy: 40_000,
+      earthquakeRenovationDeductionJpy: 25_000,
+    });
+
+    expect(withBoth.earthquakeRenovationDeductionAppliedJpy.toNumber()).toBe(25_000);
+    expect(
+      withDonationCreditOnly.totalNationalTaxJpy.minus(withBoth.totalNationalTaxJpy).toNumber(),
+    ).toBe(25_000);
+    expect(
+      withDonationCreditOnly.totalResidentTaxJpy.minus(withBoth.totalResidentTaxJpy).toNumber(),
+    ).toBe(0);
+  });
+
+  it("住宅耐震改修特別控除額が控除適用後の所得税額を上回る場合は0円が下限になる", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 0,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      earthquakeRenovationDeductionJpy: 100_000_000,
+    });
+
+    expect(result.totalNationalTaxAfterEarthquakeRenovationDeductionJpy.toNumber()).toBe(0);
+    expect(result.earthquakeRenovationDeductionAppliedJpy.toNumber()).toBe(
+      result.totalNationalTaxAfterDonationTaxCreditJpy.toNumber(),
+    );
+  });
+
+  it("外国税額控除は住宅耐震改修特別控除適用後の所得税額からさらに差し引かれる", () => {
+    const withEarthquakeRenovationOnly = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      earthquakeRenovationDeductionJpy: 25_000,
+    });
+    const withBoth = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      earthquakeRenovationDeductionJpy: 25_000,
+      foreignTaxCreditNationalTaxCreditJpy: 30_000,
+    });
+
+    expect(withBoth.foreignTaxCreditNationalTaxAppliedJpy.toNumber()).toBe(30_000);
+    expect(
+      withEarthquakeRenovationOnly.totalNationalTaxJpy
+        .minus(withBoth.totalNationalTaxJpy)
+        .toNumber(),
+    ).toBe(30_000);
+  });
+
   it("外国税額控除(税額控除)を入力すると住宅ローン控除適用後の税額から直接差し引かれる", () => {
     const withMortgageOnly = estimateTotalTax({
       otherComprehensiveIncomeJpy: 5_000_000,

@@ -51,6 +51,8 @@ export function TotalTaxEstimateForm({
   registeredForeignTaxCredit,
   defaultDistributionAdjustedForeignTaxCreditJpy,
   registeredDistributionAdjustedForeignTaxCreditJpy,
+  defaultEarthquakeRenovationDeductionJpy,
+  registeredEarthquakeRenovationDeductionJpy,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -94,6 +96,10 @@ export function TotalTaxEstimateForm({
   defaultDistributionAdjustedForeignTaxCreditJpy: number;
   /** `/distribution-adjusted-foreign-tax-credit`で登録済みの控除額(参考表示。未登録ならnull) */
   registeredDistributionAdjustedForeignTaxCreditJpy: number | null;
+  /** `/earthquake-renovation-deduction`で登録済みの住宅耐震改修特別控除額の初期値 */
+  defaultEarthquakeRenovationDeductionJpy: number;
+  /** `/earthquake-renovation-deduction`で登録済みの控除額(参考表示。未登録ならnull) */
+  registeredEarthquakeRenovationDeductionJpy: number | null;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -135,6 +141,9 @@ export function TotalTaxEstimateForm({
     distributionAdjustedForeignTaxCreditJpy,
     setDistributionAdjustedForeignTaxCreditJpy,
   ] = useState(String(defaultDistributionAdjustedForeignTaxCreditJpy));
+  const [earthquakeRenovationDeductionJpy, setEarthquakeRenovationDeductionJpy] = useState(
+    String(defaultEarthquakeRenovationDeductionJpy),
+  );
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
   const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
@@ -170,6 +179,8 @@ export function TotalTaxEstimateForm({
         donationTaxCreditJpy: donationTaxCreditJpy === "" ? 0 : donationTaxCreditJpy,
         donationTaxCreditResidentTaxJpy:
           donationTaxCreditResidentTaxJpy === "" ? 0 : donationTaxCreditResidentTaxJpy,
+        earthquakeRenovationDeductionJpy:
+          earthquakeRenovationDeductionJpy === "" ? 0 : earthquakeRenovationDeductionJpy,
         foreignTaxCreditNationalTaxCreditJpy:
           foreignTaxCreditNationalTaxCreditJpy === ""
             ? 0
@@ -206,6 +217,7 @@ export function TotalTaxEstimateForm({
     mortgageDeductionResidentTaxCreditJpy,
     donationTaxCreditJpy,
     donationTaxCreditResidentTaxJpy,
+    earthquakeRenovationDeductionJpy,
     foreignTaxCreditNationalTaxCreditJpy,
     foreignTaxCreditResidentTaxCreditJpy,
     distributionAdjustedForeignTaxCreditJpy,
@@ -366,6 +378,24 @@ export function TotalTaxEstimateForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
+          label={`住宅耐震改修特別控除(税額控除・所得税分のみ。住民税に相当する控除は無し)${
+            registeredEarthquakeRenovationDeductionJpy !== null
+              ? " — 初期値は/earthquake-renovation-deductionの登録値"
+              : ""
+          }`}
+          value={earthquakeRenovationDeductionJpy}
+          onChange={setEarthquakeRenovationDeductionJpy}
+        />
+      </div>
+      {registeredEarthquakeRenovationDeductionJpy !== null && (
+        <p className="text-xs text-neutral-500">
+          /earthquake-renovation-deductionで登録済み:{" "}
+          {yen(registeredEarthquakeRenovationDeductionJpy)}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
           label={`外国税額控除(税額控除・所得税・復興特別所得税分)${
             registeredForeignTaxCredit !== null ? " — 初期値は/foreign-tax-creditの登録値" : ""
           }`}
@@ -477,6 +507,12 @@ export function TotalTaxEstimateForm({
                 )}
                 (所得税分 {yen(result.donationTaxCreditAppliedJpy)} / 住民税分{" "}
                 {yen(result.donationTaxCreditResidentTaxAppliedJpy)})
+              </p>
+            )}
+            {result.earthquakeRenovationDeductionAppliedJpy.greaterThan(0) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                − 住宅耐震改修特別控除{" "}
+                {yen(result.earthquakeRenovationDeductionAppliedJpy)}(所得税分のみ)
               </p>
             )}
             {(result.foreignTaxCreditNationalTaxAppliedJpy.greaterThan(0) ||

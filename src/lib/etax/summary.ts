@@ -91,6 +91,14 @@ export interface TaxFilingSummary {
   residentTaxAdjustmentDeduction?: {
     adjustmentDeductionJpy: Decimal;
   };
+  /**
+   * `/earthquake-renovation-deduction`で登録済みの住宅耐震改修特別控除(税額控除・
+   * 所得税分のみ)。住民税に相当する控除は存在しないため住民税額には影響しない。
+   * 未登録の場合はundefined。
+   */
+  earthquakeRenovationDeduction?: {
+    creditJpy: Decimal;
+  };
 }
 
 export function buildTaxFilingSummary(
@@ -107,6 +115,7 @@ export function buildTaxFilingSummary(
   donationTaxCredit?: { totalCreditJpy: Decimal; residentTaxBasicDeductionJpy: Decimal },
   distributionAdjustedForeignTaxCredit?: { creditJpy: Decimal },
   residentTaxAdjustmentDeduction?: { adjustmentDeductionJpy: Decimal },
+  earthquakeRenovationDeduction?: { creditJpy: Decimal },
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
@@ -131,5 +140,6 @@ export function buildTaxFilingSummary(
     donationTaxCredit,
     distributionAdjustedForeignTaxCredit,
     residentTaxAdjustmentDeduction,
+    earthquakeRenovationDeduction,
   };
 }

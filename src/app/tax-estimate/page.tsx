@@ -12,6 +12,7 @@ import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { getDistributionAdjustedForeignTaxCreditRecord } from "@/lib/investment/distributionAdjustedForeignTaxCredit";
 import { getResidentTaxAdjustmentDeductionRecord } from "@/lib/residentTaxAdjustmentDeduction";
 import { getDonationTaxCreditRecord } from "@/lib/donationTaxCredit";
+import { getEarthquakeRenovationDeductionRecord } from "@/lib/earthquakeRenovationDeduction";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -102,6 +103,10 @@ export default async function TaxEstimatePage({
   const registeredDistributionAdjustedForeignTaxCreditJpy =
     distributionAdjustedForeignTaxCreditRecord?.creditJpy.toNumber() ?? null;
 
+  const earthquakeRenovationDeductionRecord = await getEarthquakeRenovationDeductionRecord(year);
+  const registeredEarthquakeRenovationDeductionJpy =
+    earthquakeRenovationDeductionRecord?.creditJpy.toNumber() ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -161,6 +166,8 @@ export default async function TaxEstimatePage({
         registeredDistributionAdjustedForeignTaxCreditJpy={
           registeredDistributionAdjustedForeignTaxCreditJpy
         }
+        defaultEarthquakeRenovationDeductionJpy={registeredEarthquakeRenovationDeductionJpy ?? 0}
+        registeredEarthquakeRenovationDeductionJpy={registeredEarthquakeRenovationDeductionJpy}
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
@@ -199,11 +206,20 @@ export default async function TaxEstimatePage({
           適用後の所得税額からのみ差し引く。
         </p>
         <p>
+          住宅耐震改修特別控除(税額控除)は
+          <Link href={`/earthquake-renovation-deduction?year=${year}`} className="underline">
+            /earthquake-renovation-deduction
+          </Link>
+          で「この試算結果を◯年分の住宅耐震改修特別控除として登録する」を実行済みの場合、
+          その控除額を初期値として表示する。住民税に相当する控除は無いため、寄附金特別控除
+          適用後の所得税額からのみ差し引く。
+        </p>
+        <p>
           外国税額控除(税額控除)は`/foreign-tax-credit`で「この年分の外国税額控除として
           登録する」を実行済みの場合、所得税・復興特別所得税から控除される額と住民税から
           控除される額(実際の控除順序である所得税→復興特別所得税→住民税の順に振り分けた
-          金額)を初期値として表示する。住宅ローン控除・寄附金特別控除を適用した後の
-          税額からさらに差し引くため、控除額の合計が合計税額を上回っても0円が下限
+          金額)を初期値として表示する。住宅ローン控除・寄附金特別控除・住宅耐震改修特別控除を
+          適用した後の税額からさらに差し引くため、控除額の合計が合計税額を上回っても0円が下限
           (還付は生じない)。
         </p>
         <p>

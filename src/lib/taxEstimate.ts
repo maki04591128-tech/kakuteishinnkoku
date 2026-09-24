@@ -41,23 +41,28 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  *
  * 住民税の調整控除(`residentTaxAdjustmentDeduction.ts`)・住宅ローン控除
  * (`mortgageDeduction.ts`)・政党等・認定NPO法人等・公益社団法人等寄附金特別控除
- * (`donationTaxCredit.ts`)・外国税額控除(`investment/foreignTaxCredit.ts`)・
- * 分配時調整外国税相当額控除(`investment/distributionAdjustedForeignTaxCredit.ts`)は
+ * (`donationTaxCredit.ts`)・住宅耐震改修特別控除(`earthquakeRenovationDeduction.ts`)・
+ * 外国税額控除(`investment/foreignTaxCredit.ts`)・分配時調整外国税相当額控除
+ * (`investment/distributionAdjustedForeignTaxCredit.ts`)は
  * いずれも所得控除ではなく税額控除のため、上記の各所得区分の税額を合算した後の
  * 合計税額から直接差し引く。`/resident-tax-adjustment-deduction`・
- * `/mortgage-deduction`・`/donation-tax-credit`・`/foreign-tax-credit`・
- * `/distribution-adjusted-foreign-tax-credit`の試算結果
+ * `/mortgage-deduction`・`/donation-tax-credit`・`/earthquake-renovation-deduction`・
+ * `/foreign-tax-credit`・`/distribution-adjusted-foreign-tax-credit`の試算結果
  * (または`IncomeDeduction`と同様にDB登録した値)をそのまま「その年に適用される控除額」
  * として受け取り、本モジュール側では所得税額・住民税所得割額の限度判定(住民税へ
  * 繰り越す額の算出、外国税額控除の3限度額の判定)を再計算しない。自治体公式サイトで
  * 確認できる住民税の税額控除の適用順序(調整控除→配当控除→住宅借入金等特別税額控除→
- * 寄附金税額控除→外国税額控除)に基づき、調整控除→住宅ローン控除→寄附金特別控除→
- * 外国税額控除の順に適用する(調整控除は住民税所得割のみが対象)。寄附金特別控除は
+ * 寄附金税額控除→外国税額控除)と、確定申告書第一表の税額控除欄の記載順序
+ * (配当控除→住宅借入金等特別控除→政党等寄附金等特別控除→住宅耐震改修特別控除等→
+ * 外国税額控除等)に基づき、調整控除→住宅ローン控除→寄附金特別控除→住宅耐震改修
+ * 特別控除→外国税額控除の順に適用する(調整控除は住民税所得割のみが対象)。寄附金特別控除は
  * `donationTaxCreditJpy`(所得税分。政党等・認定NPO法人等・公益社団法人等寄附金特別控除)と
  * `donationTaxCreditResidentTaxJpy`(住民税分。認定NPO法人等・公益社団法人等への寄附のうち
  * 条例指定を受けている分の住民税の寄附金控除(基本控除)のみが対象。政党等寄附金は
  * 条例指定寄附金の対象外のため住民税分は常に0円)をそれぞれ所得税額・住民税所得割額から
  * 差し引く。いずれも控除額が残りの税額を上回る場合は0円が下限(還付は生じない)。
+ * 住宅耐震改修特別控除(`earthquakeRenovationDeductionJpy`)は住民税に相当する控除が無い
+ * 所得税のみの制度のため、寄附金特別控除適用後の所得税額からのみ差し引く。
  * 分配時調整外国税相当額控除(`distributionAdjustedForeignTaxCreditJpy`)は外国税額控除と
  * 制度が近いため外国税額控除の直後(合計税額から見て最後)に所得税額(復興特別所得税を
  * 含む)からのみ差し引く(住民税分は一次情報で条文・算式を確認できておらず対象外。
@@ -134,6 +139,13 @@ export interface TotalTaxEstimateInput {
    * 外国税額控除前の住民税額から控除する
    */
   donationTaxCreditResidentTaxJpy?: Decimal.Value;
+  /**
+   * 住宅耐震改修特別控除(税額控除)額。住民税に相当する控除が無い所得税のみの
+   * 制度のため、寄附金特別控除適用後の所得税額からのみ控除する。
+   * `/earthquake-renovation-deduction`の試算結果(または登録済みの値)を
+   * そのまま「その年に適用される控除額」として受け取る
+   */
+  earthquakeRenovationDeductionJpy?: Decimal.Value;
   /** 外国税額控除(税額控除)のうち、その年の所得税額・復興特別所得税額から控除する額 */
   foreignTaxCreditNationalTaxCreditJpy?: Decimal.Value;
   /** 外国税額控除(税額控除)のうち、その年の住民税額から控除する額 */
@@ -225,11 +237,18 @@ export interface TotalTaxEstimateResult {
    * 住宅ローン控除適用後の住民税額のいずれか少ない方)
    */
   donationTaxCreditResidentTaxAppliedJpy: Decimal;
-  /** 寄附金特別控除適用後・外国税額控除適用前の所得税額(復興特別所得税を含む) */
+  /** 寄附金特別控除適用後・住宅耐震改修特別控除適用前の所得税額(復興特別所得税を含む) */
   totalNationalTaxAfterDonationTaxCreditJpy: Decimal;
   /** 寄附金特別控除(住民税の寄附金控除(基本控除)分)適用後・外国税額控除適用前の住民税額 */
   totalResidentTaxAfterDonationTaxCreditJpy: Decimal;
-  /** 実際に適用された外国税額控除額(所得税・復興特別所得税分。入力値と寄附金特別控除適用後の所得税額のいずれか少ない方) */
+  /**
+   * 実際に適用された住宅耐震改修特別控除額(所得税分のみ。入力値と寄附金特別控除
+   * 適用後の所得税額のいずれか少ない方。住民税に相当する控除は無い)
+   */
+  earthquakeRenovationDeductionAppliedJpy: Decimal;
+  /** 住宅耐震改修特別控除適用後・外国税額控除適用前の所得税額(復興特別所得税を含む) */
+  totalNationalTaxAfterEarthquakeRenovationDeductionJpy: Decimal;
+  /** 実際に適用された外国税額控除額(所得税・復興特別所得税分。入力値と住宅耐震改修特別控除適用後の所得税額のいずれか少ない方) */
   foreignTaxCreditNationalTaxAppliedJpy: Decimal;
   /** 実際に適用された外国税額控除額(住民税分。入力値と寄附金特別控除適用後の住民税額のいずれか少ない方) */
   foreignTaxCreditResidentTaxAppliedJpy: Decimal;
@@ -398,6 +417,17 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     donationTaxCreditResidentTaxAppliedJpy,
   );
 
+  const earthquakeRenovationDeductionJpy = input.earthquakeRenovationDeductionJpy
+    ? new Decimal(input.earthquakeRenovationDeductionJpy)
+    : new Decimal(0);
+  requireNonNegative(earthquakeRenovationDeductionJpy, "住宅耐震改修特別控除額");
+  const earthquakeRenovationDeductionAppliedJpy = Decimal.min(
+    earthquakeRenovationDeductionJpy,
+    totalNationalTaxAfterDonationTaxCreditJpy,
+  );
+  const totalNationalTaxAfterEarthquakeRenovationDeductionJpy =
+    totalNationalTaxAfterDonationTaxCreditJpy.minus(earthquakeRenovationDeductionAppliedJpy);
+
   const foreignTaxCreditNationalTaxCreditJpy = input.foreignTaxCreditNationalTaxCreditJpy
     ? new Decimal(input.foreignTaxCreditNationalTaxCreditJpy)
     : new Decimal(0);
@@ -409,15 +439,14 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
 
   const foreignTaxCreditNationalTaxAppliedJpy = Decimal.min(
     foreignTaxCreditNationalTaxCreditJpy,
-    totalNationalTaxAfterDonationTaxCreditJpy,
+    totalNationalTaxAfterEarthquakeRenovationDeductionJpy,
   );
   const foreignTaxCreditResidentTaxAppliedJpy = Decimal.min(
     foreignTaxCreditResidentTaxCreditJpy,
     totalResidentTaxAfterDonationTaxCreditJpy,
   );
-  const totalNationalTaxAfterForeignTaxCreditJpy = totalNationalTaxAfterDonationTaxCreditJpy.minus(
-    foreignTaxCreditNationalTaxAppliedJpy,
-  );
+  const totalNationalTaxAfterForeignTaxCreditJpy =
+    totalNationalTaxAfterEarthquakeRenovationDeductionJpy.minus(foreignTaxCreditNationalTaxAppliedJpy);
 
   const distributionAdjustedForeignTaxCreditJpy = input.distributionAdjustedForeignTaxCreditJpy
     ? new Decimal(input.distributionAdjustedForeignTaxCreditJpy)
@@ -537,9 +566,19 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
       );
     }
   }
+  if (earthquakeRenovationDeductionJpy.greaterThan(0)) {
+    notes.push(
+      "住宅耐震改修特別控除(税額控除)は寄附金特別控除適用後の所得税額からのみ差し引く(住民税に相当する控除は無い)。`/earthquake-renovation-deduction`の試算結果を前提とする。",
+    );
+    if (earthquakeRenovationDeductionAppliedJpy.lessThan(earthquakeRenovationDeductionJpy)) {
+      notes.push(
+        "住宅耐震改修特別控除額が控除適用後の所得税額を上回ったため、超過分は切り捨てて0円を下限とした(繰越・還付は生じない)。",
+      );
+    }
+  }
   if (foreignTaxCreditNationalTaxCreditJpy.greaterThan(0) || foreignTaxCreditResidentTaxCreditJpy.greaterThan(0)) {
     notes.push(
-      "外国税額控除(税額控除)は寄附金特別控除適用後の所得税額・住民税額から差し引いており、所得税・復興特別所得税・住民税それぞれの控除限度額の判定は`/foreign-tax-credit`の試算結果を前提とする。",
+      "外国税額控除(税額控除)は住宅耐震改修特別控除適用後の所得税額・寄附金特別控除適用後の住民税額から差し引いており、所得税・復興特別所得税・住民税それぞれの控除限度額の判定は`/foreign-tax-credit`の試算結果を前提とする。",
     );
     if (
       foreignTaxCreditNationalTaxAppliedJpy.lessThan(foreignTaxCreditNationalTaxCreditJpy) ||
@@ -604,6 +643,8 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     totalResidentTaxAfterDonationTaxCreditJpy,
     totalNationalTaxAfterMortgageDeductionJpy,
     totalResidentTaxAfterMortgageDeductionJpy,
+    earthquakeRenovationDeductionAppliedJpy,
+    totalNationalTaxAfterEarthquakeRenovationDeductionJpy,
     foreignTaxCreditNationalTaxAppliedJpy,
     foreignTaxCreditResidentTaxAppliedJpy,
     distributionAdjustedForeignTaxCreditAppliedJpy,
