@@ -162,6 +162,12 @@ export default async function Home({
           外国税額控除を試算する
         </Link>
         <Link
+          href={`/distribution-adjusted-foreign-tax-credit?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          分配時調整外国税相当額控除を試算する
+        </Link>
+        <Link
           href={`/tax-estimate?year=${year}`}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >

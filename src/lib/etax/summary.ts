@@ -76,6 +76,13 @@ export interface TaxFilingSummary {
     totalCreditJpy: Decimal;
     residentTaxBasicDeductionJpy: Decimal;
   };
+  /**
+   * `/distribution-adjusted-foreign-tax-credit`で登録済みの分配時調整外国税相当額
+   * 控除(税額控除・所得税分のみ)。未登録の場合はundefined。
+   */
+  distributionAdjustedForeignTaxCredit?: {
+    creditJpy: Decimal;
+  };
 }
 
 export function buildTaxFilingSummary(
@@ -90,6 +97,7 @@ export function buildTaxFilingSummary(
   foreignTaxCredit?: { totalCreditJpy: Decimal },
   investmentNonListed?: InvestmentPortfolioYearResult,
   donationTaxCredit?: { totalCreditJpy: Decimal; residentTaxBasicDeductionJpy: Decimal },
+  distributionAdjustedForeignTaxCredit?: { creditJpy: Decimal },
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
@@ -112,5 +120,6 @@ export function buildTaxFilingSummary(
     mortgageDeduction,
     foreignTaxCredit,
     donationTaxCredit,
+    distributionAdjustedForeignTaxCredit,
   };
 }

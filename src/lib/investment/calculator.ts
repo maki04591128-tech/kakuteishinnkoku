@@ -75,6 +75,16 @@ export interface InvestmentTradeInput {
   /** type="DIVIDEND"の場合、現地で源泉徴収された外国所得税額(円換算) */
   foreignTaxWithheldJpy?: Decimal.Value;
   /**
+   * type="DIVIDEND"の場合、特定口座年間取引報告書等に記載された
+   * 分配時調整外国税相当額(所得税法93条の2)。投資信託等が保有する国外資産から
+   * 生じた利子・配当等につき信託段階で源泉徴収された外国所得税額のうち、
+   * 受益者の所得金額の計算上必要経費又は取得費に算入されない部分として
+   * 計算された金額で、`isForeign`(銘柄自体が国外発行かどうか)とは独立に、
+   * 国内籍の投資信託・ETFの分配金にも生じうる。
+   * `/distribution-adjusted-foreign-tax-credit`の自動集計に使う。
+   */
+  distributionAdjustedForeignTaxJpy?: Decimal.Value;
+  /**
    * 銘柄種別(配当控除の税率区分の判定に使用。type="DIVIDEND"の場合のみ参照)。
    * 省略時は上場株式等(STOCK、通常の配当控除率)として扱う。
    */
@@ -218,6 +228,11 @@ export interface InvestmentSymbolYearResult {
    */
   foreignTaxWithheldJpy: Decimal;
   /**
+   * 配当等の受取額(課税口座分)につき記載された分配時調整外国税相当額の合計。
+   * `distributionAdjustedForeignTaxCredit.ts`の自動集計に使う。
+   */
+  distributionAdjustedForeignTaxJpy: Decimal;
+  /**
    * 譲渡所得(realizedGainJpy)のうち、国外で発行された株式・投資信託等
    * (isForeign=true)の売却による分(課税口座分のみ)。売却時の円換算額を
    * そのまま使うため為替差損益も含む。外国税額控除の国外所得金額の
@@ -252,6 +267,7 @@ export function calculateInvestmentYear(
   let nisaDividendJpy = new Decimal(0);
   let foreignSourceDividendJpy = new Decimal(0);
   let foreignTaxWithheldJpy = new Decimal(0);
+  let distributionAdjustedForeignTaxJpy = new Decimal(0);
   let foreignSourceCapitalGainJpy = new Decimal(0);
 
   const sorted = [...trades].sort(
@@ -288,6 +304,12 @@ export function calculateInvestmentYear(
             new Decimal(trade.foreignTaxWithheldJpy ?? 0),
           );
         }
+        // 分配時調整外国税相当額控除も国内非課税のNISA口座分は対象外だが、
+        // 外国税額控除と異なりisForeign(銘柄自体が国外発行かどうか)を問わない
+        // (国内籍の投資信託・ETFが国外資産を保有する場合にも生じるため)。
+        distributionAdjustedForeignTaxJpy = distributionAdjustedForeignTaxJpy.plus(
+          new Decimal(trade.distributionAdjustedForeignTaxJpy ?? 0),
+        );
       }
       continue;
     }
@@ -320,6 +342,7 @@ export function calculateInvestmentYear(
     dividendNoCreditJpy,
     foreignSourceDividendJpy,
     foreignTaxWithheldJpy,
+    distributionAdjustedForeignTaxJpy,
     foreignSourceCapitalGainJpy,
     closingQuantity: taxablePool.quantity,
     closingCostJpy: taxablePool.costJpy,
@@ -357,6 +380,11 @@ export interface InvestmentPortfolioYearResult {
    * (totalForeignSourceDividendJpy + totalForeignSourceCapitalGainJpy)。
    */
   totalForeignSourceIncomeJpy: Decimal;
+  /**
+   * 課税口座合計の分配時調整外国税相当額(`distributionAdjustedForeignTaxCredit.ts`の
+   * 自動集計に使用)。
+   */
+  totalDistributionAdjustedForeignTaxJpy: Decimal;
 }
 
 export function calculateInvestmentPortfolioYear(
@@ -430,6 +458,10 @@ export function calculateInvestmentPortfolioYear(
   const totalForeignSourceIncomeJpy = totalForeignSourceDividendJpy.plus(
     totalForeignSourceCapitalGainJpy,
   );
+  const totalDistributionAdjustedForeignTaxJpy = bySymbol.reduce(
+    (sum, r) => sum.plus(r.distributionAdjustedForeignTaxJpy),
+    new Decimal(0),
+  );
 
   return {
     bySymbol,
@@ -443,5 +475,6 @@ export function calculateInvestmentPortfolioYear(
     totalForeignTaxWithheldJpy,
     totalForeignSourceCapitalGainJpy,
     totalForeignSourceIncomeJpy,
+    totalDistributionAdjustedForeignTaxJpy,
   };
 }

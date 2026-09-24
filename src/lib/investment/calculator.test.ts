@@ -87,6 +87,32 @@ describe("calculateInvestmentYear (移動平均法)", () => {
     expect(result.foreignTaxWithheldJpy.toNumber()).toBe(1000);
   });
 
+  it("分配時調整外国税相当額は国外発行(isForeign)かどうかを問わず集計し、NISA口座分は除外する", () => {
+    const result = calculateInvestmentYear("2515", [
+      // 国内籍の投資信託でもisForeignを立てずに分配時調整外国税相当額だけ生じうる
+      {
+        tradedAt: d("2026-03-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 10_000,
+        assetType: "MUTUAL_FUND",
+        distributionAdjustedForeignTaxJpy: 300,
+      },
+      // NISA口座分は非課税のため集計対象外
+      {
+        tradedAt: d("2026-06-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 8000,
+        assetType: "MUTUAL_FUND",
+        isNisa: true,
+        distributionAdjustedForeignTaxJpy: 200,
+      },
+    ]);
+
+    expect(result.distributionAdjustedForeignTaxJpy.toNumber()).toBe(300);
+  });
+
   it("配当は銘柄種別ごとに配当控除の税率区分を集計する", () => {
     const result = calculateInvestmentYear("MIXED", [
       // STOCK(既定値・assetType省略): 通常税率
@@ -380,5 +406,31 @@ describe("calculateInvestmentPortfolioYear", () => {
     expect(result.totalForeignSourceCapitalGainJpy.toNumber()).toBe(100_000);
     expect(result.totalForeignSourceDividendJpy.toNumber()).toBe(10_000);
     expect(result.totalForeignSourceIncomeJpy.toNumber()).toBe(110_000);
+  });
+
+  it("複数銘柄の分配時調整外国税相当額を合算する", () => {
+    const result = calculateInvestmentPortfolioYear([
+      {
+        symbol: "2515",
+        tradedAt: d("2026-03-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 10_000,
+        assetType: "MUTUAL_FUND",
+        distributionAdjustedForeignTaxJpy: 300,
+      },
+      {
+        symbol: "1655",
+        tradedAt: d("2026-06-01"),
+        type: "DIVIDEND",
+        quantity: 1,
+        unitPriceJpy: 5000,
+        assetType: "ETF",
+        distributionAdjustedForeignTaxJpy: 120,
+      },
+      { symbol: "7203", tradedAt: d("2026-06-01"), type: "DIVIDEND", quantity: 1, unitPriceJpy: 3000 },
+    ]);
+
+    expect(result.totalDistributionAdjustedForeignTaxJpy.toNumber()).toBe(420);
   });
 });

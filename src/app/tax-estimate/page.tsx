@@ -9,6 +9,7 @@ import {
 } from "@/lib/incomeDeduction";
 import { getMortgageDeductionRecord } from "@/lib/mortgageDeduction";
 import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
+import { getDistributionAdjustedForeignTaxCreditRecord } from "@/lib/investment/distributionAdjustedForeignTaxCredit";
 import { getResidentTaxAdjustmentDeductionRecord } from "@/lib/residentTaxAdjustmentDeduction";
 import { getDonationTaxCreditRecord } from "@/lib/donationTaxCredit";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
@@ -96,6 +97,11 @@ export default async function TaxEstimatePage({
   const registeredDonationTaxCreditResidentTaxJpy =
     donationTaxCreditRecord?.residentTaxBasicDeductionJpy.toNumber() ?? null;
 
+  const distributionAdjustedForeignTaxCreditRecord =
+    await getDistributionAdjustedForeignTaxCreditRecord(year);
+  const registeredDistributionAdjustedForeignTaxCreditJpy =
+    distributionAdjustedForeignTaxCreditRecord?.creditJpy.toNumber() ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -149,6 +155,12 @@ export default async function TaxEstimatePage({
           registeredForeignTaxCredit?.residentTaxCreditJpy ?? 0
         }
         registeredForeignTaxCredit={registeredForeignTaxCredit}
+        defaultDistributionAdjustedForeignTaxCreditJpy={
+          registeredDistributionAdjustedForeignTaxCreditJpy ?? 0
+        }
+        registeredDistributionAdjustedForeignTaxCreditJpy={
+          registeredDistributionAdjustedForeignTaxCreditJpy
+        }
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
@@ -193,6 +205,16 @@ export default async function TaxEstimatePage({
           金額)を初期値として表示する。住宅ローン控除・寄附金特別控除を適用した後の
           税額からさらに差し引くため、控除額の合計が合計税額を上回っても0円が下限
           (還付は生じない)。
+        </p>
+        <p>
+          分配時調整外国税相当額控除(税額控除)は
+          <Link href={`/distribution-adjusted-foreign-tax-credit?year=${year}`} className="underline">
+            /distribution-adjusted-foreign-tax-credit
+          </Link>
+          で「この年分の分配時調整外国税相当額控除として登録する」を実行済みの場合、その
+          控除額を初期値として表示する。外国税額控除と異なり控除限度額の計算・繰越は無く、
+          外国税額控除適用後の所得税額(復興特別所得税を含む)からのみ差し引く(住民税分は
+          本ツールでは試算しない)。
         </p>
         <p>
           住民税所得割は10%固定の概算であり、調整控除は`/resident-tax-adjustment-deduction`で

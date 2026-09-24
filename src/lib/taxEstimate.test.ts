@@ -500,6 +500,50 @@ describe("estimateTotalTax", () => {
     );
   });
 
+  it("分配時調整外国税相当額控除は外国税額控除適用後の所得税額からさらに差し引かれ、住民税には影響しない", () => {
+    const withForeignTaxCreditOnly = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      foreignTaxCreditNationalTaxCreditJpy: 30_000,
+    });
+    const withBoth = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      foreignTaxCreditNationalTaxCreditJpy: 30_000,
+      distributionAdjustedForeignTaxCreditJpy: 3_000,
+    });
+
+    expect(withBoth.distributionAdjustedForeignTaxCreditAppliedJpy.toNumber()).toBe(3_000);
+    expect(
+      withForeignTaxCreditOnly.totalNationalTaxJpy
+        .minus(withBoth.totalNationalTaxJpy)
+        .toNumber(),
+    ).toBe(3_000);
+    expect(withForeignTaxCreditOnly.totalResidentTaxJpy.toNumber()).toBe(
+      withBoth.totalResidentTaxJpy.toNumber(),
+    );
+  });
+
+  it("分配時調整外国税相当額控除額が外国税額控除適用後の所得税額を上回る場合は0円が下限になる(繰越・還付は生じない)", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 500_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      distributionAdjustedForeignTaxCreditJpy: 100_000_000,
+    });
+
+    expect(result.totalNationalTaxJpy.toNumber()).toBe(0);
+    expect(result.distributionAdjustedForeignTaxCreditAppliedJpy.toNumber()).toBeGreaterThan(0);
+  });
+
   it("ふるさと納税の上限額は住宅ローン控除適用前の住民税所得割額を基準に試算する", () => {
     const without = estimateTotalTax({
       otherComprehensiveIncomeJpy: 5_000_000,
