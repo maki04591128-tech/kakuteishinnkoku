@@ -438,6 +438,11 @@ enum IncomeDeductionType {
   /// ではなく給与所得の計算上の控除だが、本ツールでは他の所得控除と同様に
   /// 合算して試算する簡略化としている(incomeDeduction.ts参照)。
   SPECIFIC_EXPENSE
+  /// 所得金額調整控除(src/lib/incomeAmountAdjustmentDeduction.ts)。
+  /// SPECIFIC_EXPENSEと同様、厳密には「所得控除」ではなく給与所得の
+  /// 計算上の控除だが、本ツールでは他の所得控除と同様に合算して試算する
+  /// 簡略化としている(incomeDeduction.ts参照)。
+  INCOME_AMOUNT_ADJUSTMENT
 }
 
 /// NISA生涯投資枠(2024年以降の新NISA制度における総枠1,800万円・

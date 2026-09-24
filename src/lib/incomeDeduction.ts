@@ -25,6 +25,7 @@ export const INCOME_DEDUCTION_TYPES = [
   "CASUALTY_LOSS",
   "DONATION",
   "SPECIFIC_EXPENSE",
+  "INCOME_AMOUNT_ADJUSTMENT",
 ] as const;
 
 export type IncomeDeductionType = (typeof INCOME_DEDUCTION_TYPES)[number];
@@ -45,16 +46,20 @@ export const INCOME_DEDUCTION_TYPE_LABELS: Record<IncomeDeductionType, string> =
   CASUALTY_LOSS: "雑損控除",
   DONATION: "寄附金控除(ふるさと納税等)",
   SPECIFIC_EXPENSE: "特定支出控除",
+  INCOME_AMOUNT_ADJUSTMENT: "所得金額調整控除",
 };
 
 /**
- * 特定支出控除(所得税法57条の2)は、厳密には他の区分のような「所得控除」
- * ではなく給与所得の計算上の控除(申告書第一表の給与所得金額欄に反映)である。
- * 本ツールでは「給与所得等の課税所得金額」への影響という観点で他の所得控除と
- * 同様に合算して試算する簡略化としているため、登録されている場合はその旨を
- * 注記に含める。
+ * 特定支出控除(所得税法57条の2)・所得金額調整控除(措置法41条の3の3)は、
+ * 厳密には他の区分のような「所得控除」ではなく給与所得の計算上の控除
+ * (申告書第一表の給与所得金額欄に反映)である。本ツールでは「給与所得等の
+ * 課税所得金額」への影響という観点で他の所得控除と同様に合算して試算する
+ * 簡略化としているため、登録されている場合はその旨を注記に含める。
  */
-const NON_INCOME_DEDUCTION_TYPES: readonly IncomeDeductionType[] = ["SPECIFIC_EXPENSE"];
+const NON_INCOME_DEDUCTION_TYPES: readonly IncomeDeductionType[] = [
+  "SPECIFIC_EXPENSE",
+  "INCOME_AMOUNT_ADJUSTMENT",
+];
 
 export function isIncomeDeductionType(value: string): value is IncomeDeductionType {
   return (INCOME_DEDUCTION_TYPES as readonly string[]).includes(value);
@@ -144,9 +149,12 @@ export function summarizeIncomeDeductions(
     new Decimal(0),
   );
 
-  if (normalized.some((entry) => NON_INCOME_DEDUCTION_TYPES.includes(entry.type))) {
+  const registeredNonIncomeDeductionTypes = normalized
+    .filter((entry) => NON_INCOME_DEDUCTION_TYPES.includes(entry.type))
+    .map((entry) => INCOME_DEDUCTION_TYPE_LABELS[entry.type]);
+  if (registeredNonIncomeDeductionTypes.length > 0) {
     notes.push(
-      "特定支出控除は所得税法上「所得控除」ではなく給与所得の計算上の控除(申告書第一表の給与所得金額欄に反映)だが、本ツールでは他の所得控除と同様に合算して試算する簡略化としている。",
+      `${registeredNonIncomeDeductionTypes.join("・")}は所得税法上「所得控除」ではなく給与所得の計算上の控除(申告書第一表の給与所得金額欄に反映)だが、本ツールでは他の所得控除と同様に合算して試算する簡略化としている。`,
     );
   }
 
