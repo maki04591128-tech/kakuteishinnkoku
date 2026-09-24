@@ -282,6 +282,12 @@ export default async function Home({
           省エネ改修工事の住宅特定改修特別税額控除額を試算する
         </Link>
         <Link
+          href={`/barrier-free-renovation-deduction?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          バリアフリー改修工事の住宅特定改修特別税額控除額を試算する
+        </Link>
+        <Link
           href={`/resident-tax-adjustment-deduction?year=${year}`}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >

@@ -590,6 +590,49 @@ describe("estimateTotalTax", () => {
     ).toBe(30_000);
   });
 
+  it("バリアフリー改修工事の住宅特定改修特別税額控除額が控除適用後の所得税額を上回る場合は0円が下限になる", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 0,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      barrierFreeRenovationDeductionJpy: 100_000_000,
+    });
+
+    expect(result.totalNationalTaxAfterBarrierFreeRenovationDeductionJpy.toNumber()).toBe(0);
+    expect(result.barrierFreeRenovationDeductionAppliedJpy.toNumber()).toBe(
+      result.totalNationalTaxAfterEnergySavingRenovationDeductionJpy.toNumber(),
+    );
+  });
+
+  it("外国税額控除はバリアフリー改修工事の住宅特定改修特別税額控除適用後の所得税額からさらに差し引かれる", () => {
+    const withBarrierFreeRenovationOnly = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      barrierFreeRenovationDeductionJpy: 15_000,
+    });
+    const withBoth = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      barrierFreeRenovationDeductionJpy: 15_000,
+      foreignTaxCreditNationalTaxCreditJpy: 30_000,
+    });
+
+    expect(withBoth.foreignTaxCreditNationalTaxAppliedJpy.toNumber()).toBe(30_000);
+    expect(
+      withBarrierFreeRenovationOnly.totalNationalTaxJpy
+        .minus(withBoth.totalNationalTaxJpy)
+        .toNumber(),
+    ).toBe(30_000);
+  });
+
   it("外国税額控除(税額控除)を入力すると住宅ローン控除適用後の税額から直接差し引かれる", () => {
     const withMortgageOnly = estimateTotalTax({
       otherComprehensiveIncomeJpy: 5_000_000,

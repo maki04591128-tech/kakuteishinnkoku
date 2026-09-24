@@ -14,6 +14,7 @@ import { getResidentTaxAdjustmentDeductionRecord } from "@/lib/residentTaxAdjust
 import { getDonationTaxCreditRecord } from "@/lib/donationTaxCredit";
 import { getEarthquakeRenovationDeductionRecord } from "@/lib/earthquakeRenovationDeduction";
 import { getEnergySavingRenovationDeductionRecord } from "@/lib/energySavingRenovationDeduction";
+import { getBarrierFreeRenovationDeductionRecord } from "@/lib/barrierFreeRenovationDeduction";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -113,6 +114,11 @@ export default async function TaxEstimatePage({
   const registeredEnergySavingRenovationDeductionJpy =
     energySavingRenovationDeductionRecord?.creditJpy.toNumber() ?? null;
 
+  const barrierFreeRenovationDeductionRecord =
+    await getBarrierFreeRenovationDeductionRecord(year);
+  const registeredBarrierFreeRenovationDeductionJpy =
+    barrierFreeRenovationDeductionRecord?.creditJpy.toNumber() ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -179,6 +185,12 @@ export default async function TaxEstimatePage({
         }
         registeredEnergySavingRenovationDeductionJpy={
           registeredEnergySavingRenovationDeductionJpy
+        }
+        defaultBarrierFreeRenovationDeductionJpy={
+          registeredBarrierFreeRenovationDeductionJpy ?? 0
+        }
+        registeredBarrierFreeRenovationDeductionJpy={
+          registeredBarrierFreeRenovationDeductionJpy
         }
       />
 

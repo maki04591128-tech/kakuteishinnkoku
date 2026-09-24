@@ -173,6 +173,7 @@ export function buildTaxFilingDraftCsv(
     summary.donationTaxCredit ||
     summary.earthquakeRenovationDeduction ||
     summary.energySavingRenovationDeduction ||
+    summary.barrierFreeRenovationDeduction ||
     summary.foreignTaxCredit ||
     summary.distributionAdjustedForeignTaxCredit ||
     summary.residentTaxAdjustmentDeduction
@@ -238,6 +239,15 @@ export function buildTaxFilingDraftCsv(
         toCsvLine([
           "省エネ改修工事の住宅特定改修特別税額控除額: 所得税からの控除額(住民税に相当する控除は無し)",
           formatYen(summary.energySavingRenovationDeduction.creditJpy),
+          "申告書第一表 税額控除(住宅特定改修特別税額控除) / 住宅耐震改修特別控除額・住宅特定改修特別税額控除額の計算明細書",
+        ]),
+      );
+    }
+    if (summary.barrierFreeRenovationDeduction) {
+      lines.push(
+        toCsvLine([
+          "バリアフリー改修工事の住宅特定改修特別税額控除額: 所得税からの控除額(住民税に相当する控除は無し)",
+          formatYen(summary.barrierFreeRenovationDeduction.creditJpy),
           "申告書第一表 税額控除(住宅特定改修特別税額控除) / 住宅耐震改修特別控除額・住宅特定改修特別税額控除額の計算明細書",
         ]),
       );
