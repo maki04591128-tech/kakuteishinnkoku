@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { saveIncomeDeduction } from "@/app/actions";
 import { estimateIncomeAmountAdjustmentDeduction } from "@/lib/incomeAmountAdjustmentDeduction";
@@ -55,6 +56,13 @@ export function IncomeAmountAdjustmentDeductionForm({
           value={publicPensionMiscIncome}
           onChange={setPublicPensionMiscIncome}
         />
+        <p className="-mt-2 text-xs text-neutral-500">
+          金額が分からない場合は
+          <Link href="/public-pension-income" className="underline">
+            公的年金等に係る雑所得の試算
+          </Link>
+          で年金の収入金額から計算できる。
+        </p>
         <Checkbox
           label="納税者本人が特別障害者に該当する"
           checked={isTaxpayerSpecialDisability}
