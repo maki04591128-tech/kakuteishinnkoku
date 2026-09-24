@@ -49,6 +49,7 @@ model TaxYear {
   donationTaxCreditRecords                    DonationTaxCreditRecord[]
   distributionAdjustedForeignTaxCreditRecords DistributionAdjustedForeignTaxCreditRecord[]
   earthquakeRenovationDeductionRecords        EarthquakeRenovationDeductionRecord[]
+  energySavingRenovationDeductionRecords      EnergySavingRenovationDeductionRecord[]
 }
 
 enum CryptoCostMethod {
@@ -411,6 +412,27 @@ model DistributionAdjustedForeignTaxCreditRecord {
 /// 所得税分のみを保持する。`/earthquake-renovation-deduction`の「この試算結果を
 /// ◯年分の住宅耐震改修特別控除として登録する」ボタンから登録する。
 model EarthquakeRenovationDeductionRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の控除額(所得税分のみ)
+  creditJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 省エネ改修工事をした場合の住宅特定改修特別税額控除(租税特別措置法41条の19の3。
+/// src/lib/energySavingRenovationDeduction.ts)の当年分の登録額を年分ごとに保存し、
+/// `/tax-estimate`の合計税額試算・下書きCSVへ自動反映するためのデータ。
+/// 住宅耐震改修特別控除(EarthquakeRenovationDeductionRecord)と同様、住民税への
+/// 振替制度が無く、所得税分のみを保持する。`/energy-saving-renovation-deduction`の
+/// 「この試算結果を◯年分の省エネ改修工事に係る住宅特定改修特別税額控除として
+/// 登録する」ボタンから登録する。
+model EnergySavingRenovationDeductionRecord {
   id        Int     @id @default(autoincrement())
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
