@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { saveDistributionAdjustedForeignTaxCreditRecord } from "@/app/actions";
+import {
+  deleteDistributionAdjustedForeignTaxCreditRecord,
+  saveDistributionAdjustedForeignTaxCreditRecord,
+} from "@/app/actions";
 import { estimateDistributionAdjustedForeignTaxCredit } from "@/lib/investment/distributionAdjustedForeignTaxCredit";
 
 function yen(value: { toString(): string }): string {
@@ -75,10 +78,21 @@ export function DistributionAdjustedForeignTaxCreditForm({
               </button>
             </form>
             {registeredCreditJpy !== null && (
-              <p className="mt-2 text-xs text-neutral-500">
-                登録済み({year}年分): {yen(registeredCreditJpy)}(/tax-estimateの初期値・
-                下書きCSVに反映)
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  登録済み({year}年分): {yen(registeredCreditJpy)}(/tax-estimateの初期値・
+                  下書きCSVに反映)
+                </p>
+                <form action={deleteDistributionAdjustedForeignTaxCreditRecord}>
+                  <input type="hidden" name="year" value={year} />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
           </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { saveIncomeDeduction } from "@/app/actions";
+import { deleteIncomeDeduction, saveIncomeDeduction } from "@/app/actions";
 import {
   estimateWidowSingleParentDeduction,
   type WidowSingleParentCategory,
@@ -101,11 +101,24 @@ export function WidowSingleParentDeductionForm({
             </button>
           </form>
           {registeredCategoryDeduction !== null && (
-            <p className="mt-2 text-xs text-neutral-500">
-              登録済み: 所得税 {yen(registeredCategoryDeduction.incomeTaxAmountJpy)} / 住民税{" "}
-              {yen(registeredCategoryDeduction.residentTaxAmountJpy)}
-              (/tax-estimateの初期値に反映)
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <p className="text-xs text-neutral-500">
+                登録済み: 所得税 {yen(registeredCategoryDeduction.incomeTaxAmountJpy)} / 住民税{" "}
+                {yen(registeredCategoryDeduction.residentTaxAmountJpy)}
+                (/tax-estimateの初期値に反映)
+              </p>
+              <form action={deleteIncomeDeduction}>
+                <input type="hidden" name="year" value={year} />
+                <input type="hidden" name="type" value="WIDOW_SINGLE_PARENT" />
+                <input type="hidden" name="redirectPath" value="/widow-single-parent-deduction" />
+                <button
+                  type="submit"
+                  className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                >
+                  登録を削除する
+                </button>
+              </form>
+            </div>
           )}
         </div>
 
@@ -137,11 +150,24 @@ export function WidowSingleParentDeductionForm({
             </button>
           </form>
           {registeredWorkingStudentDeduction !== null && (
-            <p className="mt-2 text-xs text-neutral-500">
-              登録済み: 所得税 {yen(registeredWorkingStudentDeduction.incomeTaxAmountJpy)} / 住民税{" "}
-              {yen(registeredWorkingStudentDeduction.residentTaxAmountJpy)}
-              (/tax-estimateの初期値に反映)
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <p className="text-xs text-neutral-500">
+                登録済み: 所得税 {yen(registeredWorkingStudentDeduction.incomeTaxAmountJpy)} / 住民税{" "}
+                {yen(registeredWorkingStudentDeduction.residentTaxAmountJpy)}
+                (/tax-estimateの初期値に反映)
+              </p>
+              <form action={deleteIncomeDeduction}>
+                <input type="hidden" name="year" value={year} />
+                <input type="hidden" name="type" value="WORKING_STUDENT" />
+                <input type="hidden" name="redirectPath" value="/widow-single-parent-deduction" />
+                <button
+                  type="submit"
+                  className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                >
+                  登録を削除する
+                </button>
+              </form>
+            </div>
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { saveIncomeDeduction } from "@/app/actions";
+import { deleteIncomeDeduction, saveIncomeDeduction } from "@/app/actions";
 import { estimateSocialInsuranceDeduction } from "@/lib/socialInsuranceDeduction";
 
 function yen(value: { toString(): string }): string {
@@ -133,9 +133,22 @@ export function SocialInsuranceDeductionForm({
               </button>
             </form>
             {registeredDeductionJpy !== null && (
-              <p className="mt-2 text-xs text-neutral-500">
-                登録済み: {yen(registeredDeductionJpy)}(/tax-estimateの初期値に反映)
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  登録済み: {yen(registeredDeductionJpy)}(/tax-estimateの初期値に反映)
+                </p>
+                <form action={deleteIncomeDeduction}>
+                  <input type="hidden" name="year" value={year} />
+                  <input type="hidden" name="type" value="SOCIAL_INSURANCE" />
+                  <input type="hidden" name="redirectPath" value="/social-insurance-deduction" />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
           </div>
 

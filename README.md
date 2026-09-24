@@ -1986,6 +1986,34 @@ README中に散在する他の「今後の課題」の中から実現可能な�
 **制約:** 従来通り、調整控除が未登録の年は下書きCSVにも出力されない(住宅ローン控除等
 他の税額控除のみ登録済みの場合は、それらのみを出力する)。
 
+### 79. 各種試算画面で登録済みの控除・税額控除の削除機能 — `src/app/actions.ts`・各試算画面のForm
+
+`/tax-estimate`・下書きCSVへ自動反映するために`IncomeDeduction`・`MortgageDeductionRecord`・
+`ForeignTaxCreditRecord`・`DonationTaxCreditRecord`・`DistributionAdjustedForeignTaxCreditRecord`・
+`ResidentTaxAdjustmentDeductionRecord`として登録する仕組み(機能23等)には、登録する
+アクション(`save*`)はあったが、登録を取り消す削除アクションが無く、繰越控除等の他の
+登録データ(`CasualtyLossCarryforward`・`InvestmentLossCarryforward`等)には存在する
+`delete*`アクションだけがこの6種類の登録データに欠けていた。対象が控除の対象外になった
+(所得要件を満たさなくなった等)・住宅ローンを完済した・区分を誤って登録した、といった
+場合に、DBを直接操作する以外に登録を取り消す方法が無く、`/tax-estimate`の初期値・
+下書きCSVへ不要になった額が反映され続ける問題があった。
+
+`deleteIncomeDeduction`・`deleteMortgageDeductionRecord`・`deleteForeignTaxCreditRecord`・
+`deleteDonationTaxCreditRecord`・`deleteDistributionAdjustedForeignTaxCreditRecord`・
+`deleteResidentTaxAdjustmentDeductionRecord`を、既存の`deleteCasualtyLossCarryforward`と
+同じ方式(該当レコードを削除し、`/tax-estimate`と自画面を`revalidatePath`してから自画面へ
+リダイレクト)で追加した。`IncomeDeduction`は年分・区分(`taxYearId`・`type`)の組で
+特定するため、年分をまたいで登録できる12画面・16区分(医療費控除・生命保険料控除・
+地震保険料控除・小規模企業共済等掛金控除・社会保険料控除・セルフメディケーション税制・
+配偶者控除・扶養控除・基礎控除・障害者控除・寡婦控除ひとり親控除・勤労学生控除・
+雑損控除・寄附金控除・特定支出控除・所得金額調整控除)すべてに、既存の「登録済み: ¥X」
+表示の隣に「登録を削除する」ボタンを追加した。他の5種類(住宅ローン控除・外国税額控除・
+寄附金特別控除・分配時調整外国税相当額控除・住民税の調整控除)は年分につき1件のみのため、
+同様に各画面の「登録済み」表示の隣にボタンを追加した。
+
+**制約:** 削除は確認ダイアログなしで即座に実行される(他の`delete*`アクションと同様の
+挙動)。誤って削除した場合は試算結果を再度「登録する」ボタンで登録し直す必要がある。
+
 ## ロードマップ(次回以降のブラッシュアップ候補)
 
 優先度が高いと思われる順:
@@ -2057,6 +2085,14 @@ README中に散在する他の「今後の課題」の中から実現可能な�
 
 ### 完了済み
 
+- **各種試算画面で登録済みの控除・税額控除の削除機能**(`src/app/actions.ts`の
+  `delete*`アクション群。機能79参照)。ロードマップ1件目(令和8年度税制改正の残課題)は
+  今回も自治体公式ページの更新が確認できなかったため見送り、方針どおりコードベース自体を
+  精査して見つけた新規ギャップに対応した。`IncomeDeduction`・`MortgageDeductionRecord`
+  等6種類の登録データについて、登録(`save*`)アクションはあるのに削除アクションが無く、
+  繰越控除等の他の登録データには存在する`delete*`アクションだけが欠けているという
+  非対称性が見つかったため、既存の`deleteCasualtyLossCarryforward`と同じ方式で
+  6種類・18画面分の削除アクション・削除ボタンを追加した。
 - **公的年金等に係る雑所得の試算**(`src/lib/publicPensionIncome.ts`・
   `/public-pension-income`。機能77参照)。1件目(令和8年度税制改正の残課題)は今回も
   自治体公式ページの更新が確認できなかったため見送り、方針どおりREADME中に散在する

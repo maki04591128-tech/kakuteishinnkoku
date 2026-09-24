@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { saveIncomeDeduction } from "@/app/actions";
+import { deleteIncomeDeduction, saveIncomeDeduction } from "@/app/actions";
 import { estimateMedicalExpenseDeduction } from "@/lib/medicalExpenseDeduction";
 import {
   compareMedicalDeductionOptions,
@@ -120,9 +120,22 @@ export function MedicalExpenseDeductionForm({
               </button>
             </form>
             {registeredDeductionJpy !== null && (
-              <p className="mt-2 text-xs text-neutral-500">
-                登録済み: {yen(registeredDeductionJpy)}(/tax-estimateの初期値に反映)
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  登録済み: {yen(registeredDeductionJpy)}(/tax-estimateの初期値に反映)
+                </p>
+                <form action={deleteIncomeDeduction}>
+                  <input type="hidden" name="year" value={year} />
+                  <input type="hidden" name="type" value="MEDICAL_EXPENSE" />
+                  <input type="hidden" name="redirectPath" value="/medical-expense-deduction" />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
           </div>
 
@@ -214,9 +227,22 @@ export function MedicalExpenseDeductionForm({
               </button>
             </form>
             {registeredSelfMedicationDeductionJpy !== null && (
-              <p className="mt-2 text-xs text-neutral-500">
-                登録済み: {yen(registeredSelfMedicationDeductionJpy)}(/tax-estimateの初期値に反映)
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  登録済み: {yen(registeredSelfMedicationDeductionJpy)}(/tax-estimateの初期値に反映)
+                </p>
+                <form action={deleteIncomeDeduction}>
+                  <input type="hidden" name="year" value={year} />
+                  <input type="hidden" name="type" value="SELF_MEDICATION" />
+                  <input type="hidden" name="redirectPath" value="/medical-expense-deduction" />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
           </div>
 

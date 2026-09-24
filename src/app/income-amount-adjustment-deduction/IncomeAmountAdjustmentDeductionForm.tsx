@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { saveIncomeDeduction } from "@/app/actions";
+import { deleteIncomeDeduction, saveIncomeDeduction } from "@/app/actions";
 import { estimateIncomeAmountAdjustmentDeduction } from "@/lib/incomeAmountAdjustmentDeduction";
 
 function yen(value: { toString(): string }): string {
@@ -124,10 +124,27 @@ export function IncomeAmountAdjustmentDeductionForm({
               </button>
             </form>
             {registeredDeduction !== null && (
-              <p className="mt-2 text-xs text-neutral-500">
-                登録済み: 所得税 {yen(registeredDeduction.incomeTaxAmountJpy)} / 住民税{" "}
-                {yen(registeredDeduction.residentTaxAmountJpy)}(/tax-estimateの初期値に反映)
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  登録済み: 所得税 {yen(registeredDeduction.incomeTaxAmountJpy)} / 住民税{" "}
+                  {yen(registeredDeduction.residentTaxAmountJpy)}(/tax-estimateの初期値に反映)
+                </p>
+                <form action={deleteIncomeDeduction}>
+                  <input type="hidden" name="year" value={year} />
+                  <input type="hidden" name="type" value="INCOME_AMOUNT_ADJUSTMENT" />
+                  <input
+                    type="hidden"
+                    name="redirectPath"
+                    value="/income-amount-adjustment-deduction"
+                  />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
           </div>
 

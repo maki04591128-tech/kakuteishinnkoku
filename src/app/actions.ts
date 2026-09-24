@@ -1235,6 +1235,22 @@ export async function saveForeignTaxCreditRecord(formData: FormData): Promise<vo
 }
 
 /**
+ * saveForeignTaxCreditRecordで登録した当年分のForeignTaxCreditRecordを削除する
+ * (deleteMortgageDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteForeignTaxCreditRecord(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.foreignTaxCreditRecord.deleteMany({ where: { taxYearId: taxYear.id } });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/foreign-tax-credit");
+  redirect(`/foreign-tax-credit?year=${year}&foreignTaxCreditDeleted=1`);
+}
+
+/**
  * 政党等・認定NPO法人等・公益社団法人等寄附金特別控除シミュレーター
  * (/donation-tax-credit)の当年分の試算結果(所得税分の合計控除額・条例指定を
  * 受けている分の住民税の寄附金控除(基本控除)額)を DonationTaxCreditRecord
@@ -1260,6 +1276,22 @@ export async function saveDonationTaxCreditRecord(formData: FormData): Promise<v
 }
 
 /**
+ * saveDonationTaxCreditRecordで登録した当年分のDonationTaxCreditRecordを削除する
+ * (deleteMortgageDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteDonationTaxCreditRecord(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.donationTaxCreditRecord.deleteMany({ where: { taxYearId: taxYear.id } });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/donation-tax-credit");
+  redirect(`/donation-tax-credit?year=${year}&donationTaxCreditDeleted=1`);
+}
+
+/**
  * 分配時調整外国税相当額控除シミュレーター(/distribution-adjusted-foreign-tax-credit)
  * の当年分の控除額を DistributionAdjustedForeignTaxCreditRecord として登録する。
  * 外国税額控除(saveForeignTaxCreditRecord)と同様、`/tax-estimate`の合計税額試算・
@@ -1281,6 +1313,27 @@ export async function saveDistributionAdjustedForeignTaxCreditRecord(
   revalidatePath("/tax-estimate");
   revalidatePath("/distribution-adjusted-foreign-tax-credit");
   redirect(`/distribution-adjusted-foreign-tax-credit?year=${year}&saved=1`);
+}
+
+/**
+ * saveDistributionAdjustedForeignTaxCreditRecordで登録した当年分の
+ * DistributionAdjustedForeignTaxCreditRecordを削除する
+ * (deleteMortgageDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteDistributionAdjustedForeignTaxCreditRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.distributionAdjustedForeignTaxCreditRecord.deleteMany({
+      where: { taxYearId: taxYear.id },
+    });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/distribution-adjusted-foreign-tax-credit");
+  redirect(`/distribution-adjusted-foreign-tax-credit?year=${year}&deleted=1`);
 }
 
 /**
@@ -1312,6 +1365,30 @@ export async function saveIncomeDeduction(formData: FormData): Promise<void> {
   redirect(`${redirectPath}?year=${year}&deductionSaved=${type}`);
 }
 
+/**
+ * saveIncomeDeductionで登録した当年分・当区分のIncomeDeductionを削除する
+ * (deleteMortgageDeductionRecordと同様の取り消し操作)。登録後に対象外になった、
+ * または区分を間違えて登録した場合に、`/tax-estimate`の初期値・下書きCSVへの
+ * 自動反映を止めるために使う。
+ */
+export async function deleteIncomeDeduction(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const type = requireString(formData, "type");
+  if (!isIncomeDeductionType(type)) {
+    throw new Error(`不正な所得控除区分です: ${type}`);
+  }
+  const redirectPath = requireString(formData, "redirectPath");
+
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.incomeDeduction.deleteMany({ where: { taxYearId: taxYear.id, type } });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath(redirectPath);
+  redirect(`${redirectPath}?year=${year}&deductionDeleted=${type}`);
+}
+
 export async function saveMortgageDeductionRecord(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const nationalTaxCreditJpy = requireString(formData, "nationalTaxCreditJpy");
@@ -1327,6 +1404,23 @@ export async function saveMortgageDeductionRecord(formData: FormData): Promise<v
   revalidatePath("/tax-estimate");
   revalidatePath("/mortgage-deduction");
   redirect(`/mortgage-deduction?year=${year}&mortgageDeductionSaved=1`);
+}
+
+/**
+ * saveMortgageDeductionRecordで登録した当年分のMortgageDeductionRecordを削除する。
+ * 登録後に住宅ローン控除の対象外になった(繰上完済・所得要件を満たさなくなった等)
+ * 場合に、`/tax-estimate`・下書きCSVへの自動反映を止めるための取り消し操作。
+ */
+export async function deleteMortgageDeductionRecord(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.mortgageDeductionRecord.deleteMany({ where: { taxYearId: taxYear.id } });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/mortgage-deduction");
+  redirect(`/mortgage-deduction?year=${year}&mortgageDeductionDeleted=1`);
 }
 
 /**
@@ -1353,6 +1447,29 @@ export async function saveResidentTaxAdjustmentDeductionRecord(
   revalidatePath("/resident-tax-adjustment-deduction");
   redirect(
     `/resident-tax-adjustment-deduction?year=${year}&residentTaxAdjustmentDeductionSaved=1`,
+  );
+}
+
+/**
+ * saveResidentTaxAdjustmentDeductionRecordで登録した当年分の
+ * ResidentTaxAdjustmentDeductionRecordを削除する
+ * (deleteMortgageDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteResidentTaxAdjustmentDeductionRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.residentTaxAdjustmentDeductionRecord.deleteMany({
+      where: { taxYearId: taxYear.id },
+    });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/resident-tax-adjustment-deduction");
+  redirect(
+    `/resident-tax-adjustment-deduction?year=${year}&residentTaxAdjustmentDeductionDeleted=1`,
   );
 }
 
