@@ -130,6 +130,41 @@ describe("estimateSpouseDeduction", () => {
     expect(result.incomeTaxAmountJpy.toNumber()).toBe(380_000);
     expect(result.residentTaxAmountJpy.toNumber()).toBe(330_000);
   });
+
+  it("令和8年分(2026年分)以後は配偶者の所得62万円以下でも配偶者控除(令和7年分は特別控除扱い)", () => {
+    const result2026 = estimateSpouseDeduction({
+      hasEligibleSpouse: true,
+      taxpayerTotalIncomeJpy: 6_000_000,
+      spouseTotalIncomeJpy: 600_000,
+      spouseIsElderly: false,
+      year: 2026,
+    });
+    expect(result2026.category).toBe("SPOUSE_DEDUCTION");
+    expect(result2026.incomeTaxAmountJpy.toNumber()).toBe(380_000);
+
+    const result2025 = estimateSpouseDeduction({
+      hasEligibleSpouse: true,
+      taxpayerTotalIncomeJpy: 6_000_000,
+      spouseTotalIncomeJpy: 600_000,
+      spouseIsElderly: false,
+      year: 2025,
+    });
+    expect(result2025.category).toBe("SPOUSE_SPECIAL_DEDUCTION");
+    expect(result2025.incomeTaxAmountJpy.toNumber()).toBe(380_000);
+  });
+
+  it("令和8年分は配偶者の所得62万円超133万円以下でも配偶者特別控除の金額表自体は変わらない", () => {
+    const result = estimateSpouseDeduction({
+      hasEligibleSpouse: true,
+      taxpayerTotalIncomeJpy: 6_000_000,
+      spouseTotalIncomeJpy: 900_000,
+      spouseIsElderly: false,
+      year: 2026,
+    });
+    expect(result.category).toBe("SPOUSE_SPECIAL_DEDUCTION");
+    expect(result.incomeTaxAmountJpy.toNumber()).toBe(380_000);
+    expect(result.residentTaxAmountJpy.toNumber()).toBe(330_000);
+  });
 });
 
 describe("estimateDependentDeduction", () => {
@@ -281,6 +316,67 @@ describe("estimateDependentDeduction", () => {
     });
     expect(result.category).toBe("SPECIFIED");
     expect(result.eligible).toBe(false);
+  });
+
+  it("令和8年分(2026年分)以後は合計所得金額要件がさらに62万円に引き上げられる", () => {
+    // 令和7年分は58万円超なら特定親族特別控除の対象だが、令和8年分は62万円超からが対象
+    const result2026At60万 = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 600_000,
+      year: 2026,
+    });
+    expect(result2026At60万.category).toBe("SPECIFIED");
+    expect(result2026At60万.eligible).toBe(true);
+
+    const result2025At60万 = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 600_000,
+      year: 2025,
+    });
+    expect(result2025At60万.category).toBe("SPECIFIED_SPECIAL");
+  });
+
+  it("令和8年分は特定親族特別控除の段階表自体は令和7年分と同じ(下限のみ62万円に変更)", () => {
+    const result85 = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 850_000,
+      year: 2026,
+    });
+    expect(result85.category).toBe("SPECIFIED_SPECIAL");
+    expect(result85.eligible).toBe(true);
+    expect(result85.incomeTaxAmountJpy.toNumber()).toBe(630_000);
+    expect(result85.residentTaxAmountJpy.toNumber()).toBe(450_000);
+    expect(result85.categoryLabel).toContain("62万円超123万円以下");
+
+    const result123 = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 1_230_000,
+      year: 2026,
+    });
+    expect(result123.incomeTaxAmountJpy.toNumber()).toBe(30_000);
+
+    const resultOver = estimateDependentDeduction({
+      ageAtYearEnd: 20,
+      totalIncomeJpy: 1_300_000,
+      year: 2026,
+    });
+    expect(resultOver.eligible).toBe(false);
+  });
+
+  it("一般の扶養親族も令和8年分は62万円以下まで対象になる", () => {
+    const result2026 = estimateDependentDeduction({
+      ageAtYearEnd: 30,
+      totalIncomeJpy: 600_000,
+      year: 2026,
+    });
+    expect(result2026.eligible).toBe(true);
+
+    const result2026Over = estimateDependentDeduction({
+      ageAtYearEnd: 30,
+      totalIncomeJpy: 650_000,
+      year: 2026,
+    });
+    expect(result2026Over.eligible).toBe(false);
   });
 });
 
