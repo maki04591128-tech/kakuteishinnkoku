@@ -85,6 +85,7 @@ export function DividendSimulatorForm({
         },
         otherTaxableIncomeJpy: otherIncomeJpy === "" ? 0 : otherIncomeJpy,
         availableListedStockLossJpy: lossJpy === "" ? 0 : lossJpy,
+        otherCategoryDividendJpy: nonListedDividendJpy === "" ? 0 : nonListedDividendJpy,
       });
     } catch {
       return null;
@@ -96,6 +97,7 @@ export function DividendSimulatorForm({
     noCreditDividendJpy,
     otherIncomeJpy,
     lossJpy,
+    nonListedDividendJpy,
   ]);
 
   const nonListedResult = useMemo(() => {
@@ -111,6 +113,7 @@ export function DividendSimulatorForm({
             nonListedQuarterCreditDividendJpy === "" ? 0 : nonListedQuarterCreditDividendJpy,
           noCreditJpy: nonListedNoCreditDividendJpy === "" ? 0 : nonListedNoCreditDividendJpy,
         },
+        otherCategoryDividendJpy: dividendJpy === "" ? 0 : dividendJpy,
       });
     } catch {
       return null;
@@ -122,6 +125,7 @@ export function DividendSimulatorForm({
     nonListedHalfCreditDividendJpy,
     nonListedQuarterCreditDividendJpy,
     nonListedNoCreditDividendJpy,
+    dividendJpy,
   ]);
 
   return (

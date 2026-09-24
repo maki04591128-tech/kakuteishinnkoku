@@ -183,6 +183,39 @@ describe("simulateDividendTaxation", () => {
         availableListedStockLossJpy: -1,
       }),
     ).toThrow();
+    expect(() =>
+      simulateDividendTaxation({
+        dividendIncomeJpy: 0,
+        otherTaxableIncomeJpy: 0,
+        otherCategoryDividendJpy: -1,
+      }),
+    ).toThrow();
+  });
+
+  it("otherCategoryDividendJpy(一般株式等の配当)を合算して1000万円の枠を判定する", () => {
+    // 他の所得900万円 + 一般株式等の配当200万円(otherCategoryDividendJpy) = 1100万円
+    // → 上場株式等の配当側の枠は既に無い(100万円超過)ため、上場株式等の配当は全額枠超
+    const result = simulateDividendTaxation({
+      dividendIncomeJpy: 1_000_000,
+      otherTaxableIncomeJpy: 9_000_000,
+      otherCategoryDividendJpy: 2_000_000,
+    });
+
+    // 全額枠超: 国税5%+住民税1.4%=6.4%
+    expect(result.comprehensive.dividendCreditJpy?.toNumber()).toBeCloseTo(64_000, 0);
+    expect(result.notes.some((n) => n.includes("一般株式等") && n.includes("1,000万円"))).toBe(
+      true,
+    );
+  });
+
+  it("otherCategoryDividendJpyを省略した場合は従来どおり本区分単独で枠を判定する", () => {
+    const withoutOther = simulateDividendTaxation({
+      dividendIncomeJpy: 1_000_000,
+      otherTaxableIncomeJpy: 9_000_000,
+    });
+
+    // 他の所得900万円 + 配当100万円 = 1000万円ちょうど → 枠内(10%+2.8%)
+    expect(withoutOther.comprehensive.dividendCreditJpy?.toNumber()).toBeCloseTo(128_000, 0);
   });
 });
 
@@ -361,6 +394,32 @@ describe("simulateNonListedDividendTaxation", () => {
         nonListedDividendIncomeJpy: 500_000,
         otherTaxableIncomeJpy: 0,
         dividendCreditBreakdown: { halfCreditJpy: 300_000, quarterCreditJpy: 300_000 },
+      }),
+    ).toThrow();
+  });
+
+  it("otherCategoryDividendJpy(上場株式等の配当)を合算して1000万円の枠を判定する", () => {
+    // 他の所得900万円 + 上場株式等の配当200万円(otherCategoryDividendJpy) = 1100万円
+    // → 一般株式等の配当側の枠は既に無い(100万円超過)ため、全額枠超
+    const result = simulateNonListedDividendTaxation({
+      nonListedDividendIncomeJpy: 1_000_000,
+      otherTaxableIncomeJpy: 9_000_000,
+      otherCategoryDividendJpy: 2_000_000,
+    });
+
+    // 全額枠超: 国税5%+住民税1.4%=6.4%
+    expect(result.reportAll.dividendCreditJpy.toNumber()).toBeCloseTo(64_000, 0);
+    expect(result.notes.some((n) => n.includes("上場株式等") && n.includes("1,000万円"))).toBe(
+      true,
+    );
+  });
+
+  it("負の入力値(otherCategoryDividendJpy)はエラーになる", () => {
+    expect(() =>
+      simulateNonListedDividendTaxation({
+        nonListedDividendIncomeJpy: 0,
+        otherTaxableIncomeJpy: 0,
+        otherCategoryDividendJpy: -1,
       }),
     ).toThrow();
   });
