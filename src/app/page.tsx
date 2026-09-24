@@ -216,6 +216,12 @@ export default async function Home({
           特定支出控除額を試算する
         </Link>
         <Link
+          href={`/income-amount-adjustment-deduction?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          所得金額調整控除額を試算する
+        </Link>
+        <Link
           href={`/dependent-deduction?year=${year}`}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >

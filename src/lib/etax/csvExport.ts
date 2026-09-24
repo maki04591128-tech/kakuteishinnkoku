@@ -47,6 +47,8 @@ const INCOME_DEDUCTION_FILING_LOCATION: Record<IncomeDeductionType, string> = {
     "申告書第一表 所得から差し引かれる金額(寄附金控除) / 第二表 寄附金控除に関する事項(ふるさと納税は住民税の特例控除も別途適用)",
   SPECIFIC_EXPENSE:
     "申告書第一表 給与所得の金額(所得控除の欄ではなく特定支出控除後の給与所得金額に反映) / 給与所得者の特定支出に関する明細書・給与等の支払者の証明書",
+  INCOME_AMOUNT_ADJUSTMENT:
+    "申告書第一表 給与所得の金額(所得控除の欄ではなく所得金額調整控除後の給与所得金額に反映) / 所得金額調整控除申告書",
 };
 
 /**
