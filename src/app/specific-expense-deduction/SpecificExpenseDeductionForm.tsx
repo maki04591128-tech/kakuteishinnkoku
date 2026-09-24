@@ -28,6 +28,7 @@ export function SpecificExpenseDeductionForm({
   const result = useMemo(() => {
     try {
       return estimateSpecificExpenseDeduction({
+        year,
         salaryIncomeJpy: salaryIncome === "" ? 0 : salaryIncome,
         commutingExpenseJpy: commutingExpense === "" ? 0 : commutingExpense,
         relocationExpenseJpy: relocationExpense === "" ? 0 : relocationExpense,
@@ -40,6 +41,7 @@ export function SpecificExpenseDeductionForm({
       return null;
     }
   }, [
+    year,
     salaryIncome,
     commutingExpense,
     relocationExpense,

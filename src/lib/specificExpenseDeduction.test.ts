@@ -32,6 +32,53 @@ describe("employmentIncomeDeductionJpy", () => {
   });
 });
 
+describe("employmentIncomeDeductionJpy(令和7年度・8年度税制改正による最低保障額引上げ)", () => {
+  it("令和7年分は収入190万円以下は65万円の定額で、190万円超は速算表と段差なく接続する", () => {
+    expect(employmentIncomeDeductionJpy(1_000_000, 2025).toNumber()).toBe(650_000);
+    expect(employmentIncomeDeductionJpy(1_900_000, 2025).toNumber()).toBe(650_000);
+    // 190万円超の速算表(収入×30%+8万円)。190万円時点でちょうど65万円と一致し、段差は生じない
+    expect(employmentIncomeDeductionJpy(1_900_001, 2025).toNumber()).toBeGreaterThan(650_000);
+    expect(employmentIncomeDeductionJpy(2_000_000, 2025).toNumber()).toBe(680_000);
+  });
+
+  it("令和8年分・9年分は収入219万1,000円未満まで74万円の定額が続く", () => {
+    expect(employmentIncomeDeductionJpy(1_000_000, 2026).toNumber()).toBe(740_000);
+    expect(employmentIncomeDeductionJpy(1_900_000, 2026).toNumber()).toBe(740_000);
+    // 190万円超でも定額74万円が続く(専用の金額表による、単純な速算表への切替ではない)
+    expect(employmentIncomeDeductionJpy(2_000_000, 2026).toNumber()).toBe(740_000);
+    expect(employmentIncomeDeductionJpy(2_190_999, 2027).toNumber()).toBe(740_000);
+  });
+
+  it("令和8年分・9年分の収入219万1,000円〜220万円未満は専用の金額表(1,000円刻みの丸め)による", () => {
+    expect(employmentIncomeDeductionJpy(2_191_000, 2026).toNumber()).toBe(740_000);
+    expect(employmentIncomeDeductionJpy(2_192_999, 2026).toNumber()).toBe(741_999);
+    expect(employmentIncomeDeductionJpy(2_193_000, 2026).toNumber()).toBe(740_000);
+    expect(employmentIncomeDeductionJpy(2_195_999, 2026).toNumber()).toBe(742_999);
+    expect(employmentIncomeDeductionJpy(2_196_000, 2026).toNumber()).toBe(740_000);
+    expect(employmentIncomeDeductionJpy(2_199_999, 2026).toNumber()).toBe(743_999);
+  });
+
+  it("令和8年分・9年分の収入220万円以上は通常の速算表(収入×30%+8万円)に戻る", () => {
+    expect(employmentIncomeDeductionJpy(2_200_000, 2026).toNumber()).toBe(740_000);
+    expect(employmentIncomeDeductionJpy(4_000_000, 2026).toNumber()).toBe(1_240_000);
+    expect(employmentIncomeDeductionJpy(8_500_000, 2026).toNumber()).toBe(1_950_000);
+  });
+
+  it("令和10年分以後は最低保障額69万円が速算表に統合される(段差なし)", () => {
+    expect(employmentIncomeDeductionJpy(1_000_000, 2028).toNumber()).toBe(690_000);
+    expect(employmentIncomeDeductionJpy(1_900_000, 2028).toNumber()).toBe(690_000);
+    // 収入×30%+8万円が69万円を上回る地点(約203万3,334円)から速算表どおりになる
+    expect(employmentIncomeDeductionJpy(2_100_000, 2028).toNumber()).toBe(710_000);
+    expect(employmentIncomeDeductionJpy(4_000_000, 2028).toNumber()).toBe(1_240_000);
+    expect(employmentIncomeDeductionJpy(8_500_000, 2028).toNumber()).toBe(1_950_000);
+  });
+
+  it("収入が控除額を下回る場合は年分によらず収入金額自体にクランプする", () => {
+    expect(employmentIncomeDeductionJpy(300_000, 2026).toNumber()).toBe(300_000);
+    expect(employmentIncomeDeductionJpy(0, 2028).toNumber()).toBe(0);
+  });
+});
+
 describe("estimateSpecificExpenseDeduction", () => {
   it("特定支出の合計が基準額(給与所得控除額の1/2)以下なら控除額は0円", () => {
     // 給与収入500万円: 給与所得控除額144万円、基準額72万円
