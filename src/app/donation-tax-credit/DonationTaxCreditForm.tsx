@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { saveDonationTaxCreditRecord } from "@/app/actions";
+import { deleteDonationTaxCreditRecord, saveDonationTaxCreditRecord } from "@/app/actions";
 import {
   DONATION_TAX_CREDIT_CATEGORY_LABELS,
   type DonationTaxCreditCategory,
@@ -225,11 +225,23 @@ export function DonationTaxCreditForm({
               </button>
             </form>
             {registeredRecord !== null && (
-              <p className="mt-2 text-xs text-neutral-500">
-                登録済み({registeredRecord.taxYear}年分): 所得税分 {yen(registeredRecord.totalTaxCreditJpy)}
-                / 住民税分 {yen(registeredRecord.residentTaxBasicDeductionJpy)}
-                (/tax-estimateの初期値・下書きCSVに反映)
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  登録済み({registeredRecord.taxYear}年分): 所得税分{" "}
+                  {yen(registeredRecord.totalTaxCreditJpy)} / 住民税分{" "}
+                  {yen(registeredRecord.residentTaxBasicDeductionJpy)}
+                  (/tax-estimateの初期値・下書きCSVに反映)
+                </p>
+                <form action={deleteDonationTaxCreditRecord}>
+                  <input type="hidden" name="year" value={registeredRecord.taxYear} />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
           </div>
 

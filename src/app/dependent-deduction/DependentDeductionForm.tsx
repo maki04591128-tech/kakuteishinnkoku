@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useRef, useState } from "react";
-import { saveIncomeDeduction } from "@/app/actions";
+import { deleteIncomeDeduction, saveIncomeDeduction } from "@/app/actions";
 import {
   estimateSpouseDeduction,
   summarizeDependentsDeduction,
@@ -158,9 +158,22 @@ export function DependentDeductionForm({
               </button>
             </form>
             {registeredSpouseDeductionJpy !== null && (
-              <p className="mt-2 text-xs text-neutral-500">
-                登録済み: {yen(registeredSpouseDeductionJpy)}(/tax-estimateの初期値に反映)
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  登録済み: {yen(registeredSpouseDeductionJpy)}(/tax-estimateの初期値に反映)
+                </p>
+                <form action={deleteIncomeDeduction}>
+                  <input type="hidden" name="year" value={year} />
+                  <input type="hidden" name="type" value="SPOUSE" />
+                  <input type="hidden" name="redirectPath" value="/dependent-deduction" />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
             <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-neutral-500">
               {spouseResult.notes.map((note, i) => (
@@ -309,9 +322,22 @@ export function DependentDeductionForm({
               </button>
             </form>
             {registeredDependentDeductionJpy !== null && (
-              <p className="mt-2 text-xs text-neutral-500">
-                登録済み: {yen(registeredDependentDeductionJpy)}(/tax-estimateの初期値に反映)
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  登録済み: {yen(registeredDependentDeductionJpy)}(/tax-estimateの初期値に反映)
+                </p>
+                <form action={deleteIncomeDeduction}>
+                  <input type="hidden" name="year" value={year} />
+                  <input type="hidden" name="type" value="DEPENDENT" />
+                  <input type="hidden" name="redirectPath" value="/dependent-deduction" />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
           </div>
         )}

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   carryForwardForeignTaxCreditExcess,
   carryForwardForeignTaxCreditSpareLimit,
+  deleteForeignTaxCreditRecord,
   saveForeignTaxCreditRecord,
 } from "@/app/actions";
 import { calculateForeignTaxCredit } from "@/lib/investment/foreignTaxCredit";
@@ -187,11 +188,22 @@ export function ForeignTaxCreditForm({
               {yen(result.residentTaxCreditJpy)}
             </p>
             {registeredTotalCreditJpy !== null && (
-              <p className="mt-2 text-xs text-neutral-400">
-                {year}年分として登録済みの控除額: {yen(registeredTotalCreditJpy.totalCreditJpy)}
-                (所得税等 {yen(registeredTotalCreditJpy.nationalTaxCreditJpy)} / 住民税{" "}
-                {yen(registeredTotalCreditJpy.residentTaxCreditJpy)})
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-400">
+                  {year}年分として登録済みの控除額: {yen(registeredTotalCreditJpy.totalCreditJpy)}
+                  (所得税等 {yen(registeredTotalCreditJpy.nationalTaxCreditJpy)} / 住民税{" "}
+                  {yen(registeredTotalCreditJpy.residentTaxCreditJpy)})
+                </p>
+                <form action={deleteForeignTaxCreditRecord}>
+                  <input type="hidden" name="year" value={year} />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+                  >
+                    登録を削除する
+                  </button>
+                </form>
+              </div>
             )}
             <form action={saveForeignTaxCreditRecord} className="mt-3">
               <input type="hidden" name="year" value={year} />
