@@ -32,24 +32,28 @@ export type InvestmentAssetType = "STOCK" | "ETF" | "MUTUAL_FUND" | "BOND" | "OT
  *  - FULL: 上場株式等の普通配当(STOCK)・ETF(J-REIT型を除く)。通常の
  *    配当控除率(国税10%/5%・住民税2.8%/1.4%)の対象。
  *  - HALF: 株式投資信託(MUTUAL_FUND)の収益分配金のうち、外貨建資産等の
- *    組入割合が50%以下のもの(mutualFundHighForeignRatio=false)。通常の
- *    半分の税率(国税5%/2.5%・住民税1.4%/0.7%)の対象。
+ *    組入割合が50%以下のもの(mutualFundHighForeignRatio=false・
+ *    mutualFundVeryHighForeignRatio=false)。通常の半分の税率
+ *    (国税5%/2.5%・住民税1.4%/0.7%)の対象。
  *  - QUARTER: 株式投資信託(MUTUAL_FUND)の収益分配金のうち、外貨建資産等の
- *    組入割合が50%超のもの(mutualFundHighForeignRatio=true)。通常の1/4の
- *    税率(国税2.5%/1.25%・住民税0.7%/0.35%)の対象。組入割合75%超は
- *    本来配当控除の対象外(NONE)だが、この区分まではフラグを細分化していない
- *    ため75%超もQUARTER(対象外より有利な区分)として扱う簡略化(今後の課題)。
- *  - NONE: 公社債投資信託・REIT等(BOND・OTHER)、およびJ-REIT型ETF
- *    (isReit=true)。不動産投資法人は法人税が実質非課税で二重課税が
- *    生じないため、配当控除の対象外。
+ *    組入割合が50%超75%以下のもの(mutualFundHighForeignRatio=true・
+ *    mutualFundVeryHighForeignRatio=false)。通常の1/4の税率
+ *    (国税2.5%/1.25%・住民税0.7%/0.35%)の対象。
+ *  - NONE: 公社債投資信託・REIT等(BOND・OTHER)、J-REIT型ETF
+ *    (isReit=true)、および株式投資信託(MUTUAL_FUND)の収益分配金のうち
+ *    外貨建資産等の組入割合が75%超のもの(mutualFundVeryHighForeignRatio=true)。
+ *    不動産投資法人は法人税が実質非課税、組入割合75%超の株式投資信託は
+ *    国税庁タックスアンサーNo.1250の速算表により、いずれも配当控除の対象外。
  */
 export function dividendCreditCategory(
   assetType: InvestmentAssetType | undefined,
   isReit?: boolean,
   mutualFundHighForeignRatio?: boolean,
+  mutualFundVeryHighForeignRatio?: boolean,
 ): "FULL" | "HALF" | "QUARTER" | "NONE" {
   switch (assetType) {
     case "MUTUAL_FUND":
+      if (mutualFundVeryHighForeignRatio) return "NONE";
       return mutualFundHighForeignRatio ? "QUARTER" : "HALF";
     case "BOND":
     case "OTHER":
@@ -99,9 +103,17 @@ export interface InvestmentTradeInput {
    * 株式投資信託(assetType="MUTUAL_FUND")の分配金につき、外貨建資産等の
    * 組入割合が50%超75%以下かどうか(type="DIVIDEND"の場合のみ配当控除の
    * 税率区分判定に使用)。true の場合、通常の半分税率(HALF)ではなく
-   * 1/4税率(QUARTER)として扱う。
+   * 1/4税率(QUARTER)として扱う(ただし`mutualFundVeryHighForeignRatio=true`
+   * の場合はそちらが優先され対象外(NONE)になる)。
    */
   mutualFundHighForeignRatio?: boolean;
+  /**
+   * 株式投資信託(assetType="MUTUAL_FUND")の分配金につき、外貨建資産等の
+   * 組入割合が75%超かどうか(type="DIVIDEND"の場合のみ配当控除の税率区分
+   * 判定に使用)。true の場合、`mutualFundHighForeignRatio`の値に関わらず
+   * 配当控除の対象外(NONE)として扱う。
+   */
+  mutualFundVeryHighForeignRatio?: boolean;
 }
 
 export interface InvestmentOpeningBalance {
@@ -282,7 +294,12 @@ export function calculateInvestmentYear(
       } else {
         dividendJpy = dividendJpy.plus(amount);
         switch (
-          dividendCreditCategory(trade.assetType, trade.isReit, trade.mutualFundHighForeignRatio)
+          dividendCreditCategory(
+            trade.assetType,
+            trade.isReit,
+            trade.mutualFundHighForeignRatio,
+            trade.mutualFundVeryHighForeignRatio,
+          )
         ) {
           case "FULL":
             dividendFullCreditJpy = dividendFullCreditJpy.plus(amount);

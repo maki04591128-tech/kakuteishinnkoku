@@ -23,19 +23,15 @@ import {
  * このモジュールは3方式の税額を試算し、最も有利な方式を提案する。
  *
  * 配当控除率は銘柄種別により異なる(上場株式等の普通配当は通常税率、
- * 株式投資信託の分配金は組入割合により半分または1/4、公社債投資信託・
+ * 株式投資信託の分配金は組入割合により半分・1/4または対象外、公社債投資信託・
  * J-REIT等は対象外)。`dividendCreditBreakdown`で内訳を渡すとそれぞれの
  * 税率区分ごとに正しく計算する(省略時は全額を通常税率(上場株式等)として
  * 扱う簡略化)。`/dividend-simulation`ページでは`InvestmentTrade.assetType`・
- * `mutualFundHighForeignRatio`から自動集計した内訳(`dividendCreditCategory`、
+ * `mutualFundHighForeignRatio`・`mutualFundVeryHighForeignRatio`から
+ * 自動集計した内訳(`dividendCreditCategory`、
  * `src/lib/investment/calculator.ts`)を初期値として渡している。
  *
  * 簡略化している点(今後の課題):
- *  - 株式投資信託の1/4税率(quarterCreditJpy)は、外貨建資産等の組入割合が
- *    50%超であることを前提とする。組入割合75%超は本来配当控除の対象外
- *    (NONE)になるが、本ツールは`InvestmentTrade.mutualFundHighForeignRatio`
- *    という2値のフラグまでしか区別していないため、75%超も1/4税率として
- *    扱う(対象外より有利になる方向の簡略化)。
  *  - 所得税額の計算は国税庁の「速算表」(超過累進税率)をそのまま使用し、
  *    住民税は10%固定(均等割は考慮しない)としている。
  *  - 総合課税を選ぶと合計所得金額が増え、配偶者控除・扶養控除の可否や
@@ -62,12 +58,13 @@ export interface DividendCreditBreakdown {
   halfCreditJpy?: Decimal.Value;
   /**
    * 配当等の金額(源泉徴収前)のうち、株式投資信託(外貨建資産等の組入割合
-   * 50%超)の分配金等、配当控除が1/4の税率になる分。省略時は0。
+   * 50%超75%以下)の分配金等、配当控除が1/4の税率になる分。省略時は0。
    */
   quarterCreditJpy?: Decimal.Value;
   /**
-   * 配当等の金額(源泉徴収前)のうち、公社債投資信託・J-REIT等、配当控除の
-   * 対象外の分。省略時は0。
+   * 配当等の金額(源泉徴収前)のうち、公社債投資信託・J-REIT等、および
+   * 株式投資信託(外貨建資産等の組入割合75%超)等、配当控除の対象外の分。
+   * 省略時は0。
    */
   noCreditJpy?: Decimal.Value;
 }
