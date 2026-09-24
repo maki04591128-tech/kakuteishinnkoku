@@ -207,22 +207,24 @@ describe("estimateResidentTaxAdjustmentDeduction", () => {
     expect(result.notes.some((n) => n.includes("2,500万円"))).toBe(true);
   });
 
-  it("令和9年分以後は基礎控除の人的控除額の差の扱いが未検証である旨の注記が付く", () => {
-    const result = estimateResidentTaxAdjustmentDeduction({
-      personalDeductionDifference: {
-        year: 2027,
-        taxpayerTotalIncomeJpy: 5_000_000,
-      },
-      totalTaxableIncomeJpy: 1_000_000,
-    });
+  it("令和8年分以後は基礎控除の人的控除額の差の扱いが未検証である旨の注記が付く(令和8年度税制改正によるさらなる引上げのため)", () => {
+    for (const year of [2026, 2027]) {
+      const result = estimateResidentTaxAdjustmentDeduction({
+        personalDeductionDifference: {
+          year,
+          taxpayerTotalIncomeJpy: 5_000_000,
+        },
+        totalTaxableIncomeJpy: 1_000_000,
+      });
 
-    expect(result.notes.some((n) => n.includes("令和9年分") && n.includes("一次情報"))).toBe(true);
+      expect(result.notes.some((n) => n.includes("令和8年分") && n.includes("一次情報"))).toBe(true);
+    }
   });
 
-  it("令和7年分・8年分は未検証の注記が付かない", () => {
+  it("令和7年分は未検証の注記が付かない", () => {
     const result = estimateResidentTaxAdjustmentDeduction({
       personalDeductionDifference: {
-        year: 2026,
+        year: 2025,
         taxpayerTotalIncomeJpy: 5_000_000,
       },
       totalTaxableIncomeJpy: 1_000_000,
