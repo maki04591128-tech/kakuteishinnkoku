@@ -41,6 +41,15 @@ import {
  *  - 総合課税を選ぶと合計所得金額が増え、配偶者控除・扶養控除の可否や
  *    国民健康保険料等に影響し得るが、本シミュレーターはこれらを金額として
  *    織り込まない(注意事項として案内するのみ)。
+ *
+ * 配当控除の1,000万円閾値は「その年分の合計所得金額」で判定するため、上場株式等の
+ * 配当(このモジュール)と一般株式等の配当(`simulateNonListedDividendTaxation`)を
+ * 両方申告する場合は両者の合計で判定する必要がある。`otherCategoryDividendJpy`に
+ * 他方の配当区分の金額を渡すと、閾値の枠(1,000万円-otherTaxableIncomeJpy)から
+ * 他方の分をあらかじめ差し引いたうえで本区分の内訳(通常→半分→1/4)に枠を割り当てる
+ * (他方の内訳(通常/半分/1/4)までは区別できないため、常に本区分より優先して枠を
+ * 消費するとみなす安全側の簡略化。本区分の配当控除額を実際より少なめに見積もる
+ * 方向にしかならない)。省略時は0として扱い、従来どおり本区分単独で判定する。
  */
 
 export type DividendTaxMethod = "COMPREHENSIVE" | "SEPARATE" | "NO_FILING";
@@ -81,6 +90,13 @@ export interface DividendTaxSimulationInput {
    * 未指定の場合は0として扱う。
    */
   availableListedStockLossJpy?: Decimal.Value;
+  /**
+   * 一般株式等(非上場株式)の配当所得金額(`simulateNonListedDividendTaxation`の
+   * nonListedDividendIncomeJpy)。配当控除の1,000万円閾値判定にのみ使用する
+   * (総合課税の税額計算そのものは引き続き上場株式等の配当のみで行う)。
+   * 未指定の場合は0として扱う。
+   */
+  otherCategoryDividendJpy?: Decimal.Value;
 }
 
 export interface DividendTaxMethodResult {
@@ -134,15 +150,21 @@ function splitByThreshold(
  * 配当所得を総合課税で申告した場合の配当控除額を計算する。
  * 合計所得金額が1,000万円を超える部分に対応する配当は控除率が半分になる
  * (税率区分ごとの詳細は`dividendCreditCategory`のコメント参照)。
+ *
+ * otherCategoryDividendJpyには、この配当以外にもう一方の区分(上場/一般株式等)の
+ * 配当がある場合にその金額を渡す。合計所得金額の1,000万円判定は両区分の配当
+ * 合計で行う必要があるため、閾値の枠から先に差し引いたうえで本区分の内訳に
+ * 割り当てる(モジュール冒頭のコメント参照)。
  */
 function dividendCreditJpy(
   otherTaxableIncomeJpy: Decimal,
   fullCreditDividendJpy: Decimal,
   halfCreditDividendJpy: Decimal,
   quarterCreditDividendJpy: Decimal,
+  otherCategoryDividendJpy: Decimal = new Decimal(0),
 ): { nationalCreditJpy: Decimal; residentCreditJpy: Decimal } {
   const roomBelowThreshold = Decimal.max(
-    DIVIDEND_CREDIT_THRESHOLD_JPY.minus(otherTaxableIncomeJpy),
+    DIVIDEND_CREDIT_THRESHOLD_JPY.minus(otherTaxableIncomeJpy).minus(otherCategoryDividendJpy),
     0,
   );
 
@@ -174,6 +196,7 @@ function simulateComprehensive(
   fullCreditDividendJpy: Decimal,
   halfCreditDividendJpy: Decimal,
   quarterCreditDividendJpy: Decimal,
+  otherCategoryDividendJpy: Decimal,
 ): DividendTaxMethodResult {
   const nationalTaxWithoutDividend = nationalIncomeTaxWithSurtaxJpy(otherTaxableIncomeJpy);
   const nationalTaxWithDividend = nationalIncomeTaxWithSurtaxJpy(
@@ -186,6 +209,7 @@ function simulateComprehensive(
     fullCreditDividendJpy,
     halfCreditDividendJpy,
     quarterCreditDividendJpy,
+    otherCategoryDividendJpy,
   );
 
   const nationalTaxJpy = marginalNationalTaxJpy.minus(nationalCreditJpy);
@@ -264,9 +288,9 @@ function simulateNoFiling(dividendIncomeJpy: Decimal): DividendTaxMethodResult {
  *  - 所得税額の計算は`simulateDividendTaxation`と同様、速算表と住民税10%
  *    固定を用いる。
  *  - 上場株式等の配当(`simulateDividendTaxation`)とは独立に試算するため、
- *    合計所得金額に基づく配当控除の1,000万円の閾値判定は、双方の配当を
- *    合算せずそれぞれ単独で行う(上場株式等の配当と合わせて1,000万円を
- *    超える場合、実際の控除額とは差異が生じ得る)。
+ *    合計所得金額に基づく配当控除の1,000万円の閾値判定に上場株式等の配当を
+ *    含めるには`otherCategoryDividendJpy`に上場株式等の配当額を渡す必要が
+ *    ある(モジュール冒頭のコメント参照。省略時は本区分単独で判定する簡略化)。
  *  - 少額配当の確定申告不要制度を選んだ場合、smallDividendJpyがどの税率
  *    区分の配当に該当するかまでは指定できないため、通常税率(FULL)の分から
  *    優先して申告不要にあて、それでも不足する場合は半分税率(HALF)→
@@ -299,6 +323,13 @@ export interface NonListedDividendTaxSimulationInput {
    * (一般株式等の普通配当)として扱う。省略時は全額を通常税率として扱う。
    */
   dividendCreditBreakdown?: DividendCreditBreakdown;
+  /**
+   * 上場株式等の配当所得金額(`simulateDividendTaxation`の
+   * dividendIncomeJpy)。配当控除の1,000万円閾値判定にのみ使用する
+   * (総合課税の税額計算そのものは引き続き一般株式等の配当のみで行う)。
+   * 未指定の場合は0として扱う。
+   */
+  otherCategoryDividendJpy?: Decimal.Value;
 }
 
 export interface NonListedDividendTaxMethodResult {
@@ -368,6 +399,9 @@ export function simulateNonListedDividendTaxation(
   const noCreditDividendJpy = input.dividendCreditBreakdown?.noCreditJpy
     ? new Decimal(input.dividendCreditBreakdown.noCreditJpy)
     : new Decimal(0);
+  const otherCategoryDividendJpy = input.otherCategoryDividendJpy
+    ? new Decimal(input.otherCategoryDividendJpy)
+    : new Decimal(0);
 
   requireNonNegative(nonListedDividendIncomeJpy, "一般株式等の配当所得金額");
   requireNonNegative(otherTaxableIncomeJpy, "配当以外の課税所得金額");
@@ -375,6 +409,7 @@ export function simulateNonListedDividendTaxation(
   requireNonNegative(halfCreditDividendJpy, "配当控除半分税率の内訳額");
   requireNonNegative(quarterCreditDividendJpy, "配当控除1/4税率の内訳額");
   requireNonNegative(noCreditDividendJpy, "配当控除対象外の内訳額");
+  requireNonNegative(otherCategoryDividendJpy, "他方の配当区分の金額");
   if (smallDividendJpy.greaterThan(nonListedDividendIncomeJpy)) {
     throw new Error("少額配当該当額が一般株式等の配当所得金額を超えています");
   }
@@ -399,6 +434,7 @@ export function simulateNonListedDividendTaxation(
     fullCreditDividendJpy,
     halfCreditDividendJpy,
     quarterCreditDividendJpy,
+    otherCategoryDividendJpy,
   );
   const residentTaxJpy = nonListedDividendIncomeJpy
     .times(RESIDENT_TAX_RATE)
@@ -428,6 +464,11 @@ export function simulateNonListedDividendTaxation(
       `配当所得のうち${noCreditDividendJpy.toString()}円分(公社債投資信託等)は総合課税を選んでも配当控除の対象外。`,
     );
   }
+  if (otherCategoryDividendJpy.greaterThan(0)) {
+    notes.push(
+      `配当控除の1,000万円閾値判定には上場株式等の配当${otherCategoryDividendJpy.toString()}円分も合算している(上場株式等側の内訳(通常/半分/1/4)までは区別できないため、常にこの区分より優先して枠を消費するとみなす安全側の簡略化。配当控除額を実際より少なめに見積もる方向にしかならない)。`,
+    );
+  }
 
   if (smallDividendJpy.isZero()) {
     return {
@@ -447,6 +488,7 @@ export function simulateNonListedDividendTaxation(
     mustReportFullJpy,
     mustReportHalfJpy,
     mustReportQuarterJpy,
+    otherCategoryDividendJpy,
   );
   const partialNationalTaxJpy = nationalComprehensiveTaxJpy(
     otherTaxableIncomeJpy,
@@ -502,6 +544,9 @@ export function simulateDividendTaxation(
   const noCreditDividendJpy = input.dividendCreditBreakdown?.noCreditJpy
     ? new Decimal(input.dividendCreditBreakdown.noCreditJpy)
     : new Decimal(0);
+  const otherCategoryDividendJpy = input.otherCategoryDividendJpy
+    ? new Decimal(input.otherCategoryDividendJpy)
+    : new Decimal(0);
 
   requireNonNegative(dividendIncomeJpy, "配当所得金額");
   requireNonNegative(otherTaxableIncomeJpy, "配当以外の課税所得金額");
@@ -509,6 +554,7 @@ export function simulateDividendTaxation(
   requireNonNegative(halfCreditDividendJpy, "配当控除半分税率の内訳額");
   requireNonNegative(quarterCreditDividendJpy, "配当控除1/4税率の内訳額");
   requireNonNegative(noCreditDividendJpy, "配当控除対象外の内訳額");
+  requireNonNegative(otherCategoryDividendJpy, "他方の配当区分の金額");
   if (
     halfCreditDividendJpy
       .plus(quarterCreditDividendJpy)
@@ -530,6 +576,7 @@ export function simulateDividendTaxation(
     fullCreditDividendJpy,
     halfCreditDividendJpy,
     quarterCreditDividendJpy,
+    otherCategoryDividendJpy,
   );
   const separate = simulateSeparate(dividendIncomeJpy, availableListedStockLossJpy);
   const noFiling = simulateNoFiling(dividendIncomeJpy);
@@ -556,6 +603,11 @@ export function simulateDividendTaxation(
   if (noCreditDividendJpy.greaterThan(0)) {
     notes.push(
       `配当所得のうち${noCreditDividendJpy.toString()}円分(公社債投資信託・J-REIT等)は総合課税を選んでも配当控除の対象外。`,
+    );
+  }
+  if (otherCategoryDividendJpy.greaterThan(0)) {
+    notes.push(
+      `配当控除の1,000万円閾値判定には一般株式等(非上場株式)の配当${otherCategoryDividendJpy.toString()}円分も合算している(一般株式等側の内訳(通常/半分/1/4)までは区別できないため、常にこの区分より優先して枠を消費するとみなす安全側の簡略化。配当控除額を実際より少なめに見積もる方向にしかならない)。`,
     );
   }
 
