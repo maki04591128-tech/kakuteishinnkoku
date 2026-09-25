@@ -133,6 +133,56 @@ describe("simulateHomeSaleTax", () => {
     ).toThrow();
   });
 
+  it("取得費不明(0円)で概算取得費を希望する場合は譲渡価額の5%相当額を取得費として採用する", () => {
+    const result = simulateHomeSaleTax({
+      transferPriceJpy: 60_000_000,
+      acquisitionCostJpy: 0,
+      transferExpensesJpy: 2_000_000,
+      ownershipYears: 8,
+      specialDeductionEligible: true,
+      reducedRateEligible: false,
+      useEstimatedAcquisitionCost: true,
+    });
+
+    // 概算取得費 = 60,000,000円 × 5% = 3,000,000円
+    expect(result.acquisitionCostJpy.toNumber()).toBe(3_000_000);
+    expect(result.estimatedAcquisitionCostJpy.toNumber()).toBe(3_000_000);
+    expect(result.estimatedAcquisitionCostApplied).toBe(true);
+    expect(result.transferGainJpy.toNumber()).toBe(55_000_000);
+    expect(result.notes.some((n) => n.includes("概算取得費の特例"))).toBe(true);
+  });
+
+  it("実際の取得費が譲渡価額の5%相当額以上なら、概算取得費を希望しても実際の取得費のまま", () => {
+    const result = simulateHomeSaleTax({
+      transferPriceJpy: 60_000_000,
+      acquisitionCostJpy: 10_000_000,
+      transferExpensesJpy: 2_000_000,
+      ownershipYears: 8,
+      specialDeductionEligible: true,
+      reducedRateEligible: false,
+      useEstimatedAcquisitionCost: true,
+    });
+
+    expect(result.acquisitionCostJpy.toNumber()).toBe(10_000_000);
+    expect(result.estimatedAcquisitionCostApplied).toBe(false);
+    expect(result.transferGainJpy.toNumber()).toBe(48_000_000);
+  });
+
+  it("概算取得費を希望しない場合は入力した取得費(0円)がそのまま使われる", () => {
+    const result = simulateHomeSaleTax({
+      transferPriceJpy: 60_000_000,
+      acquisitionCostJpy: 0,
+      transferExpensesJpy: 2_000_000,
+      ownershipYears: 8,
+      specialDeductionEligible: true,
+      reducedRateEligible: false,
+    });
+
+    expect(result.acquisitionCostJpy.toNumber()).toBe(0);
+    expect(result.estimatedAcquisitionCostApplied).toBe(false);
+    expect(result.transferGainJpy.toNumber()).toBe(58_000_000);
+  });
+
   it("所有期間が負の値・非整数の場合は拒否する", () => {
     expect(() =>
       simulateHomeSaleTax({

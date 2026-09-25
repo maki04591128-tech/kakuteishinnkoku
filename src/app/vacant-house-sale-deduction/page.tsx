@@ -20,7 +20,9 @@ export default function VacantHouseSaleDeductionPage() {
           <Link href="/home-sale-deduction" className="underline">
             /home-sale-deduction
           </Link>
-          とは独立した単体の試算画面とした。
+          とは独立した単体の試算画面とした。取得費が不明、または譲渡価額の5%相当額を
+          下回る場合は、概算取得費の特例(措置法31条の4、国税庁タックスアンサー
+          No.3258)により譲渡価額の5%相当額を取得費とすることを選択できる。
         </p>
       </header>
 

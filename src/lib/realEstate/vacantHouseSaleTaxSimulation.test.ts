@@ -116,6 +116,39 @@ describe("simulateVacantHouseSaleTax", () => {
     expect(result.totalTaxJpy.toNumber()).toBe(0);
   });
 
+  it("取得費不明(0円)で概算取得費を希望する場合は譲渡価額の5%相当額を取得費として採用する", () => {
+    const result = simulateVacantHouseSaleTax({
+      transferPriceJpy: 50_000_000,
+      acquisitionCostJpy: 0,
+      transferExpensesJpy: 1_000_000,
+      heirCount: 1,
+      eligibilityConfirmed: true,
+      demolishedOrEarthquakeResistant: true,
+      useEstimatedAcquisitionCost: true,
+    });
+
+    // 概算取得費 = 50,000,000円 × 5% = 2,500,000円
+    expect(result.acquisitionCostJpy.toNumber()).toBe(2_500_000);
+    expect(result.estimatedAcquisitionCostApplied).toBe(true);
+    expect(result.transferGainJpy.toNumber()).toBe(46_500_000);
+    expect(result.notes.some((n) => n.includes("概算取得費の特例"))).toBe(true);
+  });
+
+  it("実際の取得費が譲渡価額の5%相当額以上なら、概算取得費を希望しても実際の取得費のまま", () => {
+    const result = simulateVacantHouseSaleTax({
+      transferPriceJpy: 50_000_000,
+      acquisitionCostJpy: 5_000_000,
+      transferExpensesJpy: 1_000_000,
+      heirCount: 1,
+      eligibilityConfirmed: true,
+      demolishedOrEarthquakeResistant: true,
+      useEstimatedAcquisitionCost: true,
+    });
+
+    expect(result.acquisitionCostJpy.toNumber()).toBe(5_000_000);
+    expect(result.estimatedAcquisitionCostApplied).toBe(false);
+  });
+
   it("相続人の数が1未満または整数でない場合はエラーになる", () => {
     expect(() =>
       simulateVacantHouseSaleTax({
