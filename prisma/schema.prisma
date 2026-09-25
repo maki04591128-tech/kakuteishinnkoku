@@ -760,14 +760,21 @@ model CryptoTrade {
   /// gift_in: 贈与・遺贈・相続等により取得(取得価額をそのまま引き継ぐため取得時の収入計上は無し)
   /// gift_out: 贈与・寄附・遺贈により無償で譲渡(相続人に対する死因贈与・包括遺贈・特定遺贈を
   /// 除く。贈与等の時の時価をみなし総収入金額として計上する)
+  /// low_price_transfer_out: 時価の70%未満の対価による低額譲渡(実際の対価と時価の70%相当額の
+  /// いずれか高い方をみなし総収入金額として計上する。marketValueUnitPriceJpyが必須)
   /// fee: 取引手数料(暗号資産建てで支払われた場合)
   type CryptoTradeType
 
   /// 数量(増減の絶対値)。取得数量 or 譲渡数量。
   quantity Decimal
 
-  /// 単価(日本円換算)。income/tradeでは取得時の時価を入力する。
+  /// 単価(日本円換算)。income/tradeでは取得時の時価、low_price_transfer_outでは
+  /// 実際に受け取った対価の単価を入力する。
   unitPriceJpy Decimal
+
+  /// low_price_transfer_out(低額譲渡)専用。譲渡時点における時価(単価)。
+  /// unitPriceJpyがこの70%相当額未満の場合、70%相当額をみなし総収入金額として計算する。
+  marketValueUnitPriceJpy Decimal?
 
   /// 手数料(日本円換算、取得価額 or 譲渡価額の調整に使用)
   feeJpy Decimal @default(0)
@@ -799,6 +806,7 @@ enum CryptoTradeType {
   INCOME
   GIFT_IN
   GIFT_OUT
+  LOW_PRICE_TRANSFER_OUT
   FEE
 }
 

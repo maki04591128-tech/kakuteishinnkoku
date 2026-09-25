@@ -1720,6 +1720,11 @@ export default async function ImportPage({
           (国税庁「暗号資産等に関する税務上の取扱いについて(FAQ)」2-10・1-4参照)。
           認定NPO法人等への寄附の場合、同額が寄附金控除(`/donation-deduction`)・寄附金特別控除
           (`/donation-tax-credit`)の対象にもなるため、該当する場合は別途そちらにも登録すること。
+          「低額譲渡」は、時価よりも著しく低い対価(時価の70%未満)で他者に譲渡した場合に、
+          単価には実際に受け取った対価を、時価(低額譲渡時のみ)には譲渡時点の時価を登録する。
+          実際の対価が時価の70%相当額未満の場合、その70%相当額を総収入金額として計算する
+          (同FAQ2-10)。取得者側がこの暗号資産を将来譲渡する際の取得価額の引継ぎは未対応で、
+          取得者は通常の「購入」として実際に支払った対価の額のみを登録すること。
         </p>
         <form action={addCryptoTrade} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <input type="hidden" name="year" value={year} />
@@ -1738,6 +1743,7 @@ export default async function ImportPage({
               <option value="INCOME">マイニング等収入</option>
               <option value="GIFT_IN">贈与・相続等による取得</option>
               <option value="GIFT_OUT">贈与・寄附による譲渡</option>
+              <option value="LOW_PRICE_TRANSFER_OUT">低額譲渡</option>
               <option value="FEE">暗号資産建て手数料</option>
             </select>
           </Field>
@@ -1746,6 +1752,9 @@ export default async function ImportPage({
           </Field>
           <Field label="単価(円)">
             <input type="number" step="any" name="unitPriceJpy" required className={inputClass} />
+          </Field>
+          <Field label="時価(低額譲渡時のみ・円)">
+            <input type="number" step="any" name="marketValueUnitPriceJpy" className={inputClass} />
           </Field>
           <Field label="手数料(円)">
             <input type="number" step="any" name="feeJpy" defaultValue={0} className={inputClass} />
