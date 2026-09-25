@@ -15,6 +15,7 @@ import { getDonationTaxCreditRecord } from "@/lib/donationTaxCredit";
 import { getEarthquakeRenovationDeductionRecord } from "@/lib/earthquakeRenovationDeduction";
 import { getEnergySavingRenovationDeductionRecord } from "@/lib/energySavingRenovationDeduction";
 import { getBarrierFreeRenovationDeductionRecord } from "@/lib/barrierFreeRenovationDeduction";
+import { getMultiHouseholdRenovationDeductionRecord } from "@/lib/multiHouseholdRenovationDeduction";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -119,6 +120,11 @@ export default async function TaxEstimatePage({
   const registeredBarrierFreeRenovationDeductionJpy =
     barrierFreeRenovationDeductionRecord?.creditJpy.toNumber() ?? null;
 
+  const multiHouseholdRenovationDeductionRecord =
+    await getMultiHouseholdRenovationDeductionRecord(year);
+  const registeredMultiHouseholdRenovationDeductionJpy =
+    multiHouseholdRenovationDeductionRecord?.creditJpy.toNumber() ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -192,6 +198,12 @@ export default async function TaxEstimatePage({
         registeredBarrierFreeRenovationDeductionJpy={
           registeredBarrierFreeRenovationDeductionJpy
         }
+        defaultMultiHouseholdRenovationDeductionJpy={
+          registeredMultiHouseholdRenovationDeductionJpy ?? 0
+        }
+        registeredMultiHouseholdRenovationDeductionJpy={
+          registeredMultiHouseholdRenovationDeductionJpy
+        }
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
@@ -237,6 +249,16 @@ export default async function TaxEstimatePage({
           で「この試算結果を◯年分の住宅耐震改修特別控除として登録する」を実行済みの場合、
           その控除額を初期値として表示する。住民税に相当する控除は無いため、寄附金特別控除
           適用後の所得税額からのみ差し引く。
+        </p>
+        <p>
+          多世帯同居改修工事の住宅特定改修特別税額控除(税額控除)は
+          <Link href={`/multi-household-renovation-deduction?year=${year}`} className="underline">
+            /multi-household-renovation-deduction
+          </Link>
+          で「この試算結果を◯年分の多世帯同居改修工事に係る住宅特定改修特別税額控除として
+          登録する」を実行済みの場合、その控除額を初期値として表示する。住民税に相当する
+          控除は無いため、バリアフリー改修工事の住宅特定改修特別税額控除適用後の所得税額
+          からのみ差し引く。
         </p>
         <p>
           外国税額控除(税額控除)は`/foreign-tax-credit`で「この年分の外国税額控除として

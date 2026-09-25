@@ -51,6 +51,7 @@ model TaxYear {
   earthquakeRenovationDeductionRecords        EarthquakeRenovationDeductionRecord[]
   energySavingRenovationDeductionRecords      EnergySavingRenovationDeductionRecord[]
   barrierFreeRenovationDeductionRecords       BarrierFreeRenovationDeductionRecord[]
+  multiHouseholdRenovationDeductionRecords    MultiHouseholdRenovationDeductionRecord[]
 }
 
 enum CryptoCostMethod {
@@ -455,6 +456,25 @@ model EnergySavingRenovationDeductionRecord {
 /// `/barrier-free-renovation-deduction`の「この試算結果を◯年分のバリアフリー改修工事に
 /// 係る住宅特定改修特別税額控除として登録する」ボタンから登録する。
 model BarrierFreeRenovationDeductionRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の控除額(所得税分のみ)
+  creditJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 多世帯同居改修工事をした場合の住宅特定改修特別税額控除(租税特別措置法41条の19の3。
+/// 国税庁タックスアンサーNo.1224)。バリアフリー改修工事・省エネ改修工事の各控除と
+/// 同様、住民税への振替制度が無く、所得税分のみを保持する。
+/// `/multi-household-renovation-deduction`の「この試算結果を◯年分の多世帯同居改修工事に
+/// 係る住宅特定改修特別税額控除として登録する」ボタンから登録する。
+model MultiHouseholdRenovationDeductionRecord {
   id        Int     @id @default(autoincrement())
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
