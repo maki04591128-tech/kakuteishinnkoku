@@ -5,6 +5,7 @@ import {
   estimateRetirementIncome,
   type RetirementIncomeCategory,
   type RetirementPaymentKind,
+  type SamePeriodRetirementPaymentInput,
 } from "@/lib/retirementIncome";
 
 function yen(value: { toString(): string }): string {
@@ -23,6 +24,18 @@ const PRIOR_PAYMENT_KIND_LABELS: Record<RetirementPaymentKind, string> = {
   DC_LUMP_SUM: "DC一時金(確定拠出年金の老齢給付金として支給される一時金)",
 };
 
+interface SamePeriodPaymentRow {
+  incomeJpy: string;
+  yearsOfService: string;
+  overlappingYearsOfService: string;
+}
+
+const EMPTY_SAME_PERIOD_PAYMENT_ROW: SamePeriodPaymentRow = {
+  incomeJpy: "0",
+  yearsOfService: "0",
+  overlappingYearsOfService: "0",
+};
+
 export function RetirementIncomeForm() {
   const [incomeJpy, setIncomeJpy] = useState("0");
   const [yearsOfService, setYearsOfService] = useState("10");
@@ -34,11 +47,22 @@ export function RetirementIncomeForm() {
   const [priorPaymentYear, setPriorPaymentYear] = useState("");
   const [priorPaymentKind, setPriorPaymentKind] = useState<RetirementPaymentKind>("REGULAR");
   const [overlappingYearsOfService, setOverlappingYearsOfService] = useState("0");
+  const [hasSamePeriodPayments, setHasSamePeriodPayments] = useState(false);
+  const [samePeriodPayments, setSamePeriodPayments] = useState<SamePeriodPaymentRow[]>([
+    { ...EMPTY_SAME_PERIOD_PAYMENT_ROW },
+  ]);
 
   const result = useMemo(() => {
     const years = Number(yearsOfService);
     if (!Number.isFinite(years) || years <= 0) return null;
     try {
+      const samePeriodPaymentsInput: SamePeriodRetirementPaymentInput[] | undefined = hasSamePeriodPayments
+        ? samePeriodPayments.map((row) => ({
+            incomeJpy: row.incomeJpy === "" ? 0 : row.incomeJpy,
+            yearsOfService: Number(row.yearsOfService),
+            overlappingYearsOfService: Number(row.overlappingYearsOfService),
+          }))
+        : undefined;
       return estimateRetirementIncome({
         incomeJpy: incomeJpy === "" ? 0 : incomeJpy,
         yearsOfService: years,
@@ -53,6 +77,7 @@ export function RetirementIncomeForm() {
               overlappingYearsOfService: Number(overlappingYearsOfService),
             }
           : undefined,
+        samePeriodPayments: samePeriodPaymentsInput,
       });
     } catch {
       return null;
@@ -68,7 +93,13 @@ export function RetirementIncomeForm() {
     priorPaymentYear,
     priorPaymentKind,
     overlappingYearsOfService,
+    hasSamePeriodPayments,
+    samePeriodPayments,
   ]);
+
+  function updateSamePeriodPaymentRow(index: number, patch: Partial<SamePeriodPaymentRow>) {
+    setSamePeriodPayments((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -135,6 +166,95 @@ export function RetirementIncomeForm() {
             今回の退職手当等はDC一時金(iDeCo・企業型確定拠出年金の老齢給付金として支給される一時金)である
           </span>
         </label>
+      </div>
+
+      <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={hasSamePeriodPayments}
+            onChange={(e) => setHasSamePeriodPayments(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-300 dark:border-neutral-700"
+          />
+          <span className="font-medium">
+            同一年中に他の支払者からも退職手当等を受け取っている(2か所以上から受け取る場合)
+          </span>
+        </label>
+        <p className="mt-1 text-xs text-neutral-500">
+          同一年中に他の支払者からも退職手当等を受け取っている場合、退職所得控除額はそれぞれ別々に
+          計算せず、収入金額を合算し勤続年数も重複しない期間を加算した年数で1回だけ計算する
+          (国税庁タックスアンサーNo.2735、所得税法施行令69条)。
+        </p>
+        {hasSamePeriodPayments && (
+          <div className="mt-4 flex flex-col gap-4">
+            {samePeriodPayments.map((row, i) => (
+              <div key={i} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-neutral-500">他の退職手当等の収入金額</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={1}
+                    value={row.incomeJpy}
+                    onChange={(e) => updateSamePeriodPaymentRow(i, { incomeJpy: e.target.value })}
+                    className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-neutral-500">その勤続年数</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step={0.01}
+                    value={row.yearsOfService}
+                    onChange={(e) => updateSamePeriodPaymentRow(i, { yearsOfService: e.target.value })}
+                    className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+                  />
+                </label>
+                <div className="flex items-end gap-2">
+                  <label className="flex flex-1 flex-col gap-1 text-sm">
+                    <span className="text-neutral-500">
+                      これまでの合算勤続期間と重複する年数
+                    </span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step={0.01}
+                      value={row.overlappingYearsOfService}
+                      onChange={(e) =>
+                        updateSamePeriodPaymentRow(i, { overlappingYearsOfService: e.target.value })
+                      }
+                      className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+                    />
+                  </label>
+                  {samePeriodPayments.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSamePeriodPayments((rows) => rows.filter((_, idx) => idx !== i))
+                      }
+                      className="rounded-md border border-neutral-300 px-2 py-1.5 text-xs text-neutral-500 dark:border-neutral-700"
+                    >
+                      削除
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setSamePeriodPayments((rows) => [...rows, { ...EMPTY_SAME_PERIOD_PAYMENT_ROW }])
+              }
+              className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-500 dark:border-neutral-700"
+            >
+              他の退職手当等を追加
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
@@ -213,10 +333,18 @@ export function RetirementIncomeForm() {
       {result === null ? (
         <p className="text-sm text-red-600">
           入力値を確認してください(収入金額は0以上、勤続年数は0より大きい数値を入力。前の退職手当等を
-          入力する場合はその支給年が今回より前で、重複する勤続年数が今回の勤続年数以下であること)。
+          入力する場合はその支給年が今回より前で、重複する勤続年数が今回の勤続年数以下であること。
+          同一年中の他の退職手当等を入力する場合は収入金額が0以上、勤続年数が0より大きく、
+          重複する年数がその勤続年数以下であること)。
         </p>
       ) : (
         <>
+          {hasSamePeriodPayments && (
+            <p className="text-xs text-neutral-500">
+              合算後の収入金額: {yen(result.combinedIncomeJpy)} / 合算後の勤続年数:{" "}
+              {result.combinedYearsOfService}年
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
               <p className="text-sm text-neutral-500">退職所得控除額</p>
