@@ -184,4 +184,41 @@ describe("estimateCertifiedHousingConstructionCredit", () => {
       estimateCertifiedHousingConstructionCredit(baseInput({ floorAreaSqm: -1 })),
     ).toThrow();
   });
+
+  it("この控除の適用前の所得税額を指定しない場合は全額を居住年で控除できるものと仮定する", () => {
+    const result = estimateCertifiedHousingConstructionCredit(baseInput());
+
+    expect(result.appliedJpy.toNumber()).toBe(result.creditJpy.toNumber());
+    expect(result.carryforwardJpy.toNumber()).toBe(0);
+  });
+
+  it("控除適用前の所得税額が控除額以上の場合は繰越額は発生しない", () => {
+    // creditJpy = 453,000円(baseInputの床面積100㎡)
+    const result = estimateCertifiedHousingConstructionCredit(
+      baseInput({ taxBeforeThisCreditJpy: 1_000_000 }),
+    );
+
+    expect(result.appliedJpy.toNumber()).toBe(453_000);
+    expect(result.carryforwardJpy.toNumber()).toBe(0);
+  });
+
+  it("控除適用前の所得税額が控除額を下回る場合は差額が翌年繰越額になる", () => {
+    // creditJpy = 453,000円 のうち200,000円しか居住年で控除できない
+    const result = estimateCertifiedHousingConstructionCredit(
+      baseInput({ taxBeforeThisCreditJpy: 200_000 }),
+    );
+
+    expect(result.appliedJpy.toNumber()).toBe(200_000);
+    expect(result.carryforwardJpy.toNumber()).toBe(253_000);
+    expect(result.notes.some((n) => n.includes("控除未済税額控除額"))).toBe(true);
+  });
+
+  it("控除適用前の所得税額が0円の場合は控除額全額が翌年繰越額になる", () => {
+    const result = estimateCertifiedHousingConstructionCredit(
+      baseInput({ taxBeforeThisCreditJpy: 0 }),
+    );
+
+    expect(result.appliedJpy.toNumber()).toBe(0);
+    expect(result.carryforwardJpy.toNumber()).toBe(453_000);
+  });
 });

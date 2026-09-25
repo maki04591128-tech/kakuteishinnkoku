@@ -1,12 +1,26 @@
 import Link from "next/link";
-import { getCertifiedHousingConstructionCreditRecord } from "@/lib/certifiedHousingConstructionCredit";
+import {
+  applyCertifiedHousingConstructionCreditCarryforward,
+  deleteCertifiedHousingConstructionCreditCarryforward,
+} from "@/app/actions";
+import {
+  getCertifiedHousingConstructionCreditCarryforward,
+  getCertifiedHousingConstructionCreditRecord,
+} from "@/lib/certifiedHousingConstructionCredit";
 import { listTaxYears } from "@/lib/taxYear";
 import { CertifiedHousingConstructionCreditForm } from "./CertifiedHousingConstructionCreditForm";
 
 export default async function CertifiedHousingConstructionCreditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; saved?: string; deleted?: string }>;
+  searchParams: Promise<{
+    year?: string;
+    saved?: string;
+    deleted?: string;
+    carryforwardSaved?: string;
+    carryforwardApplied?: string;
+    carryforwardDeleted?: string;
+  }>;
 }) {
   const params = await searchParams;
   const availableYears = await listTaxYears();
@@ -14,6 +28,7 @@ export default async function CertifiedHousingConstructionCreditPage({
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
 
   const registeredRecord = await getCertifiedHousingConstructionCreditRecord(year);
+  const incomingCarryforward = await getCertifiedHousingConstructionCreditCarryforward(year);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
@@ -48,6 +63,57 @@ export default async function CertifiedHousingConstructionCreditPage({
           {year}年分の認定住宅等新築等特別税額控除の登録を削除しました。
         </p>
       )}
+      {params.carryforwardSaved !== undefined && (
+        <p className="rounded-md bg-green-50 px-4 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+          {year + 1}年分に繰り越す控除未済税額控除額を登録しました。{year + 1}
+          年分の画面を開くと合算できます。
+        </p>
+      )}
+      {params.carryforwardApplied !== undefined && (
+        <p className="rounded-md bg-green-50 px-4 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+          前年からの繰越額を{year}年分の登録額に合算しました。
+        </p>
+      )}
+      {params.carryforwardDeleted !== undefined && (
+        <p className="rounded-md bg-neutral-50 px-4 py-2 text-sm text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+          {year}年分に繰り越す予定だった控除未済税額控除額の登録を削除しました。
+        </p>
+      )}
+
+      {incomingCarryforward && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            {incomingCarryforward.originYear}年分(居住年)から繰り越された控除未済税額控除額:{" "}
+            <span className="font-semibold">
+              ¥{incomingCarryforward.remainingAmountJpy.toNumber().toLocaleString("ja-JP")}
+            </span>
+            。居住年・{year}年分の両方の合計所得金額がこの控除の所得要件(2,000万円以下。
+            居住年が令和5年までであれば3,000万円以下)を満たす場合、{year}
+            年分の所得税額から控除できる(1年限りの繰越のため、{year}
+            年分で控除しきれなくてもさらに翌年へは繰り越せない)。
+          </p>
+          <div className="mt-2 flex flex-wrap gap-3">
+            <form action={applyCertifiedHousingConstructionCreditCarryforward}>
+              <input type="hidden" name="year" value={year} />
+              <button
+                type="submit"
+                className="rounded-md border border-amber-400 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+              >
+                {year}年分の登録額に合算する
+              </button>
+            </form>
+            <form action={deleteCertifiedHousingConstructionCreditCarryforward}>
+              <input type="hidden" name="year" value={year} />
+              <button
+                type="submit"
+                className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+              >
+                この繰越の登録を削除する
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <CertifiedHousingConstructionCreditForm
         year={year}
@@ -64,9 +130,9 @@ export default async function CertifiedHousingConstructionCreditPage({
         <p>
           住民税に相当する控除制度は存在しないため、所得税額からのみ控除する
           (住宅耐震改修特別控除・住宅特定改修特別税額控除の各類型と同様)。
-          居住年の所得税額から控除しきれない場合等に翌年分へ1年間繰り越せる制度が
-          あるが、本ツールは居住年単独の控除額の試算のみを行い、繰越の計算・自動反映は
-          行わない(今後の課題)。
+          居住年の所得税額から控除しきれない場合等に翌年分へ1年間繰り越せる制度
+          (控除未済税額控除額)があり、上の入力欄に「この控除の適用前の所得税額」を
+          入力すると繰り越せる金額を試算し、翌年分として登録できる。
           <Link href={`/earthquake-renovation-deduction?year=${year}`} className="underline">
             住宅耐震改修特別控除
           </Link>
