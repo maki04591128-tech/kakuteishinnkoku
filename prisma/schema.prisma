@@ -52,6 +52,7 @@ model TaxYear {
   energySavingRenovationDeductionRecords      EnergySavingRenovationDeductionRecord[]
   barrierFreeRenovationDeductionRecords       BarrierFreeRenovationDeductionRecord[]
   multiHouseholdRenovationDeductionRecords    MultiHouseholdRenovationDeductionRecord[]
+  durabilityImprovementRenovationDeductionRecords DurabilityImprovementRenovationDeductionRecord[]
 }
 
 enum CryptoCostMethod {
@@ -475,6 +476,25 @@ model BarrierFreeRenovationDeductionRecord {
 /// `/multi-household-renovation-deduction`の「この試算結果を◯年分の多世帯同居改修工事に
 /// 係る住宅特定改修特別税額控除として登録する」ボタンから登録する。
 model MultiHouseholdRenovationDeductionRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の控除額(所得税分のみ)
+  creditJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 耐久性向上改修工事をした場合の住宅特定改修特別税額控除(租税特別措置法41条の19の3。
+/// 国税庁タックスアンサーNo.1227)。バリアフリー改修工事・省エネ改修工事・多世帯同居
+/// 改修工事の各控除と同様、住民税への振替制度が無く、所得税分のみを保持する。
+/// `/durability-improvement-renovation-deduction`の「この試算結果を◯年分の耐久性向上
+/// 改修工事に係る住宅特定改修特別税額控除として登録する」ボタンから登録する。
+model DurabilityImprovementRenovationDeductionRecord {
   id        Int     @id @default(autoincrement())
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
