@@ -44,9 +44,20 @@ export default async function TaxEstimatePage({
         report.cryptoMargin,
         report.futures,
         report.futuresLossCarryforward,
-        undefined,
-        undefined,
+        undefined, // mortgageDeduction
+        undefined, // foreignTaxCredit
         report.investmentNonListed,
+        undefined, // donationTaxCredit
+        undefined, // distributionAdjustedForeignTaxCredit
+        undefined, // residentTaxAdjustmentDeduction
+        undefined, // earthquakeRenovationDeduction
+        undefined, // energySavingRenovationDeduction
+        undefined, // barrierFreeRenovationDeduction
+        undefined, // multiHouseholdRenovationDeduction
+        undefined, // durabilityImprovementRenovationDeduction
+        undefined, // childRearingRenovationDeduction
+        undefined, // certifiedHousingConstructionCredit
+        report.stockMargin,
       )
     : null;
 
@@ -58,9 +69,15 @@ export default async function TaxEstimatePage({
   const defaultFuturesTaxableGainJpy =
     report?.futuresLossCarryforward.taxableGainJpy.toNumber() ?? 0;
   const defaultDividendIncomeJpy = summary?.investmentDividendJpy.toNumber() ?? 0;
-  // 当年の株式等譲渡損失(赤字の場合)を、配当所得との損益通算の初期値として提案する
+  // 当年の株式等譲渡損失(現物取引+信用取引の合計。赤字の場合)を、
+  // 配当所得との損益通算の初期値として提案する
   const defaultAvailableListedStockLossForDividendJpy = report
-    ? Math.max(0, -report.investment.totalRealizedGainJpy.toNumber())
+    ? Math.max(
+        0,
+        -report.investment.totalRealizedGainJpy
+          .plus(report.stockMargin.totalRealizedGainJpy)
+          .toNumber(),
+      )
     : 0;
 
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);

@@ -3,6 +3,7 @@ import type { CryptoPortfolioYearResult } from "../crypto/calculator";
 import type { CryptoMarginPortfolioYearResult } from "../crypto/marginCalculator";
 import type { InvestmentPortfolioYearResult } from "../investment/calculator";
 import type { FuturesPortfolioYearResult } from "../investment/futuresIncome";
+import type { StockMarginPortfolioYearResult } from "../investment/marginCalculator";
 import {
   calculateLossCarryforward,
   type LossCarryforwardResult,
@@ -31,8 +32,12 @@ export interface TaxFilingSummary {
   cryptoSpotIncomeJpy: Decimal;
   /** 雑所得(暗号資産)のうち証拠金(レバレッジ)取引の決済損益分 */
   cryptoMarginIncomeJpy: Decimal;
-  /** 譲渡所得(上場株式等・申告分離課税、繰越控除適用前の金額) */
+  /** 譲渡所得(上場株式等・申告分離課税、現物取引+信用取引の合計、繰越控除適用前の金額) */
   investmentCapitalGainJpy: Decimal;
+  /** 譲渡所得(上場株式等・申告分離課税)のうち現物取引分(繰越控除適用前) */
+  investmentSpotCapitalGainJpy: Decimal;
+  /** 譲渡所得(上場株式等・申告分離課税)のうち信用取引の決済損益分(繰越控除適用前) */
+  investmentMarginCapitalGainJpy: Decimal;
   /** 配当所得(申告分離課税を選択した場合の額。総合課税を選ぶ場合は別途税率適用が必要) */
   investmentDividendJpy: Decimal;
   /** 上場株式等の譲渡損失の繰越控除(3年間)の適用結果 */
@@ -170,19 +175,26 @@ export function buildTaxFilingSummary(
   durabilityImprovementRenovationDeduction?: { creditJpy: Decimal },
   childRearingRenovationDeduction?: { creditJpy: Decimal },
   certifiedHousingConstructionCredit?: { creditJpy: Decimal },
+  stockMargin?: StockMarginPortfolioYearResult,
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
+  const investmentMarginCapitalGainJpy = stockMargin?.totalRealizedGainJpy ?? new Decimal(0);
+  const investmentGrossCapitalGainJpy = investment.totalRealizedGainJpy.plus(
+    investmentMarginCapitalGainJpy,
+  );
   return {
     year,
     cryptoMiscIncomeJpy: crypto.totalRealizedGainJpy.plus(cryptoMarginIncomeJpy),
     cryptoSpotIncomeJpy: crypto.totalRealizedGainJpy,
     cryptoMarginIncomeJpy,
-    investmentCapitalGainJpy: investment.totalRealizedGainJpy,
+    investmentCapitalGainJpy: investmentGrossCapitalGainJpy,
+    investmentSpotCapitalGainJpy: investment.totalRealizedGainJpy,
+    investmentMarginCapitalGainJpy,
     investmentDividendJpy: investment.totalDividendJpy,
     investmentLossCarryforward:
       lossCarryforward ??
-      calculateLossCarryforward(year, investment.totalRealizedGainJpy, []),
+      calculateLossCarryforward(year, investmentGrossCapitalGainJpy, []),
     nonListedInvestmentCapitalGainJpy:
       investmentNonListed?.totalRealizedGainJpy ?? new Decimal(0),
     nonListedInvestmentDividendJpy: investmentNonListed?.totalDividendJpy ?? new Decimal(0),

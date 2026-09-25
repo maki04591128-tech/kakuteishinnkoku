@@ -3,6 +3,7 @@ import type { CryptoCostMethod, CryptoSymbolYearResult } from "../crypto/calcula
 import type { CryptoMarginSymbolYearResult } from "../crypto/marginCalculator";
 import type { InvestmentSymbolYearResult } from "../investment/calculator";
 import type { FuturesSymbolYearResult } from "../investment/futuresIncome";
+import type { StockMarginSymbolYearResult } from "../investment/marginCalculator";
 import type { IncomeDeductionSummary, IncomeDeductionType } from "../incomeDeduction";
 import { INCOME_DEDUCTION_TYPE_LABELS } from "../incomeDeduction";
 import type { TaxFilingSummary } from "./summary";
@@ -86,6 +87,7 @@ export function buildTaxFilingDraftCsv(
   futuresDetail: FuturesSymbolYearResult[] = [],
   incomeDeductions?: IncomeDeductionSummary,
   investmentNonListedDetail: InvestmentSymbolYearResult[] = [],
+  stockMarginDetail: StockMarginSymbolYearResult[] = [],
 ): string {
   const lines: string[] = [];
 
@@ -124,11 +126,27 @@ export function buildTaxFilingDraftCsv(
   }
   lines.push(
     toCsvLine([
-      "譲渡所得(上場株式等・申告分離課税)",
+      "譲渡所得(上場株式等・申告分離課税、現物取引+信用取引の合計)",
       formatYen(summary.investmentCapitalGainJpy),
       "申告書第三表(分離課税用) / 株式等に係る譲渡所得等の金額の計算明細書",
     ]),
   );
+  if (!summary.investmentMarginCapitalGainJpy.isZero()) {
+    lines.push(
+      toCsvLine([
+        "  内訳: 現物取引分",
+        formatYen(summary.investmentSpotCapitalGainJpy),
+        "",
+      ]),
+    );
+    lines.push(
+      toCsvLine([
+        "  内訳: 信用取引の決済損益分",
+        formatYen(summary.investmentMarginCapitalGainJpy),
+        "",
+      ]),
+    );
+  }
   if (!summary.nonListedInvestmentCapitalGainJpy.isZero() || investmentNonListedDetail.length > 0) {
     lines.push(
       toCsvLine([
@@ -549,6 +567,33 @@ export function buildTaxFilingDraftCsv(
         r.closingQuantity.toString(),
       ]),
     );
+  }
+
+  if (stockMarginDetail.length > 0) {
+    lines.push("");
+    lines.push(toCsvLine(["■ 上場株式等 信用取引 銘柄別内訳(決済損益)"]));
+    lines.push(
+      toCsvLine([
+        "銘柄",
+        "決済件数",
+        "決済損益(円)",
+        "手数料(円)",
+        "金利等純額調整(円)",
+        "譲渡所得算入額(円)",
+      ]),
+    );
+    for (const r of stockMarginDetail) {
+      lines.push(
+        toCsvLine([
+          r.symbol,
+          r.settlementCount,
+          formatYen(r.grossPnlJpy),
+          formatYen(r.feeJpy),
+          formatYen(r.interestAdjustmentJpy),
+          formatYen(r.realizedGainJpy),
+        ]),
+      );
+    }
   }
 
   if (investmentNonListedDetail.length > 0) {

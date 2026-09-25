@@ -4,6 +4,7 @@ import { calculateCryptoPortfolioYear } from "../crypto/calculator";
 import { calculateCryptoMarginPortfolioYear } from "../crypto/marginCalculator";
 import { calculateInvestmentPortfolioYear } from "../investment/calculator";
 import { calculateFuturesPortfolioYear } from "../investment/futuresIncome";
+import { calculateStockMarginPortfolioYear } from "../investment/marginCalculator";
 import { calculateLossCarryforward } from "../investment/lossCarryforward";
 import { summarizeIncomeDeductions } from "../incomeDeduction";
 import { buildTaxFilingDraftCsv } from "./csvExport";
@@ -67,6 +68,81 @@ describe("buildTaxFilingDraftCsv", () => {
     expect(csv).toContain("699000"); // 合算後の雑所得
     expect(csv).toContain("199000"); // 証拠金取引分の内訳
     expect(csv).toContain("証拠金(レバレッジ)取引");
+  });
+
+  it("信用取引の決済損益を現物の譲渡所得と同一プールで合算し、繰越控除・内訳を出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([]);
+    const investment = calculateInvestmentPortfolioYear([
+      {
+        symbol: "7203",
+        tradedAt: new Date("2026-01-01"),
+        type: "BUY",
+        quantity: 100,
+        unitPriceJpy: 2000,
+      },
+      {
+        symbol: "7203",
+        tradedAt: new Date("2026-06-01"),
+        type: "SELL",
+        quantity: 100,
+        unitPriceJpy: 2500,
+      },
+    ]);
+    const stockMargin = calculateStockMarginPortfolioYear([
+      { symbol: "9984", realizedPnlJpy: 200_000, feeJpy: 1_000 },
+    ]);
+    // 現物(50,000円)+信用取引(199,000円)を合算した額で繰越控除を計算する
+    const lossCarryforward = calculateLossCarryforward(
+      2026,
+      investment.totalRealizedGainJpy.plus(stockMargin.totalRealizedGainJpy),
+      [],
+    );
+
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      lossCarryforward,
+      undefined, // cryptoMargin
+      undefined, // futures
+      undefined, // futuresLossCarryforward
+      undefined, // mortgageDeduction
+      undefined, // foreignTaxCredit
+      undefined, // investmentNonListed
+      undefined, // donationTaxCredit
+      undefined, // distributionAdjustedForeignTaxCredit
+      undefined, // residentTaxAdjustmentDeduction
+      undefined, // earthquakeRenovationDeduction
+      undefined, // energySavingRenovationDeduction
+      undefined, // barrierFreeRenovationDeduction
+      undefined, // multiHouseholdRenovationDeduction
+      undefined, // durabilityImprovementRenovationDeduction
+      undefined, // childRearingRenovationDeduction
+      undefined, // certifiedHousingConstructionCredit
+      stockMargin,
+    );
+
+    expect(summary.investmentCapitalGainJpy.toNumber()).toBe(249_000);
+    expect(summary.investmentSpotCapitalGainJpy.toNumber()).toBe(50_000);
+    expect(summary.investmentMarginCapitalGainJpy.toNumber()).toBe(199_000);
+    expect(summary.investmentLossCarryforward.taxableGainJpy.toNumber()).toBe(249_000);
+
+    const csv = buildTaxFilingDraftCsv(
+      summary,
+      crypto.bySymbol,
+      investment.bySymbol,
+      "AVERAGE",
+      [],
+      [],
+      undefined,
+      [],
+      stockMargin.bySymbol,
+    );
+
+    expect(csv).toContain("249000"); // 合算後の譲渡所得
+    expect(csv).toContain("199000"); // 信用取引分の内訳
+    expect(csv).toContain("信用取引");
+    expect(csv).toContain("9984");
   });
 
   it("先物取引に係る雑所得等(FX・先物)を株式等の譲渡所得とは別区分で出力する", () => {

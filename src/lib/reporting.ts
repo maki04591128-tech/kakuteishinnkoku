@@ -18,6 +18,10 @@ import {
   type FuturesPortfolioYearResult,
 } from "./investment/futuresIncome";
 import {
+  calculateStockMarginPortfolioYear,
+  type StockMarginPortfolioYearResult,
+} from "./investment/marginCalculator";
+import {
   calculateLossCarryforward,
   type LossCarryforwardResult,
 } from "./investment/lossCarryforward";
@@ -51,6 +55,13 @@ export async function buildYearReport(year: number): Promise<{
   cryptoMargin: CryptoMarginPortfolioYearResult;
   investment: InvestmentPortfolioYearResult;
   /**
+   * 上場株式等の信用取引の決済損益(機能93参照)。現物取引(investment)とは
+   * 別集計だが、課税上は同じ上場株式等の譲渡所得等のプールのため、
+   * `lossCarryforward`の計算には investment.totalRealizedGainJpy と合算した
+   * 額を渡す。
+   */
+  stockMargin: StockMarginPortfolioYearResult;
+  /**
    * 一般株式等(非上場株式)分の譲渡所得等・配当等(機能54参照)。上場株式等
    * (investment)とは別プールの申告分離課税で損益通算はできず、譲渡損失の
    * 繰越控除(措置法37の12の2)は上場株式等のみの制度のため対象外
@@ -81,6 +92,7 @@ export async function buildYearReport(year: number): Promise<{
       crypto: calculateCryptoPortfolioYearByMethod("AVERAGE", []),
       cryptoMargin: calculateCryptoMarginPortfolioYear([]),
       investment: calculateInvestmentPortfolioYear([]),
+      stockMargin: calculateStockMarginPortfolioYear([]),
       investmentNonListed: calculateInvestmentPortfolioYear([]),
       nonListedInvestmentTaxableGainJpy: new Decimal(0),
       futures: calculateFuturesPortfolioYear([]),
@@ -97,6 +109,7 @@ export async function buildYearReport(year: number): Promise<{
     cryptoTrades,
     cryptoMarginTrades,
     investmentTrades,
+    stockMarginTrades,
     futuresTrades,
     openings,
     lossCarryforwardEntries,
@@ -107,6 +120,7 @@ export async function buildYearReport(year: number): Promise<{
     prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.cryptoMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    prisma.stockMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.futuresTrade.findMany({ where: { taxYearId: taxYear.id } }),
     loadOpeningBalances(taxYear.id),
     prisma.investmentLossCarryforward.findMany({
@@ -180,9 +194,20 @@ export async function buildYearReport(year: number): Promise<{
     investmentNonListed.totalRealizedGainJpy,
   );
 
+  const stockMargin = calculateStockMarginPortfolioYear(
+    stockMarginTrades.map((t) => ({
+      symbol: t.symbol,
+      realizedPnlJpy: t.realizedPnlJpy.toString(),
+      feeJpy: t.feeJpy.toString(),
+      interestAdjustmentJpy: t.interestAdjustmentJpy.toString(),
+    })),
+  );
+
+  // 信用取引の決済損益は現物取引と同じ上場株式等の譲渡所得等のプールに合算した上で
+  // 繰越控除の計算に渡す(src/lib/investment/marginCalculator.ts参照)。
   const lossCarryforward = calculateLossCarryforward(
     year,
-    investment.totalRealizedGainJpy,
+    investment.totalRealizedGainJpy.plus(stockMargin.totalRealizedGainJpy),
     lossCarryforwardEntries.map((e) => ({
       originYear: e.originYear,
       remainingAmountJpy: e.remainingAmountJpy.toString(),
@@ -234,6 +259,7 @@ export async function buildYearReport(year: number): Promise<{
     [
       ...cryptoTrades.map((t) => ({ institution: t.exchange })),
       ...investmentTrades.map((t) => ({ institution: t.broker })),
+      ...stockMarginTrades.map((t) => ({ institution: t.broker })),
     ],
   );
 
@@ -241,6 +267,7 @@ export async function buildYearReport(year: number): Promise<{
     crypto,
     cryptoMargin,
     investment,
+    stockMargin,
     investmentNonListed,
     nonListedInvestmentTaxableGainJpy,
     futures,
