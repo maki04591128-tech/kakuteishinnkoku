@@ -36,9 +36,23 @@ import { nationalIncomeTaxWithSurtaxJpy, RESIDENT_TAX_RATE } from "./incomeTax";
  * 方式で試算する(勤続期間の開始日・終了日そのものは扱わないため、重複年数の
  * 算定はユーザー自身が行う前提)。
  *
- * **対象範囲外:** 同一年中に2か所以上から退職金を受け取る場合の特例
- * (国税庁タックスアンサーNo.2735)、前の退職手当等が2件以上ある場合(最も
- * 直近の1件のみ入力可能)は対象外とする。また、令和8年度税制改正の適用条件
+ * **同一年中に2か所以上から退職手当等を受け取る場合(国税庁タックスアンサーNo.2735、
+ * 所得税法施行令69条):** 同一年中に他の支払者からも退職手当等を受け取っている場合、
+ * 退職所得控除額はそれぞれの退職手当等ごとに計算するのではなく、すべての退職手当等の
+ * 収入金額を合算し、勤続年数も「最も長い勤続期間」を基礎にそれ以外の退職手当等の
+ * 勤続期間のうち重複しない部分を加算した年数(1年未満切り上げ)で1回だけ計算する
+ * (国税庁タックスアンサーNo.2735「同じ年に2か所以上から退職手当等の支払を受けるとき」)。
+ * 本モジュールはこの合算を、ユーザーが他の退職手当等ごとに収入金額・勤続年数・
+ * それまでに合算した勤続期間との重複年数を直接入力する方式で試算する(前の退職手当等の
+ * 重複排除と同様、勤続期間の開始日・終了日そのものは扱わないため、重複年数の算定は
+ * ユーザー自身が行う前提)。前年以前の重複排除(施行令70条)と併用する場合は、この
+ * 合算後の勤続年数・収入金額を基に前年以前の重複排除を適用する。
+ *
+ * **対象範囲外:** 前の退職手当等が2件以上ある場合(最も直近の1件のみ入力可能)は
+ * 対象外とする。同一年中の複数の退職手当等の区分(一般/特定役員/短期)が異なる場合の
+ * 組み合わせ(例: 1件は短期退職手当等、もう1件は一般の退職手当等)は、`category`で
+ * 指定した1つの区分を合算後の退職所得全体に一律適用する簡略化とし、区分ごとに按分する
+ * 精緻な計算は対象外とする(`notes`に注記)。また、令和8年度税制改正の適用条件
  * (前の退職手当等・今回の退職手当等それぞれの支払時期の要件の細部)は、
  * 複数の専門家解説の間で説明に細かな揺れがあり、施行令の条文そのものでの
  * 確認ができていないため、境界年(令和7年分・8年分をまたぐケース)の判定は
@@ -57,6 +71,13 @@ const DC_LOOKBACK_EXTENSION_START_YEAR = 2026;
 /** 前の退職手当等の区分。DC_LUMP_SUM: 確定拠出年金の老齢給付金として支給される一時金(施行令72条3項7号)。 */
 export type RetirementPaymentKind = "REGULAR" | "DC_LUMP_SUM";
 
+/** 同一年中の複数退職手当等を合算する際、区分の簡略化を注記するための表示ラベル */
+const CATEGORY_NOTE_LABELS: Record<RetirementIncomeCategory, string> = {
+  GENERAL: "一般の退職手当等",
+  SPECIFIED_OFFICER: "特定役員退職手当等",
+  SHORT_TERM: "短期退職手当等",
+};
+
 export interface PriorRetirementPaymentInput {
   /** 前の退職手当等の支給を受けた年(西暦)。今回の支給年より前である必要がある。 */
   paymentYear: number;
@@ -65,6 +86,19 @@ export interface PriorRetirementPaymentInput {
   /**
    * 今回の勤続期間等のうち、前の退職手当等の勤続期間等と重複する年数
    * (1年未満は切り捨てて計算するため実数のまま入力してよい。例: 6年7か月→6.58)。
+   */
+  overlappingYearsOfService: number;
+}
+
+export interface SamePeriodRetirementPaymentInput {
+  /** 同一年中に他の支払者から受け取った退職手当等の収入金額(源泉徴収前の額面) */
+  incomeJpy: Decimal.Value;
+  /** その支払者との勤続年数(1年未満の端数はそのまま入力してよい) */
+  yearsOfService: number;
+  /**
+   * これまでに合算した勤続期間(今回の退職手当等、及び`samePeriodPayments`配列内で
+   * より前に指定した他の退職手当等の合計)と重複する年数(1年未満切り捨てで計算する
+   * ため実数のまま入力してよい)。
    */
   overlappingYearsOfService: number;
 }
@@ -97,11 +131,21 @@ export interface RetirementIncomeInput {
   paymentYear?: number;
   /** 前年以前に重複する勤続期間等がある他の退職手当等を受け取っている場合の情報 */
   priorPayment?: PriorRetirementPaymentInput;
+  /**
+   * 同一年中に他の支払者からも退職手当等を受け取っている場合の情報(国税庁タックス
+   * アンサーNo.2735)。指定した場合、収入金額・勤続年数を合算した上で退職所得控除額・
+   * 退職所得の金額を1回だけ計算する。
+   */
+  samePeriodPayments?: SamePeriodRetirementPaymentInput[];
 }
 
 export interface RetirementIncomeResult {
   category: RetirementIncomeCategory;
-  /** 退職所得控除額(前の退職手当等との重複排除後) */
+  /** 同一年中の他の退職手当等と合算した収入金額(`samePeriodPayments`未指定ならincomeJpyと同じ) */
+  combinedIncomeJpy: Decimal;
+  /** 同一年中の他の退職手当等の勤続期間を合算した勤続年数(`samePeriodPayments`未指定ならyearsOfServiceと同じ、1年未満切り上げ前の実数) */
+  combinedYearsOfService: number;
+  /** 退職所得控除額(同一年中の合算・前の退職手当等との重複排除後) */
   deductionJpy: Decimal;
   /** 重複排除により減額された退職所得控除額(対象外の場合は0) */
   overlapDeductionReductionJpy: Decimal;
@@ -163,12 +207,49 @@ export function estimateRetirementIncome(input: RetirementIncomeInput): Retireme
   }
 
   const category = input.category ?? "GENERAL";
+  const notes: string[] = [];
+
+  let combinedIncomeJpy = incomeJpy;
+  let combinedYearsOfService = input.yearsOfService;
+
+  const samePeriodPayments = input.samePeriodPayments ?? [];
+  if (samePeriodPayments.length > 0) {
+    for (const payment of samePeriodPayments) {
+      const paymentIncomeJpy = new Decimal(payment.incomeJpy);
+      if (paymentIncomeJpy.isNegative()) {
+        throw new Error("同一年中の他の退職手当等の収入金額は0以上である必要があります");
+      }
+      if (payment.yearsOfService <= 0) {
+        throw new Error("同一年中の他の退職手当等の勤続年数は0より大きい必要があります");
+      }
+      if (payment.overlappingYearsOfService < 0) {
+        throw new Error("同一年中の他の退職手当等と重複する勤続年数は0以上である必要があります");
+      }
+      if (payment.overlappingYearsOfService > payment.yearsOfService) {
+        throw new Error("同一年中の他の退職手当等と重複する勤続年数がその退職手当等の勤続年数を超えています");
+      }
+      const nonOverlappingYears = Math.max(
+        0,
+        payment.yearsOfService - Math.floor(payment.overlappingYearsOfService),
+      );
+      combinedIncomeJpy = combinedIncomeJpy.plus(paymentIncomeJpy);
+      combinedYearsOfService += nonOverlappingYears;
+    }
+    notes.push(
+      `同一年中に他の支払者からも退職手当等を受け取っているため、収入金額を合算(合計${combinedIncomeJpy.toNumber().toLocaleString("ja-JP")}円)し、勤続年数も重複しない期間を加算した年数(合計${combinedYearsOfService}年)で退職所得控除額・退職所得の金額を1回だけ計算した(国税庁タックスアンサーNo.2735、所得税法施行令69条)。`,
+    );
+    if (category !== "GENERAL") {
+      notes.push(
+        `区分「${CATEGORY_NOTE_LABELS[category]}」は合算後の退職所得全体に一律適用する簡略化とした。同一年中の退職手当等ごとに区分(一般/特定役員/短期)が異なる場合の按分計算は対象外のため、実際の申告にあたっては国税庁「確定申告書等作成コーナー」の計算結果や税理士等の確認を必ず受けること。`,
+      );
+    }
+  }
+
   const baseDeductionJpy = calculateRetirementIncomeDeductionJpy(
-    input.yearsOfService,
+    combinedYearsOfService,
     input.isDisabilityRelated ?? false,
   );
 
-  const notes: string[] = [];
   let overlapDeductionReductionJpy = new Decimal(0);
 
   if (input.priorPayment) {
@@ -185,7 +266,7 @@ export function estimateRetirementIncome(input: RetirementIncomeInput): Retireme
     if (priorPayment.overlappingYearsOfService < 0) {
       throw new Error("重複する勤続年数は0以上である必要があります");
     }
-    if (priorPayment.overlappingYearsOfService > input.yearsOfService) {
+    if (priorPayment.overlappingYearsOfService > combinedYearsOfService) {
       throw new Error("重複する勤続年数が今回の勤続年数を超えています");
     }
 
@@ -221,7 +302,7 @@ export function estimateRetirementIncome(input: RetirementIncomeInput): Retireme
   }
 
   const deductionJpy = Decimal.max(baseDeductionJpy.minus(overlapDeductionReductionJpy), 0);
-  const excessJpy = Decimal.max(incomeJpy.minus(deductionJpy), 0);
+  const excessJpy = Decimal.max(combinedIncomeJpy.minus(deductionJpy), 0);
 
   let retirementIncomeJpy: Decimal;
 
@@ -259,6 +340,8 @@ export function estimateRetirementIncome(input: RetirementIncomeInput): Retireme
 
   return {
     category,
+    combinedIncomeJpy,
+    combinedYearsOfService,
     deductionJpy,
     overlapDeductionReductionJpy,
     retirementIncomeJpy,

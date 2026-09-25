@@ -208,3 +208,99 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
     ).toThrow();
   });
 });
+
+describe("estimateRetirementIncome の同一年中の合算(国税庁タックスアンサーNo.2735)", () => {
+  it("重複する勤続期間がない場合、収入金額と勤続年数を単純に合算する", () => {
+    // 勤続20年・退職金1,000万円(控除額800万円)とA社勤続5年・退職金300万円(重複なし)を合算
+    // 合算勤続年数=25年、合算収入=1,300万円、控除額=800万円+70万円×5年=1,150万円
+    // (1,300万円-1,150万円)×1/2=75万円
+    const result = estimateRetirementIncome({
+      incomeJpy: 10_000_000,
+      yearsOfService: 20,
+      samePeriodPayments: [{ incomeJpy: 3_000_000, yearsOfService: 5, overlappingYearsOfService: 0 }],
+    });
+    expect(result.combinedIncomeJpy.toNumber()).toBe(13_000_000);
+    expect(result.combinedYearsOfService).toBe(25);
+    expect(result.deductionJpy.toNumber()).toBe(11_500_000);
+    expect(result.retirementIncomeJpy.toNumber()).toBe(750_000);
+  });
+
+  it("勤続期間が完全に重複する場合、長い方の勤続年数のみで計算する", () => {
+    // 勤続10年・退職金500万円と、同じ10年間ずっと在籍していたB社・退職金200万円(完全重複)
+    // 合算勤続年数=10年(重複分は加算しない)、合算収入=700万円、控除額=40万円×10年=400万円
+    const result = estimateRetirementIncome({
+      incomeJpy: 5_000_000,
+      yearsOfService: 10,
+      samePeriodPayments: [{ incomeJpy: 2_000_000, yearsOfService: 10, overlappingYearsOfService: 10 }],
+    });
+    expect(result.combinedYearsOfService).toBe(10);
+    expect(result.combinedIncomeJpy.toNumber()).toBe(7_000_000);
+    expect(result.deductionJpy.toNumber()).toBe(4_000_000);
+  });
+
+  it("重複しない部分のみ勤続年数に加算する(端数切り捨て)", () => {
+    // 勤続20年・B社勤続8年のうち6.9年が重複 → 非重複分は8-6(切り捨て)=2年を加算
+    const result = estimateRetirementIncome({
+      incomeJpy: 10_000_000,
+      yearsOfService: 20,
+      samePeriodPayments: [{ incomeJpy: 1_000_000, yearsOfService: 8, overlappingYearsOfService: 6.9 }],
+    });
+    expect(result.combinedYearsOfService).toBe(22);
+  });
+
+  it("複数の同一年中の退職手当等を順に合算できる", () => {
+    // 主たる勤続15年 + A社勤続5年(重複なし) + B社勤続3年(Aとの合算後に2年重複)
+    // 合算勤続年数=15+5+(3-2)=21年
+    const result = estimateRetirementIncome({
+      incomeJpy: 5_000_000,
+      yearsOfService: 15,
+      samePeriodPayments: [
+        { incomeJpy: 1_000_000, yearsOfService: 5, overlappingYearsOfService: 0 },
+        { incomeJpy: 1_000_000, yearsOfService: 3, overlappingYearsOfService: 2 },
+      ],
+    });
+    expect(result.combinedYearsOfService).toBe(21);
+    expect(result.combinedIncomeJpy.toNumber()).toBe(7_000_000);
+  });
+
+  it("同一年中の合算と前年以前の重複排除を併用できる", () => {
+    // 合算勤続年数=20+5=25年、合算収入=1,300万円、通常の控除額=800万円+70万円×5年=1,150万円
+    // 前年以前の重複排除(4年分)で控除額から40万円×4年=160万円を差し引き、控除額=990万円
+    const result = estimateRetirementIncome({
+      incomeJpy: 10_000_000,
+      yearsOfService: 20,
+      paymentYear: 2026,
+      samePeriodPayments: [{ incomeJpy: 3_000_000, yearsOfService: 5, overlappingYearsOfService: 0 }],
+      priorPayment: { paymentYear: 2024, kind: "REGULAR", overlappingYearsOfService: 4 },
+    });
+    expect(result.combinedYearsOfService).toBe(25);
+    expect(result.overlapDeductionReductionJpy.toNumber()).toBe(1_600_000);
+    expect(result.deductionJpy.toNumber()).toBe(9_900_000);
+  });
+
+  it("同一年中の他の退職手当等の収入金額が負の値だとエラーになる", () => {
+    expect(() =>
+      estimateRetirementIncome({
+        incomeJpy: 5_000_000,
+        yearsOfService: 10,
+        samePeriodPayments: [{ incomeJpy: -1, yearsOfService: 5, overlappingYearsOfService: 0 }],
+      }),
+    ).toThrow();
+  });
+
+  it("同一年中の他の退職手当等と重複する勤続年数がその勤続年数を超えるとエラーになる", () => {
+    expect(() =>
+      estimateRetirementIncome({
+        incomeJpy: 5_000_000,
+        yearsOfService: 10,
+        samePeriodPayments: [{ incomeJpy: 1_000_000, yearsOfService: 5, overlappingYearsOfService: 6 }],
+      }),
+    ).toThrow();
+  });
+
+  it("samePeriodPaymentsを指定しない場合は従来どおり単独の収入金額・勤続年数で計算する", () => {
+    const result = estimateRetirementIncome({ incomeJpy: 20_000_000, yearsOfService: 30 });
+    expect(result.combinedIncomeJpy.toNumber()).toBe(20_000_000);
+    expect(result.combinedYearsOfService).toBe(30);
+  });
+});
