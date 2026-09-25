@@ -19,6 +19,7 @@ export type CryptoTradeType =
   | "TRADE_IN"
   | "TRADE_OUT"
   | "INCOME"
+  | "GIFT_IN"
   | "FEE";
 
 export type CryptoCostMethod = "AVERAGE" | "MOVING_AVERAGE";
@@ -27,7 +28,12 @@ export interface CryptoTradeInput {
   type: CryptoTradeType;
   /** 数量(必ず正の値) */
   quantity: Decimal.Value;
-  /** 日本円換算の単価。BUY/TRADE_IN/INCOMEは取得時時価、SELL/TRADE_OUT/FEEは譲渡・使用時時価。 */
+  /**
+   * 日本円換算の単価。BUY/TRADE_IN/INCOMEは取得時時価、SELL/TRADE_OUT/FEEは譲渡・使用時時価、
+   * GIFT_INは贈与又は遺贈の場合はその時の時価、相続人に対する死因贈与・相続・包括遺贈・特定
+   * 遺贈の場合は被相続人が死亡時に選択していた評価方法により評価した金額(国税庁「暗号資産等
+   * に関する税務上の取扱いについて(FAQ)」1-5参照)。
+   */
   unitPriceJpy: Decimal.Value;
   /** 日本円換算の手数料(円建てで支払われた場合)。暗号資産建て手数料は type: "FEE" の別取引として渡す。 */
   feeJpy?: Decimal.Value;
@@ -53,7 +59,11 @@ export interface CryptoSymbolYearResult {
    * いずれも保有・取得が無い場合は 0。
    */
   averageUnitCostJpy: Decimal;
-  /** 受贈・マイニング・ステーキング等、取得時点で収入計上すべき金額 */
+  /**
+   * マイニング・ステーキング・レンディング等、取得時点で収入計上すべき金額。
+   * 贈与・相続等(GIFT_IN)による取得は、相続税・贈与税の課税対象となり所得税の
+   * 収入金額には算入しないため含まない(取得価額として取得原価に加算するのみ)。
+   */
   incomeJpy: Decimal;
   disposedQuantity: Decimal;
   /** 売却・使用・交換による収入(譲渡対価)の合計 */
@@ -71,6 +81,7 @@ const ACQUIRE_TYPES: ReadonlySet<CryptoTradeType> = new Set([
   "BUY",
   "TRADE_IN",
   "INCOME",
+  "GIFT_IN",
 ]);
 const DISPOSE_TYPES: ReadonlySet<CryptoTradeType> = new Set([
   "SELL",
@@ -154,6 +165,8 @@ function calculateCryptoYearAverage(
         // 同額が取得価額としてプールされるため、将来売却時の二重課税は生じない。
         incomeJpy = incomeJpy.plus(grossValue);
       }
+      // GIFT_IN(贈与・相続等による取得)は取得価額としてプールするのみで、
+      // 取得時点では雑所得の収入計上をしない(相続税・贈与税の課税対象のため)。
     } else if (DISPOSE_TYPES.has(trade.type)) {
       disposedQuantity = disposedQuantity.plus(quantity);
       proceedsJpy = proceedsJpy.plus(grossValue).minus(fee);
