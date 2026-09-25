@@ -57,6 +57,8 @@ export function TotalTaxEstimateForm({
   registeredEnergySavingRenovationDeductionJpy,
   defaultBarrierFreeRenovationDeductionJpy,
   registeredBarrierFreeRenovationDeductionJpy,
+  defaultMultiHouseholdRenovationDeductionJpy,
+  registeredMultiHouseholdRenovationDeductionJpy,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -112,6 +114,10 @@ export function TotalTaxEstimateForm({
   defaultBarrierFreeRenovationDeductionJpy: number;
   /** `/barrier-free-renovation-deduction`で登録済みの控除額(参考表示。未登録ならnull) */
   registeredBarrierFreeRenovationDeductionJpy: number | null;
+  /** `/multi-household-renovation-deduction`で登録済みの多世帯同居改修工事の住宅特定改修特別税額控除額の初期値 */
+  defaultMultiHouseholdRenovationDeductionJpy: number;
+  /** `/multi-household-renovation-deduction`で登録済みの控除額(参考表示。未登録ならnull) */
+  registeredMultiHouseholdRenovationDeductionJpy: number | null;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -162,6 +168,10 @@ export function TotalTaxEstimateForm({
   const [barrierFreeRenovationDeductionJpy, setBarrierFreeRenovationDeductionJpy] = useState(
     String(defaultBarrierFreeRenovationDeductionJpy),
   );
+  const [
+    multiHouseholdRenovationDeductionJpy,
+    setMultiHouseholdRenovationDeductionJpy,
+  ] = useState(String(defaultMultiHouseholdRenovationDeductionJpy));
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
   const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
@@ -203,6 +213,10 @@ export function TotalTaxEstimateForm({
           energySavingRenovationDeductionJpy === "" ? 0 : energySavingRenovationDeductionJpy,
         barrierFreeRenovationDeductionJpy:
           barrierFreeRenovationDeductionJpy === "" ? 0 : barrierFreeRenovationDeductionJpy,
+        multiHouseholdRenovationDeductionJpy:
+          multiHouseholdRenovationDeductionJpy === ""
+            ? 0
+            : multiHouseholdRenovationDeductionJpy,
         foreignTaxCreditNationalTaxCreditJpy:
           foreignTaxCreditNationalTaxCreditJpy === ""
             ? 0
@@ -242,6 +256,7 @@ export function TotalTaxEstimateForm({
     earthquakeRenovationDeductionJpy,
     energySavingRenovationDeductionJpy,
     barrierFreeRenovationDeductionJpy,
+    multiHouseholdRenovationDeductionJpy,
     foreignTaxCreditNationalTaxCreditJpy,
     foreignTaxCreditResidentTaxCreditJpy,
     distributionAdjustedForeignTaxCreditJpy,
@@ -456,6 +471,24 @@ export function TotalTaxEstimateForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
+          label={`多世帯同居改修工事の住宅特定改修特別税額控除(税額控除・所得税分のみ。住民税に相当する控除は無し)${
+            registeredMultiHouseholdRenovationDeductionJpy !== null
+              ? " — 初期値は/multi-household-renovation-deductionの登録値"
+              : ""
+          }`}
+          value={multiHouseholdRenovationDeductionJpy}
+          onChange={setMultiHouseholdRenovationDeductionJpy}
+        />
+      </div>
+      {registeredMultiHouseholdRenovationDeductionJpy !== null && (
+        <p className="text-xs text-neutral-500">
+          /multi-household-renovation-deductionで登録済み:{" "}
+          {yen(registeredMultiHouseholdRenovationDeductionJpy)}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
           label={`外国税額控除(税額控除・所得税・復興特別所得税分)${
             registeredForeignTaxCredit !== null ? " — 初期値は/foreign-tax-creditの登録値" : ""
           }`}
@@ -585,6 +618,12 @@ export function TotalTaxEstimateForm({
               <p className="mt-1 text-xs text-neutral-400">
                 − バリアフリー改修工事の住宅特定改修特別税額控除{" "}
                 {yen(result.barrierFreeRenovationDeductionAppliedJpy)}(所得税分のみ)
+              </p>
+            )}
+            {result.multiHouseholdRenovationDeductionAppliedJpy.greaterThan(0) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                − 多世帯同居改修工事の住宅特定改修特別税額控除{" "}
+                {yen(result.multiHouseholdRenovationDeductionAppliedJpy)}(所得税分のみ)
               </p>
             )}
             {(result.foreignTaxCreditNationalTaxAppliedJpy.greaterThan(0) ||
