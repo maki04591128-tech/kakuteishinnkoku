@@ -1569,6 +1569,53 @@ export async function deleteDurabilityImprovementRenovationDeductionRecord(
 }
 
 /**
+ * 子育て対応改修工事をした場合の住宅特定改修特別税額控除シミュレーター
+ * (/child-rearing-renovation-deduction)の当年分の控除額を
+ * ChildRearingRenovationDeductionRecord として登録する。耐久性向上改修工事の
+ * 住宅特定改修特別税額控除(saveDurabilityImprovementRenovationDeductionRecord)と
+ * 同様、`/tax-estimate`の合計税額試算・下書きCSV(/api/export)の税額控除欄への
+ * 自動反映に使う。既に登録済みの場合は上書きする。
+ */
+export async function saveChildRearingRenovationDeductionRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const creditJpy = requireString(formData, "creditJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.childRearingRenovationDeductionRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, creditJpy },
+    update: { creditJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/child-rearing-renovation-deduction");
+  redirect(`/child-rearing-renovation-deduction?year=${year}&saved=1`);
+}
+
+/**
+ * saveChildRearingRenovationDeductionRecordで登録した当年分の
+ * ChildRearingRenovationDeductionRecordを削除する
+ * (deleteDurabilityImprovementRenovationDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteChildRearingRenovationDeductionRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.childRearingRenovationDeductionRecord.deleteMany({
+      where: { taxYearId: taxYear.id },
+    });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/child-rearing-renovation-deduction");
+  redirect(`/child-rearing-renovation-deduction?year=${year}&deleted=1`);
+}
+
+/**
  * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
  * (iDeCo等)・社会保険料控除)で試算した控除額を、その年分の IncomeDeduction
  * として登録する(区分ごとに1件。既に登録済みの場合は上書きする)。
