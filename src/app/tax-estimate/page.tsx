@@ -19,6 +19,7 @@ import { getMultiHouseholdRenovationDeductionRecord } from "@/lib/multiHousehold
 import { getDurabilityImprovementRenovationDeductionRecord } from "@/lib/durabilityImprovementRenovationDeduction";
 import { getChildRearingRenovationDeductionRecord } from "@/lib/childRearingRenovationDeduction";
 import { getCertifiedHousingConstructionCreditRecord } from "@/lib/certifiedHousingConstructionCredit";
+import { getEmploymentIncomeRecord } from "@/lib/employmentIncome";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -90,9 +91,21 @@ export default async function TaxEstimatePage({
   const totalRegisteredIncomeTaxDeductionJpy =
     incomeDeductionSummary.totalIncomeTaxAmountJpy.toNumber();
   const incomeDeductionNotes = incomeDeductionSummary.notes;
+
+  const employmentIncomeRecord = await getEmploymentIncomeRecord(year);
+  const registeredEmploymentIncome = employmentIncomeRecord
+    ? {
+        grossSalaryJpy: employmentIncomeRecord.grossSalaryJpy.toNumber(),
+        employmentIncomeJpy: employmentIncomeRecord.employmentIncomeJpy.toNumber(),
+      }
+    : null;
+  // 給与所得の試算(/employment-income)で年分の給与収入が登録済みならその給与所得金額を、
+  // 未登録なら実際の給与収入額とは無関係な仮の値(500万円)を基礎として使う
+  const baseComprehensiveIncomeJpy =
+    registeredEmploymentIncome?.employmentIncomeJpy ?? BASE_OTHER_COMPREHENSIVE_INCOME_JPY;
   const defaultOtherComprehensiveIncomeJpy = Math.max(
     0,
-    BASE_OTHER_COMPREHENSIVE_INCOME_JPY - totalRegisteredIncomeTaxDeductionJpy,
+    baseComprehensiveIncomeJpy - totalRegisteredIncomeTaxDeductionJpy,
   );
 
   const mortgageDeductionRecord = await getMortgageDeductionRecord(year);
@@ -264,11 +277,30 @@ export default async function TaxEstimatePage({
           「給与所得等の課税所得金額」は、本ツールが管理していない給与所得等について、
           各種所得控除(基礎控除・社会保険料控除等)を差し引いた後の金額を入力する
           (源泉徴収票の「給与所得控除後の金額」から更に所得控除を差し引いた額に相当)。
+          {registeredEmploymentIncome !== null ? (
+            <>
+              <Link href="/employment-income" className="underline">
+                /employment-income
+              </Link>
+              で登録済みの{year}年分の給与収入(¥
+              {registeredEmploymentIncome.grossSalaryJpy.toLocaleString("ja-JP")})から計算した
+              給与所得金額(¥{registeredEmploymentIncome.employmentIncomeJpy.toLocaleString("ja-JP")})
+              を基礎とする。
+            </>
+          ) : (
+            <>
+              <Link href="/employment-income" className="underline">
+                /employment-income
+              </Link>
+              で給与収入を登録していない場合、実際の給与収入額とは無関係な仮の値(500万円)を
+              基礎とする(登録すると実際の給与収入から計算した給与所得金額に切り替わる)。
+            </>
+          )}
           医療費控除・生命保険料控除・小規模企業共済等掛金控除(iDeCo等)・社会保険料控除の
           各試算画面で「この試算結果を◯年分の所得控除として登録する」を実行済みの場合、
-          その合計額(所得税ベース)を仮の給与収入(500万円)から差し引いた額を初期値として
-          表示する。基礎控除等それ以外の所得控除は引き続き含まれないため、実際の金額は
-          自分で確認して上書きすること。
+          その合計額(所得税ベース)を上記の基礎額から差し引いた額を初期値として表示する。
+          基礎控除等それ以外の所得控除は引き続き含まれないため、実際の金額は自分で確認して
+          上書きすること。
         </p>
         <p>
           住民税の調整控除(税額控除)は`/resident-tax-adjustment-deduction`で「この
