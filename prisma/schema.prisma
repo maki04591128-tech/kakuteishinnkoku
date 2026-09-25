@@ -31,6 +31,7 @@ model TaxYear {
   cryptoMarginTrades                              CryptoMarginTrade[]
   futuresTrades                                   FuturesTrade[]
   investmentTrades                                InvestmentTrade[]
+  stockMarginTrades                               StockMarginTrade[]
   importBatches                                   ImportBatch[]
   openingBalances                                 OpeningBalance[]
   openingBalancesByInstitution                    OpeningBalanceByInstitution[]
@@ -897,6 +898,47 @@ model InvestmentTrade {
 
   @@index([taxYearId, symbol])
   @@index([tradedAt])
+}
+
+/// 上場株式等の信用取引(制度信用取引・一般信用取引)の決済損益。
+/// InvestmentTradeのように数量×単価で取得費を積み上げる計算モデルにはあてはまらず、
+/// CryptoMarginTrade/FuturesTradeと同様、決済(反対売買・差金決済)のたびに確定する
+/// 建玉損益をそのまま合算するだけのシンプルなモデルとして保持する。ただし課税区分は
+/// 現物の上場株式等と同じ「上場株式等に係る譲渡所得等」のプールに合算され、
+/// 上場株式等の譲渡損失の繰越控除(措置法37の12の2)の対象にもなる点が、別プールの
+/// 暗号資産の証拠金取引(雑所得)や先物取引(先物取引に係る雑所得等)と異なる
+/// (src/lib/investment/marginCalculator.ts参照)。信用取引にNISA口座は適用されない。
+model StockMarginTrade {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 決済日時(反対売買・差金決済が成立した日時)
+  settledAt DateTime
+
+  /// 銘柄コード・ティッカー
+  symbol String
+
+  /// 決済損益(円)。建玉を閉じた際の値洗い損益で、損失の場合は負の値。
+  realizedPnlJpy Decimal
+
+  /// 売買手数料(円。決済損益から差し引く)
+  feeJpy Decimal @default(0)
+
+  /// 金利相当額・品貸料・配当落調整額(権利処理価額)の純額調整(円)。
+  /// 収入超過ならプラス、費用超過ならマイナスとして損益に加算する。
+  interestAdjustmentJpy Decimal @default(0)
+
+  /// 証券会社名
+  broker String?
+
+  memo String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taxYearId, symbol])
+  @@index([settledAt])
 }
 
 enum InvestmentAssetType {

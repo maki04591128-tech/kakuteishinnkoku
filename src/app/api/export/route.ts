@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
     certifiedHousingConstructionCreditRecord
       ? { creditJpy: certifiedHousingConstructionCreditRecord.creditJpy }
       : undefined,
+    report.stockMargin,
   );
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);
   const incomeDeductions = summarizeIncomeDeductions(incomeDeductionEntries);
@@ -117,6 +118,7 @@ export async function GET(request: NextRequest) {
     report.futures.bySymbol,
     incomeDeductions,
     report.investmentNonListed.bySymbol,
+    report.stockMargin.bySymbol,
   );
 
   return new NextResponse(UTF8_BOM + csv, {

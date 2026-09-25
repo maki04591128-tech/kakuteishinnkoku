@@ -342,6 +342,37 @@ export async function deleteCryptoMarginTrade(formData: FormData): Promise<void>
   redirect(`/import?year=${year}&tab=cryptoMargin`);
 }
 
+export async function addStockMarginTrade(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.stockMarginTrade.create({
+    data: {
+      taxYearId: taxYear.id,
+      settledAt: new Date(requireString(formData, "settledAt")),
+      symbol: requireString(formData, "symbol").toUpperCase(),
+      realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
+      feeJpy: optionalString(formData, "feeJpy") ?? "0",
+      interestAdjustmentJpy: optionalString(formData, "interestAdjustmentJpy") ?? "0",
+      broker: optionalString(formData, "broker"),
+      memo: optionalString(formData, "memo"),
+    },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=stockMargin`);
+}
+
+export async function deleteStockMarginTrade(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.stockMarginTrade.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/");
+  redirect(`/import?year=${year}&tab=stockMargin`);
+}
+
 export async function importCryptoMarginCsv(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const exchangeLabel = optionalString(formData, "exchangeName");

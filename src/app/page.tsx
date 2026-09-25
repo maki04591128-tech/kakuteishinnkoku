@@ -43,6 +43,17 @@ export default async function Home({
         undefined,
         undefined,
         report.investmentNonListed,
+        undefined, // donationTaxCredit
+        undefined, // distributionAdjustedForeignTaxCredit
+        undefined, // residentTaxAdjustmentDeduction
+        undefined, // earthquakeRenovationDeduction
+        undefined, // energySavingRenovationDeduction
+        undefined, // barrierFreeRenovationDeduction
+        undefined, // multiHouseholdRenovationDeduction
+        undefined, // durabilityImprovementRenovationDeduction
+        undefined, // childRearingRenovationDeduction
+        undefined, // certifiedHousingConstructionCredit
+        report.stockMargin,
       )
     : null;
 

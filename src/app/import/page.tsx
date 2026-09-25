@@ -5,6 +5,7 @@ import {
   addCryptoTrade,
   addFuturesTrade,
   addInvestmentTrade,
+  addStockMarginTrade,
   carryForwardFuturesLoss,
   carryForwardInvestmentLoss,
   carryForwardNisaLifetimeQuota,
@@ -25,6 +26,7 @@ import {
   deleteNisaLifetimeQuota,
   deleteOpeningBalance,
   deleteOpeningBalanceByInstitution,
+  deleteStockMarginTrade,
   importAssetBalanceCsv,
   importBrokerAnnualReportCsv,
   importCryptoExchangeCsv,
@@ -110,6 +112,7 @@ export default async function ImportPage({
     cryptoTrades,
     cryptoMarginTrades,
     investmentTrades,
+    stockMarginTrades,
     futuresTrades,
     openingBalances,
     openingBalancesByInstitution,
@@ -136,6 +139,10 @@ export default async function ImportPage({
     prisma.investmentTrade.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { tradedAt: "desc" },
+    }),
+    prisma.stockMarginTrade.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { settledAt: "desc" },
     }),
     prisma.futuresTrade.findMany({
       where: { taxYearId: taxYear.id },
@@ -1760,6 +1767,107 @@ export default async function ImportPage({
           <p className="mt-4 rounded-md bg-neutral-50 p-3 text-sm dark:bg-neutral-900">
             {year}年分 証拠金取引の雑所得算入額(手数料控除・スワップ加算後):{" "}
             {yen(yearReport.cryptoMargin.totalRealizedGainJpy)}
+          </p>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">上場株式等の信用取引の決済損益</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          制度信用取引・一般信用取引は、現物取引のように数量×単価で取得費を
+          積み上げる計算にはあてはまらず、決済(反対売買・差金決済)のたびに
+          確定する<strong>建玉損益</strong>がそのまま譲渡所得になる
+          (国税庁法令解釈通達 措置法通達37の10-5・37の11共通)。
+          暗号資産の証拠金取引とは異なり課税区分は現物の上場株式等と同じ
+          「上場株式等に係る譲渡所得等」のプールに合算され、下の
+          「株式・投資信託等の取引を追加」欄の現物取引分と合算した金額が
+          譲渡損失の繰越控除の対象になる。建玉に対する金利相当額・品貸料・
+          配当落調整額(権利処理価額)は証券会社の取引報告書に記載された金額を
+          純額でまとめて「金利等純額調整」欄に入力すること(受取超過ならプラス、
+          支払超過ならマイナス)。取引所ごとのCSV仕様が未検証のため、
+          このセクションは手入力のみに対応する(CSV取り込みは今後の課題)。
+        </p>
+
+        <form
+          action={addStockMarginTrade}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="決済日時">
+            <input type="datetime-local" name="settledAt" required className={inputClass} />
+          </Field>
+          <Field label="銘柄">
+            <input type="text" name="symbol" placeholder="7203" required className={inputClass} />
+          </Field>
+          <Field label="決済損益(円・損失は負の値)">
+            <input type="number" step="any" name="realizedPnlJpy" required className={inputClass} />
+          </Field>
+          <Field label="手数料(円)">
+            <input type="number" step="any" name="feeJpy" defaultValue={0} className={inputClass} />
+          </Field>
+          <Field label="金利等純額調整(円)">
+            <input
+              type="number"
+              step="any"
+              name="interestAdjustmentJpy"
+              defaultValue={0}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="証券会社">
+            <input type="text" name="broker" className={inputClass} />
+          </Field>
+          <Field label="メモ">
+            <input type="text" name="memo" className={inputClass} />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              追加
+            </button>
+          </div>
+        </form>
+
+        {stockMarginTrades.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["決済日時", "銘柄", "決済損益", "手数料", "金利等純額調整", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {stockMarginTrades.map((t) => (
+                  <tr key={t.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{dateInputValue(t.settledAt)}</td>
+                    <td className="px-3 py-2">{t.symbol}</td>
+                    <td className="px-3 py-2">{yen(t.realizedPnlJpy)}</td>
+                    <td className="px-3 py-2">{yen(t.feeJpy)}</td>
+                    <td className="px-3 py-2">{yen(t.interestAdjustmentJpy)}</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteStockMarginTrade}>
+                        <input type="hidden" name="id" value={t.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {yearReport && !yearReport.stockMargin.totalRealizedGainJpy.isZero() && (
+          <p className="mt-4 rounded-md bg-neutral-50 p-3 text-sm dark:bg-neutral-900">
+            {year}年分 信用取引の譲渡所得算入額(手数料控除・金利等調整後):{" "}
+            {yen(yearReport.stockMargin.totalRealizedGainJpy)}
           </p>
         )}
       </section>
