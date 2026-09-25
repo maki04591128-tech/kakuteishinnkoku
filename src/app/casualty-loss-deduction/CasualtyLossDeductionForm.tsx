@@ -8,6 +8,7 @@ import {
 } from "@/app/actions";
 import { calculateCasualtyLossCarryforward } from "@/lib/casualtyLossCarryforward";
 import { estimateCasualtyLossDeduction } from "@/lib/casualtyLossDeduction";
+import { estimateDisasterTaxReduction } from "@/lib/disasterTaxReduction";
 
 function yen(value: { toString(): string }): string {
   const n = Number(value.toString());
@@ -29,6 +30,8 @@ export function CasualtyLossDeductionForm({
   const [disasterRelatedExpense, setDisasterRelatedExpense] = useState("0");
   const [insuranceReimbursement, setInsuranceReimbursement] = useState("0");
   const [totalIncome, setTotalIncome] = useState("0");
+  const [propertyValue, setPropertyValue] = useState("0");
+  const [nationalTaxBeforeReduction, setNationalTaxBeforeReduction] = useState("0");
 
   const result = useMemo(() => {
     try {
@@ -61,6 +64,27 @@ export function CasualtyLossDeductionForm({
       return null;
     }
   }, [result, year, totalIncome, carryforwardEntries]);
+
+  const disasterReductionResult = useMemo(() => {
+    try {
+      return estimateDisasterTaxReduction({
+        totalIncomeJpy: totalIncome === "" ? 0 : totalIncome,
+        propertyValueJpy: propertyValue === "" ? 0 : propertyValue,
+        damageAmountJpy: damageAmount === "" ? 0 : damageAmount,
+        nationalTaxBeforeReductionJpy:
+          nationalTaxBeforeReduction === "" ? 0 : nationalTaxBeforeReduction,
+      });
+    } catch {
+      return null;
+    }
+  }, [totalIncome, propertyValue, damageAmount, nationalTaxBeforeReduction]);
+
+  const disasterReductionRateLabel: Record<string, string> = {
+    FULL: "全額免除",
+    HALF: "2分の1軽減",
+    QUARTER: "4分の1軽減",
+    NONE: "適用なし",
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -239,6 +263,65 @@ export function CasualtyLossDeductionForm({
               <li key={i}>{note}</li>
             ))}
           </ul>
+
+          <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+            <h2 className="text-sm font-semibold">
+              災害減免法による所得税の軽減免除(雑損控除との有利選択)
+            </h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              上記の損害金額・その年の総所得金額等に加え、住宅又は家財の価額と軽減前の
+              所得税額を入力すると、雑損控除に代えて選択できる災害減免法による軽減免除額を
+              試算できる。
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-4">
+              <Field
+                label="住宅又は家財の価額(時価)"
+                value={propertyValue}
+                onChange={setPropertyValue}
+              />
+              <Field
+                label="軽減前の所得税額(復興特別所得税を含む。通常どおり計算した所得税額)"
+                value={nationalTaxBeforeReduction}
+                onChange={setNationalTaxBeforeReduction}
+              />
+            </div>
+
+            {disasterReductionResult === null ? (
+              <p className="mt-3 text-sm text-red-600">入力値を確認してください(0以上の数値を入力)。</p>
+            ) : (
+              <>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <DetailItem
+                    label="適用要件(損害金額が価額の2分の1以上)"
+                    value={disasterReductionResult.meetsDamageThreshold ? "満たす" : "満たさない"}
+                  />
+                  <DetailItem
+                    label="軽減割合区分"
+                    value={disasterReductionRateLabel[disasterReductionResult.reductionRate]}
+                  />
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
+                    <p className="text-sm text-neutral-500">軽減又は免除される所得税額</p>
+                    <p className="mt-1 text-2xl font-semibold">
+                      {yen(disasterReductionResult.reductionAmountJpy)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
+                    <p className="text-sm text-neutral-500">軽減後の所得税額</p>
+                    <p className="mt-1 text-2xl font-semibold">
+                      {yen(disasterReductionResult.reducedNationalTaxJpy)}
+                    </p>
+                  </div>
+                </div>
+                <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-neutral-500">
+                  {disasterReductionResult.notes.map((note, i) => (
+                    <li key={i}>{note}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
         </>
       )}
     </div>
