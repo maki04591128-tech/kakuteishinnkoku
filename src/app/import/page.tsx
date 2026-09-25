@@ -20,6 +20,7 @@ import {
   deleteForeignTaxCreditSpareLimitCarryforward,
   deleteFuturesLossCarryforward,
   deleteFuturesTrade,
+  deleteHomeReplacementLossCarryforward,
   deleteHomeSaleLossCarryforward,
   deleteInvestmentTrade,
   deleteLossCarryforward,
@@ -41,6 +42,7 @@ import {
   setForeignTaxCreditCarryforward,
   setForeignTaxCreditSpareLimitCarryforward,
   setFuturesLossCarryforward,
+  setHomeReplacementLossCarryforward,
   setHomeSaleLossCarryforward,
   setLossCarryforward,
   setMarketPrice,
@@ -124,6 +126,7 @@ export default async function ImportPage({
     foreignTaxCreditSpareLimitCarryforwards,
     casualtyLossCarryforwards,
     homeSaleLossCarryforwards,
+    homeReplacementLossCarryforwards,
     brokerAnnualReports,
     assetBalanceImportBatches,
     assetSymbolMappings,
@@ -180,6 +183,10 @@ export default async function ImportPage({
       orderBy: { originYear: "asc" },
     }),
     prisma.homeSaleLossCarryforward.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { originYear: "asc" },
+    }),
+    prisma.homeReplacementLossCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
     }),
@@ -1602,6 +1609,90 @@ export default async function ImportPage({
                     <td className="px-3 py-2">{c.originYear + 3}年分まで</td>
                     <td className="px-3 py-2">
                       <form action={deleteHomeSaleLossCarryforward}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">
+          居住用財産の買換え等の場合の譲渡損失の繰越控除(3年間)
+        </h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          マイホーム(旧居宅)を売って新たにマイホーム(新居宅)に買い換えた場合の損益通算額(
+          <Link href="/home-replacement-loss-deduction" className="underline">
+            居住用財産の買換え等の場合の譲渡損失の試算
+          </Link>
+          )がその年の総所得金額等を超えて控除しきれなかった額(譲渡損失の金額)は、
+          発生した年の翌年以後3年間繰り越して総所得金額等から控除できる(繰越控除を
+          適用する年の合計所得金額が3,000万円を超える場合、またはその年の12月31日時点で
+          買換資産に係る償還期間10年以上の住宅借入金等が無い場合は、その年のみ適用不可)。
+          ここでは発生年ごとに、{year}年初時点でまだ使い切っていない繰越残高を登録する
+          (試算ページで計算した「翌年以後に繰り越す額」を登録する場合は、そちらの画面
+          から直接登録できる)。控除は発生年の古いものから優先して適用される。
+        </p>
+
+        <form
+          action={setHomeReplacementLossCarryforward}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="譲渡損失の発生年">
+            <input
+              type="number"
+              name="originYear"
+              defaultValue={year - 1}
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label={`${year}年初時点の残高(円)`}>
+            <input
+              type="number"
+              step="any"
+              name="remainingAmountJpy"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              登録・更新
+            </button>
+          </div>
+        </form>
+
+        {homeReplacementLossCarryforwards.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["発生年", `${year}年初残高`, "控除期限", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {homeReplacementLossCarryforwards.map((c) => (
+                  <tr key={c.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{c.originYear}年分</td>
+                    <td className="px-3 py-2">{yen(c.remainingAmountJpy)}</td>
+                    <td className="px-3 py-2">{c.originYear + 3}年分まで</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteHomeReplacementLossCarryforward}>
                         <input type="hidden" name="id" value={c.id} />
                         <input type="hidden" name="year" value={year} />
                         <button className="text-xs text-red-600 hover:underline">削除</button>

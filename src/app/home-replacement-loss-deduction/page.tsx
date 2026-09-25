@@ -2,9 +2,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
 import { findIncomeDeductionEntry, getIncomeDeductionEntries } from "@/lib/incomeDeduction";
-import { HomeSaleLossDeductionForm } from "./HomeSaleLossDeductionForm";
+import { HomeReplacementLossDeductionForm } from "./HomeReplacementLossDeductionForm";
 
-export default async function HomeSaleLossDeductionPage({
+export default async function HomeReplacementLossDeductionPage({
   searchParams,
 }: {
   searchParams: Promise<{ year?: string; lossCarried?: string }>;
@@ -15,7 +15,7 @@ export default async function HomeSaleLossDeductionPage({
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
 
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);
-  const registeredEntry = findIncomeDeductionEntry(incomeDeductionEntries, "HOME_SALE_LOSS");
+  const registeredEntry = findIncomeDeductionEntry(incomeDeductionEntries, "HOME_REPLACEMENT_LOSS");
   const registeredDeduction = registeredEntry
     ? {
         incomeTaxAmountJpy: Number(registeredEntry.incomeTaxAmountJpy),
@@ -24,7 +24,7 @@ export default async function HomeSaleLossDeductionPage({
     : null;
 
   const taxYear = await getOrCreateTaxYear(year);
-  const carryforwards = await prisma.homeSaleLossCarryforward.findMany({
+  const carryforwards = await prisma.homeReplacementLossCarryforward.findMany({
     where: { taxYearId: taxYear.id },
     orderBy: { originYear: "asc" },
   });
@@ -40,18 +40,19 @@ export default async function HomeSaleLossDeductionPage({
           ← ダッシュボードに戻る
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">
-          特定居住用財産の譲渡損失の損益通算・繰越控除の試算({year}年分)
+          居住用財産の買換え等の場合の譲渡損失の損益通算・繰越控除の試算({year}年分)
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          住宅ローンが残っているマイホームを売却して譲渡損失が生じた場合の、特定居住用
-          財産の譲渡損失の損益通算及び繰越控除の特例(租税特別措置法41条の5の2)を
-          試算できる。買い換え(新居の取得)を要件としない特例のみが対象で、買換資産の
-          データが必要な
-          <Link href="/home-replacement-loss-deduction" className="underline">
-            居住用財産の買換え等の場合の譲渡損失の損益通算及び繰越控除の特例(措置法41条の5)
+          マイホーム(旧居宅)を売って新たにマイホーム(新居宅)に買い換え、旧居宅の
+          譲渡損失が生じた場合の特例(租税特別措置法41条の5)を試算できる。買換資産
+          (新居宅)側の床面積・住宅ローンのデータを要件としない
+          <Link href={`/home-sale-loss-deduction?year=${year}`} className="underline">
+            特定居住用財産の譲渡損失の損益通算及び繰越控除の特例(措置法41条の5の2)
           </Link>
-          は別の試算画面で対応する。暗号資産・投資の集計とは独立した単体の試算画面のため、
-          この年分の取引データには依存しない。
+          とは別の特例で、旧居宅の住宅ローン残高による損益通算限度額は無いかわりに、
+          買換資産の床面積(50㎡以上)・住宅ローン(償還期間10年以上)・居住期限の要件と、
+          旧居宅の敷地面積500㎡超過部分の除外がある点が異なる。暗号資産・投資の集計とは
+          独立した単体の試算画面のため、この年分の取引データには依存しない。
         </p>
       </header>
 
@@ -63,7 +64,7 @@ export default async function HomeSaleLossDeductionPage({
         </p>
       )}
 
-      <HomeSaleLossDeductionForm
+      <HomeReplacementLossDeductionForm
         year={year}
         registeredDeduction={registeredDeduction}
         carryforwardEntries={carryforwardEntries}
@@ -71,7 +72,7 @@ export default async function HomeSaleLossDeductionPage({
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         <p>
-          国税庁タックスアンサーNo.3390の要件・計算式による概算値であり、居住用財産で
+          国税庁タックスアンサーNo.3370の要件・計算式による概算値であり、居住用財産で
           あることの判定や、親族等への譲渡でないこと・前年前々年に他の特例の適用を
           受けていないこと等の細かな要件は必ず自身で確認すること。
         </p>
@@ -84,9 +85,13 @@ export default async function HomeSaleLossDeductionPage({
         <p>
           損益通算の対象額がその年の総所得金額等を超えて控除しきれなかった場合、超過額
           (譲渡損失の金額)は翌年以後3年間繰り越して総所得金額等から控除できる(ただし
-          繰越控除を適用する年の合計所得金額が3,000万円を超える場合はその年は適用不可)。
+          繰越控除を適用する年の合計所得金額が3,000万円を超える場合、または買換資産の
+          住宅ローン(10年以上)がその年の12月31日時点で無い場合は、その年は適用不可)。
           発生年ごとの繰越残高は
-          <Link href={`/import?year=${year}&tab=homeSaleLossCarryforward`} className="underline">
+          <Link
+            href={`/import?year=${year}&tab=homeReplacementLossCarryforward`}
+            className="underline"
+          >
             データ取り込み画面
           </Link>
           で登録・確認でき、当年の試算結果に翌年以後へ繰り越す額が発生した場合は

@@ -24,13 +24,13 @@ import { RECONSTRUCTION_SURTAX_RATE } from "../incomeTax";
  *    適用を受けていないこと等)の判定は行わず、`specialDeductionEligible`・
  *    `reducedRateEligible`としてユーザー自身が確認したうえで入力するチェック項目とする。
  *  - 譲渡損失が生じた場合のうち「特定居住用財産の譲渡損失の損益通算及び繰越控除」
- *    (措置法41条の5の2)は`src/lib/realEstate/homeSaleLossCarryforward.ts`で別途
- *    試算できる。もう一方の「居住用財産の買換え等の場合の譲渡損失の損益通算及び
- *    繰越控除」(措置法41条の5)は、買換資産(新居)の取得価額・床面積・住宅ローン
- *    (償還期間10年以上)等の買換資産側の別データが要件判定に必須のため、引き続き
- *    対象外とする(今後の課題)。本モジュール(homeSaleTaxSimulation.ts)自体は
- *    譲渡益が生じた場合の特例のみを対象とするため、譲渡損失が生じた場合はその旨のみ
- *    注記し、税額は0円として返す。
+ *    (措置法41条の5の2)は`src/lib/realEstate/homeSaleLossCarryforward.ts`で、
+ *    買換資産(新居)側のデータが要件判定に必要な「居住用財産の買換え等の場合の
+ *    譲渡損失の損益通算及び繰越控除」(措置法41条の5)は
+ *    `src/lib/realEstate/homeReplacementLossCarryforward.ts`で、それぞれ別途
+ *    試算できる。本モジュール(homeSaleTaxSimulation.ts)自体は譲渡益が生じた場合の
+ *    特例のみを対象とするため、譲渡損失が生じた場合はその旨のみ注記し、税額は0円
+ *    として返す。
  *  - 取得費が不明な場合の概算取得費(譲渡価額の5%。措置法31条の4)は自動算出せず、
  *    `acquisitionCostJpy`にユーザー自身が算出した金額(概算取得費を用いる場合はその額)を
  *    入力する前提とする。
@@ -132,7 +132,7 @@ export function simulateHomeSaleTax(
 
   if (transferGainJpy.lessThanOrEqualTo(0)) {
     notes.push(
-      "譲渡損失(譲渡価額が取得費・譲渡費用の合計以下)のため税額は生じない。マイホームの買換え等に伴う譲渡損失の損益通算・繰越控除(措置法41条の5・41条の5の2)は別制度のため本ツールでは試算しない。",
+      "譲渡損失(譲渡価額が取得費・譲渡費用の合計以下)のため税額は生じない。マイホームの譲渡損失の損益通算・繰越控除(措置法41条の5・41条の5の2)は別制度のため本モジュールでは試算しない(homeReplacementLossCarryforward.ts・homeSaleLossCarryforward.tsを参照)。",
     );
     return {
       transferGainJpy,

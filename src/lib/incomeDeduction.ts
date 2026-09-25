@@ -27,6 +27,7 @@ export const INCOME_DEDUCTION_TYPES = [
   "SPECIFIC_EXPENSE",
   "INCOME_AMOUNT_ADJUSTMENT",
   "HOME_SALE_LOSS",
+  "HOME_REPLACEMENT_LOSS",
 ] as const;
 
 export type IncomeDeductionType = (typeof INCOME_DEDUCTION_TYPES)[number];
@@ -49,21 +50,24 @@ export const INCOME_DEDUCTION_TYPE_LABELS: Record<IncomeDeductionType, string> =
   SPECIFIC_EXPENSE: "特定支出控除",
   INCOME_AMOUNT_ADJUSTMENT: "所得金額調整控除",
   HOME_SALE_LOSS: "特定居住用財産の譲渡損失の損益通算",
+  HOME_REPLACEMENT_LOSS: "居住用財産の買換え等の場合の譲渡損失の損益通算",
 };
 
 /**
  * 特定支出控除(所得税法57条の2)・所得金額調整控除(措置法41条の3の3)は、
  * 厳密には他の区分のような「所得控除」ではなく給与所得の計算上の控除
  * (申告書第一表の給与所得金額欄に反映)である。特定居住用財産の譲渡損失の
- * 損益通算(措置法41条の5の2)も同様に「所得控除」ではなく譲渡所得の損失を
- * その年の総所得金額等と損益通算するものである。本ツールでは「給与所得等の
- * 課税所得金額」への影響という観点で他の所得控除と同様に合算して試算する
- * 簡略化としているため、登録されている場合はその旨を注記に含める。
+ * 損益通算(措置法41条の5の2)・居住用財産の買換え等の場合の譲渡損失の損益通算
+ * (措置法41条の5)も同様に「所得控除」ではなく譲渡所得の損失をその年の総所得
+ * 金額等と損益通算するものである。本ツールでは「給与所得等の課税所得金額」への
+ * 影響という観点で他の所得控除と同様に合算して試算する簡略化としているため、
+ * 登録されている場合はその旨を注記に含める。
  */
 const NON_INCOME_DEDUCTION_TYPES: readonly IncomeDeductionType[] = [
   "SPECIFIC_EXPENSE",
   "INCOME_AMOUNT_ADJUSTMENT",
   "HOME_SALE_LOSS",
+  "HOME_REPLACEMENT_LOSS",
 ];
 
 export function isIncomeDeductionType(value: string): value is IncomeDeductionType {
