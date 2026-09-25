@@ -142,6 +142,7 @@ export async function buildYearReport(year: number): Promise<{
       type: t.type,
       quantity: t.quantity.toString(),
       unitPriceJpy: t.unitPriceJpy.toString(),
+      marketValueUnitPriceJpy: t.marketValueUnitPriceJpy?.toString(),
       feeJpy: t.feeJpy.toString(),
       tradedAt: t.tradedAt,
     })),

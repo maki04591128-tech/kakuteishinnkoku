@@ -83,6 +83,50 @@ describe("calculateCryptoYear (総平均法)", () => {
     expect(result.closingQuantity.toNumber()).toBe(1);
   });
 
+  it("低額譲渡(LOW_PRICE_TRANSFER_OUT)は国税庁FAQ2-10の設例と一致する", () => {
+    // 4/9 に450,000円で1BTC購入、5/20 に450,000円で売却(売却時の時価は1,000,000円)。
+    const result = calculateCryptoYear("BTC", [
+      { type: "BUY", quantity: 1, unitPriceJpy: 450_000 },
+      {
+        type: "LOW_PRICE_TRANSFER_OUT",
+        quantity: 1,
+        unitPriceJpy: 450_000,
+        marketValueUnitPriceJpy: 1_000_000,
+      },
+    ]);
+
+    // 時価の70%相当額(700,000円) > 実際の対価(450,000円)のため低額譲渡に該当し、
+    // 総収入金額は700,000円、所得金額は250,000円になる(FAQ2-10の設例どおり)。
+    expect(result.proceedsJpy.toNumber()).toBe(700_000);
+    expect(result.costOfDisposedJpy.toNumber()).toBe(450_000);
+    expect(result.realizedGainJpy.toNumber()).toBe(250_000);
+  });
+
+  it("低額譲渡でも対価が時価の70%相当額以上なら実際の対価がそのまま総収入金額になる", () => {
+    const result = calculateCryptoYear("BTC", [
+      { type: "BUY", quantity: 1, unitPriceJpy: 450_000 },
+      {
+        type: "LOW_PRICE_TRANSFER_OUT",
+        quantity: 1,
+        unitPriceJpy: 750_000,
+        marketValueUnitPriceJpy: 1_000_000,
+      },
+    ]);
+
+    // 750,000円 >= 時価の70%相当額(700,000円)のため低額譲渡には該当しない。
+    expect(result.proceedsJpy.toNumber()).toBe(750_000);
+    expect(result.realizedGainJpy.toNumber()).toBe(300_000);
+  });
+
+  it("低額譲渡(LOW_PRICE_TRANSFER_OUT)に時価(marketValueUnitPriceJpy)が無い場合はエラーになる", () => {
+    expect(() =>
+      calculateCryptoYear("BTC", [
+        { type: "BUY", quantity: 1, unitPriceJpy: 450_000 },
+        { type: "LOW_PRICE_TRANSFER_OUT", quantity: 1, unitPriceJpy: 450_000 },
+      ]),
+    ).toThrow();
+  });
+
   it("暗号資産同士の交換(TRADE_IN/TRADE_OUT)を時価で評価する", () => {
     const result = calculateCryptoYear("BTC", [
       { type: "BUY", quantity: 1, unitPriceJpy: 3_000_000 },
@@ -341,6 +385,22 @@ describe("calculateCryptoYearMovingAverage (移動平均法)", () => {
 
     expect(result.realizedGainJpy.toNumber()).toBe(1_500_000);
     expect(result.closingQuantity.toNumber()).toBe(1);
+  });
+
+  it("低額譲渡(LOW_PRICE_TRANSFER_OUT)は移動平均法でも時価の70%相当額を下限に総収入金額を計算する", () => {
+    const result = calculateCryptoYearMovingAverage("BTC", [
+      { type: "BUY", quantity: 1, unitPriceJpy: 450_000, tradedAt: new Date("2026-04-09") },
+      {
+        type: "LOW_PRICE_TRANSFER_OUT",
+        quantity: 1,
+        unitPriceJpy: 450_000,
+        marketValueUnitPriceJpy: 1_000_000,
+        tradedAt: new Date("2026-05-20"),
+      },
+    ]);
+
+    expect(result.proceedsJpy.toNumber()).toBe(700_000);
+    expect(result.realizedGainJpy.toNumber()).toBe(250_000);
   });
 
   it("年内であっても、その時点の保有数量を超える譲渡はエラーになる(後で購入しても遡って相殺できない)", () => {

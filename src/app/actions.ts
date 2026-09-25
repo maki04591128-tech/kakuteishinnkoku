@@ -224,6 +224,7 @@ export async function addCryptoTrade(formData: FormData): Promise<void> {
       type: requireString(formData, "type") as never,
       quantity: requireString(formData, "quantity"),
       unitPriceJpy: requireString(formData, "unitPriceJpy"),
+      marketValueUnitPriceJpy: optionalString(formData, "marketValueUnitPriceJpy"),
       feeJpy: optionalString(formData, "feeJpy") ?? "0",
       exchange: optionalString(formData, "exchange"),
       memo: optionalString(formData, "memo"),
