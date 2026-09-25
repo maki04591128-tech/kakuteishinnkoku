@@ -1713,7 +1713,13 @@ export default async function ImportPage({
           死因贈与・相続・包括遺贈・特定遺贈の場合は被相続人が死亡時に選択していた
           評価方法により評価した金額を単価として登録する。取得時点では雑所得の収入計上
           をせず(相続税・贈与税の課税対象のため)、その金額をそのまま取得価額として
-          プールする。
+          プールする。「贈与・寄附による譲渡」は、他者への生前贈与・遺贈(認定NPO法人等
+          への暗号資産による寄附を含む。相続人に対する死因贈与・包括遺贈・特定遺贈を除く)
+          をした場合に、その贈与等の時における時価を単価として登録する。実際の対価を
+          受け取っていなくても、その時価が雑所得のみなし総収入金額になる
+          (国税庁「暗号資産等に関する税務上の取扱いについて(FAQ)」2-10・1-4参照)。
+          認定NPO法人等への寄附の場合、同額が寄附金控除(`/donation-deduction`)・寄附金特別控除
+          (`/donation-tax-credit`)の対象にもなるため、該当する場合は別途そちらにも登録すること。
         </p>
         <form action={addCryptoTrade} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <input type="hidden" name="year" value={year} />
@@ -1731,6 +1737,7 @@ export default async function ImportPage({
               <option value="TRADE_OUT">交換で譲渡</option>
               <option value="INCOME">マイニング等収入</option>
               <option value="GIFT_IN">贈与・相続等による取得</option>
+              <option value="GIFT_OUT">贈与・寄附による譲渡</option>
               <option value="FEE">暗号資産建て手数料</option>
             </select>
           </Field>

@@ -70,6 +70,19 @@ describe("calculateCryptoYear (総平均法)", () => {
     expect(result.realizedGainJpy.toNumber()).toBe(1_000_000);
   });
 
+  it("贈与・寄附によるGIFT_OUTは時価をみなし収入として譲渡損益を計算する", () => {
+    const result = calculateCryptoYear("BTC", [
+      { type: "BUY", quantity: 2, unitPriceJpy: 2_500_000 },
+      { type: "GIFT_OUT", quantity: 1, unitPriceJpy: 4_000_000 },
+    ]);
+
+    // 平均単価は2,500,000円 => 贈与時の時価4,000,000円との差額1,500,000円が雑所得
+    expect(result.proceedsJpy.toNumber()).toBe(4_000_000);
+    expect(result.costOfDisposedJpy.toNumber()).toBe(2_500_000);
+    expect(result.realizedGainJpy.toNumber()).toBe(1_500_000);
+    expect(result.closingQuantity.toNumber()).toBe(1);
+  });
+
   it("暗号資産同士の交換(TRADE_IN/TRADE_OUT)を時価で評価する", () => {
     const result = calculateCryptoYear("BTC", [
       { type: "BUY", quantity: 1, unitPriceJpy: 3_000_000 },
@@ -318,6 +331,16 @@ describe("calculateCryptoYearMovingAverage (移動平均法)", () => {
 
     expect(result.incomeJpy.toNumber()).toBe(0);
     expect(result.realizedGainJpy.toNumber()).toBe(1_000_000);
+  });
+
+  it("GIFT_OUTは移動平均法でも贈与時の時価をみなし収入として譲渡損益を計算する", () => {
+    const result = calculateCryptoYearMovingAverage("BTC", [
+      { type: "BUY", quantity: 2, unitPriceJpy: 2_500_000, tradedAt: new Date("2026-02-01") },
+      { type: "GIFT_OUT", quantity: 1, unitPriceJpy: 4_000_000, tradedAt: new Date("2026-06-01") },
+    ]);
+
+    expect(result.realizedGainJpy.toNumber()).toBe(1_500_000);
+    expect(result.closingQuantity.toNumber()).toBe(1);
   });
 
   it("年内であっても、その時点の保有数量を超える譲渡はエラーになる(後で購入しても遡って相殺できない)", () => {
