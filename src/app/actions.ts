@@ -1985,3 +1985,70 @@ export async function carryForwardCasualtyLossExcess(formData: FormData): Promis
   revalidatePath("/import");
   redirect(`/casualty-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
 }
+
+export async function setHomeSaleLossCarryforward(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const originYear = Number(requireString(formData, "originYear"));
+  const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
+  if (!Number.isInteger(originYear) || originYear > year) {
+    throw new Error("譲渡損失の発生年は対象年分以前の年である必要があります");
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.homeSaleLossCarryforward.upsert({
+    where: {
+      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
+    },
+    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
+    update: { remainingAmountJpy },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/home-sale-loss-deduction");
+  redirect(`/import?year=${year}&tab=homeSaleLossCarryforward`);
+}
+
+export async function deleteHomeSaleLossCarryforward(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.homeSaleLossCarryforward.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/home-sale-loss-deduction");
+  redirect(`/import?year=${year}&tab=homeSaleLossCarryforward`);
+}
+
+/**
+ * 特定居住用財産の譲渡損失の損益通算及び繰越控除の試算画面(/home-sale-loss-deduction)の
+ * 当年分の計算結果のうち、翌年以後に繰り越す譲渡損失額(発生年ごと)を、翌年分の
+ * HomeSaleLossCarryforwardとしてまとめて登録する。carryForwardCasualtyLossExcessと
+ * 同様、試算に必要な譲渡価額・取得費・住宅借入金等残高・総所得金額等はDBに保存されない
+ * 都度入力のため、前年分をサーバー側で再計算することはできない。そのため、試算画面の
+ * 計算結果を画面から直接この年の翌年分として保存する方式にしている(既に翌年分に
+ * 同じ発生年の登録がある場合は上書きしない)。
+ */
+export async function carryForwardHomeSaleLossExcess(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const entriesJson = requireString(formData, "carryforwardToNextYearJson");
+  const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
+
+  const nextTaxYear = await getOrCreateTaxYear(year + 1);
+  const existing = await prisma.homeSaleLossCarryforward.findMany({
+    where: { taxYearId: nextTaxYear.id },
+    select: { originYear: true },
+  });
+  const existingYears = new Set(existing.map((e) => e.originYear));
+  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
+
+  if (toCreate.length > 0) {
+    await prisma.homeSaleLossCarryforward.createMany({
+      data: toCreate.map((e) => ({
+        taxYearId: nextTaxYear.id,
+        originYear: e.originYear,
+        remainingAmountJpy: e.remainingAmountJpy,
+      })),
+    });
+  }
+
+  revalidatePath("/import");
+  redirect(`/home-sale-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
+}
