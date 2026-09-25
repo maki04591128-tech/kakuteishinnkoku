@@ -18,6 +18,7 @@ import { getBarrierFreeRenovationDeductionRecord } from "@/lib/barrierFreeRenova
 import { getMultiHouseholdRenovationDeductionRecord } from "@/lib/multiHouseholdRenovationDeduction";
 import { getDurabilityImprovementRenovationDeductionRecord } from "@/lib/durabilityImprovementRenovationDeduction";
 import { getChildRearingRenovationDeductionRecord } from "@/lib/childRearingRenovationDeduction";
+import { getCertifiedHousingConstructionCreditRecord } from "@/lib/certifiedHousingConstructionCredit";
 import { TotalTaxEstimateForm } from "./TotalTaxEstimateForm";
 
 /** 所得控除の登録が無い場合の「給与所得等の課税所得金額」の仮の既定値 */
@@ -137,6 +138,11 @@ export default async function TaxEstimatePage({
   const registeredChildRearingRenovationDeductionJpy =
     childRearingRenovationDeductionRecord?.creditJpy.toNumber() ?? null;
 
+  const certifiedHousingConstructionCreditRecord =
+    await getCertifiedHousingConstructionCreditRecord(year);
+  const registeredCertifiedHousingConstructionCreditJpy =
+    certifiedHousingConstructionCreditRecord?.creditJpy.toNumber() ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -228,6 +234,12 @@ export default async function TaxEstimatePage({
         registeredChildRearingRenovationDeductionJpy={
           registeredChildRearingRenovationDeductionJpy
         }
+        defaultCertifiedHousingConstructionCreditJpy={
+          registeredCertifiedHousingConstructionCreditJpy ?? 0
+        }
+        registeredCertifiedHousingConstructionCreditJpy={
+          registeredCertifiedHousingConstructionCreditJpy
+        }
       />
 
       <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
@@ -282,6 +294,16 @@ export default async function TaxEstimatePage({
           で「この試算結果を◯年分の多世帯同居改修工事に係る住宅特定改修特別税額控除として
           登録する」を実行済みの場合、その控除額を初期値として表示する。住民税に相当する
           控除は無いため、バリアフリー改修工事の住宅特定改修特別税額控除適用後の所得税額
+          からのみ差し引く。
+        </p>
+        <p>
+          認定住宅等新築等特別税額控除(税額控除)は
+          <Link href={`/certified-housing-construction-credit?year=${year}`} className="underline">
+            /certified-housing-construction-credit
+          </Link>
+          で「この試算結果を◯年分の認定住宅等新築等特別税額控除として登録する」を
+          実行済みの場合、その控除額を初期値として表示する。住民税に相当する控除は
+          無いため、子育て対応改修工事の住宅特定改修特別税額控除適用後の所得税額
           からのみ差し引く。
         </p>
         <p>

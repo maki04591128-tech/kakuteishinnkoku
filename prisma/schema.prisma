@@ -54,6 +54,7 @@ model TaxYear {
   multiHouseholdRenovationDeductionRecords    MultiHouseholdRenovationDeductionRecord[]
   durabilityImprovementRenovationDeductionRecords DurabilityImprovementRenovationDeductionRecord[]
   childRearingRenovationDeductionRecords      ChildRearingRenovationDeductionRecord[]
+  certifiedHousingConstructionCreditRecords   CertifiedHousingConstructionCreditRecord[]
 }
 
 enum CryptoCostMethod {
@@ -515,6 +516,25 @@ model DurabilityImprovementRenovationDeductionRecord {
 /// `/child-rearing-renovation-deduction`の「この試算結果を◯年分の子育て対応改修工事に
 /// 係る住宅特定改修特別税額控除として登録する」ボタンから登録する。
 model ChildRearingRenovationDeductionRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の控除額(所得税分のみ)
+  creditJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 認定住宅等新築等特別税額控除(投資型減税。租税特別措置法41条の19の4。
+/// 国税庁タックスアンサーNo.1221)。他の住宅特定改修特別税額控除・住宅耐震改修
+/// 特別控除と同様、住民税への振替制度が無く、所得税分のみを保持する。
+/// `/certified-housing-construction-credit`の「この試算結果を◯年分の認定住宅等
+/// 新築等特別税額控除として登録する」ボタンから登録する。
+model CertifiedHousingConstructionCreditRecord {
   id        Int     @id @default(autoincrement())
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])

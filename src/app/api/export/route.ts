@@ -13,6 +13,7 @@ import { getBarrierFreeRenovationDeductionRecord } from "@/lib/barrierFreeRenova
 import { getMultiHouseholdRenovationDeductionRecord } from "@/lib/multiHouseholdRenovationDeduction";
 import { getDurabilityImprovementRenovationDeductionRecord } from "@/lib/durabilityImprovementRenovationDeduction";
 import { getChildRearingRenovationDeductionRecord } from "@/lib/childRearingRenovationDeduction";
+import { getCertifiedHousingConstructionCreditRecord } from "@/lib/certifiedHousingConstructionCredit";
 import { buildYearReport } from "@/lib/reporting";
 
 export async function GET(request: NextRequest) {
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
     multiHouseholdRenovationDeductionRecord,
     durabilityImprovementRenovationDeductionRecord,
     childRearingRenovationDeductionRecord,
+    certifiedHousingConstructionCreditRecord,
   ] = await Promise.all([
     getMortgageDeductionRecord(year),
     getForeignTaxCreditRecord(year),
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
     getMultiHouseholdRenovationDeductionRecord(year),
     getDurabilityImprovementRenovationDeductionRecord(year),
     getChildRearingRenovationDeductionRecord(year),
+    getCertifiedHousingConstructionCreditRecord(year),
   ]);
 
   const summary = buildTaxFilingSummary(
@@ -97,6 +100,9 @@ export async function GET(request: NextRequest) {
       : undefined,
     childRearingRenovationDeductionRecord
       ? { creditJpy: childRearingRenovationDeductionRecord.creditJpy }
+      : undefined,
+    certifiedHousingConstructionCreditRecord
+      ? { creditJpy: certifiedHousingConstructionCreditRecord.creditJpy }
       : undefined,
   );
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);
