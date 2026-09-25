@@ -1708,6 +1708,13 @@ export default async function ImportPage({
 
       <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="mb-3 text-lg font-semibold">暗号資産の取引を追加</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          「贈与・相続等による取得」は、贈与・遺贈の場合はその時の時価、相続人に対する
+          死因贈与・相続・包括遺贈・特定遺贈の場合は被相続人が死亡時に選択していた
+          評価方法により評価した金額を単価として登録する。取得時点では雑所得の収入計上
+          をせず(相続税・贈与税の課税対象のため)、その金額をそのまま取得価額として
+          プールする。
+        </p>
         <form action={addCryptoTrade} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <input type="hidden" name="year" value={year} />
           <Field label="取引日時">
@@ -1723,6 +1730,7 @@ export default async function ImportPage({
               <option value="TRADE_IN">交換で取得</option>
               <option value="TRADE_OUT">交換で譲渡</option>
               <option value="INCOME">マイニング等収入</option>
+              <option value="GIFT_IN">贈与・相続等による取得</option>
               <option value="FEE">暗号資産建て手数料</option>
             </select>
           </Field>

@@ -732,6 +732,7 @@ model CryptoTrade {
   /// buy: 円などの法定通貨で購入 / sell: 法定通貨に売却
   /// trade_in / trade_out: 暗号資産同士の交換(この取引で増える/減る側)
   /// income: マイニング・ステーキング・エアドロップ等による取得(取得時時価で収入計上)
+  /// gift_in: 贈与・遺贈・相続等により取得(取得価額をそのまま引き継ぐため取得時の収入計上は無し)
   /// fee: 取引手数料(暗号資産建てで支払われた場合)
   type CryptoTradeType
 
@@ -769,6 +770,7 @@ enum CryptoTradeType {
   TRADE_IN
   TRADE_OUT
   INCOME
+  GIFT_IN
   FEE
 }
 
