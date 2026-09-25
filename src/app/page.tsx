@@ -156,6 +156,12 @@ export default async function Home({
           配当所得の課税方式をシミュレーションする
         </Link>
         <Link
+          href={`/interest-income?year=${year}`}
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          特定公社債の利子所得の課税方式をシミュレーションする
+        </Link>
+        <Link
           href={`/foreign-tax-credit?year=${year}`}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
