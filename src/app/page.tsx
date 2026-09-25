@@ -365,6 +365,12 @@ export default async function Home({
           一時所得を試算する
         </Link>
         <Link
+          href="/general-transfer-income"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          総合課税の譲渡所得を試算する
+        </Link>
+        <Link
           href="/inherited-acquisition-cost-addition"
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
