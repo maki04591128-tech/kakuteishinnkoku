@@ -139,6 +139,14 @@ export interface TaxFilingSummary {
   childRearingRenovationDeduction?: {
     creditJpy: Decimal;
   };
+  /**
+   * `/certified-housing-construction-credit`で登録済みの認定住宅等新築等特別
+   * 税額控除(税額控除・所得税分のみ)。住民税に相当する控除は存在しないため
+   * 住民税額には影響しない。未登録の場合はundefined。
+   */
+  certifiedHousingConstructionCredit?: {
+    creditJpy: Decimal;
+  };
 }
 
 export function buildTaxFilingSummary(
@@ -161,6 +169,7 @@ export function buildTaxFilingSummary(
   multiHouseholdRenovationDeduction?: { creditJpy: Decimal },
   durabilityImprovementRenovationDeduction?: { creditJpy: Decimal },
   childRearingRenovationDeduction?: { creditJpy: Decimal },
+  certifiedHousingConstructionCredit?: { creditJpy: Decimal },
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
@@ -191,5 +200,6 @@ export function buildTaxFilingSummary(
     multiHouseholdRenovationDeduction,
     durabilityImprovementRenovationDeduction,
     childRearingRenovationDeduction,
+    certifiedHousingConstructionCredit,
   };
 }

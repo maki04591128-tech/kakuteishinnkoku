@@ -63,6 +63,8 @@ export function TotalTaxEstimateForm({
   registeredDurabilityImprovementRenovationDeductionJpy,
   defaultChildRearingRenovationDeductionJpy,
   registeredChildRearingRenovationDeductionJpy,
+  defaultCertifiedHousingConstructionCreditJpy,
+  registeredCertifiedHousingConstructionCreditJpy,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -130,6 +132,10 @@ export function TotalTaxEstimateForm({
   defaultChildRearingRenovationDeductionJpy: number;
   /** `/child-rearing-renovation-deduction`で登録済みの控除額(参考表示。未登録ならnull) */
   registeredChildRearingRenovationDeductionJpy: number | null;
+  /** `/certified-housing-construction-credit`で登録済みの認定住宅等新築等特別税額控除額の初期値 */
+  defaultCertifiedHousingConstructionCreditJpy: number;
+  /** `/certified-housing-construction-credit`で登録済みの控除額(参考表示。未登録ならnull) */
+  registeredCertifiedHousingConstructionCreditJpy: number | null;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -192,6 +198,10 @@ export function TotalTaxEstimateForm({
     childRearingRenovationDeductionJpy,
     setChildRearingRenovationDeductionJpy,
   ] = useState(String(defaultChildRearingRenovationDeductionJpy));
+  const [
+    certifiedHousingConstructionCreditJpy,
+    setCertifiedHousingConstructionCreditJpy,
+  ] = useState(String(defaultCertifiedHousingConstructionCreditJpy));
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
   const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
@@ -243,6 +253,10 @@ export function TotalTaxEstimateForm({
             : durabilityImprovementRenovationDeductionJpy,
         childRearingRenovationDeductionJpy:
           childRearingRenovationDeductionJpy === "" ? 0 : childRearingRenovationDeductionJpy,
+        certifiedHousingConstructionCreditJpy:
+          certifiedHousingConstructionCreditJpy === ""
+            ? 0
+            : certifiedHousingConstructionCreditJpy,
         foreignTaxCreditNationalTaxCreditJpy:
           foreignTaxCreditNationalTaxCreditJpy === ""
             ? 0
@@ -285,6 +299,7 @@ export function TotalTaxEstimateForm({
     multiHouseholdRenovationDeductionJpy,
     durabilityImprovementRenovationDeductionJpy,
     childRearingRenovationDeductionJpy,
+    certifiedHousingConstructionCreditJpy,
     foreignTaxCreditNationalTaxCreditJpy,
     foreignTaxCreditResidentTaxCreditJpy,
     distributionAdjustedForeignTaxCreditJpy,
@@ -553,6 +568,24 @@ export function TotalTaxEstimateForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
+          label={`認定住宅等新築等特別税額控除(税額控除・所得税分のみ。住民税に相当する控除は無し)${
+            registeredCertifiedHousingConstructionCreditJpy !== null
+              ? " — 初期値は/certified-housing-construction-creditの登録値"
+              : ""
+          }`}
+          value={certifiedHousingConstructionCreditJpy}
+          onChange={setCertifiedHousingConstructionCreditJpy}
+        />
+      </div>
+      {registeredCertifiedHousingConstructionCreditJpy !== null && (
+        <p className="text-xs text-neutral-500">
+          /certified-housing-construction-creditで登録済み:{" "}
+          {yen(registeredCertifiedHousingConstructionCreditJpy)}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
           label={`外国税額控除(税額控除・所得税・復興特別所得税分)${
             registeredForeignTaxCredit !== null ? " — 初期値は/foreign-tax-creditの登録値" : ""
           }`}
@@ -700,6 +733,12 @@ export function TotalTaxEstimateForm({
               <p className="mt-1 text-xs text-neutral-400">
                 − 子育て対応改修工事の住宅特定改修特別税額控除{" "}
                 {yen(result.childRearingRenovationDeductionAppliedJpy)}(所得税分のみ)
+              </p>
+            )}
+            {result.certifiedHousingConstructionCreditAppliedJpy.greaterThan(0) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                − 認定住宅等新築等特別税額控除{" "}
+                {yen(result.certifiedHousingConstructionCreditAppliedJpy)}(所得税分のみ)
               </p>
             )}
             {(result.foreignTaxCreditNationalTaxAppliedJpy.greaterThan(0) ||

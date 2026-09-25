@@ -1616,6 +1616,53 @@ export async function deleteChildRearingRenovationDeductionRecord(
 }
 
 /**
+ * 認定住宅等新築等特別税額控除シミュレーター
+ * (/certified-housing-construction-credit)の当年分の控除額を
+ * CertifiedHousingConstructionCreditRecord として登録する。子育て対応改修工事の
+ * 住宅特定改修特別税額控除(saveChildRearingRenovationDeductionRecord)と同様、
+ * `/tax-estimate`の合計税額試算・下書きCSV(/api/export)の税額控除欄への
+ * 自動反映に使う。既に登録済みの場合は上書きする。
+ */
+export async function saveCertifiedHousingConstructionCreditRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const creditJpy = requireString(formData, "creditJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.certifiedHousingConstructionCreditRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, creditJpy },
+    update: { creditJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/certified-housing-construction-credit");
+  redirect(`/certified-housing-construction-credit?year=${year}&saved=1`);
+}
+
+/**
+ * saveCertifiedHousingConstructionCreditRecordで登録した当年分の
+ * CertifiedHousingConstructionCreditRecordを削除する
+ * (deleteChildRearingRenovationDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteCertifiedHousingConstructionCreditRecord(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.certifiedHousingConstructionCreditRecord.deleteMany({
+      where: { taxYearId: taxYear.id },
+    });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/certified-housing-construction-credit");
+  redirect(`/certified-housing-construction-credit?year=${year}&deleted=1`);
+}
+
+/**
  * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
  * (iDeCo等)・社会保険料控除)で試算した控除額を、その年分の IncomeDeduction
  * として登録する(区分ごとに1件。既に登録済みの場合は上書きする)。

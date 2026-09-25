@@ -47,6 +47,7 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  * 多世帯同居改修工事の住宅特定改修特別税額控除(`multiHouseholdRenovationDeduction.ts`)・
  * 耐久性向上改修工事の住宅特定改修特別税額控除(`durabilityImprovementRenovationDeduction.ts`)・
  * 子育て対応改修工事の住宅特定改修特別税額控除(`childRearingRenovationDeduction.ts`)・
+ * 認定住宅等新築等特別税額控除(`certifiedHousingConstructionCredit.ts`)・
  * 外国税額控除(`investment/foreignTaxCredit.ts`)・分配時調整外国税相当額控除
  * (`investment/distributionAdjustedForeignTaxCredit.ts`)は
  * いずれも所得控除ではなく税額控除のため、上記の各所得区分の税額を合算した後の
@@ -54,7 +55,7 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  * `/mortgage-deduction`・`/donation-tax-credit`・`/earthquake-renovation-deduction`・
  * `/energy-saving-renovation-deduction`・`/barrier-free-renovation-deduction`・
  * `/multi-household-renovation-deduction`・`/durability-improvement-renovation-deduction`・
- * `/child-rearing-renovation-deduction`・
+ * `/child-rearing-renovation-deduction`・`/certified-housing-construction-credit`・
  * `/foreign-tax-credit`・`/distribution-adjusted-foreign-tax-credit`の試算結果
  * (または`IncomeDeduction`と同様にDB登録した値)をそのまま「その年に適用される控除額」
  * として受け取り、本モジュール側では所得税額・住民税所得割額の限度判定(住民税へ
@@ -66,7 +67,8 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  * 特別控除→省エネ改修工事の住宅特定改修特別税額控除→バリアフリー改修工事の住宅
  * 特定改修特別税額控除→多世帯同居改修工事の住宅特定改修特別税額控除→耐久性向上改修
  * 工事の住宅特定改修特別税額控除→子育て対応改修工事の住宅特定改修特別税額控除→
- * 外国税額控除の順に適用する(調整控除は住民税所得割のみが対象)。
+ * 認定住宅等新築等特別税額控除→外国税額控除の順に適用する(調整控除は住民税
+ * 所得割のみが対象)。
  * 寄附金特別控除は
  * `donationTaxCreditJpy`(所得税分。政党等・認定NPO法人等・公益社団法人等寄附金特別控除)と
  * `donationTaxCreditResidentTaxJpy`(住民税分。認定NPO法人等・公益社団法人等への寄附のうち
@@ -78,12 +80,14 @@ import { estimateFurusatoNozeiLimit, type FurusatoNozeiLimitResult } from "./fur
  * 住宅特定改修特別税額控除(`barrierFreeRenovationDeductionJpy`)・多世帯同居改修工事の
  * 住宅特定改修特別税額控除(`multiHouseholdRenovationDeductionJpy`)・耐久性向上改修工事の
  * 住宅特定改修特別税額控除(`durabilityImprovementRenovationDeductionJpy`)・子育て対応改修
- * 工事の住宅特定改修特別税額控除(`childRearingRenovationDeductionJpy`)はいずれも住民税に
+ * 工事の住宅特定改修特別税額控除(`childRearingRenovationDeductionJpy`)・認定住宅等
+ * 新築等特別税額控除(`certifiedHousingConstructionCreditJpy`)はいずれも住民税に
  * 相当する控除が無い所得税のみの制度のため、寄附金特別控除適用後(省エネ改修工事分は
  * 住宅耐震改修特別控除適用後、バリアフリー改修工事分は省エネ改修工事分適用後、
  * 多世帯同居改修工事分はバリアフリー改修工事分適用後、耐久性向上改修工事分は
- * 多世帯同居改修工事分適用後、子育て対応改修工事分は耐久性向上改修工事分適用後)の
- * 所得税額からのみ差し引く。
+ * 多世帯同居改修工事分適用後、子育て対応改修工事分は耐久性向上改修工事分適用後、
+ * 認定住宅等新築等特別税額控除分は子育て対応改修工事分適用後)の所得税額からのみ
+ * 差し引く。
  * 分配時調整外国税相当額控除(`distributionAdjustedForeignTaxCreditJpy`)は外国税額控除と
  * 制度が近いため外国税額控除の直後(合計税額から見て最後)に所得税額(復興特別所得税を
  * 含む)からのみ差し引く(住民税分は一次情報で条文・算式を確認できておらず対象外。
@@ -206,6 +210,14 @@ export interface TotalTaxEstimateInput {
    * そのまま「その年に適用される控除額」として受け取る
    */
   childRearingRenovationDeductionJpy?: Decimal.Value;
+  /**
+   * 認定住宅等新築等特別税額控除(税額控除)額。子育て対応改修工事の住宅特定改修
+   * 特別税額控除と同様、住民税に相当する控除が無い所得税のみの制度のため、
+   * 子育て対応改修工事の住宅特定改修特別税額控除適用後の所得税額からのみ控除する。
+   * `/certified-housing-construction-credit`の試算結果(または登録済みの値)を
+   * そのまま「その年に適用される控除額」として受け取る
+   */
+  certifiedHousingConstructionCreditJpy?: Decimal.Value;
   /** 外国税額控除(税額控除)のうち、その年の所得税額・復興特別所得税額から控除する額 */
   foreignTaxCreditNationalTaxCreditJpy?: Decimal.Value;
   /** 外国税額控除(税額控除)のうち、その年の住民税額から控除する額 */
@@ -346,9 +358,17 @@ export interface TotalTaxEstimateResult {
    * 住民税に相当する控除は無い)
    */
   childRearingRenovationDeductionAppliedJpy: Decimal;
-  /** 子育て対応改修工事の住宅特定改修特別税額控除適用後・外国税額控除適用前の所得税額(復興特別所得税を含む) */
+  /** 子育て対応改修工事の住宅特定改修特別税額控除適用後・認定住宅等新築等特別税額控除適用前の所得税額(復興特別所得税を含む) */
   totalNationalTaxAfterChildRearingRenovationDeductionJpy: Decimal;
-  /** 実際に適用された外国税額控除額(所得税・復興特別所得税分。入力値と子育て対応改修工事の住宅特定改修特別税額控除適用後の所得税額のいずれか少ない方) */
+  /**
+   * 実際に適用された認定住宅等新築等特別税額控除額(所得税分のみ。入力値と
+   * 子育て対応改修工事の住宅特定改修特別税額控除適用後の所得税額のいずれか少ない方。
+   * 住民税に相当する控除は無い)
+   */
+  certifiedHousingConstructionCreditAppliedJpy: Decimal;
+  /** 認定住宅等新築等特別税額控除適用後・外国税額控除適用前の所得税額(復興特別所得税を含む) */
+  totalNationalTaxAfterCertifiedHousingConstructionCreditJpy: Decimal;
+  /** 実際に適用された外国税額控除額(所得税・復興特別所得税分。入力値と認定住宅等新築等特別税額控除適用後の所得税額のいずれか少ない方) */
   foreignTaxCreditNationalTaxAppliedJpy: Decimal;
   /** 実際に適用された外国税額控除額(住民税分。入力値と寄附金特別控除適用後の住民税額のいずれか少ない方) */
   foreignTaxCreditResidentTaxAppliedJpy: Decimal;
@@ -599,6 +619,19 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
       childRearingRenovationDeductionAppliedJpy,
     );
 
+  const certifiedHousingConstructionCreditJpy = input.certifiedHousingConstructionCreditJpy
+    ? new Decimal(input.certifiedHousingConstructionCreditJpy)
+    : new Decimal(0);
+  requireNonNegative(certifiedHousingConstructionCreditJpy, "認定住宅等新築等特別税額控除額");
+  const certifiedHousingConstructionCreditAppliedJpy = Decimal.min(
+    certifiedHousingConstructionCreditJpy,
+    totalNationalTaxAfterChildRearingRenovationDeductionJpy,
+  );
+  const totalNationalTaxAfterCertifiedHousingConstructionCreditJpy =
+    totalNationalTaxAfterChildRearingRenovationDeductionJpy.minus(
+      certifiedHousingConstructionCreditAppliedJpy,
+    );
+
   const foreignTaxCreditNationalTaxCreditJpy = input.foreignTaxCreditNationalTaxCreditJpy
     ? new Decimal(input.foreignTaxCreditNationalTaxCreditJpy)
     : new Decimal(0);
@@ -610,14 +643,14 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
 
   const foreignTaxCreditNationalTaxAppliedJpy = Decimal.min(
     foreignTaxCreditNationalTaxCreditJpy,
-    totalNationalTaxAfterChildRearingRenovationDeductionJpy,
+    totalNationalTaxAfterCertifiedHousingConstructionCreditJpy,
   );
   const foreignTaxCreditResidentTaxAppliedJpy = Decimal.min(
     foreignTaxCreditResidentTaxCreditJpy,
     totalResidentTaxAfterDonationTaxCreditJpy,
   );
   const totalNationalTaxAfterForeignTaxCreditJpy =
-    totalNationalTaxAfterChildRearingRenovationDeductionJpy.minus(foreignTaxCreditNationalTaxAppliedJpy);
+    totalNationalTaxAfterCertifiedHousingConstructionCreditJpy.minus(foreignTaxCreditNationalTaxAppliedJpy);
 
   const distributionAdjustedForeignTaxCreditJpy = input.distributionAdjustedForeignTaxCreditJpy
     ? new Decimal(input.distributionAdjustedForeignTaxCreditJpy)
@@ -791,9 +824,21 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
       );
     }
   }
+  if (certifiedHousingConstructionCreditJpy.greaterThan(0)) {
+    notes.push(
+      "認定住宅等新築等特別税額控除(税額控除)は子育て対応改修工事の住宅特定改修特別税額控除適用後の所得税額からのみ差し引く(住民税に相当する控除は無い)。`/certified-housing-construction-credit`の試算結果を前提とする。",
+    );
+    if (
+      certifiedHousingConstructionCreditAppliedJpy.lessThan(certifiedHousingConstructionCreditJpy)
+    ) {
+      notes.push(
+        "認定住宅等新築等特別税額控除額が控除適用後の所得税額を上回ったため、超過分は切り捨てて0円を下限とした(繰越・還付は生じない)。",
+      );
+    }
+  }
   if (foreignTaxCreditNationalTaxCreditJpy.greaterThan(0) || foreignTaxCreditResidentTaxCreditJpy.greaterThan(0)) {
     notes.push(
-      "外国税額控除(税額控除)は子育て対応改修工事の住宅特定改修特別税額控除適用後の所得税額・寄附金特別控除適用後の住民税額から差し引いており、所得税・復興特別所得税・住民税それぞれの控除限度額の判定は`/foreign-tax-credit`の試算結果を前提とする。",
+      "外国税額控除(税額控除)は認定住宅等新築等特別税額控除適用後の所得税額・寄附金特別控除適用後の住民税額から差し引いており、所得税・復興特別所得税・住民税それぞれの控除限度額の判定は`/foreign-tax-credit`の試算結果を前提とする。",
     );
     if (
       foreignTaxCreditNationalTaxAppliedJpy.lessThan(foreignTaxCreditNationalTaxCreditJpy) ||
@@ -870,6 +915,8 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
     totalNationalTaxAfterDurabilityImprovementRenovationDeductionJpy,
     childRearingRenovationDeductionAppliedJpy,
     totalNationalTaxAfterChildRearingRenovationDeductionJpy,
+    certifiedHousingConstructionCreditAppliedJpy,
+    totalNationalTaxAfterCertifiedHousingConstructionCreditJpy,
     foreignTaxCreditNationalTaxAppliedJpy,
     foreignTaxCreditResidentTaxAppliedJpy,
     distributionAdjustedForeignTaxCreditAppliedJpy,
