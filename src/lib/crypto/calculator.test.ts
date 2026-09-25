@@ -127,6 +127,47 @@ describe("calculateCryptoYear (総平均法)", () => {
     ).toThrow();
   });
 
+  it("低額譲渡による取得(LOW_PRICE_TRANSFER_IN)は譲渡者側の総収入金額算入額を取得価額として引き継ぐ", () => {
+    // 国税庁FAQ2-10注3: 取得者は「対価の額+実質的に贈与を受けたと認められる金額」
+    // (=譲渡者側の総収入金額算入額と同額)を取得価額として引き継ぐ。
+    const result = calculateCryptoYear("BTC", [
+      {
+        type: "LOW_PRICE_TRANSFER_IN",
+        quantity: 1,
+        unitPriceJpy: 450_000,
+        marketValueUnitPriceJpy: 1_000_000,
+      },
+      { type: "SELL", quantity: 1, unitPriceJpy: 900_000 },
+    ]);
+
+    // 取得価額は時価の70%相当額(700,000円)。取得時点では収入計上しない。
+    expect(result.incomeJpy.toNumber()).toBe(0);
+    expect(result.acquiredCostJpy.toNumber()).toBe(700_000);
+    expect(result.averageUnitCostJpy.toNumber()).toBe(700_000);
+    expect(result.realizedGainJpy.toNumber()).toBe(200_000);
+  });
+
+  it("低額譲渡による取得でも対価が時価の70%相当額以上ならその対価がそのまま取得価額になる", () => {
+    const result = calculateCryptoYear("BTC", [
+      {
+        type: "LOW_PRICE_TRANSFER_IN",
+        quantity: 1,
+        unitPriceJpy: 750_000,
+        marketValueUnitPriceJpy: 1_000_000,
+      },
+    ]);
+
+    expect(result.acquiredCostJpy.toNumber()).toBe(750_000);
+  });
+
+  it("低額譲渡による取得(LOW_PRICE_TRANSFER_IN)に時価(marketValueUnitPriceJpy)が無い場合はエラーになる", () => {
+    expect(() =>
+      calculateCryptoYear("BTC", [
+        { type: "LOW_PRICE_TRANSFER_IN", quantity: 1, unitPriceJpy: 450_000 },
+      ]),
+    ).toThrow();
+  });
+
   it("暗号資産同士の交換(TRADE_IN/TRADE_OUT)を時価で評価する", () => {
     const result = calculateCryptoYear("BTC", [
       { type: "BUY", quantity: 1, unitPriceJpy: 3_000_000 },
@@ -401,6 +442,22 @@ describe("calculateCryptoYearMovingAverage (移動平均法)", () => {
 
     expect(result.proceedsJpy.toNumber()).toBe(700_000);
     expect(result.realizedGainJpy.toNumber()).toBe(250_000);
+  });
+
+  it("低額譲渡による取得(LOW_PRICE_TRANSFER_IN)は移動平均法でも時価の70%相当額を下限に取得価額を計算する", () => {
+    const result = calculateCryptoYearMovingAverage("BTC", [
+      {
+        type: "LOW_PRICE_TRANSFER_IN",
+        quantity: 1,
+        unitPriceJpy: 450_000,
+        marketValueUnitPriceJpy: 1_000_000,
+        tradedAt: new Date("2026-04-09"),
+      },
+      { type: "SELL", quantity: 1, unitPriceJpy: 900_000, tradedAt: new Date("2026-05-20") },
+    ]);
+
+    expect(result.incomeJpy.toNumber()).toBe(0);
+    expect(result.realizedGainJpy.toNumber()).toBe(200_000);
   });
 
   it("年内であっても、その時点の保有数量を超える譲渡はエラーになる(後で購入しても遡って相殺できない)", () => {
