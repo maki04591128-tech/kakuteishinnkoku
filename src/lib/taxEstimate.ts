@@ -832,7 +832,7 @@ export function estimateTotalTax(input: TotalTaxEstimateInput): TotalTaxEstimate
       certifiedHousingConstructionCreditAppliedJpy.lessThan(certifiedHousingConstructionCreditJpy)
     ) {
       notes.push(
-        "認定住宅等新築等特別税額控除額が控除適用後の所得税額を上回ったため、超過分は切り捨てて0円を下限とした(繰越・還付は生じない)。",
+        "認定住宅等新築等特別税額控除額が控除適用後の所得税額を上回ったため、この試算では超過分を切り捨てて0円を下限とした(還付は生じない)。ただし超過分は翌年分に1年間だけ繰り越せる制度(控除未済税額控除額)があり、`/certified-housing-construction-credit`の試算画面から繰越額を登録できる。",
       );
     }
   }

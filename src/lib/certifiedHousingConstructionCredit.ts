@@ -36,16 +36,23 @@ import { prisma } from "./db";
  *  - 同一の新築等について住宅借入金等特別控除(住宅ローン控除)の選択適用を受けないこと
  *    (両制度は選択適用で、一度選択すると選択替えはできない)。
  *
+ * 居住年の所得税額から控除しきれない場合(または居住年に確定申告書を提出
+ * すべき場合・提出できる場合のいずれにも該当しない場合)は、翌年分の所得税額
+ * から「控除未済税額控除額」を控除できる1年間限りの繰越制度がある(国税庁
+ * タックスアンサーNo.1221)。居住年分の試算画面(この控除の適用前の所得税額を
+ * 入力すると控除しきれない金額を試算できる)から翌年分として直接登録でき、
+ * 繰越を使う年の画面で当年分の登録額に合算すると
+ * `CertifiedHousingConstructionCreditCarryforward`から`CertifiedHousingConstructionCreditRecord`
+ * へ繰り越される(合算後は繰越データを消費済みとして削除する。1年限りの
+ * 繰越のため、合算後さらに翌々年へ繰り越すことはない)。繰越の適用には居住年・
+ * 翌年の両方の年分の合計所得金額がこの控除の所得要件(2,000万円以下。居住年が
+ * 令和5年までであれば3,000万円以下)を満たす必要があり、翌年分の要件は
+ * ユーザー自身が確認する前提とする。
+ *
  * **制約(今後の課題):**
  *  - 令和4年(2022年)1月1日より前に居住の用に供した場合は、限度額が消費税率
  *    (8%・10%)により650万円/500万円に分かれる場合があるなど算式・要件が
  *    異なり、本ツールはその判定情報を持たないため対象外とする。
- *  - 居住年の所得税額から控除しきれない場合、または居住年に確定申告書を
- *    提出すべき場合・提出できる場合のいずれにも該当しない場合(所得税額が
- *    無かった場合)は、翌年分の所得税額から「控除未済税額控除額」を控除できる
- *    1年間の繰越制度があるが、本ツールは居住年単独の控除額の試算のみを行い、
- *    この繰越の計算・翌年分への自動反映は行わない。繰越を利用する場合は、
- *    翌年分の入力欄に繰越分を含めた金額を手動で加算すること。
  *  - 個人が災害危険区域等内において新築(建替えを除く)または未使用住宅の
  *    取得をした場合、その住宅を令和10年(2028年)1月1日以後に居住の用に
  *    供したときはこの特別控除は適用できない特例があるが、住所・区域情報を
@@ -104,6 +111,13 @@ export interface CertifiedHousingConstructionCreditInput {
   usedHomeSaleCapitalGainsExclusion: boolean;
   /** 同一の新築等について住宅借入金等特別控除(住宅ローン控除)を選択するか(選択適用のため両方は受けられない) */
   choseMortgageDeductionInstead: boolean;
+  /**
+   * この控除の適用前の所得税額(他の税額控除適用後。概算)。指定すると、
+   * 居住年の所得税額から控除しきれず翌年分に繰り越せる金額(控除未済税額
+   * 控除額)を試算する。未指定の場合は居住年の所得税額で全額控除できるものと
+   * 仮定し、繰越額は0円として扱う。
+   */
+  taxBeforeThisCreditJpy?: Decimal.Value;
 }
 
 export interface CertifiedHousingConstructionCreditResult {
@@ -118,6 +132,16 @@ export interface CertifiedHousingConstructionCreditResult {
   cappedCostJpy: Decimal;
   /** 控除額(所得税分のみ。居住年分。100円未満切り捨て) */
   creditJpy: Decimal;
+  /**
+   * 居住年の所得税額から実際に控除できる額(taxBeforeThisCreditJpyを指定した
+   * 場合はcreditJpyとの少ない方、未指定の場合はcreditJpyと同額)
+   */
+  appliedJpy: Decimal;
+  /**
+   * 翌年分に繰り越せる控除未済税額控除額(creditJpy - appliedJpy)。
+   * taxBeforeThisCreditJpyを指定した場合のみ0円を超えうる。
+   */
+  carryforwardJpy: Decimal;
   notes: string[];
 }
 
@@ -135,7 +159,7 @@ export function estimateCertifiedHousingConstructionCredit(
   const notes: string[] = [
     "租税特別措置法41条の19の4・国税庁タックスアンサーNo.1221(令和4年1月1日以後に居住の用に供した場合の算式)に基づく概算値。住宅ローン控除と異なり借入金の有無を問わないが、同一の新築等について住宅ローン控除との選択適用(選択替え不可)となる。",
     "住民税に相当する控除制度は存在しないため、所得税額からのみ控除する(住宅耐震改修特別控除・住宅特定改修特別税額控除の各類型と同様)。",
-    "居住年の所得税額から控除しきれない場合等は翌年分に1年間繰り越せる制度があるが、本ツールは居住年単独の控除額のみを試算し、繰越の計算・自動反映は行わない(今後の課題)。",
+    "居住年の所得税額から控除しきれない場合等は翌年分に1年間だけ繰り越せる制度(控除未済税額控除額)がある。",
   ];
 
   function ineligible(reason: string): CertifiedHousingConstructionCreditResult {
@@ -147,6 +171,8 @@ export function estimateCertifiedHousingConstructionCredit(
       controlLimitJpy: new Decimal(0),
       cappedCostJpy: new Decimal(0),
       creditJpy: new Decimal(0),
+      appliedJpy: new Decimal(0),
+      carryforwardJpy: new Decimal(0),
       notes,
     };
   }
@@ -210,6 +236,24 @@ export function estimateCertifiedHousingConstructionCredit(
     notes.push("令和5年(2023年)までに居住の用に供しているため、合計所得金額の上限は3,000万円を適用した。");
   }
 
+  let appliedJpy = creditJpy;
+  let carryforwardJpy = new Decimal(0);
+  if (input.taxBeforeThisCreditJpy !== undefined) {
+    const taxBeforeThisCreditJpy = new Decimal(input.taxBeforeThisCreditJpy);
+    requireNonNegative(taxBeforeThisCreditJpy, "この控除の適用前の所得税額");
+    appliedJpy = Decimal.min(creditJpy, taxBeforeThisCreditJpy);
+    carryforwardJpy = creditJpy.minus(appliedJpy);
+    if (carryforwardJpy.greaterThan(0)) {
+      notes.push(
+        `居住年の所得税額(${taxBeforeThisCreditJpy.toString()}円)から控除しきれない${carryforwardJpy.toString()}円は、翌年分(1年間のみ)の所得税額から「控除未済税額控除額」として控除できる。居住年・翌年の両方の年分の合計所得金額が上限(${totalIncomeLimitJpy.toString()}円)以下であることが要件(翌年分の要件はその年に確認すること)。`,
+      );
+    }
+  } else {
+    notes.push(
+      "この控除の適用前の所得税額を入力すると、居住年の所得税額から控除しきれず翌年分に繰り越せる金額(控除未済税額控除額)を試算できる(未入力の場合は全額を居住年で控除できるものと仮定する)。",
+    );
+  }
+
   return {
     eligible: true,
     floorAreaSqm,
@@ -217,6 +261,8 @@ export function estimateCertifiedHousingConstructionCredit(
     controlLimitJpy: CONTROL_LIMIT_JPY,
     cappedCostJpy,
     creditJpy,
+    appliedJpy,
+    carryforwardJpy,
     notes,
   };
 }
@@ -247,5 +293,38 @@ export async function getCertifiedHousingConstructionCreditRecord(
   return {
     taxYear: year,
     creditJpy: new Decimal(record.creditJpy.toString()),
+  };
+}
+
+export interface CertifiedHousingConstructionCreditCarryforwardEntry {
+  /** 繰越額を使える年(暦年。居住年の翌年) */
+  taxYear: number;
+  /** 繰越元の居住年(暦年) */
+  originYear: number;
+  /** 翌年分に繰り越された控除未済税額控除額 */
+  remainingAmountJpy: Decimal;
+}
+
+/**
+ * 指定した年分(taxYear)に使える控除未済税額控除額の繰越(居住年の翌年分のみ)を
+ * DBから読み出す。`carryForwardCertifiedHousingConstructionCreditExcess`で
+ * 登録済みで、まだ`applyCertifiedHousingConstructionCreditCarryforward`で
+ * 合算・消費されていない場合のみ値を返す。未登録の年は null を返す。
+ */
+export async function getCertifiedHousingConstructionCreditCarryforward(
+  year: number,
+): Promise<CertifiedHousingConstructionCreditCarryforwardEntry | null> {
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (!taxYear) return null;
+
+  const record = await prisma.certifiedHousingConstructionCreditCarryforward.findUnique({
+    where: { taxYearId: taxYear.id },
+  });
+  if (!record) return null;
+
+  return {
+    taxYear: year,
+    originYear: record.originYear,
+    remainingAmountJpy: new Decimal(record.remainingAmountJpy.toString()),
   };
 }

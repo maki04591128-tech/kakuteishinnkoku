@@ -27,34 +27,35 @@ model TaxYear {
   /// 届出書)が必要で、一度選択すると原則3年間変更できない点に注意。
   cryptoCostMethod CryptoCostMethod @default(AVERAGE)
 
-  cryptoTrades                                CryptoTrade[]
-  cryptoMarginTrades                          CryptoMarginTrade[]
-  futuresTrades                               FuturesTrade[]
-  investmentTrades                            InvestmentTrade[]
-  importBatches                               ImportBatch[]
-  openingBalances                             OpeningBalance[]
-  openingBalancesByInstitution                OpeningBalanceByInstitution[]
-  investmentLossCarryforwards                 InvestmentLossCarryforward[]
-  futuresLossCarryforwards                    FuturesLossCarryforward[]
-  brokerAnnualReports                         BrokerAnnualReport[]
-  assetBalanceSnapshots                       AssetBalanceSnapshot[]
-  foreignTaxCreditCarryforwards               ForeignTaxCreditCarryforward[]
-  foreignTaxCreditSpareLimitCarryforwards     ForeignTaxCreditSpareLimitCarryforward[]
-  incomeDeductions                            IncomeDeduction[]
-  nisaLifetimeQuotas                          NisaLifetimeQuota[]
-  casualtyLossCarryforwards                   CasualtyLossCarryforward[]
-  mortgageDeductionRecords                    MortgageDeductionRecord[]
-  foreignTaxCreditRecords                     ForeignTaxCreditRecord[]
-  residentTaxAdjustmentDeductionRecords       ResidentTaxAdjustmentDeductionRecord[]
-  donationTaxCreditRecords                    DonationTaxCreditRecord[]
-  distributionAdjustedForeignTaxCreditRecords DistributionAdjustedForeignTaxCreditRecord[]
-  earthquakeRenovationDeductionRecords        EarthquakeRenovationDeductionRecord[]
-  energySavingRenovationDeductionRecords      EnergySavingRenovationDeductionRecord[]
-  barrierFreeRenovationDeductionRecords       BarrierFreeRenovationDeductionRecord[]
-  multiHouseholdRenovationDeductionRecords    MultiHouseholdRenovationDeductionRecord[]
+  cryptoTrades                                    CryptoTrade[]
+  cryptoMarginTrades                              CryptoMarginTrade[]
+  futuresTrades                                   FuturesTrade[]
+  investmentTrades                                InvestmentTrade[]
+  importBatches                                   ImportBatch[]
+  openingBalances                                 OpeningBalance[]
+  openingBalancesByInstitution                    OpeningBalanceByInstitution[]
+  investmentLossCarryforwards                     InvestmentLossCarryforward[]
+  futuresLossCarryforwards                        FuturesLossCarryforward[]
+  brokerAnnualReports                             BrokerAnnualReport[]
+  assetBalanceSnapshots                           AssetBalanceSnapshot[]
+  foreignTaxCreditCarryforwards                   ForeignTaxCreditCarryforward[]
+  foreignTaxCreditSpareLimitCarryforwards         ForeignTaxCreditSpareLimitCarryforward[]
+  incomeDeductions                                IncomeDeduction[]
+  nisaLifetimeQuotas                              NisaLifetimeQuota[]
+  casualtyLossCarryforwards                       CasualtyLossCarryforward[]
+  mortgageDeductionRecords                        MortgageDeductionRecord[]
+  foreignTaxCreditRecords                         ForeignTaxCreditRecord[]
+  residentTaxAdjustmentDeductionRecords           ResidentTaxAdjustmentDeductionRecord[]
+  donationTaxCreditRecords                        DonationTaxCreditRecord[]
+  distributionAdjustedForeignTaxCreditRecords     DistributionAdjustedForeignTaxCreditRecord[]
+  earthquakeRenovationDeductionRecords            EarthquakeRenovationDeductionRecord[]
+  energySavingRenovationDeductionRecords          EnergySavingRenovationDeductionRecord[]
+  barrierFreeRenovationDeductionRecords           BarrierFreeRenovationDeductionRecord[]
+  multiHouseholdRenovationDeductionRecords        MultiHouseholdRenovationDeductionRecord[]
   durabilityImprovementRenovationDeductionRecords DurabilityImprovementRenovationDeductionRecord[]
-  childRearingRenovationDeductionRecords      ChildRearingRenovationDeductionRecord[]
-  certifiedHousingConstructionCreditRecords   CertifiedHousingConstructionCreditRecord[]
+  childRearingRenovationDeductionRecords          ChildRearingRenovationDeductionRecord[]
+  certifiedHousingConstructionCreditRecords       CertifiedHousingConstructionCreditRecord[]
+  certifiedHousingConstructionCreditCarryforwards CertifiedHousingConstructionCreditCarryforward[]
 }
 
 enum CryptoCostMethod {
@@ -541,6 +542,32 @@ model CertifiedHousingConstructionCreditRecord {
 
   /// その年分の控除額(所得税分のみ)
   creditJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
+}
+
+/// 認定住宅等新築等特別税額控除(CertifiedHousingConstructionCreditRecord)の
+/// 居住年分の所得税額から控除しきれなかった金額(控除未済税額控除額)を、
+/// 翌年分(1年間のみ)に繰り越すためのデータ。`taxYearId`は繰越額を使える年
+/// (居住年の翌年)を指し、`originYear`はその繰越額が発生した居住年を指す。
+/// `/certified-housing-construction-credit`の試算画面で発生年分の登録時に
+/// 直接翌年分としてこのテーブルへ登録し(CasualtyLossCarryforwardの
+/// 一括登録パターンと同様)、繰越を使う年の画面で
+/// CertifiedHousingConstructionCreditRecord.creditJpy に合算した時点で
+/// このレコードを削除する(1年限りの繰越のため、消費後にさらに繰り越すことはない)。
+model CertifiedHousingConstructionCreditCarryforward {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 繰越元(居住年)の年(暦年)
+  originYear Int
+
+  /// 居住年の所得税額から控除しきれなかった金額(翌年分のみ繰越可能)
+  remainingAmountJpy Decimal
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

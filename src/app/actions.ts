@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Decimal } from "decimal.js";
 import { prisma } from "@/lib/db";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
@@ -1660,6 +1661,94 @@ export async function deleteCertifiedHousingConstructionCreditRecord(
   revalidatePath("/tax-estimate");
   revalidatePath("/certified-housing-construction-credit");
   redirect(`/certified-housing-construction-credit?year=${year}&deleted=1`);
+}
+
+/**
+ * 認定住宅等新築等特別税額控除(機能87)の居住年分の試算画面で、居住年の
+ * 所得税額から控除しきれなかった金額(控除未済税額控除額)を、雑損失の繰越控除
+ * (carryForwardCasualtyLossExcess)と同様に画面から直接翌年分の
+ * CertifiedHousingConstructionCreditCarryforwardとして登録する(1年限りの
+ * 繰越のため発生年の翌年のみを対象とする)。既に同じ年分の繰越が登録済みの
+ * 場合は上書きする(他の`save*Record`アクションと同様、登録ボタンを押すたびに
+ * 最新の試算結果で上書きする方式)。
+ */
+export async function carryForwardCertifiedHousingConstructionCreditExcess(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
+
+  const nextTaxYear = await getOrCreateTaxYear(year + 1);
+  await prisma.certifiedHousingConstructionCreditCarryforward.upsert({
+    where: { taxYearId: nextTaxYear.id },
+    create: { taxYearId: nextTaxYear.id, originYear: year, remainingAmountJpy },
+    update: { originYear: year, remainingAmountJpy },
+  });
+
+  revalidatePath("/certified-housing-construction-credit");
+  redirect(`/certified-housing-construction-credit?year=${year}&carryforwardSaved=1`);
+}
+
+/**
+ * carryForwardCertifiedHousingConstructionCreditExcessで登録した繰越額
+ * (CertifiedHousingConstructionCreditCarryforward)を、それを使える年分
+ * (居住年の翌年)の CertifiedHousingConstructionCreditRecord.creditJpy に
+ * 合算して登録する(既に当年分の登録がある場合はその金額に加算する)。1年限りの
+ * 繰越のため、合算後は繰越データを削除する(消費済みとし、さらに翌年へは
+ * 繰り越さない)。
+ */
+export async function applyCertifiedHousingConstructionCreditCarryforward(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const carryforward = taxYear
+    ? await prisma.certifiedHousingConstructionCreditCarryforward.findUnique({
+        where: { taxYearId: taxYear.id },
+      })
+    : null;
+
+  if (taxYear && carryforward) {
+    const existingRecord = await prisma.certifiedHousingConstructionCreditRecord.findUnique({
+      where: { taxYearId: taxYear.id },
+    });
+    const combinedCreditJpy = new Decimal(existingRecord?.creditJpy.toString() ?? "0")
+      .plus(carryforward.remainingAmountJpy.toString())
+      .toString();
+
+    await prisma.certifiedHousingConstructionCreditRecord.upsert({
+      where: { taxYearId: taxYear.id },
+      create: { taxYearId: taxYear.id, creditJpy: combinedCreditJpy },
+      update: { creditJpy: combinedCreditJpy },
+    });
+    await prisma.certifiedHousingConstructionCreditCarryforward.delete({
+      where: { taxYearId: taxYear.id },
+    });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/certified-housing-construction-credit");
+  redirect(`/certified-housing-construction-credit?year=${year}&carryforwardApplied=1`);
+}
+
+/**
+ * carryForwardCertifiedHousingConstructionCreditExcessで誤って登録した繰越額を
+ * 取り消す(まだapplyCertifiedHousingConstructionCreditCarryforwardで消費して
+ * いない場合のみ対象になる)。
+ */
+export async function deleteCertifiedHousingConstructionCreditCarryforward(
+  formData: FormData,
+): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.certifiedHousingConstructionCreditCarryforward.deleteMany({
+      where: { taxYearId: taxYear.id },
+    });
+  }
+
+  revalidatePath("/certified-housing-construction-credit");
+  redirect(`/certified-housing-construction-credit?year=${year}&carryforwardDeleted=1`);
 }
 
 /**

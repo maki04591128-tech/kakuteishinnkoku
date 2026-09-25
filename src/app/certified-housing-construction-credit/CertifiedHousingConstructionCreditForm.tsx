@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  carryForwardCertifiedHousingConstructionCreditExcess,
   deleteCertifiedHousingConstructionCreditRecord,
   saveCertifiedHousingConstructionCreditRecord,
 } from "@/app/actions";
@@ -28,6 +29,7 @@ export function CertifiedHousingConstructionCreditForm({
   const [housingType, setHousingType] = useState<CertifiedHousingType>("CERTIFIED");
   const [floorAreaSqm, setFloorAreaSqm] = useState("100");
   const [totalIncomeJpy, setTotalIncomeJpy] = useState("0");
+  const [taxBeforeThisCreditJpy, setTaxBeforeThisCreditJpy] = useState("");
   const [isNewOrUnusedAcquisition, setIsNewOrUnusedAcquisition] = useState(true);
   const [occupiedWithinSixMonths, setOccupiedWithinSixMonths] = useState(true);
   const [atLeastHalfOwnResidence, setAtLeastHalfOwnResidence] = useState(true);
@@ -50,6 +52,7 @@ export function CertifiedHousingConstructionCreditForm({
         isMainResidenceAmongMultipleHomes,
         usedHomeSaleCapitalGainsExclusion,
         choseMortgageDeductionInstead,
+        taxBeforeThisCreditJpy: taxBeforeThisCreditJpy === "" ? undefined : taxBeforeThisCreditJpy,
       });
     } catch {
       return null;
@@ -65,6 +68,7 @@ export function CertifiedHousingConstructionCreditForm({
     isMainResidenceAmongMultipleHomes,
     usedHomeSaleCapitalGainsExclusion,
     choseMortgageDeductionInstead,
+    taxBeforeThisCreditJpy,
   ]);
 
   return (
@@ -92,6 +96,12 @@ export function CertifiedHousingConstructionCreditForm({
         </label>
         <Field label="床面積(平方メートル)" value={floorAreaSqm} onChange={setFloorAreaSqm} />
         <Field label="合計所得金額(円)" value={totalIncomeJpy} onChange={setTotalIncomeJpy} />
+        <Field
+          label="この控除の適用前の所得税額(円・任意)"
+          helper="他の税額控除適用後の概算額。翌年繰越額の試算に使う"
+          value={taxBeforeThisCreditJpy}
+          onChange={setTaxBeforeThisCreditJpy}
+        />
       </fieldset>
 
       <fieldset className="flex flex-wrap gap-4 rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800">
@@ -163,6 +173,11 @@ export function CertifiedHousingConstructionCreditForm({
               標準的なかかり増し費用 {yen(result.incrementalCostJpy)} → 限度額適用後{" "}
               {yen(result.cappedCostJpy)} × 10%
             </p>
+            {taxBeforeThisCreditJpy !== "" && (
+              <p className="mt-1 text-xs text-neutral-400">
+                うち居住年分で控除: {yen(result.appliedJpy)}
+              </p>
+            )}
           </div>
 
           <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
@@ -194,6 +209,29 @@ export function CertifiedHousingConstructionCreditForm({
               </div>
             )}
           </div>
+
+          {result.carryforwardJpy.greaterThan(0) && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                翌年({Number(residenceYear) + 1}年)に繰り越せる控除未済税額控除額:{" "}
+                <span className="font-semibold">{yen(result.carryforwardJpy)}</span>
+              </p>
+              <form action={carryForwardCertifiedHousingConstructionCreditExcess} className="mt-2">
+                <input type="hidden" name="year" value={residenceYear} />
+                <input
+                  type="hidden"
+                  name="remainingAmountJpy"
+                  value={result.carryforwardJpy.toString()}
+                />
+                <button
+                  type="submit"
+                  className="rounded-md border border-amber-400 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+                >
+                  この繰越額を{Number(residenceYear) + 1}年分として登録する
+                </button>
+              </form>
+            </div>
+          )}
 
           <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-500">
             {result.notes.map((note, i) => (
