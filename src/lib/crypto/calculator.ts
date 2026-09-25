@@ -17,10 +17,12 @@ import { Decimal } from "decimal.js";
  * 所法40、所令87、所基通達40-2・40-3)。実際の対価の額と時価の70%相当額との差額
  * のうち実質的に贈与したと認められる金額を総収入金額に算入する必要があるため、
  * 本ツールでは総収入金額 = max(実際の対価, 時価の70%相当額) として計算する。
- * 令和元年分以後の所得税について適用。譲渡者(みなし譲渡課税を受ける側)の取扱いのみ
- * 対応し、取得者側がその後この暗号資産を譲渡する際の取得価額の引継ぎ(対価の額+
- * 実質的に贈与を受けたと認められる金額。GIFT_INと同様の仕組みが必要)は今後の課題
- * とする(取得者は通常のBUYとして入力した対価の額のみが取得価額になる)。
+ * 令和元年分以後の所得税について適用。LOW_PRICE_TRANSFER_IN(低額譲渡による取得)は
+ * その裏側、取得者側の取扱い。同FAQ2-10注3により、将来譲渡する際の取得価額は
+ * 「対価の額+実質的に贈与を受けたと認められる金額」、すなわち譲渡者側が総収入金額に
+ * 算入した額(=max(実際の対価, 時価の70%相当額))をそのまま引き継ぐ必要があるため、
+ * LOW_PRICE_TRANSFER_OUTと同じ計算式を取得側にも適用する(GIFT_INと同様、取得時点では
+ * 雑所得の収入計上はしない)。
  */
 
 export type CryptoTradeType =
@@ -32,6 +34,7 @@ export type CryptoTradeType =
   | "GIFT_IN"
   | "GIFT_OUT"
   | "LOW_PRICE_TRANSFER_OUT"
+  | "LOW_PRICE_TRANSFER_IN"
   | "FEE";
 
 export type CryptoCostMethod = "AVERAGE" | "MOVING_AVERAGE";
@@ -47,16 +50,18 @@ export interface CryptoTradeInput {
    * に関する税務上の取扱いについて(FAQ)」1-5参照)、GIFT_OUTは贈与・寄附又は遺贈をした時に
    * おけるその暗号資産の時価(同FAQ2-10「暗号資産を低額(無償)譲渡等した場合の取扱い」・1-4
    * 「暗号資産による寄附を行った場合」参照。相続人に対する死因贈与・包括遺贈・特定遺贈は
-   * 対象外(相続税の課税対象でありGIFT_INの対象))、LOW_PRICE_TRANSFER_OUTは実際に受け取った
-   * 対価の額(marketValueUnitPriceJpyとの差額はこのフィールドではなくそちらで判定する)。
+   * 対象外(相続税の課税対象でありGIFT_INの対象))、LOW_PRICE_TRANSFER_OUT/
+   * LOW_PRICE_TRANSFER_INはいずれも実際に授受された対価の額(marketValueUnitPriceJpyとの
+   * 差額はこのフィールドではなくそちらで判定する)。
    */
   unitPriceJpy: Decimal.Value;
   /**
-   * LOW_PRICE_TRANSFER_OUT(低額譲渡)専用。譲渡した時点における暗号資産の時価(単価)。
-   * 実際の対価(unitPriceJpy)がこの時価の70%相当額未満の場合、国税庁FAQ2-10「暗号資産を
-   * 低額(無償)譲渡等した場合の取扱い」により、時価の70%相当額を総収入金額として計算する
+   * LOW_PRICE_TRANSFER_OUT(低額譲渡)・LOW_PRICE_TRANSFER_IN(低額譲渡による取得)専用。
+   * 譲渡(取得)した時点における暗号資産の時価(単価)。実際の対価(unitPriceJpy)がこの
+   * 時価の70%相当額未満の場合、国税庁FAQ2-10「暗号資産を低額(無償)譲渡等した場合の
+   * 取扱い」により、時価の70%相当額を総収入金額(取得側は取得価額)として計算する
    * (所法40、所令87、所基通達40-2・40-3)。70%相当額以上であれば低額譲渡に該当せず、
-   * 実際の対価がそのまま総収入金額になる。他の取引種別では無視される。
+   * 実際の対価がそのまま総収入金額(取得価額)になる。他の取引種別では無視される。
    */
   marketValueUnitPriceJpy?: Decimal.Value;
   /** 日本円換算の手数料(円建てで支払われた場合)。暗号資産建て手数料は type: "FEE" の別取引として渡す。 */
@@ -85,8 +90,9 @@ export interface CryptoSymbolYearResult {
   averageUnitCostJpy: Decimal;
   /**
    * マイニング・ステーキング・レンディング等、取得時点で収入計上すべき金額。
-   * 贈与・相続等(GIFT_IN)による取得は、相続税・贈与税の課税対象となり所得税の
-   * 収入金額には算入しないため含まない(取得価額として取得原価に加算するのみ)。
+   * 贈与・相続等(GIFT_IN)・低額譲渡による取得(LOW_PRICE_TRANSFER_IN)による取得は、
+   * 前者は相続税・贈与税の課税対象、後者は譲渡者側で既にみなし譲渡課税済みのため、
+   * いずれも所得税の収入金額には算入しない(取得価額として取得原価に加算するのみ)。
    */
   incomeJpy: Decimal;
   disposedQuantity: Decimal;
@@ -106,6 +112,7 @@ const ACQUIRE_TYPES: ReadonlySet<CryptoTradeType> = new Set([
   "TRADE_IN",
   "INCOME",
   "GIFT_IN",
+  "LOW_PRICE_TRANSFER_IN",
 ]);
 const DISPOSE_TYPES: ReadonlySet<CryptoTradeType> = new Set([
   "SELL",
@@ -113,6 +120,12 @@ const DISPOSE_TYPES: ReadonlySet<CryptoTradeType> = new Set([
   "FEE",
   "GIFT_OUT",
   "LOW_PRICE_TRANSFER_OUT",
+]);
+
+/** 低額譲渡(国税庁FAQ2-10)の対象となる取引種別(譲渡側・取得側の双方) */
+const LOW_PRICE_TRANSFER_TYPES: ReadonlySet<CryptoTradeType> = new Set([
+  "LOW_PRICE_TRANSFER_OUT",
+  "LOW_PRICE_TRANSFER_IN",
 ]);
 
 /** 低額譲渡(国税庁FAQ2-10)の判定・総収入金額算入額の基準となる時価に対する割合 */
@@ -123,20 +136,23 @@ function toDecimal(value: Decimal.Value): Decimal {
 }
 
 /**
- * 譲渡単価を、LOW_PRICE_TRANSFER_OUT(低額譲渡)の場合は実際の対価と時価の70%相当額の
- * いずれか高い方に補正して返す(国税庁FAQ2-10)。それ以外の取引種別は実際の単価をそのまま返す。
+ * LOW_PRICE_TRANSFER_OUT(低額譲渡)・LOW_PRICE_TRANSFER_IN(低額譲渡による取得)の場合、
+ * 単価を実際の対価と時価の70%相当額のいずれか高い方に補正して返す(国税庁FAQ2-10)。
+ * 譲渡側は総収入金額、取得側は取得価額としてこの値を用いる(同FAQ2-10注3により、取得側は
+ * 譲渡側が総収入金額に算入した額をそのまま取得価額として引き継ぐため、同じ計算式になる)。
+ * それ以外の取引種別は実際の単価をそのまま返す。
  */
-function resolveDisposalUnitPriceJpy(
+function resolveLowPriceTransferUnitPriceJpy(
   trade: CryptoTradeInput,
   unitPrice: Decimal,
   symbol: string,
 ): Decimal {
-  if (trade.type !== "LOW_PRICE_TRANSFER_OUT") {
+  if (!LOW_PRICE_TRANSFER_TYPES.has(trade.type)) {
     return unitPrice;
   }
   if (trade.marketValueUnitPriceJpy === undefined) {
     throw new Error(
-      `低額譲渡(LOW_PRICE_TRANSFER_OUT)には譲渡時の時価(marketValueUnitPriceJpy)の指定が必須です (symbol=${symbol})`,
+      `低額譲渡(${trade.type})には譲渡(取得)時の時価(marketValueUnitPriceJpy)の指定が必須です (symbol=${symbol})`,
     );
   }
   const marketValueUnitPrice = toDecimal(trade.marketValueUnitPriceJpy);
@@ -210,7 +226,11 @@ function calculateCryptoYearAverage(
     }
 
     if (ACQUIRE_TYPES.has(trade.type)) {
-      const grossValue = quantity.times(unitPrice);
+      // LOW_PRICE_TRANSFER_IN(低額譲渡による取得)は実際の対価と時価の70%相当額の
+      // いずれか高い方を取得価額とする(国税庁FAQ2-10注3。譲渡者側の総収入金額算入額を
+      // そのまま引き継ぐ)。それ以外の取引種別は実際の単価をそのまま用いる。
+      const acquisitionUnitPrice = resolveLowPriceTransferUnitPriceJpy(trade, unitPrice, symbol);
+      const grossValue = quantity.times(acquisitionUnitPrice);
       acquiredQuantity = acquiredQuantity.plus(quantity);
       acquiredCostJpy = acquiredCostJpy.plus(grossValue).plus(fee);
       if (trade.type === "INCOME") {
@@ -218,15 +238,16 @@ function calculateCryptoYearAverage(
         // 同額が取得価額としてプールされるため、将来売却時の二重課税は生じない。
         incomeJpy = incomeJpy.plus(grossValue);
       }
-      // GIFT_IN(贈与・相続等による取得)は取得価額としてプールするのみで、
-      // 取得時点では雑所得の収入計上をしない(相続税・贈与税の課税対象のため)。
+      // GIFT_IN(贈与・相続等による取得)・LOW_PRICE_TRANSFER_IN(低額譲渡による取得)は
+      // 取得価額としてプールするのみで、取得時点では雑所得の収入計上をしない
+      // (前者は相続税・贈与税の課税対象、後者は譲渡者側で既にみなし譲渡課税済みのため)。
     } else if (DISPOSE_TYPES.has(trade.type)) {
       // GIFT_OUT(贈与・寄附・遺贈による無償譲渡)もSELL/TRADE_OUTと同じく
       // quantity×unitPriceJpy(=その時の時価)をそのまま総収入金額とする
       // (国税庁FAQ2-10。実際の対価の受取は無いが、みなし譲渡として課税される)。
       // LOW_PRICE_TRANSFER_OUT(低額譲渡)は実際の対価と時価の70%相当額のいずれか
       // 高い方を総収入金額とする(同FAQ2-10)。
-      const disposalUnitPrice = resolveDisposalUnitPriceJpy(trade, unitPrice, symbol);
+      const disposalUnitPrice = resolveLowPriceTransferUnitPriceJpy(trade, unitPrice, symbol);
       const grossValue = quantity.times(disposalUnitPrice);
       disposedQuantity = disposedQuantity.plus(quantity);
       proceedsJpy = proceedsJpy.plus(grossValue).minus(fee);
@@ -328,7 +349,8 @@ export function calculateCryptoYearMovingAverage(
     }
 
     if (ACQUIRE_TYPES.has(trade.type)) {
-      const grossValue = tradeQuantity.times(unitPrice);
+      const acquisitionUnitPrice = resolveLowPriceTransferUnitPriceJpy(trade, unitPrice, symbol);
+      const grossValue = tradeQuantity.times(acquisitionUnitPrice);
       const cost = grossValue.plus(fee);
       quantity = quantity.plus(tradeQuantity);
       costJpy = costJpy.plus(cost);
@@ -343,7 +365,7 @@ export function calculateCryptoYearMovingAverage(
           `その時点の保有数量(${quantity.toString()})を超える数量(${tradeQuantity.toString()})が譲渡されています (symbol=${symbol})`,
         );
       }
-      const disposalUnitPrice = resolveDisposalUnitPriceJpy(trade, unitPrice, symbol);
+      const disposalUnitPrice = resolveLowPriceTransferUnitPriceJpy(trade, unitPrice, symbol);
       const grossValue = tradeQuantity.times(disposalUnitPrice);
       const averageUnitCost = quantity.isZero() ? new Decimal(0) : costJpy.dividedBy(quantity);
       const costOfDisposed = averageUnitCost.times(tradeQuantity);
