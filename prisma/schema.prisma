@@ -59,6 +59,7 @@ model TaxYear {
   certifiedHousingConstructionCreditCarryforwards CertifiedHousingConstructionCreditCarryforward[]
   homeSaleLossCarryforwards                       HomeSaleLossCarryforward[]
   homeReplacementLossCarryforwards                HomeReplacementLossCarryforward[]
+  employmentIncomeRecords                         EmploymentIncomeRecord[]
 }
 
 enum CryptoCostMethod {
@@ -313,6 +314,30 @@ model HomeReplacementLossCarryforward {
   updatedAt DateTime @updatedAt
 
   @@unique([taxYearId, originYear])
+}
+
+/// 給与所得の試算(`src/lib/employmentIncome.ts`・`/employment-income`)で登録した
+/// 年分ごとの給与収入金額(源泉徴収票の「支払金額」)を保存する。`/tax-estimate`は
+/// これまで所得控除の登録が無い場合の「給与所得等の課税所得金額」の初期値として
+/// 実際の給与収入額とは無関係な固定値(500万円)を使っていたが、ここに登録すると
+/// 実際の給与収入金額から`employmentIncomeDeductionJpy`
+/// (`src/lib/specificExpenseDeduction.ts`)で計算した給与所得金額を初期値の
+/// 基礎として使う(登録後も入力欄は手入力で上書き可能)。給与所得金額自体は
+/// 年分によって給与所得控除額の速算表が変わるため保存せず、参照の都度
+/// 給与収入金額と年分から再計算する。
+model EmploymentIncomeRecord {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// その年分の給与収入金額(源泉徴収票の「支払金額」。1か所のみを想定し、
+  /// 2か所以上から給与を受ける場合は合計額をユーザー自身が入力する前提)
+  grossSalaryJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId])
 }
 
 /// 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除

@@ -1919,6 +1919,44 @@ export async function deleteResidentTaxAdjustmentDeductionRecord(
   );
 }
 
+/**
+ * 給与所得の試算(/employment-income)で入力した給与収入金額をEmploymentIncomeRecordとして
+ * 登録する。住民税の調整控除(saveResidentTaxAdjustmentDeductionRecord)等と同様、
+ * `/tax-estimate`の「給与所得等の課税所得金額」の初期値への自動反映に使う。
+ * 既に登録済みの場合は上書きする。
+ */
+export async function saveEmploymentIncomeRecord(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const grossSalaryJpy = requireString(formData, "grossSalaryJpy");
+
+  const taxYear = await getOrCreateTaxYear(year);
+  await prisma.employmentIncomeRecord.upsert({
+    where: { taxYearId: taxYear.id },
+    create: { taxYearId: taxYear.id, grossSalaryJpy },
+    update: { grossSalaryJpy },
+  });
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/employment-income");
+  redirect(`/employment-income?year=${year}&employmentIncomeSaved=1`);
+}
+
+/**
+ * saveEmploymentIncomeRecordで登録した当年分のEmploymentIncomeRecordを削除する
+ * (deleteResidentTaxAdjustmentDeductionRecordと同様の取り消し操作)。
+ */
+export async function deleteEmploymentIncomeRecord(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  if (taxYear) {
+    await prisma.employmentIncomeRecord.deleteMany({ where: { taxYearId: taxYear.id } });
+  }
+
+  revalidatePath("/tax-estimate");
+  revalidatePath("/employment-income");
+  redirect(`/employment-income?year=${year}&employmentIncomeDeleted=1`);
+}
+
 export async function setCasualtyLossCarryforward(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
