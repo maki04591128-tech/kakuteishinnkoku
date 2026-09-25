@@ -2052,3 +2052,71 @@ export async function carryForwardHomeSaleLossExcess(formData: FormData): Promis
   revalidatePath("/import");
   redirect(`/home-sale-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
 }
+
+export async function setHomeReplacementLossCarryforward(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const originYear = Number(requireString(formData, "originYear"));
+  const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
+  if (!Number.isInteger(originYear) || originYear > year) {
+    throw new Error("譲渡損失の発生年は対象年分以前の年である必要があります");
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.homeReplacementLossCarryforward.upsert({
+    where: {
+      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
+    },
+    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
+    update: { remainingAmountJpy },
+  });
+
+  revalidatePath("/import");
+  revalidatePath("/home-replacement-loss-deduction");
+  redirect(`/import?year=${year}&tab=homeReplacementLossCarryforward`);
+}
+
+export async function deleteHomeReplacementLossCarryforward(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.homeReplacementLossCarryforward.delete({ where: { id } });
+  revalidatePath("/import");
+  revalidatePath("/home-replacement-loss-deduction");
+  redirect(`/import?year=${year}&tab=homeReplacementLossCarryforward`);
+}
+
+/**
+ * 居住用財産の買換え等の場合の譲渡損失の損益通算及び繰越控除の試算画面
+ * (/home-replacement-loss-deduction)の当年分の計算結果のうち、翌年以後に繰り越す
+ * 譲渡損失額(発生年ごと)を、翌年分のHomeReplacementLossCarryforwardとしてまとめて
+ * 登録する。carryForwardHomeSaleLossExcessと同様、試算に必要な譲渡価額・取得費・
+ * 敷地面積・買換資産のデータ・総所得金額等はDBに保存されない都度入力のため、前年分を
+ * サーバー側で再計算することはできない。そのため、試算画面の計算結果を画面から直接
+ * この年の翌年分として保存する方式にしている(既に翌年分に同じ発生年の登録がある場合は
+ * 上書きしない)。
+ */
+export async function carryForwardHomeReplacementLossExcess(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const entriesJson = requireString(formData, "carryforwardToNextYearJson");
+  const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
+
+  const nextTaxYear = await getOrCreateTaxYear(year + 1);
+  const existing = await prisma.homeReplacementLossCarryforward.findMany({
+    where: { taxYearId: nextTaxYear.id },
+    select: { originYear: true },
+  });
+  const existingYears = new Set(existing.map((e) => e.originYear));
+  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
+
+  if (toCreate.length > 0) {
+    await prisma.homeReplacementLossCarryforward.createMany({
+      data: toCreate.map((e) => ({
+        taxYearId: nextTaxYear.id,
+        originYear: e.originYear,
+        remainingAmountJpy: e.remainingAmountJpy,
+      })),
+    });
+  }
+
+  revalidatePath("/import");
+  redirect(`/home-replacement-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
+}

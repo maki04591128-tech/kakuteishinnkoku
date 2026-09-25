@@ -58,6 +58,7 @@ model TaxYear {
   certifiedHousingConstructionCreditRecords       CertifiedHousingConstructionCreditRecord[]
   certifiedHousingConstructionCreditCarryforwards CertifiedHousingConstructionCreditCarryforward[]
   homeSaleLossCarryforwards                       HomeSaleLossCarryforward[]
+  homeReplacementLossCarryforwards                HomeReplacementLossCarryforward[]
 }
 
 enum CryptoCostMethod {
@@ -274,6 +275,30 @@ model CasualtyLossCarryforward {
 /// 異なり、繰越控除を適用する年の合計所得金額が3,000万円を超える場合はその年は
 /// 繰越控除を適用できない点に注意(計算エンジン側で判定)。
 model HomeSaleLossCarryforward {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 譲渡損失が発生した年(暦年)
+  originYear Int
+
+  /// taxYearId の年初時点で残っている繰越控除可能な譲渡損失額
+  remainingAmountJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, originYear])
+}
+
+/// 居住用財産の買換え等の場合の譲渡損失の損益通算及び繰越控除の特例(措置法41条の5)の
+/// 繰越控除(3年間)。HomeSaleLossCarryforward(措置法41条の5の2)と同様の発生年
+/// (originYear)ごとの残高管理・計算エンジン側(src/lib/realEstate/
+/// homeReplacementLossCarryforward.ts の calculateHomeReplacementLossCarryforward)で
+/// 発生年の古い順に当年の総所得金額等から控除する仕組みだが、繰越控除を適用する年は
+/// 合計所得金額3,000万円以下に加え、その年の12月31日時点で買換資産(新居宅)に係る
+/// 償還期間10年以上の住宅借入金等を有することも要件になる点が固有(計算エンジン側で判定)。
+model HomeReplacementLossCarryforward {
   id        Int     @id @default(autoincrement())
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
@@ -650,6 +675,12 @@ enum IncomeDeductionType {
   /// 損益通算するものだが、本ツールでは他の所得控除と同様に合算して試算する
   /// 簡略化としている(incomeDeduction.ts参照)。
   HOME_SALE_LOSS
+  /// 居住用財産の買換え等の場合の譲渡損失の損益通算(措置法41条の5。
+  /// src/lib/realEstate/homeReplacementLossCarryforward.ts)。HOME_SALE_LOSSと同様、
+  /// 厳密には「所得控除」ではなく譲渡所得の損失をその年の総所得金額等と損益通算する
+  /// ものだが、本ツールでは他の所得控除と同様に合算して試算する簡略化としている
+  /// (incomeDeduction.ts参照)。
+  HOME_REPLACEMENT_LOSS
 }
 
 /// NISA生涯投資枠(2024年以降の新NISA制度における総枠1,800万円・
