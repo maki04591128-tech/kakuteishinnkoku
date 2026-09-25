@@ -15,6 +15,7 @@ export function HomeSaleDeductionForm() {
   const [ownershipYears, setOwnershipYears] = useState("");
   const [specialDeductionEligible, setSpecialDeductionEligible] = useState(true);
   const [reducedRateEligible, setReducedRateEligible] = useState(false);
+  const [useEstimatedAcquisitionCost, setUseEstimatedAcquisitionCost] = useState(false);
 
   const result = useMemo(() => {
     try {
@@ -25,6 +26,7 @@ export function HomeSaleDeductionForm() {
         ownershipYears: ownershipYears === "" ? 0 : Number(ownershipYears),
         specialDeductionEligible,
         reducedRateEligible,
+        useEstimatedAcquisitionCost,
       });
     } catch {
       return null;
@@ -36,6 +38,7 @@ export function HomeSaleDeductionForm() {
     ownershipYears,
     specialDeductionEligible,
     reducedRateEligible,
+    useEstimatedAcquisitionCost,
   ]);
 
   return (
@@ -79,6 +82,15 @@ export function HomeSaleDeductionForm() {
           />
           所有期間10年超の居住用財産の軽減税率の特例(措置法31条の3)の要件を満たす
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={useEstimatedAcquisitionCost}
+            onChange={(e) => setUseEstimatedAcquisitionCost(e.target.checked)}
+          />
+          取得費が不明、または譲渡価額の5%相当額を下回る場合、概算取得費の特例
+          (措置法31条の4)を使う
+        </label>
       </div>
 
       {result === null ? (
@@ -87,6 +99,13 @@ export function HomeSaleDeductionForm() {
         </p>
       ) : (
         <>
+          {result.estimatedAcquisitionCostApplied && (
+            <p className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+              概算取得費の特例により、取得費として譲渡価額の5%相当額(
+              {yen(result.estimatedAcquisitionCostJpy)})を採用した。
+            </p>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <SummaryCard label="譲渡所得(特別控除前)" value={result.transferGainJpy} />
             <SummaryCard label="3,000万円特別控除の適用額" value={result.specialDeductionAppliedJpy} />

@@ -1,5 +1,6 @@
 import { Decimal } from "decimal.js";
 import { RECONSTRUCTION_SURTAX_RATE } from "../incomeTax";
+import { resolveAcquisitionCostJpy } from "./estimatedAcquisitionCost";
 
 /**
  * 居住用財産(マイホーム)を譲渡した場合の税額試算。
@@ -31,9 +32,10 @@ import { RECONSTRUCTION_SURTAX_RATE } from "../incomeTax";
  *    試算できる。本モジュール(homeSaleTaxSimulation.ts)自体は譲渡益が生じた場合の
  *    特例のみを対象とするため、譲渡損失が生じた場合はその旨のみ注記し、税額は0円
  *    として返す。
- *  - 取得費が不明な場合の概算取得費(譲渡価額の5%。措置法31条の4)は自動算出せず、
- *    `acquisitionCostJpy`にユーザー自身が算出した金額(概算取得費を用いる場合はその額)を
- *    入力する前提とする。
+ *  - 取得費が不明な場合の概算取得費(譲渡価額の5%。措置法31条の4、国税庁タックス
+ *    アンサーNo.3258)は`useEstimatedAcquisitionCost`をtrueにすると、
+ *    `acquisitionCostJpy`(不明な場合は0円)と5%相当額の高い方を自動採用する
+ *    (`estimatedAcquisitionCost.ts`参照)。
  *  - 収用等に伴う5,000万円特別控除・被相続人の居住用財産(空き家)を譲渡した場合の
  *    3,000万円特別控除(措置法35条3項)等、他の譲渡所得の特例は対象外。
  *  - 住宅ローン控除(`mortgageDeduction.ts`)との重複適用制限(買換え等の場合、
@@ -61,10 +63,15 @@ export type HoldingPeriodCategory = "SHORT_TERM" | "LONG_TERM";
 export interface HomeSaleTaxSimulationInput {
   /** 譲渡価額(売却代金) */
   transferPriceJpy: Decimal.Value;
-  /** 取得費(取得価額-減価償却費相当額等) */
+  /** 取得費(取得価額-減価償却費相当額等。不明な場合は0円を入力し、下のuseEstimatedAcquisitionCostで概算取得費を使う) */
   acquisitionCostJpy: Decimal.Value;
   /** 譲渡費用(仲介手数料・印紙税等) */
   transferExpensesJpy: Decimal.Value;
+  /**
+   * 取得費が不明、または譲渡価額の5%相当額を下回る場合に、概算取得費の特例
+   * (措置法31条の4)により譲渡価額の5%相当額を取得費として使うか(省略時false)。
+   */
+  useEstimatedAcquisitionCost?: boolean;
   /** 譲渡した年の1月1日時点の所有期間(年)。5年以下は短期、5年超は長期譲渡所得 */
   ownershipYears: number;
   /** 居住用財産の3,000万円特別控除(措置法35条)の要件を満たすか(ユーザー自身の確認事項) */
@@ -84,6 +91,12 @@ export interface HomeSaleTaxRatePortion {
 }
 
 export interface HomeSaleTaxSimulationResult {
+  /** 実際に計算に採用した取得費(概算取得費を適用した場合はその金額) */
+  acquisitionCostJpy: Decimal;
+  /** 概算取得費(譲渡価額の5%相当額。参考表示用に常に計算する) */
+  estimatedAcquisitionCostJpy: Decimal;
+  /** 概算取得費の特例が実際に適用されたか */
+  estimatedAcquisitionCostApplied: boolean;
   /** 特別控除適用前の譲渡所得の金額(譲渡価額-(取得費+譲渡費用)) */
   transferGainJpy: Decimal;
   holdingPeriodCategory: HoldingPeriodCategory;
@@ -111,15 +124,20 @@ export function simulateHomeSaleTax(
   input: HomeSaleTaxSimulationInput,
 ): HomeSaleTaxSimulationResult {
   const transferPriceJpy = new Decimal(input.transferPriceJpy);
-  const acquisitionCostJpy = new Decimal(input.acquisitionCostJpy);
   const transferExpensesJpy = new Decimal(input.transferExpensesJpy);
 
   requireNonNegative(transferPriceJpy, "譲渡価額");
-  requireNonNegative(acquisitionCostJpy, "取得費");
   requireNonNegative(transferExpensesJpy, "譲渡費用");
   if (!Number.isInteger(input.ownershipYears) || input.ownershipYears < 0) {
     throw new Error("所有期間(年)は0以上の整数である必要があります");
   }
+
+  const acquisitionCostResolution = resolveAcquisitionCostJpy({
+    actualAcquisitionCostJpy: input.acquisitionCostJpy,
+    transferPriceJpy,
+    useEstimated: input.useEstimatedAcquisitionCost ?? false,
+  });
+  const acquisitionCostJpy = acquisitionCostResolution.acquisitionCostJpy;
 
   const transferGainJpy = transferPriceJpy.minus(acquisitionCostJpy).minus(transferExpensesJpy);
   const holdingPeriodCategory: HoldingPeriodCategory =
@@ -128,6 +146,7 @@ export function simulateHomeSaleTax(
   const notes: string[] = [
     "租税特別措置法35条(居住用財産の3,000万円特別控除)・31条の3(所有期間10年超の居住用財産の軽減税率の特例)に基づく概算値。いずれも自己の居住用財産であること、配偶者・直系血族等特別の関係がある者への譲渡でないこと、前年・前々年に同一の特例の適用を受けていないこと等の適用要件の判定は行わないため、必ず国税庁タックスアンサーNo.3302・No.3305等で自身の適用可否を確認すること。",
     "所有期間は譲渡した年の1月1日時点で判定する(実際の保有期間ではない点に注意)。5年以下は短期譲渡所得(税率合計39.63%)、5年超は長期譲渡所得(税率合計20.315%)。",
+    ...acquisitionCostResolution.notes,
   ];
 
   if (transferGainJpy.lessThanOrEqualTo(0)) {
@@ -135,6 +154,9 @@ export function simulateHomeSaleTax(
       "譲渡損失(譲渡価額が取得費・譲渡費用の合計以下)のため税額は生じない。マイホームの譲渡損失の損益通算・繰越控除(措置法41条の5・41条の5の2)は別制度のため本モジュールでは試算しない(homeReplacementLossCarryforward.ts・homeSaleLossCarryforward.tsを参照)。",
     );
     return {
+      acquisitionCostJpy,
+      estimatedAcquisitionCostJpy: acquisitionCostResolution.estimatedAcquisitionCostJpy,
+      estimatedAcquisitionCostApplied: acquisitionCostResolution.estimatedApplied,
       transferGainJpy,
       holdingPeriodCategory,
       specialDeductionAppliedJpy: new Decimal(0),
@@ -205,6 +227,9 @@ export function simulateHomeSaleTax(
   const residentTaxJpy = portions.reduce((sum, p) => sum.plus(p.residentTaxJpy), new Decimal(0));
 
   return {
+    acquisitionCostJpy,
+    estimatedAcquisitionCostJpy: acquisitionCostResolution.estimatedAcquisitionCostJpy,
+    estimatedAcquisitionCostApplied: acquisitionCostResolution.estimatedApplied,
     transferGainJpy,
     holdingPeriodCategory,
     specialDeductionAppliedJpy,

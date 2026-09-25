@@ -1,5 +1,6 @@
 import { Decimal } from "decimal.js";
 import { RECONSTRUCTION_SURTAX_RATE } from "../incomeTax";
+import { resolveAcquisitionCostJpy } from "./estimatedAcquisitionCost";
 
 /**
  * 被相続人の居住用財産(空き家)を譲渡した場合の3,000万円特別控除の試算
@@ -46,16 +47,24 @@ import { RECONSTRUCTION_SURTAX_RATE } from "../incomeTax";
  *    参照)。
  *  - 同一年に居住用財産の3,000万円特別控除(措置法35条1項)や収用等に伴う
  *    5,000万円特別控除等、他の譲渡所得の特別控除との重複適用の可否判定は行わない。
- *  - 取得費が不明な場合の概算取得費(譲渡価額の5%。措置法31条の4)は自動算出しない。
+ *  - 取得費が不明な場合の概算取得費(譲渡価額の5%。措置法31条の4、国税庁タックス
+ *    アンサーNo.3258)は`useEstimatedAcquisitionCost`をtrueにすると、
+ *    `acquisitionCostJpy`(不明な場合は0円)と5%相当額の高い方を自動採用する
+ *    (`estimatedAcquisitionCost.ts`参照。`homeSaleTaxSimulation.ts`と同様の方針)。
  */
 
 export interface VacantHouseSaleTaxSimulationInput {
   /** 譲渡価額(売却代金) */
   transferPriceJpy: Decimal.Value;
-  /** 取得費(被相続人の取得費をそのまま引き継ぐ。所得税法60条1項) */
+  /** 取得費(被相続人の取得費をそのまま引き継ぐ。所得税法60条1項。不明な場合は0円を入力し、下のuseEstimatedAcquisitionCostで概算取得費を使う) */
   acquisitionCostJpy: Decimal.Value;
   /** 譲渡費用(仲介手数料・印紙税・家屋の取壊し費用等) */
   transferExpensesJpy: Decimal.Value;
+  /**
+   * 取得費が不明、または譲渡価額の5%相当額を下回る場合に、概算取得費の特例
+   * (措置法31条の4)により譲渡価額の5%相当額を取得費として使うか(省略時false)。
+   */
+  useEstimatedAcquisitionCost?: boolean;
   /** 相続又は遺贈によりこの家屋及び敷地等を取得した相続人の数(1以上の整数) */
   heirCount: number;
   /**
@@ -71,6 +80,12 @@ export interface VacantHouseSaleTaxSimulationInput {
 }
 
 export interface VacantHouseSaleTaxSimulationResult {
+  /** 実際に計算に採用した取得費(概算取得費を適用した場合はその金額) */
+  acquisitionCostJpy: Decimal;
+  /** 概算取得費(譲渡価額の5%相当額。参考表示用に常に計算する) */
+  estimatedAcquisitionCostJpy: Decimal;
+  /** 概算取得費の特例が実際に適用されたか */
+  estimatedAcquisitionCostApplied: boolean;
   /** 特別控除適用前の譲渡所得の金額(譲渡価額-(取得費+譲渡費用)) */
   transferGainJpy: Decimal;
   /** 相続人の数に応じた控除限度額(3人未満: 3,000万円、3人以上: 2,000万円) */
@@ -111,15 +126,20 @@ export function simulateVacantHouseSaleTax(
   input: VacantHouseSaleTaxSimulationInput,
 ): VacantHouseSaleTaxSimulationResult {
   const transferPriceJpy = new Decimal(input.transferPriceJpy);
-  const acquisitionCostJpy = new Decimal(input.acquisitionCostJpy);
   const transferExpensesJpy = new Decimal(input.transferExpensesJpy);
 
   requireNonNegative(transferPriceJpy, "譲渡価額");
-  requireNonNegative(acquisitionCostJpy, "取得費");
   requireNonNegative(transferExpensesJpy, "譲渡費用");
   if (!Number.isInteger(input.heirCount) || input.heirCount < 1) {
     throw new Error("相続人の数は1以上の整数である必要があります");
   }
+
+  const acquisitionCostResolution = resolveAcquisitionCostJpy({
+    actualAcquisitionCostJpy: input.acquisitionCostJpy,
+    transferPriceJpy,
+    useEstimated: input.useEstimatedAcquisitionCost ?? false,
+  });
+  const acquisitionCostJpy = acquisitionCostResolution.acquisitionCostJpy;
 
   const transferGainJpy = transferPriceJpy.minus(acquisitionCostJpy).minus(transferExpensesJpy);
 
@@ -127,6 +147,7 @@ export function simulateVacantHouseSaleTax(
     "租税特別措置法35条3項(被相続人の居住用財産(空き家)を売ったときの特例。国税庁タックスアンサーNo.3306)に基づく概算値。",
     "取得費・取得時期は相続により被相続人からそのまま引き継ぐため(所得税法60条1項)、家屋が昭和56年5月31日以前に建築されたものである本特例の対象では、所有期間は必ず5年を超える。そのため常に長期譲渡所得の税率(20.315%)で計算する。",
     "平成28年4月1日から令和9年12月31日までの譲渡が対象(それ以外の譲渡日は本ツールでは考慮しない)。",
+    ...acquisitionCostResolution.notes,
   ];
 
   if (transferGainJpy.lessThanOrEqualTo(0)) {
@@ -134,6 +155,9 @@ export function simulateVacantHouseSaleTax(
       "譲渡損失(譲渡価額が取得費・譲渡費用の合計以下)のため税額は生じない。",
     );
     return {
+      acquisitionCostJpy,
+      estimatedAcquisitionCostJpy: acquisitionCostResolution.estimatedAcquisitionCostJpy,
+      estimatedAcquisitionCostApplied: acquisitionCostResolution.estimatedApplied,
       transferGainJpy,
       specialDeductionLimitJpy: new Decimal(0),
       specialDeductionAppliedJpy: new Decimal(0),
@@ -187,6 +211,9 @@ export function simulateVacantHouseSaleTax(
   const residentTaxJpy = taxableGainJpy.times(LONG_TERM_RESIDENT_TAX_RATE);
 
   return {
+    acquisitionCostJpy,
+    estimatedAcquisitionCostJpy: acquisitionCostResolution.estimatedAcquisitionCostJpy,
+    estimatedAcquisitionCostApplied: acquisitionCostResolution.estimatedApplied,
     transferGainJpy,
     specialDeductionLimitJpy,
     specialDeductionAppliedJpy,

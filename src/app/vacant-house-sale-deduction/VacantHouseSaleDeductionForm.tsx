@@ -15,6 +15,7 @@ export function VacantHouseSaleDeductionForm() {
   const [heirCount, setHeirCount] = useState("1");
   const [eligibilityConfirmed, setEligibilityConfirmed] = useState(true);
   const [demolishedOrEarthquakeResistant, setDemolishedOrEarthquakeResistant] = useState(true);
+  const [useEstimatedAcquisitionCost, setUseEstimatedAcquisitionCost] = useState(false);
 
   const result = useMemo(() => {
     try {
@@ -25,6 +26,7 @@ export function VacantHouseSaleDeductionForm() {
         heirCount: heirCount === "" ? 0 : Number(heirCount),
         eligibilityConfirmed,
         demolishedOrEarthquakeResistant,
+        useEstimatedAcquisitionCost,
       });
     } catch {
       return null;
@@ -36,6 +38,7 @@ export function VacantHouseSaleDeductionForm() {
     heirCount,
     eligibilityConfirmed,
     demolishedOrEarthquakeResistant,
+    useEstimatedAcquisitionCost,
   ]);
 
   return (
@@ -85,6 +88,15 @@ export function VacantHouseSaleDeductionForm() {
           譲渡の日の属する年の翌年2月15日までに、耐震基準に適合することとなったか、
           家屋の全部の取壊し等を行った
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={useEstimatedAcquisitionCost}
+            onChange={(e) => setUseEstimatedAcquisitionCost(e.target.checked)}
+          />
+          取得費が不明、または譲渡価額の5%相当額を下回る場合、概算取得費の特例
+          (措置法31条の4)を使う
+        </label>
       </div>
 
       {result === null ? (
@@ -97,6 +109,13 @@ export function VacantHouseSaleDeductionForm() {
           {result.transferPriceExceedsLimit && (
             <p className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
               譲渡対価が1億円を超えているため、本特例の対象外(自動判定)。
+            </p>
+          )}
+
+          {result.estimatedAcquisitionCostApplied && (
+            <p className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+              概算取得費の特例により、取得費として譲渡価額の5%相当額(
+              {yen(result.estimatedAcquisitionCostJpy)})を採用した。
             </p>
           )}
 
