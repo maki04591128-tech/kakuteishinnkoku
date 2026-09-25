@@ -758,6 +758,8 @@ model CryptoTrade {
   /// trade_in / trade_out: 暗号資産同士の交換(この取引で増える/減る側)
   /// income: マイニング・ステーキング・エアドロップ等による取得(取得時時価で収入計上)
   /// gift_in: 贈与・遺贈・相続等により取得(取得価額をそのまま引き継ぐため取得時の収入計上は無し)
+  /// gift_out: 贈与・寄附・遺贈により無償で譲渡(相続人に対する死因贈与・包括遺贈・特定遺贈を
+  /// 除く。贈与等の時の時価をみなし総収入金額として計上する)
   /// fee: 取引手数料(暗号資産建てで支払われた場合)
   type CryptoTradeType
 
@@ -796,6 +798,7 @@ enum CryptoTradeType {
   TRADE_OUT
   INCOME
   GIFT_IN
+  GIFT_OUT
   FEE
 }
 
