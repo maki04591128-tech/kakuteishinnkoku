@@ -61,6 +61,8 @@ export function TotalTaxEstimateForm({
   registeredMultiHouseholdRenovationDeductionJpy,
   defaultDurabilityImprovementRenovationDeductionJpy,
   registeredDurabilityImprovementRenovationDeductionJpy,
+  defaultChildRearingRenovationDeductionJpy,
+  registeredChildRearingRenovationDeductionJpy,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -124,6 +126,10 @@ export function TotalTaxEstimateForm({
   defaultDurabilityImprovementRenovationDeductionJpy: number;
   /** `/durability-improvement-renovation-deduction`で登録済みの控除額(参考表示。未登録ならnull) */
   registeredDurabilityImprovementRenovationDeductionJpy: number | null;
+  /** `/child-rearing-renovation-deduction`で登録済みの子育て対応改修工事の住宅特定改修特別税額控除額の初期値 */
+  defaultChildRearingRenovationDeductionJpy: number;
+  /** `/child-rearing-renovation-deduction`で登録済みの控除額(参考表示。未登録ならnull) */
+  registeredChildRearingRenovationDeductionJpy: number | null;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -182,6 +188,10 @@ export function TotalTaxEstimateForm({
     durabilityImprovementRenovationDeductionJpy,
     setDurabilityImprovementRenovationDeductionJpy,
   ] = useState(String(defaultDurabilityImprovementRenovationDeductionJpy));
+  const [
+    childRearingRenovationDeductionJpy,
+    setChildRearingRenovationDeductionJpy,
+  ] = useState(String(defaultChildRearingRenovationDeductionJpy));
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
   const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
@@ -231,6 +241,8 @@ export function TotalTaxEstimateForm({
           durabilityImprovementRenovationDeductionJpy === ""
             ? 0
             : durabilityImprovementRenovationDeductionJpy,
+        childRearingRenovationDeductionJpy:
+          childRearingRenovationDeductionJpy === "" ? 0 : childRearingRenovationDeductionJpy,
         foreignTaxCreditNationalTaxCreditJpy:
           foreignTaxCreditNationalTaxCreditJpy === ""
             ? 0
@@ -272,6 +284,7 @@ export function TotalTaxEstimateForm({
     barrierFreeRenovationDeductionJpy,
     multiHouseholdRenovationDeductionJpy,
     durabilityImprovementRenovationDeductionJpy,
+    childRearingRenovationDeductionJpy,
     foreignTaxCreditNationalTaxCreditJpy,
     foreignTaxCreditResidentTaxCreditJpy,
     distributionAdjustedForeignTaxCreditJpy,
@@ -522,6 +535,24 @@ export function TotalTaxEstimateForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
+          label={`子育て対応改修工事の住宅特定改修特別税額控除(税額控除・所得税分のみ。住民税に相当する控除は無し)${
+            registeredChildRearingRenovationDeductionJpy !== null
+              ? " — 初期値は/child-rearing-renovation-deductionの登録値"
+              : ""
+          }`}
+          value={childRearingRenovationDeductionJpy}
+          onChange={setChildRearingRenovationDeductionJpy}
+        />
+      </div>
+      {registeredChildRearingRenovationDeductionJpy !== null && (
+        <p className="text-xs text-neutral-500">
+          /child-rearing-renovation-deductionで登録済み:{" "}
+          {yen(registeredChildRearingRenovationDeductionJpy)}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
           label={`外国税額控除(税額控除・所得税・復興特別所得税分)${
             registeredForeignTaxCredit !== null ? " — 初期値は/foreign-tax-creditの登録値" : ""
           }`}
@@ -657,6 +688,18 @@ export function TotalTaxEstimateForm({
               <p className="mt-1 text-xs text-neutral-400">
                 − 多世帯同居改修工事の住宅特定改修特別税額控除{" "}
                 {yen(result.multiHouseholdRenovationDeductionAppliedJpy)}(所得税分のみ)
+              </p>
+            )}
+            {result.durabilityImprovementRenovationDeductionAppliedJpy.greaterThan(0) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                − 耐久性向上改修工事の住宅特定改修特別税額控除{" "}
+                {yen(result.durabilityImprovementRenovationDeductionAppliedJpy)}(所得税分のみ)
+              </p>
+            )}
+            {result.childRearingRenovationDeductionAppliedJpy.greaterThan(0) && (
+              <p className="mt-1 text-xs text-neutral-400">
+                − 子育て対応改修工事の住宅特定改修特別税額控除{" "}
+                {yen(result.childRearingRenovationDeductionAppliedJpy)}(所得税分のみ)
               </p>
             )}
             {(result.foreignTaxCreditNationalTaxAppliedJpy.greaterThan(0) ||

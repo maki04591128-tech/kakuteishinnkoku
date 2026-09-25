@@ -131,6 +131,14 @@ export interface TaxFilingSummary {
   durabilityImprovementRenovationDeduction?: {
     creditJpy: Decimal;
   };
+  /**
+   * `/child-rearing-renovation-deduction`で登録済みの子育て対応改修工事の
+   * 住宅特定改修特別税額控除(税額控除・所得税分のみ)。住民税に相当する控除は存在しないため
+   * 住民税額には影響しない。未登録の場合はundefined。
+   */
+  childRearingRenovationDeduction?: {
+    creditJpy: Decimal;
+  };
 }
 
 export function buildTaxFilingSummary(
@@ -152,6 +160,7 @@ export function buildTaxFilingSummary(
   barrierFreeRenovationDeduction?: { creditJpy: Decimal },
   multiHouseholdRenovationDeduction?: { creditJpy: Decimal },
   durabilityImprovementRenovationDeduction?: { creditJpy: Decimal },
+  childRearingRenovationDeduction?: { creditJpy: Decimal },
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
@@ -181,5 +190,6 @@ export function buildTaxFilingSummary(
     barrierFreeRenovationDeduction,
     multiHouseholdRenovationDeduction,
     durabilityImprovementRenovationDeduction,
+    childRearingRenovationDeduction,
   };
 }
