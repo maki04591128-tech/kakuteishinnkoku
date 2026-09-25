@@ -676,6 +676,51 @@ describe("estimateTotalTax", () => {
     ).toBe(30_000);
   });
 
+  it("耐久性向上改修工事の住宅特定改修特別税額控除は所得税額を上限とする", () => {
+    const result = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 0,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      durabilityImprovementRenovationDeductionJpy: 100_000_000,
+    });
+
+    expect(result.totalNationalTaxAfterDurabilityImprovementRenovationDeductionJpy.toNumber()).toBe(
+      0,
+    );
+    expect(result.durabilityImprovementRenovationDeductionAppliedJpy.toNumber()).toBe(
+      result.totalNationalTaxAfterMultiHouseholdRenovationDeductionJpy.toNumber(),
+    );
+  });
+
+  it("外国税額控除は耐久性向上改修工事の住宅特定改修特別税額控除適用後の所得税額からさらに差し引かれる", () => {
+    const withDurabilityImprovementRenovationOnly = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      durabilityImprovementRenovationDeductionJpy: 15_000,
+    });
+    const withBoth = estimateTotalTax({
+      otherComprehensiveIncomeJpy: 5_000_000,
+      cryptoMiscIncomeJpy: 0,
+      investmentTaxableGainJpy: 0,
+      futuresTaxableGainJpy: 0,
+      dividendIncomeJpy: 0,
+      durabilityImprovementRenovationDeductionJpy: 15_000,
+      foreignTaxCreditNationalTaxCreditJpy: 30_000,
+    });
+
+    expect(withBoth.foreignTaxCreditNationalTaxAppliedJpy.toNumber()).toBe(30_000);
+    expect(
+      withDurabilityImprovementRenovationOnly.totalNationalTaxJpy
+        .minus(withBoth.totalNationalTaxJpy)
+        .toNumber(),
+    ).toBe(30_000);
+  });
+
   it("外国税額控除(税額控除)を入力すると住宅ローン控除適用後の税額から直接差し引かれる", () => {
     const withMortgageOnly = estimateTotalTax({
       otherComprehensiveIncomeJpy: 5_000_000,

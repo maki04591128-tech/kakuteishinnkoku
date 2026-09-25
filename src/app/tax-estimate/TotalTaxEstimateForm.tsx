@@ -59,6 +59,8 @@ export function TotalTaxEstimateForm({
   registeredBarrierFreeRenovationDeductionJpy,
   defaultMultiHouseholdRenovationDeductionJpy,
   registeredMultiHouseholdRenovationDeductionJpy,
+  defaultDurabilityImprovementRenovationDeductionJpy,
+  registeredDurabilityImprovementRenovationDeductionJpy,
 }: {
   defaultOtherComprehensiveIncomeJpy: number;
   defaultCryptoMiscIncomeJpy: number;
@@ -118,6 +120,10 @@ export function TotalTaxEstimateForm({
   defaultMultiHouseholdRenovationDeductionJpy: number;
   /** `/multi-household-renovation-deduction`で登録済みの控除額(参考表示。未登録ならnull) */
   registeredMultiHouseholdRenovationDeductionJpy: number | null;
+  /** `/durability-improvement-renovation-deduction`で登録済みの耐久性向上改修工事の住宅特定改修特別税額控除額の初期値 */
+  defaultDurabilityImprovementRenovationDeductionJpy: number;
+  /** `/durability-improvement-renovation-deduction`で登録済みの控除額(参考表示。未登録ならnull) */
+  registeredDurabilityImprovementRenovationDeductionJpy: number | null;
 }) {
   const [otherComprehensiveIncomeJpy, setOtherComprehensiveIncomeJpy] = useState(
     String(defaultOtherComprehensiveIncomeJpy),
@@ -172,6 +178,10 @@ export function TotalTaxEstimateForm({
     multiHouseholdRenovationDeductionJpy,
     setMultiHouseholdRenovationDeductionJpy,
   ] = useState(String(defaultMultiHouseholdRenovationDeductionJpy));
+  const [
+    durabilityImprovementRenovationDeductionJpy,
+    setDurabilityImprovementRenovationDeductionJpy,
+  ] = useState(String(defaultDurabilityImprovementRenovationDeductionJpy));
   const [withheldNationalTaxJpy, setWithheldNationalTaxJpy] = useState("0");
   const [withheldResidentTaxJpy, setWithheldResidentTaxJpy] = useState("0");
   const [estimatedTaxPrepaymentJpy, setEstimatedTaxPrepaymentJpy] = useState("0");
@@ -217,6 +227,10 @@ export function TotalTaxEstimateForm({
           multiHouseholdRenovationDeductionJpy === ""
             ? 0
             : multiHouseholdRenovationDeductionJpy,
+        durabilityImprovementRenovationDeductionJpy:
+          durabilityImprovementRenovationDeductionJpy === ""
+            ? 0
+            : durabilityImprovementRenovationDeductionJpy,
         foreignTaxCreditNationalTaxCreditJpy:
           foreignTaxCreditNationalTaxCreditJpy === ""
             ? 0
@@ -257,6 +271,7 @@ export function TotalTaxEstimateForm({
     energySavingRenovationDeductionJpy,
     barrierFreeRenovationDeductionJpy,
     multiHouseholdRenovationDeductionJpy,
+    durabilityImprovementRenovationDeductionJpy,
     foreignTaxCreditNationalTaxCreditJpy,
     foreignTaxCreditResidentTaxCreditJpy,
     distributionAdjustedForeignTaxCreditJpy,
@@ -484,6 +499,24 @@ export function TotalTaxEstimateForm({
         <p className="text-xs text-neutral-500">
           /multi-household-renovation-deductionで登録済み:{" "}
           {yen(registeredMultiHouseholdRenovationDeductionJpy)}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label={`耐久性向上改修工事の住宅特定改修特別税額控除(税額控除・所得税分のみ。住民税に相当する控除は無し)${
+            registeredDurabilityImprovementRenovationDeductionJpy !== null
+              ? " — 初期値は/durability-improvement-renovation-deductionの登録値"
+              : ""
+          }`}
+          value={durabilityImprovementRenovationDeductionJpy}
+          onChange={setDurabilityImprovementRenovationDeductionJpy}
+        />
+      </div>
+      {registeredDurabilityImprovementRenovationDeductionJpy !== null && (
+        <p className="text-xs text-neutral-500">
+          /durability-improvement-renovation-deductionで登録済み:{" "}
+          {yen(registeredDurabilityImprovementRenovationDeductionJpy)}
         </p>
       )}
 
