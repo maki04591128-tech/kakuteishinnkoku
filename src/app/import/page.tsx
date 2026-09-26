@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportForm";
 import {
+  addCryptoCreditTrade,
   addCryptoMarginTrade,
   addCryptoTrade,
   addFuturesTrade,
@@ -14,6 +15,7 @@ import {
   deleteAssetSymbolMapping,
   deleteBrokerAnnualReport,
   deleteCasualtyLossCarryforward,
+  deleteCryptoCreditTrade,
   deleteCryptoMarginTrade,
   deleteCryptoTrade,
   deleteForeignTaxCreditCarryforward,
@@ -115,6 +117,7 @@ export default async function ImportPage({
   const [
     cryptoTrades,
     cryptoMarginTrades,
+    cryptoCreditTrades,
     investmentTrades,
     stockMarginTrades,
     futuresTrades,
@@ -139,6 +142,10 @@ export default async function ImportPage({
       orderBy: { tradedAt: "desc" },
     }),
     prisma.cryptoMarginTrade.findMany({
+      where: { taxYearId: taxYear.id },
+      orderBy: { settledAt: "desc" },
+    }),
+    prisma.cryptoCreditTrade.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { settledAt: "desc" },
     }),
@@ -1983,6 +1990,106 @@ export default async function ImportPage({
           <p className="mt-4 rounded-md bg-neutral-50 p-3 text-sm dark:bg-neutral-900">
             {year}年分 証拠金取引の雑所得算入額(手数料控除・スワップ加算後):{" "}
             {yen(yearReport.cryptoMargin.totalRealizedGainJpy)}
+          </p>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">暗号資産の信用取引の決済損益</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          他の者から信用の供与を受けて暗号資産の売買を行う<strong>信用取引</strong>
+          は、上の証拠金(レバレッジ)取引とは別の取引類型(国税庁FAQ問2-13
+          「暗号資産の信用取引」)だが、いずれも雑所得として総合課税される点は
+          共通のため、ここに登録した決済損益は現物取引・証拠金取引と合算した
+          金額が雑所得(暗号資産)としてダッシュボードに表示される。譲渡原価は
+          個別法により計算し(売付け価額-買付け価額)、決済の都度確定する損益を
+          そのまま合算するだけのシンプルな計算になる。建玉に対する金利相当額・
+          品貸料は取引所の取引報告書に記載された金額を純額でまとめて
+          「金利等純額調整」欄に入力すること(受取超過ならプラス、支払超過なら
+          マイナス)。取引所ごとのCSV仕様が未検証のため、このセクションは
+          手入力のみに対応する(CSV取り込みは今後の課題)。
+        </p>
+
+        <form
+          action={addCryptoCreditTrade}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          <input type="hidden" name="year" value={year} />
+          <Field label="決済日時">
+            <input type="datetime-local" name="settledAt" required className={inputClass} />
+          </Field>
+          <Field label="銘柄">
+            <input type="text" name="symbol" placeholder="BTC" required className={inputClass} />
+          </Field>
+          <Field label="決済損益(円・損失は負の値)">
+            <input type="number" step="any" name="realizedPnlJpy" required className={inputClass} />
+          </Field>
+          <Field label="手数料(円)">
+            <input type="number" step="any" name="feeJpy" defaultValue={0} className={inputClass} />
+          </Field>
+          <Field label="金利等純額調整(円)">
+            <input
+              type="number"
+              step="any"
+              name="interestAdjustmentJpy"
+              defaultValue={0}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="取引所">
+            <input type="text" name="exchange" className={inputClass} />
+          </Field>
+          <Field label="メモ">
+            <input type="text" name="memo" className={inputClass} />
+          </Field>
+          <div className="col-span-full">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            >
+              追加
+            </button>
+          </div>
+        </form>
+
+        {cryptoCreditTrades.length > 0 && (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead className="bg-neutral-50 dark:bg-neutral-900">
+                <tr>
+                  {["決済日時", "銘柄", "決済損益", "手数料", "金利等純額調整", ""].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cryptoCreditTrades.map((t) => (
+                  <tr key={t.id} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-3 py-2">{dateInputValue(t.settledAt)}</td>
+                    <td className="px-3 py-2">{t.symbol}</td>
+                    <td className="px-3 py-2">{yen(t.realizedPnlJpy)}</td>
+                    <td className="px-3 py-2">{yen(t.feeJpy)}</td>
+                    <td className="px-3 py-2">{yen(t.interestAdjustmentJpy)}</td>
+                    <td className="px-3 py-2">
+                      <form action={deleteCryptoCreditTrade}>
+                        <input type="hidden" name="id" value={t.id} />
+                        <input type="hidden" name="year" value={year} />
+                        <button className="text-xs text-red-600 hover:underline">削除</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {yearReport && !yearReport.cryptoCredit.totalRealizedGainJpy.isZero() && (
+          <p className="mt-4 rounded-md bg-neutral-50 p-3 text-sm dark:bg-neutral-900">
+            {year}年分 信用取引の雑所得算入額(手数料控除・金利等調整後):{" "}
+            {yen(yearReport.cryptoCredit.totalRealizedGainJpy)}
           </p>
         )}
       </section>

@@ -107,12 +107,12 @@ export function buildTaxFilingDraftCsv(
   lines.push(toCsvLine(["区分", "金額(円)", "申告書での主な記載箇所"]));
   lines.push(
     toCsvLine([
-      "雑所得(暗号資産・現物+証拠金取引の合計)",
+      "雑所得(暗号資産・現物+証拠金取引+信用取引の合計)",
       formatYen(summary.cryptoMiscIncomeJpy),
       "申告書第一表 雑所得(業務・その他) / 第二表 雑所得の内訳",
     ]),
   );
-  if (!summary.cryptoMarginIncomeJpy.isZero()) {
+  if (!summary.cryptoMarginIncomeJpy.isZero() || !summary.cryptoCreditIncomeJpy.isZero()) {
     lines.push(
       toCsvLine([
         "  内訳: 現物取引分",
@@ -124,6 +124,13 @@ export function buildTaxFilingDraftCsv(
       toCsvLine([
         "  内訳: 証拠金(レバレッジ)取引の決済損益分",
         formatYen(summary.cryptoMarginIncomeJpy),
+        "",
+      ]),
+    );
+    lines.push(
+      toCsvLine([
+        "  内訳: 信用取引の決済損益分",
+        formatYen(summary.cryptoCreditIncomeJpy),
         "",
       ]),
     );

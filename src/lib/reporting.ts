@@ -10,6 +10,10 @@ import {
   type CryptoMarginPortfolioYearResult,
 } from "./crypto/marginCalculator";
 import {
+  calculateCryptoCreditPortfolioYear,
+  type CryptoCreditPortfolioYearResult,
+} from "./crypto/creditTrading";
+import {
   calculateInvestmentPortfolioYear,
   type InvestmentPortfolioYearResult,
 } from "./investment/calculator";
@@ -53,6 +57,13 @@ import {
 export async function buildYearReport(year: number): Promise<{
   crypto: CryptoPortfolioYearResult;
   cryptoMargin: CryptoMarginPortfolioYearResult;
+  /**
+   * 暗号資産の信用取引の決済損益(機能122参照)。証拠金取引(cryptoMargin)とは
+   * 別の取引類型だが、いずれも雑所得の総合課税のため、雑所得(暗号資産)の
+   * 合計額には現物取引(crypto)・証拠金取引と合算した額を用いる
+   * (`src/lib/etax/summary.ts`のcryptoMiscIncomeJpy参照)。
+   */
+  cryptoCredit: CryptoCreditPortfolioYearResult;
   investment: InvestmentPortfolioYearResult;
   /**
    * 上場株式等の信用取引の決済損益(機能93参照)。現物取引(investment)とは
@@ -91,6 +102,7 @@ export async function buildYearReport(year: number): Promise<{
     return {
       crypto: calculateCryptoPortfolioYearByMethod("AVERAGE", []),
       cryptoMargin: calculateCryptoMarginPortfolioYear([]),
+      cryptoCredit: calculateCryptoCreditPortfolioYear([]),
       investment: calculateInvestmentPortfolioYear([]),
       stockMargin: calculateStockMarginPortfolioYear([]),
       investmentNonListed: calculateInvestmentPortfolioYear([]),
@@ -108,6 +120,7 @@ export async function buildYearReport(year: number): Promise<{
   const [
     cryptoTrades,
     cryptoMarginTrades,
+    cryptoCreditTrades,
     investmentTrades,
     stockMarginTrades,
     futuresTrades,
@@ -119,6 +132,7 @@ export async function buildYearReport(year: number): Promise<{
   ] = await Promise.all([
     prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.cryptoMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    prisma.cryptoCreditTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.stockMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
     prisma.futuresTrade.findMany({ where: { taxYearId: taxYear.id } }),
@@ -155,6 +169,15 @@ export async function buildYearReport(year: number): Promise<{
       realizedPnlJpy: t.realizedPnlJpy.toString(),
       feeJpy: t.feeJpy.toString(),
       swapJpy: t.swapJpy.toString(),
+    })),
+  );
+
+  const cryptoCredit = calculateCryptoCreditPortfolioYear(
+    cryptoCreditTrades.map((t) => ({
+      symbol: t.symbol,
+      realizedPnlJpy: t.realizedPnlJpy.toString(),
+      feeJpy: t.feeJpy.toString(),
+      interestAdjustmentJpy: t.interestAdjustmentJpy.toString(),
     })),
   );
 
@@ -267,6 +290,7 @@ export async function buildYearReport(year: number): Promise<{
   return {
     crypto,
     cryptoMargin,
+    cryptoCredit,
     investment,
     stockMargin,
     investmentNonListed,

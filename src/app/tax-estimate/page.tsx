@@ -59,6 +59,7 @@ export default async function TaxEstimatePage({
         undefined, // childRearingRenovationDeduction
         undefined, // certifiedHousingConstructionCredit
         report.stockMargin,
+        report.cryptoCredit,
       )
     : null;
 

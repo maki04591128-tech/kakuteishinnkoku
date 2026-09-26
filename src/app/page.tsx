@@ -54,6 +54,7 @@ export default async function Home({
         undefined, // childRearingRenovationDeduction
         undefined, // certifiedHousingConstructionCredit
         report.stockMargin,
+        report.cryptoCredit,
       )
     : null;
 
@@ -110,8 +111,19 @@ export default async function Home({
           title="雑所得(暗号資産)"
           value={summary ? yen(summary.cryptoMiscIncomeJpy) : "¥0"}
           hint={
-            summary && !summary.cryptoMarginIncomeJpy.isZero()
-              ? `現物(${CRYPTO_COST_METHOD_LABEL[report?.cryptoCostMethod ?? "AVERAGE"]})${yen(summary.cryptoSpotIncomeJpy)} + 証拠金取引決済損益${yen(summary.cryptoMarginIncomeJpy)}`
+            summary &&
+            (!summary.cryptoMarginIncomeJpy.isZero() || !summary.cryptoCreditIncomeJpy.isZero())
+              ? [
+                  `現物(${CRYPTO_COST_METHOD_LABEL[report?.cryptoCostMethod ?? "AVERAGE"]})${yen(summary.cryptoSpotIncomeJpy)}`,
+                  !summary.cryptoMarginIncomeJpy.isZero()
+                    ? `証拠金取引決済損益${yen(summary.cryptoMarginIncomeJpy)}`
+                    : null,
+                  !summary.cryptoCreditIncomeJpy.isZero()
+                    ? `信用取引決済損益${yen(summary.cryptoCreditIncomeJpy)}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" + ")
               : `${CRYPTO_COST_METHOD_LABEL[report?.cryptoCostMethod ?? "AVERAGE"]}による年間損益`
           }
         />
@@ -657,6 +669,21 @@ export default async function Home({
         />
       )}
 
+      {report && report.cryptoCredit.bySymbol.length > 0 && (
+        <DetailTable
+          title="暗号資産 信用取引 銘柄別内訳"
+          columns={["銘柄", "決済件数", "決済損益", "手数料", "金利等純額調整", "雑所得算入額"]}
+          rows={report.cryptoCredit.bySymbol.map((r) => [
+            r.symbol,
+            r.settlementCount,
+            yen(r.grossPnlJpy),
+            yen(r.feeJpy),
+            yen(r.interestAdjustmentJpy),
+            yen(r.realizedGainJpy),
+          ])}
+        />
+      )}
+
       {report && report.investment.bySymbol.length > 0 && (
         <DetailTable
           title="株式等 銘柄別内訳"
@@ -703,6 +730,7 @@ export default async function Home({
       {report &&
         report.crypto.bySymbol.length === 0 &&
         report.cryptoMargin.bySymbol.length === 0 &&
+        report.cryptoCredit.bySymbol.length === 0 &&
         report.investment.bySymbol.length === 0 &&
         report.investmentNonListed.bySymbol.length === 0 &&
         report.futures.bySymbol.length === 0 && (

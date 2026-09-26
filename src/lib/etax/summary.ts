@@ -1,6 +1,7 @@
 import { Decimal } from "decimal.js";
 import type { CryptoPortfolioYearResult } from "../crypto/calculator";
 import type { CryptoMarginPortfolioYearResult } from "../crypto/marginCalculator";
+import type { CryptoCreditPortfolioYearResult } from "../crypto/creditTrading";
 import type { InvestmentPortfolioYearResult } from "../investment/calculator";
 import type { FuturesPortfolioYearResult } from "../investment/futuresIncome";
 import type { StockMarginPortfolioYearResult } from "../investment/marginCalculator";
@@ -26,12 +27,14 @@ import {
  */
 export interface TaxFilingSummary {
   year: number;
-  /** 雑所得(暗号資産。現物取引+証拠金取引の決済損益の合計) */
+  /** 雑所得(暗号資産。現物取引+証拠金取引+信用取引の決済損益の合計) */
   cryptoMiscIncomeJpy: Decimal;
   /** 雑所得(暗号資産)のうち現物取引分 */
   cryptoSpotIncomeJpy: Decimal;
   /** 雑所得(暗号資産)のうち証拠金(レバレッジ)取引の決済損益分 */
   cryptoMarginIncomeJpy: Decimal;
+  /** 雑所得(暗号資産)のうち信用取引の決済損益分(機能122参照) */
+  cryptoCreditIncomeJpy: Decimal;
   /** 譲渡所得(上場株式等・申告分離課税、現物取引+信用取引の合計、繰越控除適用前の金額) */
   investmentCapitalGainJpy: Decimal;
   /** 譲渡所得(上場株式等・申告分離課税)のうち現物取引分(繰越控除適用前) */
@@ -176,8 +179,10 @@ export function buildTaxFilingSummary(
   childRearingRenovationDeduction?: { creditJpy: Decimal },
   certifiedHousingConstructionCredit?: { creditJpy: Decimal },
   stockMargin?: StockMarginPortfolioYearResult,
+  cryptoCredit?: CryptoCreditPortfolioYearResult,
 ): TaxFilingSummary {
   const cryptoMarginIncomeJpy = cryptoMargin?.totalRealizedGainJpy ?? new Decimal(0);
+  const cryptoCreditIncomeJpy = cryptoCredit?.totalRealizedGainJpy ?? new Decimal(0);
   const futuresRealizedGainJpy = futures?.totalRealizedGainJpy ?? new Decimal(0);
   const investmentMarginCapitalGainJpy = stockMargin?.totalRealizedGainJpy ?? new Decimal(0);
   const investmentGrossCapitalGainJpy = investment.totalRealizedGainJpy.plus(
@@ -185,9 +190,12 @@ export function buildTaxFilingSummary(
   );
   return {
     year,
-    cryptoMiscIncomeJpy: crypto.totalRealizedGainJpy.plus(cryptoMarginIncomeJpy),
+    cryptoMiscIncomeJpy: crypto.totalRealizedGainJpy
+      .plus(cryptoMarginIncomeJpy)
+      .plus(cryptoCreditIncomeJpy),
     cryptoSpotIncomeJpy: crypto.totalRealizedGainJpy,
     cryptoMarginIncomeJpy,
+    cryptoCreditIncomeJpy,
     investmentCapitalGainJpy: investmentGrossCapitalGainJpy,
     investmentSpotCapitalGainJpy: investment.totalRealizedGainJpy,
     investmentMarginCapitalGainJpy,
