@@ -395,6 +395,12 @@ export default async function Home({
           収用等により土地建物を売った場合の税額を試算する
         </Link>
         <Link
+          href="/expropriation-replacement-deferral"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          収用等に伴い代替資産を取得した場合の課税繰延べを試算する
+        </Link>
+        <Link
           href="/home-sale-loss-deduction"
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
