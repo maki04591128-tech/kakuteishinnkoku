@@ -48,8 +48,14 @@ import { nationalIncomeTaxWithSurtaxJpy, RESIDENT_TAX_RATE } from "./incomeTax";
  * ユーザー自身が行う前提)。前年以前の重複排除(施行令70条)と併用する場合は、この
  * 合算後の勤続年数・収入金額を基に前年以前の重複排除を適用する。
  *
- * **対象範囲外:** 前の退職手当等が2件以上ある場合(最も直近の1件のみ入力可能)は
- * 対象外とする。同一年中の複数の退職手当等の区分(一般/特定役員/短期)が異なる場合の
+ * **機能109での対応(前の退職手当等が複数件ある場合):** 機能107時点では前の退職手当等を
+ * 1件しか指定できなかったが、`priorPayments`を配列にし複数件を同時に指定できるように
+ * した。各件ごとに独立して重複排除対象期間(4年内/9年内/19年内)内かどうかを判定し、
+ * 対象期間内にあるものの重複勤続年数(1年未満切り捨て)の合計を基に、控除額を1回だけ
+ * 計算して差し引く(所得税法施行令70条)。合計が今回の勤続年数を超える場合は今回の
+ * 勤続年数を上限とする。
+ *
+ * **対象範囲外:** 同一年中の複数の退職手当等の区分(一般/特定役員/短期)が異なる場合の
  * 組み合わせ(例: 1件は短期退職手当等、もう1件は一般の退職手当等)は、`category`で
  * 指定した1つの区分を合算後の退職所得全体に一律適用する簡略化とし、区分ごとに按分する
  * 精緻な計算は対象外とする(`notes`に注記)。また、令和8年度税制改正の適用条件
@@ -126,11 +132,16 @@ export interface RetirementIncomeInput {
   isDefinedContributionLumpSum?: boolean;
   /**
    * 今回の退職手当等の支給を受けた年(西暦)。前の退職手当等との重複排除の
-   * 対象期間判定(4年内/9年内/19年内)に使用する。`priorPayment`を指定する場合は必須。
+   * 対象期間判定(4年内/9年内/19年内)に使用する。`priorPayments`を指定する場合は必須。
    */
   paymentYear?: number;
-  /** 前年以前に重複する勤続期間等がある他の退職手当等を受け取っている場合の情報 */
-  priorPayment?: PriorRetirementPaymentInput;
+  /**
+   * 前年以前に重複する勤続期間等がある他の退職手当等(前の退職手当等)を受け取っている
+   * 場合の情報。2件以上ある場合は配列で全て指定する(機能109)。各件ごとに独立して
+   * 重複排除対象期間(4年内/9年内/19年内)内かどうかを判定し、対象期間内にあるものの
+   * 重複勤続年数(1年未満切り捨て)の合計を基に控除額を1回だけ計算する。
+   */
+  priorPayments?: PriorRetirementPaymentInput[];
   /**
    * 同一年中に他の支払者からも退職手当等を受け取っている場合の情報(国税庁タックス
    * アンサーNo.2735)。指定した場合、収入金額・勤続年数を合算した上で退職所得控除額・
@@ -252,51 +263,74 @@ export function estimateRetirementIncome(input: RetirementIncomeInput): Retireme
 
   let overlapDeductionReductionJpy = new Decimal(0);
 
-  if (input.priorPayment) {
-    const { priorPayment } = input;
+  const priorPayments = input.priorPayments ?? [];
+  if (priorPayments.length > 0) {
     if (input.paymentYear === undefined) {
       throw new Error("前の退職手当等を指定する場合は今回の支給年(paymentYear)も指定してください");
     }
-    const gapYears = input.paymentYear - priorPayment.paymentYear;
-    if (gapYears <= 0) {
-      throw new Error(
-        "前の退職手当等の支給年は今回の支給年より前である必要があります(同一年中に2か所以上から受け取る場合は対象範囲外)",
-      );
-    }
-    if (priorPayment.overlappingYearsOfService < 0) {
-      throw new Error("重複する勤続年数は0以上である必要があります");
-    }
-    if (priorPayment.overlappingYearsOfService > combinedYearsOfService) {
-      throw new Error("重複する勤続年数が今回の勤続年数を超えています");
-    }
 
-    const lookbackYears = resolveOverlapDeductionLookbackYears(
-      input.isDefinedContributionLumpSum ?? false,
-      priorPayment.kind,
-      priorPayment.paymentYear,
-    );
+    let totalOverlapYearsFloor = 0;
+    let includedCount = 0;
 
-    if (gapYears <= lookbackYears) {
-      const overlapYearsFloor = Math.floor(priorPayment.overlappingYearsOfService);
-      if (overlapYearsFloor > 0) {
-        overlapDeductionReductionJpy = calculateRetirementIncomeDeductionJpy(overlapYearsFloor, false);
-      }
-      notes.push(
-        `前の退職手当等(${priorPayment.paymentYear}年、${priorPayment.kind === "DC_LUMP_SUM" ? "DC一時金" : "通常の退職手当等"})の支給年が今回の重複排除対象期間(前年以前${lookbackYears}年内)に含まれるため、重複する勤続年数(1年未満切り捨て。${priorPayment.overlappingYearsOfService}年→${overlapYearsFloor}年)を基に計算した控除額${overlapDeductionReductionJpy.toNumber().toLocaleString("ja-JP")}円を今回の退職所得控除額から差し引いた(所得税法施行令70条)。`,
-      );
-      if (
-        !(input.isDefinedContributionLumpSum ?? false) &&
-        priorPayment.kind === "DC_LUMP_SUM" &&
-        priorPayment.paymentYear >= DC_LOOKBACK_EXTENSION_START_YEAR - 1 &&
-        priorPayment.paymentYear <= DC_LOOKBACK_EXTENSION_START_YEAR + 1
-      ) {
-        notes.push(
-          "令和8年度税制改正(重複排除対象期間の4年内→9年内への延長)の適用条件の細部(前の退職手当等・今回の退職手当等それぞれの支払時期の要件)は、施行令の条文そのものでは確認できておらず複数の専門家解説の間で説明に細かな揺れがあるため、令和7年分・8年分をまたぐ境界年の判定は参考値にとどまる。実際の申告にあたっては国税庁「確定申告書等作成コーナー」の計算結果や税理士等の確認を必ず受けること。",
+    for (const priorPayment of priorPayments) {
+      const gapYears = input.paymentYear - priorPayment.paymentYear;
+      if (gapYears <= 0) {
+        throw new Error(
+          "前の退職手当等の支給年は今回の支給年より前である必要があります(同一年中に2か所以上から受け取る場合は対象範囲外)",
         );
       }
-    } else {
+      if (priorPayment.overlappingYearsOfService < 0) {
+        throw new Error("重複する勤続年数は0以上である必要があります");
+      }
+      if (priorPayment.overlappingYearsOfService > combinedYearsOfService) {
+        throw new Error("重複する勤続年数が今回の勤続年数を超えています");
+      }
+
+      const lookbackYears = resolveOverlapDeductionLookbackYears(
+        input.isDefinedContributionLumpSum ?? false,
+        priorPayment.kind,
+        priorPayment.paymentYear,
+      );
+
+      if (gapYears <= lookbackYears) {
+        const overlapYearsFloor = Math.floor(priorPayment.overlappingYearsOfService);
+        totalOverlapYearsFloor += overlapYearsFloor;
+        includedCount += 1;
+        notes.push(
+          `前の退職手当等(${priorPayment.paymentYear}年、${priorPayment.kind === "DC_LUMP_SUM" ? "DC一時金" : "通常の退職手当等"})の支給年が今回の重複排除対象期間(前年以前${lookbackYears}年内)に含まれるため、重複する勤続年数(1年未満切り捨て。${priorPayment.overlappingYearsOfService}年→${overlapYearsFloor}年)を重複排除の対象に含めた。`,
+        );
+        if (
+          !(input.isDefinedContributionLumpSum ?? false) &&
+          priorPayment.kind === "DC_LUMP_SUM" &&
+          priorPayment.paymentYear >= DC_LOOKBACK_EXTENSION_START_YEAR - 1 &&
+          priorPayment.paymentYear <= DC_LOOKBACK_EXTENSION_START_YEAR + 1
+        ) {
+          notes.push(
+            "令和8年度税制改正(重複排除対象期間の4年内→9年内への延長)の適用条件の細部(前の退職手当等・今回の退職手当等それぞれの支払時期の要件)は、施行令の条文そのものでは確認できておらず複数の専門家解説の間で説明に細かな揺れがあるため、令和7年分・8年分をまたぐ境界年の判定は参考値にとどまる。実際の申告にあたっては国税庁「確定申告書等作成コーナー」の計算結果や税理士等の確認を必ず受けること。",
+          );
+        }
+      } else {
+        notes.push(
+          `前の退職手当等(${priorPayment.paymentYear}年)の支給年は重複排除の対象期間(前年以前${lookbackYears}年内)の外のため、重複排除は適用しない。`,
+        );
+      }
+    }
+
+    const combinedYearsFloor = Math.floor(combinedYearsOfService);
+    const cappedOverlapYearsFloor = Math.min(totalOverlapYearsFloor, combinedYearsFloor);
+    if (cappedOverlapYearsFloor > 0) {
+      overlapDeductionReductionJpy = calculateRetirementIncomeDeductionJpy(cappedOverlapYearsFloor, false);
+    }
+    if (cappedOverlapYearsFloor < totalOverlapYearsFloor) {
       notes.push(
-        `前の退職手当等(${priorPayment.paymentYear}年)の支給年は重複排除の対象期間(前年以前${lookbackYears}年内)の外のため、重複排除は適用しない。`,
+        `重複排除対象期間内にある前の退職手当等の重複勤続年数の合計(${totalOverlapYearsFloor}年)が今回の勤続年数(${combinedYearsFloor}年)を超えるため、今回の勤続年数を上限として控除額を計算した。`,
+      );
+    }
+    if (includedCount > 0) {
+      notes.push(
+        includedCount > 1
+          ? `重複排除対象期間内にある前の退職手当等が${includedCount}件あるため、それぞれの重複勤続年数(1年未満切り捨て)の合計(${cappedOverlapYearsFloor}年)を基に計算した控除額${overlapDeductionReductionJpy.toNumber().toLocaleString("ja-JP")}円を今回の退職所得控除額から1回だけ差し引いた(所得税法施行令70条)。`
+          : `重複する勤続年数を基に計算した控除額${overlapDeductionReductionJpy.toNumber().toLocaleString("ja-JP")}円を今回の退職所得控除額から差し引いた(所得税法施行令70条)。`,
       );
     }
   }

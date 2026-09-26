@@ -36,6 +36,18 @@ const EMPTY_SAME_PERIOD_PAYMENT_ROW: SamePeriodPaymentRow = {
   overlappingYearsOfService: "0",
 };
 
+interface PriorPaymentRow {
+  paymentYear: string;
+  kind: RetirementPaymentKind;
+  overlappingYearsOfService: string;
+}
+
+const EMPTY_PRIOR_PAYMENT_ROW: PriorPaymentRow = {
+  paymentYear: "",
+  kind: "REGULAR",
+  overlappingYearsOfService: "0",
+};
+
 export function RetirementIncomeForm() {
   const [incomeJpy, setIncomeJpy] = useState("0");
   const [yearsOfService, setYearsOfService] = useState("10");
@@ -44,9 +56,7 @@ export function RetirementIncomeForm() {
   const [isDefinedContributionLumpSum, setIsDefinedContributionLumpSum] = useState(false);
   const [paymentYear, setPaymentYear] = useState(String(new Date().getFullYear()));
   const [hasPriorPayment, setHasPriorPayment] = useState(false);
-  const [priorPaymentYear, setPriorPaymentYear] = useState("");
-  const [priorPaymentKind, setPriorPaymentKind] = useState<RetirementPaymentKind>("REGULAR");
-  const [overlappingYearsOfService, setOverlappingYearsOfService] = useState("0");
+  const [priorPayments, setPriorPayments] = useState<PriorPaymentRow[]>([{ ...EMPTY_PRIOR_PAYMENT_ROW }]);
   const [hasSamePeriodPayments, setHasSamePeriodPayments] = useState(false);
   const [samePeriodPayments, setSamePeriodPayments] = useState<SamePeriodPaymentRow[]>([
     { ...EMPTY_SAME_PERIOD_PAYMENT_ROW },
@@ -70,12 +80,12 @@ export function RetirementIncomeForm() {
         category,
         isDefinedContributionLumpSum,
         paymentYear: hasPriorPayment ? Number(paymentYear) : undefined,
-        priorPayment: hasPriorPayment
-          ? {
-              paymentYear: Number(priorPaymentYear),
-              kind: priorPaymentKind,
-              overlappingYearsOfService: Number(overlappingYearsOfService),
-            }
+        priorPayments: hasPriorPayment
+          ? priorPayments.map((row) => ({
+              paymentYear: Number(row.paymentYear),
+              kind: row.kind,
+              overlappingYearsOfService: Number(row.overlappingYearsOfService),
+            }))
           : undefined,
         samePeriodPayments: samePeriodPaymentsInput,
       });
@@ -90,15 +100,17 @@ export function RetirementIncomeForm() {
     isDefinedContributionLumpSum,
     paymentYear,
     hasPriorPayment,
-    priorPaymentYear,
-    priorPaymentKind,
-    overlappingYearsOfService,
+    priorPayments,
     hasSamePeriodPayments,
     samePeriodPayments,
   ]);
 
   function updateSamePeriodPaymentRow(index: number, patch: Partial<SamePeriodPaymentRow>) {
     setSamePeriodPayments((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function updatePriorPaymentRow(index: number, patch: Partial<PriorPaymentRow>) {
+    setPriorPayments((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
 
   return (
@@ -272,11 +284,13 @@ export function RetirementIncomeForm() {
         <p className="mt-1 text-xs text-neutral-500">
           前年以前一定期間内(前がDC一時金以外なら4年内、DC一時金かつ令和8年以後の支給なら9年内、
           今回がDC一時金なら19年内)に他の退職手当等を受け取っている場合、重複する勤続年数分は
-          退職所得控除額を二重に使えない(所得税法施行令70条)。
+          退職所得控除額を二重に使えない(所得税法施行令70条)。前の退職手当等が2件以上ある場合は
+          「前の退職手当等を追加」で行を増やせる(各件ごとに対象期間内かどうかを判定し、対象期間内の
+          ものの重複勤続年数の合計を基に控除額を1回だけ計算する)。
         </p>
         {hasPriorPayment && (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm">
+          <div className="mt-4 flex flex-col gap-4">
+            <label className="flex flex-col gap-1 text-sm sm:max-w-xs">
               <span className="text-neutral-500">今回の退職手当等の支給を受けた年(西暦)</span>
               <input
                 type="number"
@@ -287,45 +301,69 @@ export function RetirementIncomeForm() {
                 className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-neutral-500">前の退職手当等の支給を受けた年(西暦)</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                step={1}
-                value={priorPaymentYear}
-                onChange={(e) => setPriorPaymentYear(e.target.value)}
-                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-neutral-500">前の退職手当等の区分</span>
-              <select
-                value={priorPaymentKind}
-                onChange={(e) => setPriorPaymentKind(e.target.value as RetirementPaymentKind)}
-                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
-              >
-                {(Object.keys(PRIOR_PAYMENT_KIND_LABELS) as RetirementPaymentKind[]).map((key) => (
-                  <option key={key} value={key}>
-                    {PRIOR_PAYMENT_KIND_LABELS[key]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-neutral-500">
-                今回と重複する勤続年数(1年未満は切り捨て計算。例: 6年7か月→6.58)
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                step={0.01}
-                value={overlappingYearsOfService}
-                onChange={(e) => setOverlappingYearsOfService(e.target.value)}
-                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
-              />
-            </label>
+            {priorPayments.map((row, i) => (
+              <div key={i} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-neutral-500">前の退職手当等の支給を受けた年(西暦)</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    step={1}
+                    value={row.paymentYear}
+                    onChange={(e) => updatePriorPaymentRow(i, { paymentYear: e.target.value })}
+                    className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-neutral-500">前の退職手当等の区分</span>
+                  <select
+                    value={row.kind}
+                    onChange={(e) => updatePriorPaymentRow(i, { kind: e.target.value as RetirementPaymentKind })}
+                    className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+                  >
+                    {(Object.keys(PRIOR_PAYMENT_KIND_LABELS) as RetirementPaymentKind[]).map((key) => (
+                      <option key={key} value={key}>
+                        {PRIOR_PAYMENT_KIND_LABELS[key]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex items-end gap-2">
+                  <label className="flex flex-1 flex-col gap-1 text-sm">
+                    <span className="text-neutral-500">
+                      今回と重複する勤続年数(1年未満は切り捨て計算。例: 6年7か月→6.58)
+                    </span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step={0.01}
+                      value={row.overlappingYearsOfService}
+                      onChange={(e) =>
+                        updatePriorPaymentRow(i, { overlappingYearsOfService: e.target.value })
+                      }
+                      className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+                    />
+                  </label>
+                  {priorPayments.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setPriorPayments((rows) => rows.filter((_, idx) => idx !== i))}
+                      className="rounded-md border border-neutral-300 px-2 py-1.5 text-xs text-neutral-500 dark:border-neutral-700"
+                    >
+                      削除
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setPriorPayments((rows) => [...rows, { ...EMPTY_PRIOR_PAYMENT_ROW }])}
+              className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-500 dark:border-neutral-700"
+            >
+              前の退職手当等を追加
+            </button>
           </div>
         )}
       </div>
