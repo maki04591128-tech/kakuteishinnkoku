@@ -389,6 +389,12 @@ export default async function Home({
           被相続人の居住用財産(空き家)を譲渡した場合の税額を試算する
         </Link>
         <Link
+          href="/expropriation-sale-deduction"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          収用等により土地建物を売った場合の税額を試算する
+        </Link>
+        <Link
           href="/home-sale-loss-deduction"
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
