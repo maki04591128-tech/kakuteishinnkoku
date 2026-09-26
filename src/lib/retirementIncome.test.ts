@@ -112,7 +112,7 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
       incomeJpy: 15_000_000,
       yearsOfService: 27,
       paymentYear: 2026,
-      priorPayment: { paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 6 },
+      priorPayments: [{ paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 6 }],
     });
     expect(result.overlapDeductionReductionJpy.toNumber()).toBe(2_400_000);
     expect(result.deductionJpy.toNumber()).toBe(10_500_000);
@@ -123,7 +123,7 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
       incomeJpy: 15_000_000,
       yearsOfService: 27,
       paymentYear: 2026,
-      priorPayment: { paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 6.9 },
+      priorPayments: [{ paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 6.9 }],
     });
     // 6.9年→6年 → 40万円×6年=240万円(7年扱いにはならない)
     expect(result.overlapDeductionReductionJpy.toNumber()).toBe(2_400_000);
@@ -134,7 +134,7 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
       incomeJpy: 15_000_000,
       yearsOfService: 27,
       paymentYear: 2026,
-      priorPayment: { paymentYear: 2020, kind: "REGULAR", overlappingYearsOfService: 6 },
+      priorPayments: [{ paymentYear: 2020, kind: "REGULAR", overlappingYearsOfService: 6 }],
     });
     expect(result.overlapDeductionReductionJpy.toNumber()).toBe(0);
     expect(result.deductionJpy.toNumber()).toBe(12_900_000);
@@ -146,7 +146,7 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
       yearsOfService: 20,
       paymentYear: 2026,
       isDefinedContributionLumpSum: true,
-      priorPayment: { paymentYear: 2010, kind: "REGULAR", overlappingYearsOfService: 10 },
+      priorPayments: [{ paymentYear: 2010, kind: "REGULAR", overlappingYearsOfService: 10 }],
     });
     // 通常の控除額: 40万円×20年=800万円、重複排除: 40万円×10年=400万円 → 400万円
     expect(result.deductionJpy.toNumber()).toBe(4_000_000);
@@ -157,7 +157,7 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
       incomeJpy: 15_000_000,
       yearsOfService: 27,
       paymentYear: 2036,
-      priorPayment: { paymentYear: 2030, kind: "DC_LUMP_SUM", overlappingYearsOfService: 6 },
+      priorPayments: [{ paymentYear: 2030, kind: "DC_LUMP_SUM", overlappingYearsOfService: 6 }],
     });
     // 前の支給(2030年)は今回(2036年)の6年前。改正前の4年内には収まらないが、
     // 前がDC一時金かつ令和8年(2026年)以後の支給のため対象期間が9年内に延長され重複排除が適用される
@@ -170,7 +170,7 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
       incomeJpy: 15_000_000,
       yearsOfService: 27,
       paymentYear: 2031,
-      priorPayment: { paymentYear: 2025, kind: "DC_LUMP_SUM", overlappingYearsOfService: 6 },
+      priorPayments: [{ paymentYear: 2025, kind: "DC_LUMP_SUM", overlappingYearsOfService: 6 }],
     });
     // 前の支給(2025年)は令和8年より前のため対象期間は4年内のまま。gap=6年は対象外
     expect(result.overlapDeductionReductionJpy.toNumber()).toBe(0);
@@ -182,17 +182,17 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
         incomeJpy: 15_000_000,
         yearsOfService: 27,
         paymentYear: 2020,
-        priorPayment: { paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 6 },
+        priorPayments: [{ paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 6 }],
       }),
     ).toThrow();
   });
 
-  it("priorPaymentを指定してpaymentYearを省略するとエラーになる", () => {
+  it("priorPaymentsを指定してpaymentYearを省略するとエラーになる", () => {
     expect(() =>
       estimateRetirementIncome({
         incomeJpy: 15_000_000,
         yearsOfService: 27,
-        priorPayment: { paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 6 },
+        priorPayments: [{ paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 6 }],
       }),
     ).toThrow();
   });
@@ -203,9 +203,72 @@ describe("estimateRetirementIncome の重複排除(前の退職手当等)", () =
         incomeJpy: 15_000_000,
         yearsOfService: 10,
         paymentYear: 2026,
-        priorPayment: { paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 11 },
+        priorPayments: [{ paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 11 }],
       }),
     ).toThrow();
+  });
+});
+
+describe("estimateRetirementIncome の重複排除(前の退職手当等が2件以上。機能109)", () => {
+  it("対象期間内の複数件の重複勤続年数を合計して控除額を1回で計算する", () => {
+    // 勤続27年・退職金1,500万円、B社(2023年、3年重複)・C社(2024年、2年重複)がいずれも対象期間(4年内)内
+    // 通常の控除額: 800万円+70万円×(27-20)=1,290万円、重複排除: 40万円×(3+2)=200万円 → 1,090万円
+    const result = estimateRetirementIncome({
+      incomeJpy: 15_000_000,
+      yearsOfService: 27,
+      paymentYear: 2026,
+      priorPayments: [
+        { paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 3 },
+        { paymentYear: 2024, kind: "REGULAR", overlappingYearsOfService: 2 },
+      ],
+    });
+    expect(result.overlapDeductionReductionJpy.toNumber()).toBe(2_000_000);
+    expect(result.deductionJpy.toNumber()).toBe(10_900_000);
+  });
+
+  it("対象期間外の件は合計から除外する", () => {
+    // B社(2020年、7年前)は対象期間(4年内)外のため除外、C社(2024年、2年重複)のみ対象
+    const result = estimateRetirementIncome({
+      incomeJpy: 15_000_000,
+      yearsOfService: 27,
+      paymentYear: 2026,
+      priorPayments: [
+        { paymentYear: 2020, kind: "REGULAR", overlappingYearsOfService: 6 },
+        { paymentYear: 2024, kind: "REGULAR", overlappingYearsOfService: 2 },
+      ],
+    });
+    expect(result.overlapDeductionReductionJpy.toNumber()).toBe(800_000);
+  });
+
+  it("重複勤続年数の合計が今回の勤続年数を超える場合は今回の勤続年数を上限とする", () => {
+    // 勤続10年に対しB社8年重複・C社5年重複(合計13年)は勤続年数10年を超えるため10年を上限とする
+    const result = estimateRetirementIncome({
+      incomeJpy: 15_000_000,
+      yearsOfService: 10,
+      paymentYear: 2026,
+      priorPayments: [
+        { paymentYear: 2023, kind: "REGULAR", overlappingYearsOfService: 8 },
+        { paymentYear: 2024, kind: "REGULAR", overlappingYearsOfService: 5 },
+      ],
+    });
+    // 控除額(40万円×10年=400万円)を上限に重複排除するため、控除後の退職所得控除額は0円
+    expect(result.overlapDeductionReductionJpy.toNumber()).toBe(4_000_000);
+    expect(result.deductionJpy.toNumber()).toBe(0);
+  });
+
+  it("各件ごとに異なる重複排除対象期間(DC一時金)を判定する", () => {
+    // 今回は通常の退職手当等。B社(2010年、DC一時金、10年重複)は19年内ではなく
+    // 通常同士の対象期間(4年内)で判定され対象外、C社(2024年、通常、2年重複)のみ対象
+    const result = estimateRetirementIncome({
+      incomeJpy: 15_000_000,
+      yearsOfService: 27,
+      paymentYear: 2026,
+      priorPayments: [
+        { paymentYear: 2010, kind: "DC_LUMP_SUM", overlappingYearsOfService: 10 },
+        { paymentYear: 2024, kind: "REGULAR", overlappingYearsOfService: 2 },
+      ],
+    });
+    expect(result.overlapDeductionReductionJpy.toNumber()).toBe(800_000);
   });
 });
 
@@ -271,7 +334,7 @@ describe("estimateRetirementIncome の同一年中の合算(国税庁タック�
       yearsOfService: 20,
       paymentYear: 2026,
       samePeriodPayments: [{ incomeJpy: 3_000_000, yearsOfService: 5, overlappingYearsOfService: 0 }],
-      priorPayment: { paymentYear: 2024, kind: "REGULAR", overlappingYearsOfService: 4 },
+      priorPayments: [{ paymentYear: 2024, kind: "REGULAR", overlappingYearsOfService: 4 }],
     });
     expect(result.combinedYearsOfService).toBe(25);
     expect(result.overlapDeductionReductionJpy.toNumber()).toBe(1_600_000);
