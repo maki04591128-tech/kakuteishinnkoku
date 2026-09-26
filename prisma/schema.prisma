@@ -789,6 +789,8 @@ model CryptoTrade {
   /// 除く。贈与等の時の時価をみなし総収入金額として計上する)
   /// low_price_transfer_out: 時価の70%未満の対価による低額譲渡(実際の対価と時価の70%相当額の
   /// いずれか高い方をみなし総収入金額として計上する。marketValueUnitPriceJpyが必須)
+  /// fork_in: 暗号資産の分裂(分岐)により新たに誕生した暗号資産を取得(取得時点では取引相場が
+  /// 無く価値を有しないため取得価額は常に0円とし、取得時点では収入計上しない。国税庁FAQ1-6)
   /// fee: 取引手数料(暗号資産建てで支払われた場合)
   type CryptoTradeType
 
@@ -796,7 +798,7 @@ model CryptoTrade {
   quantity Decimal
 
   /// 単価(日本円換算)。income/tradeでは取得時の時価、low_price_transfer_outでは
-  /// 実際に受け取った対価の単価を入力する。
+  /// 実際に受け取った対価の単価を入力する。fork_inでは常に0円として扱われる(無視される)。
   unitPriceJpy Decimal
 
   /// low_price_transfer_out(低額譲渡)専用。譲渡時点における時価(単価)。
@@ -835,6 +837,7 @@ enum CryptoTradeType {
   GIFT_OUT
   LOW_PRICE_TRANSFER_OUT
   LOW_PRICE_TRANSFER_IN
+  FORK_IN
   FEE
 }
 

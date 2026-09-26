@@ -23,6 +23,14 @@ import { Decimal } from "decimal.js";
  * 算入した額(=max(実際の対価, 時価の70%相当額))をそのまま引き継ぐ必要があるため、
  * LOW_PRICE_TRANSFER_OUTと同じ計算式を取得側にも適用する(GIFT_INと同様、取得時点では
  * 雑所得の収入計上はしない)。
+ *
+ * FORK_IN(暗号資産の分裂(分岐)による取得)は、国税庁FAQ1-6「暗号資産の分裂(分岐)に
+ * より暗号資産を取得した場合」に基づく取扱い。分裂(分岐)時点では新たな暗号資産の
+ * 取引相場が存在せず価値を有していないと考えられるため、取得時点では所得が生じず、
+ * 取得価額は常に0円になる(その後売却又は使用した時点で全額が雑所得の収入になる)。
+ * INCOME(マイニング等の受取。取得時点で時価があり収入計上する)とは異なり、GIFT_IN・
+ * LOW_PRICE_TRANSFER_INと同様に取得時点では収入計上しないが、それらと異なり取得価額は
+ * 常に0円固定である点が特徴(unitPriceJpyに何を指定しても無視され0円として扱われる)。
  */
 
 export type CryptoTradeType =
@@ -35,6 +43,7 @@ export type CryptoTradeType =
   | "GIFT_OUT"
   | "LOW_PRICE_TRANSFER_OUT"
   | "LOW_PRICE_TRANSFER_IN"
+  | "FORK_IN"
   | "FEE";
 
 export type CryptoCostMethod = "AVERAGE" | "MOVING_AVERAGE";
@@ -52,7 +61,8 @@ export interface CryptoTradeInput {
    * 「暗号資産による寄附を行った場合」参照。相続人に対する死因贈与・包括遺贈・特定遺贈は
    * 対象外(相続税の課税対象でありGIFT_INの対象))、LOW_PRICE_TRANSFER_OUT/
    * LOW_PRICE_TRANSFER_INはいずれも実際に授受された対価の額(marketValueUnitPriceJpyとの
-   * 差額はこのフィールドではなくそちらで判定する)。
+   * 差額はこのフィールドではなくそちらで判定する)、FORK_INは常に無視され取得価額は0円
+   * として扱われる(同FAQ1-6「暗号資産の分裂(分岐)により暗号資産を取得した場合」参照)。
    */
   unitPriceJpy: Decimal.Value;
   /**
@@ -90,9 +100,11 @@ export interface CryptoSymbolYearResult {
   averageUnitCostJpy: Decimal;
   /**
    * マイニング・ステーキング・レンディング等、取得時点で収入計上すべき金額。
-   * 贈与・相続等(GIFT_IN)・低額譲渡による取得(LOW_PRICE_TRANSFER_IN)による取得は、
-   * 前者は相続税・贈与税の課税対象、後者は譲渡者側で既にみなし譲渡課税済みのため、
-   * いずれも所得税の収入金額には算入しない(取得価額として取得原価に加算するのみ)。
+   * 贈与・相続等(GIFT_IN)・低額譲渡による取得(LOW_PRICE_TRANSFER_IN)・分裂(分岐)に
+   * よる取得(FORK_IN)は、1つ目は相続税・贈与税の課税対象、2つ目は譲渡者側で既に
+   * みなし譲渡課税済み、3つ目は取得時点で価値を有しないためのいずれかの理由により、
+   * 所得税の収入金額には算入しない(FORK_INは取得価額も常に0円のため取得原価には
+   * 加算されない)。
    */
   incomeJpy: Decimal;
   disposedQuantity: Decimal;
@@ -113,6 +125,7 @@ const ACQUIRE_TYPES: ReadonlySet<CryptoTradeType> = new Set([
   "INCOME",
   "GIFT_IN",
   "LOW_PRICE_TRANSFER_IN",
+  "FORK_IN",
 ]);
 const DISPOSE_TYPES: ReadonlySet<CryptoTradeType> = new Set([
   "SELL",
@@ -161,6 +174,24 @@ function resolveLowPriceTransferUnitPriceJpy(
   }
   const lowPriceThreshold = marketValueUnitPrice.times(LOW_PRICE_TRANSFER_FMV_RATIO);
   return Decimal.max(unitPrice, lowPriceThreshold);
+}
+
+/**
+ * 取得側の取引種別に応じて、実際に取得原価として積み上げる単価を返す。
+ * FORK_IN(暗号資産の分裂(分岐)による取得)は、国税庁FAQ1-6により分裂(分岐)時点では
+ * 取引相場が存在せず価値を有しないため、unitPriceJpyに何を指定しても常に0円として扱う。
+ * それ以外の取得種別は resolveLowPriceTransferUnitPriceJpy の結果(通常は実際の単価)を
+ * そのまま返す。
+ */
+function resolveAcquisitionUnitPriceJpy(
+  trade: CryptoTradeInput,
+  unitPrice: Decimal,
+  symbol: string,
+): Decimal {
+  if (trade.type === "FORK_IN") {
+    return new Decimal(0);
+  }
+  return resolveLowPriceTransferUnitPriceJpy(trade, unitPrice, symbol);
 }
 
 /**
@@ -228,8 +259,9 @@ function calculateCryptoYearAverage(
     if (ACQUIRE_TYPES.has(trade.type)) {
       // LOW_PRICE_TRANSFER_IN(低額譲渡による取得)は実際の対価と時価の70%相当額の
       // いずれか高い方を取得価額とする(国税庁FAQ2-10注3。譲渡者側の総収入金額算入額を
-      // そのまま引き継ぐ)。それ以外の取引種別は実際の単価をそのまま用いる。
-      const acquisitionUnitPrice = resolveLowPriceTransferUnitPriceJpy(trade, unitPrice, symbol);
+      // そのまま引き継ぐ)。FORK_IN(分裂(分岐)による取得)は常に0円(同FAQ1-6)。
+      // それ以外の取引種別は実際の単価をそのまま用いる。
+      const acquisitionUnitPrice = resolveAcquisitionUnitPriceJpy(trade, unitPrice, symbol);
       const grossValue = quantity.times(acquisitionUnitPrice);
       acquiredQuantity = acquiredQuantity.plus(quantity);
       acquiredCostJpy = acquiredCostJpy.plus(grossValue).plus(fee);
@@ -349,7 +381,8 @@ export function calculateCryptoYearMovingAverage(
     }
 
     if (ACQUIRE_TYPES.has(trade.type)) {
-      const acquisitionUnitPrice = resolveLowPriceTransferUnitPriceJpy(trade, unitPrice, symbol);
+      // FORK_IN(分裂(分岐)による取得)は常に取得価額0円(国税庁FAQ1-6)。
+      const acquisitionUnitPrice = resolveAcquisitionUnitPriceJpy(trade, unitPrice, symbol);
       const grossValue = tradeQuantity.times(acquisitionUnitPrice);
       const cost = grossValue.plus(fee);
       quantity = quantity.plus(tradeQuantity);

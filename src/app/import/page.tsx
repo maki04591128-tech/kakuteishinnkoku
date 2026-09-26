@@ -1728,6 +1728,12 @@ export default async function ImportPage({
           相当額未満の場合、譲渡者側が総収入金額に算入した額(=時価の70%相当額)をそのまま
           取得価額として引き継ぐ(同FAQ2-10注3)。取得時点では雑所得の収入計上はしない
           (譲渡者側で既にみなし譲渡課税済みのため)。
+          「分裂(分岐)による取得」は、既存の暗号資産の分裂(分岐、いわゆるハードフォーク)
+          により新たに誕生した暗号資産を取得した場合の取扱い。分裂(分岐)時点ではその
+          新しい暗号資産の取引相場が存在せず価値を有しないため、取得時点では雑所得の
+          収入計上をせず、取得価額も常に0円になる(単価欄には0を入力する。国税庁
+          「暗号資産等に関する税務上の取扱いについて(FAQ)」1-6参照)。売却又は使用した
+          時点で、その全額が雑所得の収入になる。
         </p>
         <form action={addCryptoTrade} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <input type="hidden" name="year" value={year} />
@@ -1748,6 +1754,7 @@ export default async function ImportPage({
               <option value="GIFT_OUT">贈与・寄附による譲渡</option>
               <option value="LOW_PRICE_TRANSFER_OUT">低額譲渡</option>
               <option value="LOW_PRICE_TRANSFER_IN">低額譲渡による取得</option>
+              <option value="FORK_IN">分裂(分岐)による取得</option>
               <option value="FEE">暗号資産建て手数料</option>
             </select>
           </Field>
