@@ -1,17 +1,32 @@
 "use client";
 
 import { useId, useMemo, useRef, useState } from "react";
-import { estimateBlockchainGameIncome } from "@/lib/blockchainGameIncome";
+import {
+  estimateBlockchainGameIncome,
+  type BlockchainGameValuationMethod,
+} from "@/lib/blockchainGameIncome";
 
 function yen(value: { toString(): string }): string {
   const n = Number(value.toString());
   return `¥${Math.round(n).toLocaleString("ja-JP")}`;
 }
 
+interface PrincipleReceiptRow {
+  key: string;
+  quantity: string;
+  unitPrice: string;
+}
+
+function newReceiptRow(key: string): PrincipleReceiptRow {
+  return { key, quantity: "0", unitPrice: "0" };
+}
+
 interface TokenRow {
   key: string;
   description: string;
   isGameOnlyToken: boolean;
+  valuationMethod: BlockchainGameValuationMethod;
+  principleReceipts: PrincipleReceiptRow[];
   openingBalance: string;
   closingBalance: string;
   purchasedAmount: string;
@@ -25,6 +40,8 @@ function newTokenRow(key: string): TokenRow {
     key,
     description: "",
     isGameOnlyToken: false,
+    valuationMethod: "PRINCIPLE",
+    principleReceipts: [newReceiptRow(`${key}-r0`)],
     openingBalance: "0",
     closingBalance: "0",
     purchasedAmount: "0",
@@ -41,9 +58,29 @@ export function BlockchainGameIncomeForm() {
   const idPrefix = useId();
   const [items, setItems] = useState<TokenRow[]>([newTokenRow("initial")]);
   const nextRowIdRef = useRef(0);
+  const nextReceiptIdRef = useRef(0);
 
   const updateRow = (key: string, patch: Partial<TokenRow>) => {
     setItems((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  };
+
+  const updateReceipt = (
+    rowKey: string,
+    receiptKey: string,
+    patch: Partial<PrincipleReceiptRow>,
+  ) => {
+    setItems((prev) =>
+      prev.map((r) =>
+        r.key === rowKey
+          ? {
+              ...r,
+              principleReceipts: r.principleReceipts.map((rec) =>
+                rec.key === receiptKey ? { ...rec, ...patch } : rec,
+              ),
+            }
+          : r,
+      ),
+    );
   };
 
   const result = useMemo(() => {
@@ -52,6 +89,11 @@ export function BlockchainGameIncomeForm() {
         items: items.map((row) => ({
           description: row.description,
           isGameOnlyToken: row.isGameOnlyToken,
+          valuationMethod: row.valuationMethod,
+          principleReceipts: row.principleReceipts.map((rec) => ({
+            quantity: rec.quantity || 0,
+            unitPriceJpy: rec.unitPrice || 0,
+          })),
           openingBalance: row.openingBalance || 0,
           closingBalance: row.closingBalance || 0,
           purchasedAmount: row.purchasedAmount || 0,
@@ -99,81 +141,165 @@ export function BlockchainGameIncomeForm() {
 
             {!row.isGameOnlyToken && (
               <>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-neutral-500">年始(1/1)保有数量</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={row.openingBalance}
-                    onChange={(e) => updateRow(row.key, { openingBalance: e.target.value })}
-                    className={inputClass}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-neutral-500">年末(12/31)保有数量</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={row.closingBalance}
-                    onChange={(e) => updateRow(row.key, { closingBalance: e.target.value })}
-                    className={inputClass}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-neutral-500">年中に購入した数量</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={row.purchasedAmount}
-                    onChange={(e) => updateRow(row.key, { purchasedAmount: e.target.value })}
-                    className={inputClass}
-                  />
-                </label>
-                <label className="flex flex-col justify-end gap-1 text-sm">
-                  <span className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
-                    <input
-                      type="checkbox"
-                      checked={row.hasYearEndMarketValue}
-                      onChange={(e) =>
-                        updateRow(row.key, { hasYearEndMarketValue: e.target.checked })
-                      }
-                    />
-                    年末時点で時価を算定できる
-                  </span>
-                </label>
-                {row.hasYearEndMarketValue && (
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-neutral-500">
-                      年末の暗号資産への換算レート(1トークンあたり円)
-                    </span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      value={row.yearEndRate}
-                      onChange={(e) => updateRow(row.key, { yearEndRate: e.target.value })}
-                      className={inputClass}
-                    />
-                  </label>
-                )}
-                <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-                  <span className="text-neutral-500">
-                    年中に暗号資産等へ交換した分の交換時の価額(円)
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    value={row.midYearCryptoExchangeValue}
+                <label className="flex flex-col gap-1 text-sm sm:col-span-4">
+                  <span className="text-neutral-500">収入計上の方法</span>
+                  <select
+                    value={row.valuationMethod}
                     onChange={(e) =>
-                      updateRow(row.key, { midYearCryptoExchangeValue: e.target.value })
+                      updateRow(row.key, {
+                        valuationMethod: e.target.value as BlockchainGameValuationMethod,
+                      })
                     }
                     className={inputClass}
-                  />
+                  >
+                    <option value="PRINCIPLE">原則法(取得の都度の時価評価)</option>
+                    <option value="SIMPLIFIED">簡便法(年末一括評価)</option>
+                  </select>
                 </label>
+
+                {row.valuationMethod === "PRINCIPLE" ? (
+                  <div className="flex flex-col gap-2 sm:col-span-4">
+                    {row.principleReceipts.map((receipt, receiptIndex) => (
+                      <div
+                        key={receipt.key}
+                        className="grid grid-cols-1 gap-2 rounded-md border border-neutral-200 p-2 sm:grid-cols-5 dark:border-neutral-800"
+                      >
+                        <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                          <span className="text-neutral-500">
+                            取得{receiptIndex + 1}: 数量
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            value={receipt.quantity}
+                            onChange={(e) =>
+                              updateReceipt(row.key, receipt.key, { quantity: e.target.value })
+                            }
+                            className={inputClass}
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                          <span className="text-neutral-500">取得時の1トークンあたり時価(円)</span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            value={receipt.unitPrice}
+                            onChange={(e) =>
+                              updateReceipt(row.key, receipt.key, { unitPrice: e.target.value })
+                            }
+                            className={inputClass}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateRow(row.key, {
+                              principleReceipts: row.principleReceipts.filter(
+                                (rec) => rec.key !== receipt.key,
+                              ),
+                            })
+                          }
+                          className="self-end rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-red-600 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+                        >
+                          削除
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const key = `${idPrefix}-receipt-${nextReceiptIdRef.current}`;
+                        nextReceiptIdRef.current += 1;
+                        updateRow(row.key, {
+                          principleReceipts: [...row.principleReceipts, newReceiptRow(key)],
+                        });
+                      }}
+                      className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+                    >
+                      取得記録を追加
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <label className="flex flex-col gap-1 text-sm">
+                      <span className="text-neutral-500">年始(1/1)保有数量</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        value={row.openingBalance}
+                        onChange={(e) => updateRow(row.key, { openingBalance: e.target.value })}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      <span className="text-neutral-500">年末(12/31)保有数量</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        value={row.closingBalance}
+                        onChange={(e) => updateRow(row.key, { closingBalance: e.target.value })}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      <span className="text-neutral-500">年中に購入した数量</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        value={row.purchasedAmount}
+                        onChange={(e) => updateRow(row.key, { purchasedAmount: e.target.value })}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="flex flex-col justify-end gap-1 text-sm">
+                      <span className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
+                        <input
+                          type="checkbox"
+                          checked={row.hasYearEndMarketValue}
+                          onChange={(e) =>
+                            updateRow(row.key, { hasYearEndMarketValue: e.target.checked })
+                          }
+                        />
+                        年末時点で時価を算定できる
+                      </span>
+                    </label>
+                    {row.hasYearEndMarketValue && (
+                      <label className="flex flex-col gap-1 text-sm">
+                        <span className="text-neutral-500">
+                          年末の暗号資産への換算レート(1トークンあたり円)
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          value={row.yearEndRate}
+                          onChange={(e) => updateRow(row.key, { yearEndRate: e.target.value })}
+                          className={inputClass}
+                        />
+                      </label>
+                    )}
+                    <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                      <span className="text-neutral-500">
+                        年中に暗号資産等へ交換した分の交換時の価額(円)
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={row.midYearCryptoExchangeValue}
+                        onChange={(e) =>
+                          updateRow(row.key, { midYearCryptoExchangeValue: e.target.value })
+                        }
+                        className={inputClass}
+                      />
+                    </label>
+                  </>
+                )}
               </>
             )}
 
@@ -217,12 +343,20 @@ export function BlockchainGameIncomeForm() {
                     </span>
                   )}
                 </p>
-                <p className="text-neutral-500">
-                  年末一括評価分: {yen(item.yearEndValuationIncomeJpy)}
-                </p>
-                <p className="text-neutral-500">
-                  年中交換分: {yen(item.midYearExchangeIncomeJpy)}
-                </p>
+                {item.valuationMethod === "PRINCIPLE" ? (
+                  <p className="text-neutral-500 sm:col-span-2">
+                    原則法(取得の都度評価)分: {yen(item.principleIncomeJpy)}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-neutral-500">
+                      年末一括評価分: {yen(item.yearEndValuationIncomeJpy)}
+                    </p>
+                    <p className="text-neutral-500">
+                      年中交換分: {yen(item.midYearExchangeIncomeJpy)}
+                    </p>
+                  </>
+                )}
                 <p className="text-neutral-500 sm:col-span-2">
                   雑所得の金額: <span className="font-semibold">{yen(item.miscIncomeJpy)}</span>
                 </p>
