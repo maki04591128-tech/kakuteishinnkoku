@@ -42,11 +42,20 @@ import { SEPARATE_NATIONAL_TAX_RATE, SEPARATE_RESIDENT_TAX_RATE } from "../incom
  *  - 除外規定(在留資格が「外交」等の一定の在留資格による在留期間の除外等)は
  *    判定しない。
  *  - 納税猶予制度(所得税法137条の2。担保提供・継続適用届出書の提出により
- *    最長10年間納税を猶予できる)、5年(納税猶予延長時は10年)以内に帰国し対象
- *    資産を引き続き保有していた場合の課税取消し(同法60条の2第6項・153条の2)、
- *    納税猶予期間中に実際の譲渡価額がこの試算の価額を下回った場合等の更正の
- *    請求による減額の特例(同法60条の2第7項)は、いずれも金額計算の対象外とし、
- *    注記での案内にとどめる。
+ *    最長10年間納税を猶予できる)そのものの手続き(担保提供・届出書の提出)は
+ *    対応しない。5年(納税猶予延長時は10年)以内に帰国し対象資産を引き続き
+ *    保有していた場合の課税取消し(同法60条の2第6項)は`estimateExitTaxCancellation`
+ *    で試算する(下記参照)。納税猶予期間中に実際の譲渡価額がこの試算の価額を
+ *    下回った場合等の更正の請求による減額の特例(同法60条の2第7項・第8項)は
+ *    引き続き金額計算の対象外とし、注記での案内にとどめる。
+ *
+ * 帰国等による課税取消し(所得税法60条の2第6項第1号、国税庁タックスアンサー
+ * No.1478)については`estimateExitTaxCancellation`を参照。国外転出の日から5年
+ * (納税猶予の適用を受けている場合は10年)を経過する日までに帰国(国内に住所を
+ * 有し、又は現在まで引き続いて1年以上居所を有することとなること)をした場合、
+ * その帰国の時まで引き続き有している対象資産に限り、更正の請求によりその
+ * 課税を取り消すことができる(帰国の時点で既に譲渡・使用済みの対象資産は
+ * 取消しの対象にならない)。更正の請求の期限は帰国の日から4か月以内。
  *  - この試算で計算した含み益は、実際の申告では国外転出年のその他の株式等の
  *    譲渡損益(上場株式等の譲渡損失の繰越控除の使用分を含む)と合算して申告
  *    分離課税の課税所得を計算する必要があるが、本ツールは他の試算画面
@@ -203,6 +212,145 @@ export function estimateExitTax(input: ExitTaxInput): ExitTaxResult {
     nationalTaxJpy,
     residentTaxJpy,
     totalTaxJpy,
+    notes,
+  };
+}
+
+/**
+ * 国外転出時課税の帰国等による課税取消し(所得税法60条の2第6項第1号、国税庁
+ * タックスアンサーNo.1478)の試算。
+ *
+ * 国外転出の日から5年(納税猶予制度(同法137条の2)の適用を受けている場合は
+ * 10年)を経過する日までに帰国(国内に住所を有し、又は現在まで引き続いて1年
+ * 以上居所を有することとなること)をした場合において、帰国の時まで引き続き
+ * 有している対象資産については、更正の請求により当初の国外転出時課税を
+ * 取り消すことができる(帰国前に譲渡・使用等をして手放した対象資産は取消しの
+ * 対象にならず、当初どおり課税される)。更正の請求の期限は帰国の日から4か月
+ * 以内。
+ *
+ * 銘柄ごとの入力は`estimateExitTax`と同じ(区分・保有数量・取得費・判定日
+ * 時点の時価)に、帰国の時まで引き続き保有していたかどうかを追加したもの。
+ * 帰国要件を満たす場合、引き続き保有していた銘柄を除いた残りの銘柄のみで
+ * `estimateExitTax`を再計算し(上場株式等・一般株式等それぞれ0円未満に
+ * 切り下げるプール処理は当初試算と同じ)、当初の税額との差額を還付され得る
+ * 税額として示す。
+ *
+ * 制約(今後の課題):
+ *  - 保有数量の一部のみを帰国時まで保有していた場合(一部譲渡)は、その銘柄を
+ *    「引き続き保有」「保有していない」のいずれか一方でしか扱えない(保有数量を
+ *    分割した部分取消しには対応しない)。部分取消しを試算したい場合は、その
+ *    銘柄を保有継続分・譲渡済み分の2行に分けて入力すること。
+ *  - 納税猶予期間中に実際の譲渡価額がこの試算の価額を下回った場合等の更正の
+ *    請求による減額の特例(同法60条の2第7項・第8項)は対象外(注記のみ)。
+ *  - 還付され得る税額がマイナスになる場合(引き続き保有していた銘柄が含み損で
+ *    あり、除外すると他方のプールとの通算前の含み損失分が減って課税対象額が
+ *    かえって増える場合)は、更正の請求をすると不利になるため通常は請求しない
+ *    運用上の判断はユーザーに委ね、本ツールでは自動判定しない(注記で案内)。
+ */
+
+export interface ExitTaxCancellationHoldingInput extends ExitTaxHoldingInput {
+  /** 帰国の時まで引き続き有していたかどうか(所得税法60条の2第6項第1号) */
+  stillHeldAtReturn: boolean;
+}
+
+export interface ExitTaxCancellationInput {
+  holdings: ExitTaxCancellationHoldingInput[];
+  /** 国外転出の日前10年以内に、国内に住所又は居所を有していた期間の合計(年)。当初の国外転出時課税の対象判定に使用 */
+  domesticResidenceYearsInPast10Years: number;
+  /** 国外転出の日(YYYY-MM-DD) */
+  exitDate: string;
+  /** 帰国の日(国内に住所を有し、又は現在まで引き続いて1年以上居所を有することとなった日。YYYY-MM-DD) */
+  returnDate: string;
+  /** 納税猶予制度(所得税法137条の2)の適用を受け、帰国期限が5年から10年に延長されているか */
+  hasTaxDeferralExtension: boolean;
+}
+
+export interface ExitTaxCancellationResult {
+  /** 帰国期限(5年、納税猶予延長時は10年)以内の帰国かどうか */
+  meetsReturnDeadline: boolean;
+  /** 判定に用いた帰国期限の年数(5または10) */
+  deadlineYears: number;
+  /** 更正の請求の期限(帰国の日から4か月を経過する日。YYYY-MM-DD) */
+  amendedReturnDeadlineDate: string;
+  /** 当初、国外転出時課税の対象だったかどうか */
+  isSubjectToExitTax: boolean;
+  /** 帰国を考慮しない、全保有資産を対象とした当初の試算結果 */
+  originalResult: ExitTaxResult;
+  /** 帰国要件を満たす場合に、引き続き保有していた資産分を除いて再計算した試算結果(満たさない場合は当初と同じ) */
+  revisedResult: ExitTaxResult;
+  /** 更正の請求により還付され得る税額(originalResult.totalTaxJpy - revisedResult.totalTaxJpy) */
+  refundableTaxJpy: Decimal;
+  notes: string[];
+}
+
+function addYears(date: Date, years: number): Date {
+  const result = new Date(date.getTime());
+  result.setFullYear(result.getFullYear() + years);
+  return result;
+}
+
+function addMonths(date: Date, months: number): Date {
+  const result = new Date(date.getTime());
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+function toIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function estimateExitTaxCancellation(
+  input: ExitTaxCancellationInput,
+): ExitTaxCancellationResult {
+  const exitDate = new Date(input.exitDate);
+  const returnDate = new Date(input.returnDate);
+  if (Number.isNaN(exitDate.getTime())) {
+    throw new Error("国外転出の日の形式が不正です");
+  }
+  if (Number.isNaN(returnDate.getTime())) {
+    throw new Error("帰国の日の形式が不正です");
+  }
+  if (returnDate.getTime() < exitDate.getTime()) {
+    throw new Error("帰国の日は国外転出の日以後の日付である必要があります");
+  }
+
+  const deadlineYears = input.hasTaxDeferralExtension ? 10 : 5;
+  const deadlineDate = addYears(exitDate, deadlineYears);
+  const meetsReturnDeadline = returnDate.getTime() <= deadlineDate.getTime();
+  const amendedReturnDeadlineDate = toIsoDate(addMonths(returnDate, 4));
+
+  const originalResult = estimateExitTax({
+    holdings: input.holdings,
+    domesticResidenceYearsInPast10Years: input.domesticResidenceYearsInPast10Years,
+  });
+
+  const canCancel = originalResult.isSubjectToExitTax && meetsReturnDeadline;
+  const revisedHoldings = canCancel
+    ? input.holdings.filter((h) => !h.stillHeldAtReturn)
+    : input.holdings;
+  const revisedResult = estimateExitTax({
+    holdings: revisedHoldings,
+    domesticResidenceYearsInPast10Years: input.domesticResidenceYearsInPast10Years,
+  });
+
+  const refundableTaxJpy = originalResult.totalTaxJpy.minus(revisedResult.totalTaxJpy);
+
+  const notes: string[] = [
+    "国税庁タックスアンサーNo.1478、所得税法60条の2第6項第1号による概算値。国外転出の日から5年(納税猶予制度(同法137条の2)の適用を受けている場合は10年)を経過する日までに帰国し、その帰国の時まで引き続き有していた対象資産に限り、更正の請求により当初の国外転出時課税を取り消すことができる。帰国前に譲渡・使用等をした対象資産は取消しの対象にならない。",
+    "更正の請求の期限は帰国の日から4か月以内。",
+    "保有数量の一部のみを帰国時まで保有していた場合(一部譲渡)は銘柄を保有継続分・譲渡済み分の2行に分けて入力すること(本ツールは銘柄単位で「引き続き保有」か「保有していない」かの二値でのみ判定する)。",
+    "納税猶予期間中に実際の譲渡価額がこの試算の価額を下回った場合等の更正の請求による減額の特例(同法60条の2第7項・第8項)は対象外(金額計算は行わない)。",
+    "還付され得る税額がマイナスになる場合(引き続き保有していた資産が含み損であり、除外すると課税対象額がかえって増える場合)は、更正の請求をすると不利になるため通常は請求しない。この判断はユーザーに委ね、本ツールでは自動判定しない。",
+  ];
+
+  return {
+    meetsReturnDeadline,
+    deadlineYears,
+    amendedReturnDeadlineDate,
+    isSubjectToExitTax: originalResult.isSubjectToExitTax,
+    originalResult,
+    revisedResult,
+    refundableTaxJpy,
     notes,
   };
 }

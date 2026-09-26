@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateExitTax } from "./exitTax";
+import { estimateExitTax, estimateExitTaxCancellation } from "./exitTax";
 
 describe("estimateExitTax", () => {
   it("対象資産1億円以上・居住期間5年超の場合、みなし譲渡益に20.315%課税する", () => {
@@ -205,6 +205,196 @@ describe("estimateExitTax", () => {
       estimateExitTax({
         holdings: [],
         domesticResidenceYearsInPast10Years: -1,
+      }),
+    ).toThrow();
+  });
+});
+
+describe("estimateExitTaxCancellation", () => {
+  it("帰国期限(5年)以内に帰国し、引き続き保有していた銘柄分の課税を取り消せる", () => {
+    const result = estimateExitTaxCancellation({
+      holdings: [
+        // 引き続き保有(帰国時まで手放していない): みなし譲渡益6,000万円
+        {
+          symbol: "HELD",
+          isListed: true,
+          quantity: 1,
+          costBasisJpy: 40_000_000,
+          valuationPriceJpy: 100_000_000,
+          stillHeldAtReturn: true,
+        },
+        // 帰国前に譲渡済み: みなし譲渡益3,000万円(取消しの対象外、当初どおり課税)
+        {
+          symbol: "SOLD",
+          isListed: true,
+          quantity: 1,
+          costBasisJpy: 70_000_000,
+          valuationPriceJpy: 100_000_000,
+          stillHeldAtReturn: false,
+        },
+      ],
+      domesticResidenceYearsInPast10Years: 10,
+      exitDate: "2020-01-10",
+      returnDate: "2024-06-01",
+      hasTaxDeferralExtension: false,
+    });
+
+    expect(result.isSubjectToExitTax).toBe(true);
+    expect(result.deadlineYears).toBe(5);
+    expect(result.meetsReturnDeadline).toBe(true);
+    expect(result.amendedReturnDeadlineDate).toBe("2024-10-01");
+
+    expect(result.originalResult.totalTaxableGainJpy.toNumber()).toBe(90_000_000);
+    // 引き続き保有していたHELD分を除いた、SOLD分3,000万円のみが残る
+    expect(result.revisedResult.totalTaxableGainJpy.toNumber()).toBe(30_000_000);
+    // 取り消される課税対象額6,000万円 × 20.315% = 12,189,000円
+    expect(result.refundableTaxJpy.toNumber()).toBeCloseTo(12_189_000, 0);
+  });
+
+  it("帰国期限(5年)を超えて帰国した場合は取消しの対象にならない(還付税額0円)", () => {
+    const result = estimateExitTaxCancellation({
+      holdings: [
+        {
+          symbol: "HELD",
+          isListed: true,
+          quantity: 1,
+          costBasisJpy: 40_000_000,
+          valuationPriceJpy: 100_000_000,
+          stillHeldAtReturn: true,
+        },
+        {
+          symbol: "SOLD",
+          isListed: true,
+          quantity: 1,
+          costBasisJpy: 70_000_000,
+          valuationPriceJpy: 100_000_000,
+          stillHeldAtReturn: false,
+        },
+      ],
+      domesticResidenceYearsInPast10Years: 10,
+      exitDate: "2015-01-10",
+      returnDate: "2021-06-01",
+      hasTaxDeferralExtension: false,
+    });
+
+    expect(result.meetsReturnDeadline).toBe(false);
+    expect(result.revisedResult.totalTaxableGainJpy.toNumber()).toBe(
+      result.originalResult.totalTaxableGainJpy.toNumber(),
+    );
+    expect(result.refundableTaxJpy.toNumber()).toBe(0);
+  });
+
+  it("納税猶予制度の適用を受けている場合は帰国期限が10年に延長される", () => {
+    const result = estimateExitTaxCancellation({
+      holdings: [
+        {
+          symbol: "HELD",
+          isListed: true,
+          quantity: 1,
+          costBasisJpy: 0,
+          valuationPriceJpy: 200_000_000,
+          stillHeldAtReturn: true,
+        },
+      ],
+      domesticResidenceYearsInPast10Years: 10,
+      exitDate: "2015-01-10",
+      returnDate: "2023-06-01",
+      hasTaxDeferralExtension: true,
+    });
+
+    expect(result.deadlineYears).toBe(10);
+    expect(result.meetsReturnDeadline).toBe(true);
+    expect(result.refundableTaxJpy.toNumber()).toBeGreaterThan(0);
+  });
+
+  it("当初から国外転出時課税の対象外(1億円未満)の場合は還付税額0円", () => {
+    const result = estimateExitTaxCancellation({
+      holdings: [
+        {
+          symbol: "HELD",
+          isListed: true,
+          quantity: 1,
+          costBasisJpy: 0,
+          valuationPriceJpy: 50_000_000,
+          stillHeldAtReturn: true,
+        },
+      ],
+      domesticResidenceYearsInPast10Years: 10,
+      exitDate: "2020-01-10",
+      returnDate: "2021-01-10",
+      hasTaxDeferralExtension: false,
+    });
+
+    expect(result.isSubjectToExitTax).toBe(false);
+    expect(result.refundableTaxJpy.toNumber()).toBe(0);
+  });
+
+  it("引き続き保有していた銘柄が含み損の場合、除外すると課税対象額が増え還付税額がマイナスになりうる", () => {
+    const result = estimateExitTaxCancellation({
+      holdings: [
+        // 帰国前に譲渡済み: みなし譲渡益5,000万円
+        {
+          symbol: "SOLD_GAIN",
+          isListed: true,
+          quantity: 1,
+          costBasisJpy: 50_000_000,
+          valuationPriceJpy: 100_000_000,
+          stillHeldAtReturn: false,
+        },
+        // 引き続き保有: みなし譲渡損3,000万円(除外するとプールの損失が無くなる)
+        {
+          symbol: "HELD_LOSS",
+          isListed: true,
+          quantity: 1,
+          costBasisJpy: 80_000_000,
+          valuationPriceJpy: 50_000_000,
+          stillHeldAtReturn: true,
+        },
+      ],
+      domesticResidenceYearsInPast10Years: 10,
+      exitDate: "2020-01-10",
+      returnDate: "2024-06-01",
+      hasTaxDeferralExtension: false,
+    });
+
+    expect(result.originalResult.totalTaxableGainJpy.toNumber()).toBe(20_000_000);
+    expect(result.revisedResult.totalTaxableGainJpy.toNumber()).toBe(50_000_000);
+    expect(result.refundableTaxJpy.toNumber()).toBeLessThan(0);
+    expect(result.refundableTaxJpy.toNumber()).toBeCloseTo(-6_094_500, 0);
+  });
+
+  it("帰国の日が国外転出の日より前だとエラーになる", () => {
+    expect(() =>
+      estimateExitTaxCancellation({
+        holdings: [],
+        domesticResidenceYearsInPast10Years: 10,
+        exitDate: "2024-01-01",
+        returnDate: "2023-01-01",
+        hasTaxDeferralExtension: false,
+      }),
+    ).toThrow();
+  });
+
+  it("国外転出の日の形式が不正だとエラーになる", () => {
+    expect(() =>
+      estimateExitTaxCancellation({
+        holdings: [],
+        domesticResidenceYearsInPast10Years: 10,
+        exitDate: "not-a-date",
+        returnDate: "2023-01-01",
+        hasTaxDeferralExtension: false,
+      }),
+    ).toThrow();
+  });
+
+  it("帰国の日の形式が不正だとエラーになる", () => {
+    expect(() =>
+      estimateExitTaxCancellation({
+        holdings: [],
+        domesticResidenceYearsInPast10Years: 10,
+        exitDate: "2020-01-01",
+        returnDate: "not-a-date",
+        hasTaxDeferralExtension: false,
       }),
     ).toThrow();
   });
