@@ -27,6 +27,18 @@ import { Decimal } from "decimal.js";
  * そのものの制作費は含まれない点をFAQが明記しているため、本ツールでは制作費を
  * 独立した入力欄(artCreationCostJpy)として受け取り、必要経費には合算しない
  * (参考情報として合計額のみ返す)。
+ *
+ * 機能125(本モジュール)自身が「今後の課題」として明記していた問3「非居住者が
+ * NFTを組成して、日本のマーケットプレイスで譲渡した場合(一次流通)」に機能129で
+ * 対応した。FAQ問3により、非居住者がデジタルアートに紐づけたNFTを日本の
+ * マーケットプレイスで譲渡しても、その取引が問1と同じ「デジタルアートの閲覧に
+ * 関する権利」の設定に係る取引である限り、その所得は国内源泉所得(所法161条)に
+ * 該当せず、原則として日本の所得税の課税対象とならない。この判定はマーケット
+ * プレイスの所在地(日本国内かどうか)ではなく取引の性質(閲覧権の設定であって
+ * 著作権自体の譲渡ではないこと)によるため、著作権自体を譲渡した場合は対象外
+ * (FAQ問3の(注)により問10(源泉所得税)の対象になり得る。本ツールは判定しない)。
+ * isNonResidentTransferをtrueにした行は、国内源泉所得に該当しないものとして
+ * miscIncomeJpyの計算から除外し、参考情報として合計額を別途返す。
  */
 
 export interface NftCreatorIncomeItem {
@@ -40,6 +52,14 @@ export interface NftCreatorIncomeItem {
   sellingAndAdminExpensesJpy: Decimal.Value;
   /** デジタルアート等の制作費(参考情報。FAQ問1注2により必要経費に算入不可) */
   artCreationCostJpy: Decimal.Value;
+  /**
+   * 譲渡者(自分)が非居住者であり、かつこの取引が「デジタルアートの閲覧に関する
+   * 権利」の設定に係る取引(著作権自体の譲渡ではない)である場合はtrue。この場合、
+   * 国内源泉所得(所法161条)に該当せず日本の所得税の課税対象とならない(FAQ問3)ため、
+   * この行の譲渡収入・必要経費はmiscIncomeJpyの計算から除外される。著作権自体を
+   * 譲渡した場合は対象外(問10の源泉所得税の対象になり得るため、この判定は使わない)。
+   */
+  isNonResidentTransfer: boolean;
 }
 
 export interface NftCreatorIncomeInput {
@@ -53,6 +73,11 @@ export interface NftCreatorIncomeResult {
   deductibleExpensesJpy: Decimal;
   /** 参考情報: 必要経費に算入できないデジタルアート制作費の合計 */
   excludedArtCreationCostJpy: Decimal;
+  /**
+   * 参考情報: 非居住者による国内源泉所得非該当(FAQ問3)としてmiscIncomeJpyの
+   * 計算から除外した譲渡収入の合計(isNonResidentTransferがtrueの行の合計)。
+   */
+  nonResidentExcludedRevenueJpy: Decimal;
   /**
    * 雑所得の金額(譲渡収入の合計-必要経費の合計)。赤字(マイナス)になる場合も
    * そのまま返す。FAQ問1注3のとおり、赤字の場合は他の所得区分との損益通算はできず、
@@ -74,6 +99,7 @@ export function estimateNftCreatorIncome(
   let totalRevenueJpy = new Decimal(0);
   let deductibleExpensesJpy = new Decimal(0);
   let excludedArtCreationCostJpy = new Decimal(0);
+  let nonResidentExcludedRevenueJpy = new Decimal(0);
 
   for (const item of input.items) {
     const transferRevenueJpy = new Decimal(item.transferRevenueJpy);
@@ -86,11 +112,18 @@ export function estimateNftCreatorIncome(
     requireNonNegative(sellingAndAdminExpensesJpy, "販売費及び一般管理費");
     requireNonNegative(artCreationCostJpy, "デジタルアート等の制作費");
 
+    excludedArtCreationCostJpy = excludedArtCreationCostJpy.plus(artCreationCostJpy);
+
+    if (item.isNonResidentTransfer) {
+      // 国内源泉所得に該当しないため、日本の所得税の課税対象にならない(FAQ問3)。
+      nonResidentExcludedRevenueJpy = nonResidentExcludedRevenueJpy.plus(transferRevenueJpy);
+      continue;
+    }
+
     totalRevenueJpy = totalRevenueJpy.plus(transferRevenueJpy);
     deductibleExpensesJpy = deductibleExpensesJpy
       .plus(mintingCostJpy)
       .plus(sellingAndAdminExpensesJpy);
-    excludedArtCreationCostJpy = excludedArtCreationCostJpy.plus(artCreationCostJpy);
   }
 
   const miscIncomeJpy = totalRevenueJpy.minus(deductibleExpensesJpy);
@@ -101,7 +134,8 @@ export function estimateNftCreatorIncome(
     "NFTの譲渡収入をマーケットプレイス内で流通するトークンで受け取った場合は、そのトークンの時価(円換算額)が譲渡収入となる。そのトークンが暗号資産等の財産的価値を有する資産と交換できない等の理由で時価の算定が困難な場合には、譲渡したNFTの市場価額(市場価額が無い場合は売上原価等)をそのトークンの時価として扱って差し支えない(FAQ問1注1)。円換算はユーザー自身が行い、円換算後の金額を入力すること。",
     "必要経費(NFTの組成費用・販売費及び一般管理費)に算入できるのは、そのNFTを組成(ミント)するために要した費用(ガス代・プラットフォーム手数料等)であり、デジタルアート等そのものの制作費は含まれない(FAQ問1注2)。本ツールでは制作費を別欄で入力できるようにし、必要経費には合算せず参考情報(excludedArtCreationCostJpy)として表示する。",
     "雑所得の金額が赤字(マイナス)の場合、他の所得区分との損益通算はできない(雑所得内の通算のみ可能。FAQ問1注3)。本ツールはこの制限を強制せず、赤字の場合もそのままmiscIncomeJpyとして返すため、実際の申告にあたっては暗号資産等の他の雑所得と合算してから0円を下限に扱う必要がある。",
-    "非居住者が日本のマーケットプレイスでNFTを譲渡した場合(FAQ問3)、購入したNFTが不正アクセスにより消失した場合の雑損控除・必要経費算入(FAQ問5)、ブロックチェーンゲームの報酬としてゲーム内通貨を取得した場合(FAQ問8)は本ツールの対象外(今後の課題)。",
+    "非居住者が日本のマーケットプレイスでNFTを譲渡した場合(FAQ問3)、その取引が問1と同じ「デジタルアートの閲覧に関する権利」の設定に係る取引である限り、国内源泉所得(所法161条)に該当せず日本の所得税の課税対象とならない。isNonResidentTransferをtrueにした行はmiscIncomeJpyの計算から除外し、参考情報としてnonResidentExcludedRevenueJpyに集計する。著作権自体を譲渡した場合はこの判定の対象外(問10により源泉所得税の対象になり得るため、この場合はisNonResidentTransferをtrueにしないこと)。",
+    "購入したNFTが不正アクセスにより消失した場合の雑損控除・必要経費算入は`/nft-loss-deduction`(機能128)、ブロックチェーンゲームの報酬としてゲーム内通貨を取得した場合は`/blockchain-game-income`(機能126)でそれぞれ試算すること。",
     "各金額は円未満の端数を切り捨てずDecimalの計算結果をそのまま返す概算値。",
   ];
 
@@ -109,6 +143,7 @@ export function estimateNftCreatorIncome(
     totalRevenueJpy,
     deductibleExpensesJpy,
     excludedArtCreationCostJpy,
+    nonResidentExcludedRevenueJpy,
     miscIncomeJpy,
     notes,
   };
