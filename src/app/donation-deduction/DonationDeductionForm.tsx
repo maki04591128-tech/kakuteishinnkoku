@@ -25,6 +25,7 @@ export function DonationDeductionForm({
   const [totalIncome, setTotalIncome] = useState("0");
   const [residentTaxIncomeLevied, setResidentTaxIncomeLevied] = useState("0");
   const [marginalRate, setMarginalRate] = useState("0.1");
+  const [angelTaxInvestment, setAngelTaxInvestment] = useState("0");
 
   const result = useMemo(() => {
     try {
@@ -34,11 +35,19 @@ export function DonationDeductionForm({
         totalIncomeJpy: totalIncome || 0,
         residentTaxIncomeLeviedJpy: residentTaxIncomeLevied || 0,
         marginalIncomeTaxRate: marginalRate || 0,
+        angelTaxInvestmentJpy: angelTaxInvestment || 0,
       });
     } catch {
       return null;
     }
-  }, [totalDonation, furusatoNozeiDonation, totalIncome, residentTaxIncomeLevied, marginalRate]);
+  }, [
+    totalDonation,
+    furusatoNozeiDonation,
+    totalIncome,
+    residentTaxIncomeLevied,
+    marginalRate,
+    angelTaxInvestment,
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,6 +76,12 @@ export function DonationDeductionForm({
           helper="特例控除の上限(20%)判定用。/tax-estimateの試算結果を参考に入力"
           value={residentTaxIncomeLevied}
           onChange={setResidentTaxIncomeLevied}
+        />
+        <Field
+          label="エンジェル税制(特定新規株式)の出資額"
+          helper="措置法37条の13の3。特定新規中小会社への払込みによる取得価額。800万円超は自動的に800万円で頭打ちにして所得税の寄附金控除額にのみ加算(住民税には加算しない)"
+          value={angelTaxInvestment}
+          onChange={setAngelTaxInvestment}
         />
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-500">
@@ -97,6 +112,12 @@ export function DonationDeductionForm({
             <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
               <p className="text-sm text-neutral-500">寄附金控除額(所得税)</p>
               <p className="mt-1 text-3xl font-semibold">{yen(result.incomeTaxDeductionJpy)}</p>
+              {result.angelTaxDeemedDonationJpy.greaterThan(0) && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  うちエンジェル税制加算分 {yen(result.angelTaxDeemedDonationJpy)}
+                  (住民税には加算しない)
+                </p>
+              )}
             </div>
             <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
               <p className="text-sm text-neutral-500">寄附金控除額(住民税、基本控除+特例控除)</p>

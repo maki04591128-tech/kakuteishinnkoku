@@ -25,6 +25,29 @@ import { RECONSTRUCTION_SURTAX_RATE } from "./incomeTax";
  *  - ワンストップ特例制度は考慮しない(確定申告での寄附金控除の適用を前提とする)。
  *  - 住宅ローン控除等、他の税額控除との兼ね合い(所得税額から控除しきれない
  *    場合に実際の恩恵が目減りすること)は考慮しない(`furusatoNozei.ts`と共通)。
+ *
+ * **エンジェル税制(特定新規株式を取得した場合の課税の特例。措置法37条の13の3、
+ * 国税庁タックスアンサーNo.1544「エンジェル税制の概要等」。実務上「優遇措置A」とも
+ * 呼ばれる):** 特定新規中小会社(中小企業等経営強化法6条の特定新規中小企業者に
+ * 該当する設立1年未満の株式会社、または設立5年未満の一定の中小企業者等)が発行する
+ * 株式(特定新規株式)を払込みにより取得した場合、その年中の取得価額の合計額
+ * (800万円を限度。令和2年分以前は1,000万円だったが本ツールは現行の800万円のみに
+ * 対応)を、他の寄附金と合算した上で寄附金控除の対象にできる。この特例は所得税のみの
+ * 特例であり、住民税の寄附金控除(基本控除・特例控除)には加算しない(東京都
+ * 「エンジェル税制のご案内」等、複数の公的機関・専門家解説で確認)。`angelTaxInvestmentJpy`
+ * を指定すると、800万円の上限適用後の金額を所得税の寄附金控除の計算にのみ加算する。
+ *
+ * **対象外とした範囲(今後の課題):** 特定新規株式と同一銘柄について、この寄附金控除方式の
+ * 代わりに、その年の株式等に係る譲渡所得等の金額から取得価額を控除する方式(措置法37条の13・
+ * 37条の13の2。実務上「優遇措置B」。特定中小会社株式・設立特定株式が対象で、20億円超の
+ * 適用額の調整計算や複数銘柄のプール計算を要する)は、寄附金控除方式と異なる所得区分
+ * (譲渡所得等)への計算ロジックの追加が必要なため対象外とする。同一銘柄では両方式を
+ * 重複適用できない(いずれか一方を選択)。また、この特例の適用を受けた特定新規株式を
+ * 翌年以後に譲渡する場合、その株式の取得価額から適用を受けた金額を控除する調整計算
+ * (措置法37条の13の3第2項)が必要になるが、本ツールは単年度の試算のためこの調整は
+ * 対象外とし、翌年以後の一般株式等の譲渡所得計算(機能54等)にその株式を入力する際は
+ * ユーザー自身が取得価額を調整すること。沖縄振興特別措置法の指定会社に係る1,000万円の
+ * 特例も対象外とする。
  */
 
 export interface DonationDeductionInput {
@@ -38,6 +61,12 @@ export interface DonationDeductionInput {
   residentTaxIncomeLeviedJpy: Decimal.Value;
   /** 所得税の限界税率(0〜0.45。課税総所得金額に対応する速算表の税率) */
   marginalIncomeTaxRate: Decimal.Value;
+  /**
+   * エンジェル税制(特定新規株式を取得した場合の課税の特例。措置法37条の13の3)の
+   * 対象となる、その年中に特定新規株式の払込みにより取得した金額の合計額。
+   * 800万円を限度に寄附金控除(所得税のみ)の対象額に加算する。省略時は0。
+   */
+  angelTaxInvestmentJpy?: Decimal.Value;
 }
 
 export interface DonationDeductionResult {
@@ -46,6 +75,11 @@ export interface DonationDeductionResult {
   totalIncomeJpy: Decimal;
   residentTaxIncomeLeviedJpy: Decimal;
   marginalIncomeTaxRate: Decimal;
+  /**
+   * エンジェル税制(措置法37条の13の3)により寄附金控除の対象に加算した金額
+   * (800万円の上限適用後)。住民税の控除計算には加算しない。
+   */
+  angelTaxDeemedDonationJpy: Decimal;
   /** 所得税の寄附金控除額(所得控除) */
   incomeTaxDeductionJpy: Decimal;
   /** 住民税の基本控除額 */
@@ -64,6 +98,8 @@ const RESIDENT_TAX_BASIC_DEDUCTION_INCOME_CAP_RATE = 0.3;
 const RESIDENT_TAX_BASIC_DEDUCTION_RATE = 0.1;
 const RESIDENT_TAX_SPECIAL_DEDUCTION_LIMIT_RATE = 0.2;
 const SELF_PAY_JPY = new Decimal(2_000);
+/** エンジェル税制(措置法37条の13の3)の寄附金控除方式における年間の上限額(現行。令和2年分以前は1,000万円) */
+const ANGEL_TAX_DONATION_CAP_JPY = new Decimal(8_000_000);
 
 function requireNonNegative(value: Decimal, label: string): void {
   if (value.isNegative()) {
@@ -79,12 +115,14 @@ export function estimateDonationDeduction(
   const totalIncomeJpy = new Decimal(input.totalIncomeJpy);
   const residentTaxIncomeLeviedJpy = new Decimal(input.residentTaxIncomeLeviedJpy);
   const marginalIncomeTaxRate = new Decimal(input.marginalIncomeTaxRate);
+  const angelTaxInvestmentJpy = new Decimal(input.angelTaxInvestmentJpy ?? 0);
 
   requireNonNegative(totalDonationJpy, "寄附金の合計額");
   requireNonNegative(furusatoNozeiDonationJpy, "ふるさと納税額");
   requireNonNegative(totalIncomeJpy, "総所得金額等");
   requireNonNegative(residentTaxIncomeLeviedJpy, "住民税所得割額");
   requireNonNegative(marginalIncomeTaxRate, "所得税の限界税率");
+  requireNonNegative(angelTaxInvestmentJpy, "エンジェル税制の対象となる特定新規株式の取得価額の合計額");
   if (marginalIncomeTaxRate.greaterThan(0.45)) {
     throw new Error("所得税の限界税率は45%以下である必要があります");
   }
@@ -98,8 +136,21 @@ export function estimateDonationDeduction(
     "住宅ローン控除等、他の税額控除との兼ね合い(所得税額から控除しきれない場合に実際の恩恵が目減りすること)は考慮していない。",
   ];
 
+  const angelTaxDeemedDonationJpy = Decimal.min(angelTaxInvestmentJpy, ANGEL_TAX_DONATION_CAP_JPY);
+  if (angelTaxInvestmentJpy.greaterThan(ANGEL_TAX_DONATION_CAP_JPY)) {
+    notes.push(
+      `エンジェル税制(特定新規株式)の取得価額の合計額${angelTaxInvestmentJpy.toString()}円が上限800万円を超えるため、800万円を寄附金控除の対象額に加算した。`,
+    );
+  }
+  if (angelTaxDeemedDonationJpy.greaterThan(0)) {
+    notes.push(
+      `エンジェル税制(特定新規株式を取得した場合の課税の特例。措置法37条の13の3、国税庁タックスアンサーNo.1544)により、特定新規株式の払込みによる取得価額${angelTaxDeemedDonationJpy.toString()}円(800万円上限適用後)を寄附金控除の対象額に加算した。この特例は所得税のみの特例のため、住民税の寄附金控除(基本控除・特例控除)の計算には加算していない。`,
+    );
+  }
+
+  const incomeTaxDonationBaseJpy = totalDonationJpy.plus(angelTaxDeemedDonationJpy);
   const incomeTaxDeductionBaseJpy = Decimal.min(
-    totalDonationJpy,
+    incomeTaxDonationBaseJpy,
     totalIncomeJpy.times(INCOME_TAX_DEDUCTION_INCOME_CAP_RATE),
   );
   const incomeTaxDeductionJpy = Decimal.max(0, incomeTaxDeductionBaseJpy.minus(SELF_PAY_JPY));
@@ -140,6 +191,7 @@ export function estimateDonationDeduction(
     totalIncomeJpy,
     residentTaxIncomeLeviedJpy,
     marginalIncomeTaxRate,
+    angelTaxDeemedDonationJpy,
     incomeTaxDeductionJpy,
     residentTaxBasicDeductionJpy,
     residentTaxSpecialDeductionJpy,
