@@ -26,6 +26,7 @@ export function DonationDeductionForm({
   const [residentTaxIncomeLevied, setResidentTaxIncomeLevied] = useState("0");
   const [marginalRate, setMarginalRate] = useState("0.1");
   const [angelTaxInvestment, setAngelTaxInvestment] = useState("0");
+  const [isOkinawaDesignatedCompanyStock, setIsOkinawaDesignatedCompanyStock] = useState(false);
 
   const result = useMemo(() => {
     try {
@@ -36,6 +37,7 @@ export function DonationDeductionForm({
         residentTaxIncomeLeviedJpy: residentTaxIncomeLevied || 0,
         marginalIncomeTaxRate: marginalRate || 0,
         angelTaxInvestmentJpy: angelTaxInvestment || 0,
+        isOkinawaDesignatedCompanyStock,
       });
     } catch {
       return null;
@@ -47,6 +49,7 @@ export function DonationDeductionForm({
     residentTaxIncomeLevied,
     marginalRate,
     angelTaxInvestment,
+    isOkinawaDesignatedCompanyStock,
   ]);
 
   return (
@@ -83,6 +86,20 @@ export function DonationDeductionForm({
           value={angelTaxInvestment}
           onChange={setAngelTaxInvestment}
         />
+        <label className="flex items-start gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={isOkinawaDesignatedCompanyStock}
+            onChange={(e) => setIsOkinawaDesignatedCompanyStock(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            上記の出資先は沖縄振興特別措置法の指定会社である
+            <span className="ml-1 text-xs text-neutral-500">
+              (経済金融活性化特別地区内で平成26年4月1日〜令和3年3月31日の間に指定を受けた会社。上限額が800万円ではなく1,000万円になる)
+            </span>
+          </span>
+        </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-500">
             所得税の限界税率

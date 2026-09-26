@@ -137,6 +137,50 @@ describe("estimateDonationDeduction", () => {
     expect(result.incomeTaxDeductionJpy.toNumber()).toBe(48_000);
   });
 
+  it("沖縄振興特別措置法の指定会社の株式は上限額が1,000万円になる(国税庁タックスアンサーNo.1544の注記)", () => {
+    const result = estimateDonationDeduction({
+      totalDonationJpy: 0,
+      furusatoNozeiDonationJpy: 0,
+      totalIncomeJpy: 100_000_000,
+      residentTaxIncomeLeviedJpy: 300_000,
+      marginalIncomeTaxRate: 0.2,
+      angelTaxInvestmentJpy: 9_000_000,
+      isOkinawaDesignatedCompanyStock: true,
+    });
+
+    // 通常なら800万円で頭打ちになる金額だが、沖縄指定会社のため全額(900万円)が対象になる
+    expect(result.angelTaxDeemedDonationJpy.toNumber()).toBe(9_000_000);
+    expect(result.notes.join("")).toContain("沖縄振興特別措置法");
+  });
+
+  it("沖縄振興特別措置法の指定会社の株式でも1,000万円を超える部分は切り捨てる", () => {
+    const result = estimateDonationDeduction({
+      totalDonationJpy: 0,
+      furusatoNozeiDonationJpy: 0,
+      totalIncomeJpy: 100_000_000,
+      residentTaxIncomeLeviedJpy: 300_000,
+      marginalIncomeTaxRate: 0.2,
+      angelTaxInvestmentJpy: 12_000_000,
+      isOkinawaDesignatedCompanyStock: true,
+    });
+
+    expect(result.angelTaxDeemedDonationJpy.toNumber()).toBe(10_000_000);
+    expect(result.notes.join("")).toContain("上限1,000万円");
+  });
+
+  it("isOkinawaDesignatedCompanyStockを指定しない場合は従来どおり800万円が上限になる", () => {
+    const result = estimateDonationDeduction({
+      totalDonationJpy: 0,
+      furusatoNozeiDonationJpy: 0,
+      totalIncomeJpy: 100_000_000,
+      residentTaxIncomeLeviedJpy: 300_000,
+      marginalIncomeTaxRate: 0.2,
+      angelTaxInvestmentJpy: 9_000_000,
+    });
+
+    expect(result.angelTaxDeemedDonationJpy.toNumber()).toBe(8_000_000);
+  });
+
   it("エンジェル税制の出資額が負の値だとエラーになる", () => {
     expect(() =>
       estimateDonationDeduction({

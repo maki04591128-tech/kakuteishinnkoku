@@ -46,8 +46,14 @@ import { RECONSTRUCTION_SURTAX_RATE } from "./incomeTax";
  * 翌年以後に譲渡する場合、その株式の取得価額から適用を受けた金額を控除する調整計算
  * (措置法37条の13の3第2項)が必要になるが、本ツールは単年度の試算のためこの調整は
  * 対象外とし、翌年以後の一般株式等の譲渡所得計算(機能54等)にその株式を入力する際は
- * ユーザー自身が取得価額を調整すること。沖縄振興特別措置法の指定会社に係る1,000万円の
- * 特例も対象外とする。
+ * ユーザー自身が取得価額を調整すること。
+ *
+ * **沖縄振興特別措置法の指定会社に係る1,000万円特例(機能124):** 国税庁タックスアンサー
+ * No.1544の注記により、沖縄振興特別措置法57条の2第1項に規定する指定会社で平成26年4月1日
+ * から令和3年3月31日までの間に指定を受けたものが発行する株式を取得した場合、上限額は
+ * 800万円ではなく1,000万円になる。指定会社に該当するかどうか・指定を受けた時期が上記
+ * 期間内かどうかは、他の特別控除の適用要件(`specialDeductionEligible`等)と同様に
+ * ユーザー自身の確認事項とし(`isOkinawaDesignatedCompanyStock`)、本ツールでは判定しない。
  */
 
 export interface DonationDeductionInput {
@@ -64,9 +70,17 @@ export interface DonationDeductionInput {
   /**
    * エンジェル税制(特定新規株式を取得した場合の課税の特例。措置法37条の13の3)の
    * 対象となる、その年中に特定新規株式の払込みにより取得した金額の合計額。
-   * 800万円を限度に寄附金控除(所得税のみ)の対象額に加算する。省略時は0。
+   * 800万円(沖縄振興特別措置法の指定会社の株式なら1,000万円。`isOkinawaDesignatedCompanyStock`
+   * 参照)を限度に寄附金控除(所得税のみ)の対象額に加算する。省略時は0。
    */
   angelTaxInvestmentJpy?: Decimal.Value;
+  /**
+   * `angelTaxInvestmentJpy`が沖縄振興特別措置法57条の2第1項に規定する指定会社
+   * (経済金融活性化特別地区内で平成26年4月1日から令和3年3月31日までの間に指定を
+   * 受けたもの)が発行する株式である場合はtrue。上限額が800万円ではなく1,000万円になる
+   * (国税庁タックスアンサーNo.1544の注記)。省略時はfalse(通常の800万円が上限)。
+   */
+  isOkinawaDesignatedCompanyStock?: boolean;
 }
 
 export interface DonationDeductionResult {
@@ -77,7 +91,8 @@ export interface DonationDeductionResult {
   marginalIncomeTaxRate: Decimal;
   /**
    * エンジェル税制(措置法37条の13の3)により寄附金控除の対象に加算した金額
-   * (800万円の上限適用後)。住民税の控除計算には加算しない。
+   * (800万円、沖縄振興特別措置法の指定会社の株式なら1,000万円の上限適用後)。
+   * 住民税の控除計算には加算しない。
    */
   angelTaxDeemedDonationJpy: Decimal;
   /** 所得税の寄附金控除額(所得控除) */
@@ -100,6 +115,11 @@ const RESIDENT_TAX_SPECIAL_DEDUCTION_LIMIT_RATE = 0.2;
 const SELF_PAY_JPY = new Decimal(2_000);
 /** エンジェル税制(措置法37条の13の3)の寄附金控除方式における年間の上限額(現行。令和2年分以前は1,000万円) */
 const ANGEL_TAX_DONATION_CAP_JPY = new Decimal(8_000_000);
+/**
+ * 沖縄振興特別措置法57条の2第1項に規定する指定会社(平成26年4月1日〜令和3年3月31日の間に
+ * 指定を受けたもの)が発行する株式の場合の上限額(国税庁タックスアンサーNo.1544の注記)。
+ */
+const OKINAWA_ANGEL_TAX_DONATION_CAP_JPY = new Decimal(10_000_000);
 
 function requireNonNegative(value: Decimal, label: string): void {
   if (value.isNegative()) {
@@ -116,6 +136,7 @@ export function estimateDonationDeduction(
   const residentTaxIncomeLeviedJpy = new Decimal(input.residentTaxIncomeLeviedJpy);
   const marginalIncomeTaxRate = new Decimal(input.marginalIncomeTaxRate);
   const angelTaxInvestmentJpy = new Decimal(input.angelTaxInvestmentJpy ?? 0);
+  const isOkinawaDesignatedCompanyStock = input.isOkinawaDesignatedCompanyStock ?? false;
 
   requireNonNegative(totalDonationJpy, "寄附金の合計額");
   requireNonNegative(furusatoNozeiDonationJpy, "ふるさと納税額");
@@ -136,15 +157,24 @@ export function estimateDonationDeduction(
     "住宅ローン控除等、他の税額控除との兼ね合い(所得税額から控除しきれない場合に実際の恩恵が目減りすること)は考慮していない。",
   ];
 
-  const angelTaxDeemedDonationJpy = Decimal.min(angelTaxInvestmentJpy, ANGEL_TAX_DONATION_CAP_JPY);
-  if (angelTaxInvestmentJpy.greaterThan(ANGEL_TAX_DONATION_CAP_JPY)) {
+  const angelTaxDonationCapJpy = isOkinawaDesignatedCompanyStock
+    ? OKINAWA_ANGEL_TAX_DONATION_CAP_JPY
+    : ANGEL_TAX_DONATION_CAP_JPY;
+  const angelTaxDonationCapLabel = isOkinawaDesignatedCompanyStock ? "1,000万円" : "800万円";
+  const angelTaxDeemedDonationJpy = Decimal.min(angelTaxInvestmentJpy, angelTaxDonationCapJpy);
+  if (angelTaxInvestmentJpy.greaterThan(angelTaxDonationCapJpy)) {
     notes.push(
-      `エンジェル税制(特定新規株式)の取得価額の合計額${angelTaxInvestmentJpy.toString()}円が上限800万円を超えるため、800万円を寄附金控除の対象額に加算した。`,
+      `エンジェル税制(特定新規株式)の取得価額の合計額${angelTaxInvestmentJpy.toString()}円が上限${angelTaxDonationCapLabel}を超えるため、${angelTaxDonationCapLabel}を寄附金控除の対象額に加算した。`,
     );
   }
   if (angelTaxDeemedDonationJpy.greaterThan(0)) {
     notes.push(
-      `エンジェル税制(特定新規株式を取得した場合の課税の特例。措置法37条の13の3、国税庁タックスアンサーNo.1544)により、特定新規株式の払込みによる取得価額${angelTaxDeemedDonationJpy.toString()}円(800万円上限適用後)を寄附金控除の対象額に加算した。この特例は所得税のみの特例のため、住民税の寄附金控除(基本控除・特例控除)の計算には加算していない。`,
+      `エンジェル税制(特定新規株式を取得した場合の課税の特例。措置法37条の13の3、国税庁タックスアンサーNo.1544)により、特定新規株式の払込みによる取得価額${angelTaxDeemedDonationJpy.toString()}円(${angelTaxDonationCapLabel}上限適用後)を寄附金控除の対象額に加算した。この特例は所得税のみの特例のため、住民税の寄附金控除(基本控除・特例控除)の計算には加算していない。`,
+    );
+  }
+  if (isOkinawaDesignatedCompanyStock) {
+    notes.push(
+      "沖縄振興特別措置法57条の2第1項に規定する指定会社(経済金融活性化特別地区内で平成26年4月1日から令和3年3月31日までの間に指定を受けたもの)が発行する株式として、上限額を1,000万円で計算した(国税庁タックスアンサーNo.1544の注記)。指定会社への該当・指定時期の確認はユーザー自身の責任で行うこと。",
     );
   }
 
