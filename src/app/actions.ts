@@ -2159,3 +2159,40 @@ export async function carryForwardHomeReplacementLossExcess(formData: FormData):
   revalidatePath("/import");
   redirect(`/home-replacement-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
 }
+
+/**
+ * エンジェル税制の特定投資株式に係る譲渡損失の繰越控除(機能112)の残高を、
+ * 発生年ごとに登録・更新する。`/angel-tax-loss-carryforward`の試算結果を見て
+ * ユーザー自身が手入力する(他の繰越控除機能と異なり、この試算に必要な当年の
+ * 特定株式の損失額・一般株式等の譲渡所得等の金額はDBに保存されないため、
+ * 前年分の計算結果からの自動繰り越しには対応しない。詳細は
+ * `src/lib/investment/angelTaxLossCarryforward.ts`のコメントを参照)。
+ */
+export async function setAngelTaxLossCarryforward(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const originYear = Number(requireString(formData, "originYear"));
+  const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
+  if (!Number.isInteger(originYear) || originYear > year) {
+    throw new Error("損失の発生年は対象年分以前の年である必要があります");
+  }
+  const taxYear = await getOrCreateTaxYear(year);
+
+  await prisma.angelTaxLossCarryforward.upsert({
+    where: {
+      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
+    },
+    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
+    update: { remainingAmountJpy },
+  });
+
+  revalidatePath("/angel-tax-loss-carryforward");
+  redirect(`/angel-tax-loss-carryforward?year=${year}`);
+}
+
+export async function deleteAngelTaxLossCarryforward(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+  await prisma.angelTaxLossCarryforward.delete({ where: { id } });
+  revalidatePath("/angel-tax-loss-carryforward");
+  redirect(`/angel-tax-loss-carryforward?year=${year}`);
+}
