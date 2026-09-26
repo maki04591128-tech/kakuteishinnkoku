@@ -413,6 +413,12 @@ export default async function Home({
           特定住宅地造成事業等のために土地等を売った場合の税額を試算する
         </Link>
         <Link
+          href="/land-acquired-2009-2010-sale-deduction"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          平成21年及び22年に取得した土地等を売った場合の税額を試算する
+        </Link>
+        <Link
           href="/home-sale-loss-deduction"
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
