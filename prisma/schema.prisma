@@ -37,6 +37,7 @@ model TaxYear {
   openingBalancesByInstitution                    OpeningBalanceByInstitution[]
   investmentLossCarryforwards                     InvestmentLossCarryforward[]
   futuresLossCarryforwards                        FuturesLossCarryforward[]
+  angelTaxLossCarryforwards                       AngelTaxLossCarryforward[]
   brokerAnnualReports                             BrokerAnnualReport[]
   assetBalanceSnapshots                           AssetBalanceSnapshot[]
   foreignTaxCreditCarryforwards                   ForeignTaxCreditCarryforward[]
@@ -174,6 +175,32 @@ model InvestmentLossCarryforward {
 /// FuturesTrade分に対して再利用する)で発生年の古い順に当年の損益から控除し、
 /// 期限(発生年+3年)を超えた分は自動的に無効とする。
 model FuturesLossCarryforward {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 損失が発生した年(暦年)
+  originYear Int
+
+  /// taxYearId の年初時点で残っている繰越控除可能な損失額
+  remainingAmountJpy Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYearId, originYear])
+}
+
+/// エンジェル税制の特定投資株式に係る譲渡損失の繰越控除(機能112、国税庁
+/// タックスアンサーNo.1533)。特定株式が価値を失った場合のみなし譲渡損失
+/// (No.1531)・その年の一般株式等→上場株式等の順の控除(No.1532)を適用した
+/// 後もなお控除しきれなかった損失を、発生年(originYear)ごとに3年間保持する。
+/// 通常の上場株式等の譲渡損失(InvestmentLossCarryforward)とはプールが異なる
+/// 別制度のため別テーブルとする。計算エンジン側
+/// (src/lib/investment/angelTaxLossCarryforward.ts の
+/// calculateAngelTaxLossCarryforward)で発生年の古い順に一般株式等→上場株式等
+/// の順に控除し、期限(発生年+3年)を超えた分は自動的に無効とする。
+model AngelTaxLossCarryforward {
   id        Int     @id @default(autoincrement())
   taxYearId Int
   taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
