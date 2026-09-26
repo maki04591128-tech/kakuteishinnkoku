@@ -425,6 +425,12 @@ export default async function Home({
           農地保有の合理化等のために農地等を売った場合の税額を試算する
         </Link>
         <Link
+          href="/low-utilization-land-sale-deduction"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          低未利用土地等を売った場合の税額を試算する
+        </Link>
+        <Link
           href="/home-sale-loss-deduction"
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
