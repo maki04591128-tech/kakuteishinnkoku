@@ -168,6 +168,24 @@ describe("calculateCryptoYear (総平均法)", () => {
     ).toThrow();
   });
 
+  it("分裂(分岐)による取得(FORK_IN)は取得価額が常に0円で、取得時点では収入計上されない", () => {
+    // 国税庁FAQ1-6: 分裂(分岐)時点では取引相場が存在せず価値を有しないため、
+    // 取得価額は常に0円になり、取得時点では課税対象となる所得は生じない。
+    // unitPriceJpyに何を指定しても無視され0円として扱われることも確認する。
+    const result = calculateCryptoYear("BTC2", [
+      { type: "FORK_IN", quantity: 2, unitPriceJpy: 999_999 },
+      { type: "SELL", quantity: 1, unitPriceJpy: 300_000 },
+    ]);
+
+    expect(result.incomeJpy.toNumber()).toBe(0);
+    expect(result.acquiredCostJpy.toNumber()).toBe(0);
+    expect(result.averageUnitCostJpy.toNumber()).toBe(0);
+    // 取得原価が0円のため、売却額の全額(300,000円)がそのまま雑所得になる。
+    expect(result.realizedGainJpy.toNumber()).toBe(300_000);
+    expect(result.closingQuantity.toNumber()).toBe(1);
+    expect(result.closingCostJpy.toNumber()).toBe(0);
+  });
+
   it("暗号資産同士の交換(TRADE_IN/TRADE_OUT)を時価で評価する", () => {
     const result = calculateCryptoYear("BTC", [
       { type: "BUY", quantity: 1, unitPriceJpy: 3_000_000 },
@@ -426,6 +444,17 @@ describe("calculateCryptoYearMovingAverage (移動平均法)", () => {
 
     expect(result.realizedGainJpy.toNumber()).toBe(1_500_000);
     expect(result.closingQuantity.toNumber()).toBe(1);
+  });
+
+  it("分裂(分岐)による取得(FORK_IN)は移動平均法でも取得価額が常に0円になる", () => {
+    const result = calculateCryptoYearMovingAverage("BTC2", [
+      { type: "FORK_IN", quantity: 2, unitPriceJpy: 999_999, tradedAt: new Date("2026-03-01") },
+      { type: "SELL", quantity: 1, unitPriceJpy: 300_000, tradedAt: new Date("2026-06-01") },
+    ]);
+
+    expect(result.incomeJpy.toNumber()).toBe(0);
+    expect(result.realizedGainJpy.toNumber()).toBe(300_000);
+    expect(result.closingCostJpy.toNumber()).toBe(0);
   });
 
   it("低額譲渡(LOW_PRICE_TRANSFER_OUT)は移動平均法でも時価の70%相当額を下限に総収入金額を計算する", () => {
