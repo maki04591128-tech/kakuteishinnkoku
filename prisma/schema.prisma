@@ -29,6 +29,7 @@ model TaxYear {
 
   cryptoTrades                                    CryptoTrade[]
   cryptoMarginTrades                              CryptoMarginTrade[]
+  cryptoCreditTrades                              CryptoCreditTrade[]
   futuresTrades                                   FuturesTrade[]
   investmentTrades                                InvestmentTrade[]
   stockMarginTrades                               StockMarginTrade[]
@@ -1065,6 +1066,49 @@ model StockMarginTrade {
 
   /// 証券会社名
   broker String?
+
+  memo String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taxYearId, symbol])
+  @@index([settledAt])
+}
+
+/// 暗号資産の信用取引(国税庁FAQ2-13「暗号資産の信用取引」)の決済損益。
+/// 他の者から信用の供与を受けて暗号資産の売付け(買付け)をし、その後に
+/// 種類を同じくする暗号資産の買付け(売付け)をして決済した場合の所得
+/// (譲渡原価は個別法により計算)。証拠金(レバレッジ)取引(CryptoMarginTrade。
+/// FAQ2-12)とは異なる別の取引類型だが、いずれも雑所得の総合課税である点は
+/// 共通のため、課税上は現物取引(CryptoTrade)・証拠金取引と合算した一つの
+/// 雑所得(暗号資産)のプールとして扱う(src/lib/crypto/creditTrading.ts参照)。
+/// 上場株式等の信用取引(StockMarginTrade)と異なり、上場株式等の譲渡所得等
+/// のプールには合算されず、譲渡損失の繰越控除の対象にもならない。
+model CryptoCreditTrade {
+  id        Int     @id @default(autoincrement())
+  taxYearId Int
+  taxYear   TaxYear @relation(fields: [taxYearId], references: [id])
+
+  /// 決済日時(買付け又は売付けによる決済が成立した日時)
+  settledAt DateTime
+
+  /// 銘柄シンボル (例: BTC, ETH)
+  symbol String
+
+  /// 決済損益(円)。売付け価額と買付け価額の差額(個別法)で、損失の場合は負の値。
+  realizedPnlJpy Decimal
+
+  /// 取引手数料(円。決済損益から差し引く)
+  feeJpy Decimal @default(0)
+
+  /// 金利相当額・品貸料の純額調整(円)。売り方が受け取る金利・買い方が支払う
+  /// 品貸料はプラス、売り方が支払う品貸料・買い方が支払う金利相当額はマイナスとして
+  /// 損益に加算する(国税庁FAQ2-13注1・注2)。
+  interestAdjustmentJpy Decimal @default(0)
+
+  /// 取引所名
+  exchange String?
 
   memo String?
 

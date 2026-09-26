@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
       ? { creditJpy: certifiedHousingConstructionCreditRecord.creditJpy }
       : undefined,
     report.stockMargin,
+    report.cryptoCredit,
   );
   const incomeDeductionEntries = await getIncomeDeductionEntries(year);
   const incomeDeductions = summarizeIncomeDeductions(incomeDeductionEntries);
