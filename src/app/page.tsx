@@ -401,6 +401,12 @@ export default async function Home({
           収用等に伴い代替資産を取得した場合の課税繰延べを試算する
         </Link>
         <Link
+          href="/land-readjustment-sale-deduction"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          特定土地区画整理事業等のために土地等を売った場合の税額を試算する
+        </Link>
+        <Link
           href="/home-sale-loss-deduction"
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
