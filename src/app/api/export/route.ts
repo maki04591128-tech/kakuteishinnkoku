@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
     incomeDeductions,
     report.investmentNonListed.bySymbol,
     report.stockMargin.bySymbol,
+    report.cryptoCredit.bySymbol,
   );
 
   return new NextResponse(UTF8_BOM + csv, {

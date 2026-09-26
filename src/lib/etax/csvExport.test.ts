@@ -1,6 +1,7 @@
 import { Decimal } from "decimal.js";
 import { describe, expect, it } from "vitest";
 import { calculateCryptoPortfolioYear } from "../crypto/calculator";
+import { calculateCryptoCreditPortfolioYear } from "../crypto/creditTrading";
 import { calculateCryptoMarginPortfolioYear } from "../crypto/marginCalculator";
 import { calculateInvestmentPortfolioYear } from "../investment/calculator";
 import { calculateFuturesPortfolioYear } from "../investment/futuresIncome";
@@ -143,6 +144,61 @@ describe("buildTaxFilingDraftCsv", () => {
     expect(csv).toContain("199000"); // 信用取引分の内訳
     expect(csv).toContain("信用取引");
     expect(csv).toContain("9984");
+  });
+
+  it("暗号資産の信用取引の決済損益を現物と合算し、銘柄別内訳を出力する", () => {
+    const crypto = calculateCryptoPortfolioYear([
+      { symbol: "BTC", type: "BUY", quantity: 1, unitPriceJpy: 3_000_000 },
+      { symbol: "BTC", type: "SELL", quantity: 1, unitPriceJpy: 3_500_000 },
+    ]);
+    const cryptoCredit = calculateCryptoCreditPortfolioYear([
+      { symbol: "ETH", realizedPnlJpy: 100_000, feeJpy: 1_000 },
+    ]);
+    const investment = calculateInvestmentPortfolioYear([]);
+
+    const summary = buildTaxFilingSummary(
+      2026,
+      crypto,
+      investment,
+      undefined, // lossCarryforward
+      undefined, // cryptoMargin
+      undefined, // futures
+      undefined, // futuresLossCarryforward
+      undefined, // mortgageDeduction
+      undefined, // foreignTaxCredit
+      undefined, // investmentNonListed
+      undefined, // donationTaxCredit
+      undefined, // distributionAdjustedForeignTaxCredit
+      undefined, // residentTaxAdjustmentDeduction
+      undefined, // earthquakeRenovationDeduction
+      undefined, // energySavingRenovationDeduction
+      undefined, // barrierFreeRenovationDeduction
+      undefined, // multiHouseholdRenovationDeduction
+      undefined, // durabilityImprovementRenovationDeduction
+      undefined, // childRearingRenovationDeduction
+      undefined, // certifiedHousingConstructionCredit
+      undefined, // stockMargin
+      cryptoCredit,
+    );
+    expect(summary.cryptoMiscIncomeJpy.toNumber()).toBe(500_000 + 99_000);
+
+    const csv = buildTaxFilingDraftCsv(
+      summary,
+      crypto.bySymbol,
+      investment.bySymbol,
+      "AVERAGE",
+      [], // cryptoMarginDetail
+      [], // futuresDetail
+      undefined, // incomeDeductions
+      [], // investmentNonListedDetail
+      [], // stockMarginDetail
+      cryptoCredit.bySymbol,
+    );
+
+    expect(csv).toContain("599000"); // 合算後の雑所得
+    expect(csv).toContain("99000"); // 信用取引分の内訳
+    expect(csv).toContain("■ 暗号資産 信用取引 銘柄別内訳");
+    expect(csv).toContain("ETH");
   });
 
   it("先物取引に係る雑所得等(FX・先物)を株式等の譲渡所得とは別区分で出力する", () => {

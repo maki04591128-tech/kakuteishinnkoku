@@ -1,5 +1,6 @@
 import { Decimal } from "decimal.js";
 import type { CryptoCostMethod, CryptoSymbolYearResult } from "../crypto/calculator";
+import type { CryptoCreditSymbolYearResult } from "../crypto/creditTrading";
 import type { CryptoMarginSymbolYearResult } from "../crypto/marginCalculator";
 import type { InvestmentSymbolYearResult } from "../investment/calculator";
 import type { FuturesSymbolYearResult } from "../investment/futuresIncome";
@@ -92,6 +93,7 @@ export function buildTaxFilingDraftCsv(
   incomeDeductions?: IncomeDeductionSummary,
   investmentNonListedDetail: InvestmentSymbolYearResult[] = [],
   stockMarginDetail: StockMarginSymbolYearResult[] = [],
+  cryptoCreditDetail: CryptoCreditSymbolYearResult[] = [],
 ): string {
   const lines: string[] = [];
 
@@ -543,6 +545,33 @@ export function buildTaxFilingDraftCsv(
           formatYen(r.grossPnlJpy),
           formatYen(r.feeJpy),
           formatYen(r.swapJpy),
+          formatYen(r.realizedGainJpy),
+        ]),
+      );
+    }
+    lines.push("");
+  }
+
+  if (cryptoCreditDetail.length > 0) {
+    lines.push(toCsvLine(["■ 暗号資産 信用取引 銘柄別内訳(決済損益)"]));
+    lines.push(
+      toCsvLine([
+        "銘柄",
+        "決済件数",
+        "決済損益(円)",
+        "手数料(円)",
+        "金利等純額調整(円)",
+        "雑所得算入額(円)",
+      ]),
+    );
+    for (const r of cryptoCreditDetail) {
+      lines.push(
+        toCsvLine([
+          r.symbol,
+          r.settlementCount,
+          formatYen(r.grossPnlJpy),
+          formatYen(r.feeJpy),
+          formatYen(r.interestAdjustmentJpy),
           formatYen(r.realizedGainJpy),
         ]),
       );
