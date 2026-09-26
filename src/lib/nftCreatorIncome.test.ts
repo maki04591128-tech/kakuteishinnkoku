@@ -12,12 +12,14 @@ describe("estimateNftCreatorIncome", () => {
           mintingCostJpy: 10_000,
           sellingAndAdminExpensesJpy: 20_000,
           artCreationCostJpy: 50_000,
+          isNonResidentTransfer: false,
         },
       ],
     });
     expect(result.totalRevenueJpy.toNumber()).toBe(300_000);
     expect(result.deductibleExpensesJpy.toNumber()).toBe(30_000);
     expect(result.excludedArtCreationCostJpy.toNumber()).toBe(50_000);
+    expect(result.nonResidentExcludedRevenueJpy.toNumber()).toBe(0);
     expect(result.miscIncomeJpy.toNumber()).toBe(270_000);
   });
 
@@ -30,6 +32,7 @@ describe("estimateNftCreatorIncome", () => {
           mintingCostJpy: 5_000,
           sellingAndAdminExpensesJpy: 5_000,
           artCreationCostJpy: 0,
+          isNonResidentTransfer: false,
         },
         {
           description: "作品2",
@@ -37,6 +40,7 @@ describe("estimateNftCreatorIncome", () => {
           mintingCostJpy: 10_000,
           sellingAndAdminExpensesJpy: 10_000,
           artCreationCostJpy: 0,
+          isNonResidentTransfer: false,
         },
       ],
     });
@@ -54,6 +58,7 @@ describe("estimateNftCreatorIncome", () => {
           mintingCostJpy: 8_000,
           sellingAndAdminExpensesJpy: 2_000,
           artCreationCostJpy: 0,
+          isNonResidentTransfer: false,
         },
       ],
     });
@@ -70,6 +75,7 @@ describe("estimateNftCreatorIncome", () => {
             mintingCostJpy: 0,
             sellingAndAdminExpensesJpy: 0,
             artCreationCostJpy: 0,
+            isNonResidentTransfer: false,
           },
         ],
       }),
@@ -80,6 +86,53 @@ describe("estimateNftCreatorIncome", () => {
     const result = estimateNftCreatorIncome({ items: [] });
     expect(result.totalRevenueJpy.toNumber()).toBe(0);
     expect(result.deductibleExpensesJpy.toNumber()).toBe(0);
+    expect(result.nonResidentExcludedRevenueJpy.toNumber()).toBe(0);
     expect(result.miscIncomeJpy.toNumber()).toBe(0);
+  });
+
+  it("非居住者による譲渡(FAQ問3)は国内源泉所得に該当せず雑所得の計算から除外する", () => {
+    const result = estimateNftCreatorIncome({
+      items: [
+        {
+          description: "非居住者が譲渡したデジタルアート",
+          transferRevenueJpy: 300_000,
+          mintingCostJpy: 10_000,
+          sellingAndAdminExpensesJpy: 20_000,
+          artCreationCostJpy: 0,
+          isNonResidentTransfer: true,
+        },
+      ],
+    });
+    expect(result.totalRevenueJpy.toNumber()).toBe(0);
+    expect(result.deductibleExpensesJpy.toNumber()).toBe(0);
+    expect(result.nonResidentExcludedRevenueJpy.toNumber()).toBe(300_000);
+    expect(result.miscIncomeJpy.toNumber()).toBe(0);
+  });
+
+  it("居住者分と非居住者分が混在する場合、非居住者分だけを除外して合算する", () => {
+    const result = estimateNftCreatorIncome({
+      items: [
+        {
+          description: "居住者(自分)が譲渡した作品",
+          transferRevenueJpy: 100_000,
+          mintingCostJpy: 5_000,
+          sellingAndAdminExpensesJpy: 5_000,
+          artCreationCostJpy: 0,
+          isNonResidentTransfer: false,
+        },
+        {
+          description: "非居住者期間中に譲渡した作品",
+          transferRevenueJpy: 50_000,
+          mintingCostJpy: 1_000,
+          sellingAndAdminExpensesJpy: 1_000,
+          artCreationCostJpy: 0,
+          isNonResidentTransfer: true,
+        },
+      ],
+    });
+    expect(result.totalRevenueJpy.toNumber()).toBe(100_000);
+    expect(result.deductibleExpensesJpy.toNumber()).toBe(10_000);
+    expect(result.nonResidentExcludedRevenueJpy.toNumber()).toBe(50_000);
+    expect(result.miscIncomeJpy.toNumber()).toBe(90_000);
   });
 });

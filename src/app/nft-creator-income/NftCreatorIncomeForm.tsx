@@ -15,6 +15,7 @@ interface NftRow {
   mintingCost: string;
   sellingAndAdminExpenses: string;
   artCreationCost: string;
+  isNonResidentTransfer: boolean;
 }
 
 function newNftRow(key: string): NftRow {
@@ -25,6 +26,7 @@ function newNftRow(key: string): NftRow {
     mintingCost: "0",
     sellingAndAdminExpenses: "0",
     artCreationCost: "0",
+    isNonResidentTransfer: false,
   };
 }
 
@@ -42,6 +44,7 @@ export function NftCreatorIncomeForm() {
           mintingCostJpy: row.mintingCost || 0,
           sellingAndAdminExpensesJpy: row.sellingAndAdminExpenses || 0,
           artCreationCostJpy: row.artCreationCost || 0,
+          isNonResidentTransfer: row.isNonResidentTransfer,
         })),
       });
     } catch {
@@ -146,6 +149,25 @@ export function NftCreatorIncomeForm() {
                 className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
               />
             </label>
+            <label className="flex items-center gap-2 text-sm sm:col-span-4">
+              <input
+                type="checkbox"
+                checked={row.isNonResidentTransfer}
+                onChange={(e) =>
+                  setItems((prev) =>
+                    prev.map((r) =>
+                      r.key === row.key
+                        ? { ...r, isNonResidentTransfer: e.target.checked }
+                        : r,
+                    ),
+                  )
+                }
+                className="h-4 w-4"
+              />
+              <span className="text-neutral-500">
+                非居住者による譲渡(国内源泉所得に該当せず課税対象外。著作権自体を譲渡した場合は対象外)
+              </span>
+            </label>
             <button
               type="button"
               onClick={() => setItems((prev) => prev.filter((r) => r.key !== row.key))}
@@ -194,6 +216,14 @@ export function NftCreatorIncomeForm() {
               <p className="mt-1 text-3xl font-semibold">{yen(result.miscIncomeJpy)}</p>
             </div>
           </div>
+
+          {result.nonResidentExcludedRevenueJpy.greaterThan(0) && (
+            <p className="rounded-md border border-dashed border-sky-300 bg-sky-50 p-3 text-sm text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
+              非居住者による譲渡として国内源泉所得に該当せず課税対象外とした譲渡収入
+              ({yen(result.nonResidentExcludedRevenueJpy)})は、上記の雑所得の金額から
+              除外しています。
+            </p>
+          )}
 
           {result.miscIncomeJpy.isNegative() && (
             <p className="rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
