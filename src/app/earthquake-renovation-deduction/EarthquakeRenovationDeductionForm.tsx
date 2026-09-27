@@ -12,6 +12,9 @@ function yen(value: { toString(): string }): string {
   return `¥${Math.round(n).toLocaleString("ja-JP")}`;
 }
 
+const inputClass =
+  "rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900";
+
 export function EarthquakeRenovationDeductionForm({
   year,
   registeredCreditJpy,
@@ -21,16 +24,37 @@ export function EarthquakeRenovationDeductionForm({
   registeredCreditJpy: number | null;
 }) {
   const [standardCostJpy, setStandardCostJpy] = useState("0");
+  const [otherRelatedWorkCostJpy, setOtherRelatedWorkCostJpy] = useState("0");
+  const [totalIncomeJpy, setTotalIncomeJpy] = useState("5000000");
+  const [ownsHouse, setOwnsHouse] = useState(true);
+  const [residenceIn2022Or2023, setResidenceIn2022Or2023] = useState(false);
+  const [beforeReiwa4, setBeforeReiwa4] = useState(false);
+  const [claimsMortgageDeductionForRelatedWork, setClaimsMortgageDeductionForRelatedWork] =
+    useState(false);
 
   const result = useMemo(() => {
     try {
       return estimateEarthquakeRenovationDeduction({
         standardCostJpy: standardCostJpy || 0,
+        otherRelatedWorkCostJpy: otherRelatedWorkCostJpy || 0,
+        totalIncomeJpy: totalIncomeJpy || 0,
+        ownsHouse,
+        residenceIn2022Or2023,
+        beforeReiwa4,
+        claimsMortgageDeductionForRelatedWork,
       });
     } catch {
       return null;
     }
-  }, [standardCostJpy]);
+  }, [
+    standardCostJpy,
+    otherRelatedWorkCostJpy,
+    totalIncomeJpy,
+    ownsHouse,
+    residenceIn2022Or2023,
+    beforeReiwa4,
+    claimsMortgageDeductionForRelatedWork,
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,6 +66,46 @@ export function EarthquakeRenovationDeductionForm({
           value={standardCostJpy}
           onChange={setStandardCostJpy}
         />
+        <Field
+          label="耐震工事と併せて行う増築・改築その他一定の工事の費用(円)"
+          helper="無ければ0のまま"
+          value={otherRelatedWorkCostJpy}
+          onChange={setOtherRelatedWorkCostJpy}
+        />
+        <Field
+          label="この特別控除を受ける年分の合計所得金額(円)"
+          helper="Bの適用要件(2,000万円以下、経過措置は3,000万円以下)の判定に使用"
+          value={totalIncomeJpy}
+          onChange={setTotalIncomeJpy}
+        />
+        <label className="flex items-center gap-2 self-end text-sm">
+          <input type="checkbox" checked={ownsHouse} onChange={(e) => setOwnsHouse(e.target.checked)} />
+          <span>自己が所有する家屋である</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={residenceIn2022Or2023}
+            onChange={(e) => setResidenceIn2022Or2023(e.target.checked)}
+          />
+          <span>令和4年〜5年に居住の用に供した(Bの合計所得金額の上限が3,000万円になる経過措置)</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={beforeReiwa4}
+            onChange={(e) => setBeforeReiwa4(e.target.checked)}
+          />
+          <span>令和3年12月31日以前に耐震改修をした(Bは適用されずAのみになる)</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={claimsMortgageDeductionForRelatedWork}
+            onChange={(e) => setClaimsMortgageDeductionForRelatedWork(e.target.checked)}
+          />
+          <span>併せて行う増改築等について住宅借入金等特別控除も適用を受ける(Bは適用されずAのみになる)</span>
+        </label>
       </fieldset>
 
       {result === null ? (
@@ -52,7 +116,7 @@ export function EarthquakeRenovationDeductionForm({
             <p className="text-sm text-neutral-500">住宅耐震改修特別控除額(所得税分のみ)</p>
             <p className="mt-1 text-3xl font-semibold">{yen(result.creditJpy)}</p>
             <p className="mt-1 text-xs text-neutral-400">
-              控除額の計算基準額 {yen(result.cappedStandardCostJpy)} × 10%
+              A: {yen(result.amountAJpy)}×10% + B: {yen(result.amountBJpy)}×5%
             </p>
           </div>
 
@@ -120,7 +184,7 @@ function Field({
         min={0}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+        className={inputClass}
       />
     </label>
   );

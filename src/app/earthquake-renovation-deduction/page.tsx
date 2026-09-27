@@ -65,7 +65,7 @@ export default async function EarthquakeRenovationDeductionPage({
           (住宅ローン控除のような住民税への振替は無い)。バリアフリー改修・
           多世帯同居改修・耐久性向上改修・子育て対応改修に対応する住宅特定改修
           特別税額控除(措置法41条の19の3)や、認定住宅等新築等特別税額控除
-          (投資型減税。措置法41条の19の4)は別制度のため本ツールでは試算しないが、
+          (投資型減税。措置法41条の19の4)は別制度だが、
           <Link href={`/energy-saving-renovation-deduction?year=${year}`} className="underline">
             省エネ改修工事に係る住宅特定改修特別税額控除
           </Link>
@@ -73,7 +73,13 @@ export default async function EarthquakeRenovationDeductionPage({
           <Link href={`/certified-housing-construction-credit?year=${year}`} className="underline">
             認定住宅等新築等特別税額控除
           </Link>
-          を含め、いずれも別画面で試算できる。
+          を含め、いずれも別画面で試算できる。これら他の改修工事と併せて行った場合、
+          B(増改築等工事費用分)の1,000万円の限度額は各改修工事のAの合計額を控除した
+          額が限度になるが、この合算判定は
+          <Link href="/renovation-credit-combination" className="underline">
+            住宅特定改修特別税額控除の併用時のB限度額合算
+          </Link>
+          の画面で別途試算できる。
         </p>
         <p>
           適用期限・対象家屋が耐震改修促進法に基づく耐震改修に該当するかどうかの

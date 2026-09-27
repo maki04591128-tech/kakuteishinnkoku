@@ -341,6 +341,12 @@ export default async function Home({
           子育て対応改修工事の住宅特定改修特別税額控除額を試算する
         </Link>
         <Link
+          href="/renovation-credit-combination"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          住宅特定改修特別税額控除の併用時のB限度額合算を試算する
+        </Link>
+        <Link
           href={`/certified-housing-construction-credit?year=${year}`}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
