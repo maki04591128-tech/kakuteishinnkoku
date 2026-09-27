@@ -561,4 +561,81 @@ describe("estimateInheritedAnnuityIncome", () => {
     expect(result.totalMiscIncomeJpy.toNumber()).toBe(0);
     expect(result.contracts).toHaveLength(0);
   });
+
+  it("当初年金受取人と現在の受取人が異なる場合、必要経費の割合は当初年金受取人自身の支払総額を分母に計算する(施行令185条2項が準用する1項9号・機能150)", () => {
+    const result = estimateInheritedAnnuityIncome([
+      {
+        // 課税部分の計算(1号〜6号)は本人基準の支払総額・残存期間年数のまま変わらないため、
+        // 国税庁タックスアンサーNo.1620の計算例と同じtaxablePortionJpy(88,888.8889)になる。
+        annualAnnuityAmountJpy: 1_000_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 3_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+        // 当初年金受取人自身の支払総額(契約全体の当初の支払総額。二次相続で本人が引き継いだ
+        // 時点では残存分の10,000,000円に縮小していたと仮定)
+        originalRecipientTotalScheduledPaymentJpy: 20_000_000,
+      },
+    ]);
+    const contract = result.contracts[0];
+    expect(contract.usesOriginalRecipientRatio).toBe(true);
+    expect(contract.taxablePortionJpy.toNumber()).toBeCloseTo(88_888.8889, 3);
+    // 必要経費割合 = 3,000,000 / 20,000,000 = 0.15(本人の支払総額10,000,000を分母にすると
+    // 0.3になってしまい過大になる)
+    expect(contract.necessaryExpenseRatio.toNumber()).toBe(0.15);
+    expect(contract.necessaryExpenseJpy.toNumber()).toBeCloseTo(13_333.3333, 3);
+    expect(contract.miscIncomeJpy.toNumber()).toBeCloseTo(75_555.5556, 3);
+  });
+
+  it("originalRecipientTotalScheduledPaymentJpyを省略すると、当初年金受取人=現在の受取人であるケース(1項8号)として従来どおり計算される", () => {
+    const result = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 1_000_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 3_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+      },
+    ]);
+    const contract = result.contracts[0];
+    expect(contract.usesOriginalRecipientRatio).toBe(false);
+    expect(contract.necessaryExpenseRatio.toNumber()).toBe(0.3);
+  });
+
+  it("当初年金受取人自身の支払総額が0以下だとエラーになる", () => {
+    expect(() =>
+      estimateInheritedAnnuityIncome([
+        {
+          annualAnnuityAmountJpy: 1_000_000,
+          inheritanceTaxValuationJpy: 9_000_000,
+          totalScheduledPaymentJpy: 10_000_000,
+          totalPremiumsPaidJpy: 3_000_000,
+          remainingYearsAtAcquisition: 10,
+          paymentYearNumber: 6,
+          originalRecipientTotalScheduledPaymentJpy: 0,
+        },
+      ]),
+    ).toThrow();
+  });
+
+  it("当初年金受取人が異なり、かつ一時金も支払う契約の場合、1項10号の按分も当初年金受取人自身の支払総額を基準にする", () => {
+    const result = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 1_000_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 3_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+        lumpSumAmountJpy: 5_000_000,
+        originalRecipientTotalScheduledPaymentJpy: 20_000_000,
+      },
+    ]);
+    const contract = result.contracts[0];
+    // 按分後の保険料総額 = 3,000,000 * 20,000,000 / (20,000,000+5,000,000) = 2,400,000
+    // 必要経費割合 = 2,400,000 / 20,000,000 = 0.12
+    expect(contract.necessaryExpenseRatio.toNumber()).toBe(0.12);
+  });
 });
