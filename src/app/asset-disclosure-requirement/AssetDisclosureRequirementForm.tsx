@@ -29,6 +29,10 @@ export function AssetDisclosureRequirementForm() {
     useState("0");
   const [totalAssets, setTotalAssets] = useState("0");
   const [section60SecuritiesEtc, setSection60SecuritiesEtc] = useState("0");
+  const [isInheritanceCommencementYear, setIsInheritanceCommencementYear] = useState(false);
+  const [inheritedOverseasAssets, setInheritedOverseasAssets] = useState("0");
+  const [inheritedTotalAssets, setInheritedTotalAssets] = useState("0");
+  const [inheritedSection60SecuritiesEtc, setInheritedSection60SecuritiesEtc] = useState("0");
 
   const result = useMemo(() => {
     try {
@@ -41,6 +45,10 @@ export function AssetDisclosureRequirementForm() {
         overseasAssetsExcludingCryptoAndNftJpy: overseasAssetsExcludingCryptoAndNft || 0,
         totalAssetsJpy: totalAssets || 0,
         section60SecuritiesEtcJpy: section60SecuritiesEtc || 0,
+        isInheritanceCommencementYear,
+        inheritedOverseasAssetsExcludingCryptoAndNftJpy: inheritedOverseasAssets || 0,
+        inheritedTotalAssetsJpy: inheritedTotalAssets || 0,
+        inheritedSection60SecuritiesEtcJpy: inheritedSection60SecuritiesEtc || 0,
       });
     } catch {
       return null;
@@ -54,6 +62,10 @@ export function AssetDisclosureRequirementForm() {
     overseasAssetsExcludingCryptoAndNft,
     totalAssets,
     section60SecuritiesEtc,
+    isInheritanceCommencementYear,
+    inheritedOverseasAssets,
+    inheritedTotalAssets,
+    inheritedSection60SecuritiesEtc,
   ]);
 
   return (
@@ -177,6 +189,68 @@ export function AssetDisclosureRequirementForm() {
             className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
+      </fieldset>
+
+      <fieldset className="grid grid-cols-1 gap-3 rounded-md border border-neutral-200 p-3 sm:grid-cols-2 dark:border-neutral-800">
+        <legend className="px-1 text-sm font-medium">
+          相続開始年の除外(相続又は遺贈により財産を取得した年のみ)
+        </legend>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            id={`${idPrefix}-inheritance-year`}
+            type="checkbox"
+            checked={isInheritanceCommencementYear}
+            onChange={(e) => setIsInheritanceCommencementYear(e.target.checked)}
+          />
+          <span className="text-neutral-500">
+            自分が相続人として、相続又は遺贈により財産を取得した相続の開始の日の
+            属する年(相続開始年)である
+          </span>
+        </label>
+        {isInheritanceCommencementYear && (
+          <>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-neutral-500">
+                上記の国外財産のうち、相続又は遺贈により取得した国外財産(相続国外財産)の
+                価額の合計額
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={inheritedOverseasAssets}
+                onChange={(e) => setInheritedOverseasAssets(e.target.value)}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-neutral-500">
+                上記の財産の合計額のうち、相続又は遺贈により取得した財産の価額の合計額
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={inheritedTotalAssets}
+                onChange={(e) => setInheritedTotalAssets(e.target.value)}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-neutral-500">
+                うち、相続又は遺贈により取得した有価証券等(所得税法60条の2)の価額の合計額
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={inheritedSection60SecuritiesEtc}
+                onChange={(e) => setInheritedSection60SecuritiesEtc(e.target.value)}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </label>
+          </>
+        )}
       </fieldset>
 
       {result === null ? (

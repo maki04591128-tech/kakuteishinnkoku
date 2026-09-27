@@ -182,4 +182,108 @@ describe("determineAssetDisclosureRequirement", () => {
       }),
     ).toThrow();
   });
+
+  describe("相続開始年の除外(国外送金等調書法5条2項・6条の2第2項)", () => {
+    it("相続開始年は相続国外財産を除外して国外財産調書の提出義務を判定する", () => {
+      const withoutExclusion = determineAssetDisclosureRequirement({
+        ...baseInput,
+        overseasAssetsExcludingCryptoAndNftJpy: 60_000_000,
+      });
+      expect(withoutExclusion.overseasAssetStatement.required).toBe(true);
+
+      const withExclusion = determineAssetDisclosureRequirement({
+        ...baseInput,
+        overseasAssetsExcludingCryptoAndNftJpy: 60_000_000,
+        isInheritanceCommencementYear: true,
+        inheritedOverseasAssetsExcludingCryptoAndNftJpy: 20_000_000,
+      });
+      expect(withExclusion.overseasAssetStatement.required).toBe(false);
+      expect(withExclusion.overseasAssetStatement.overseasAssetsTotalJpy.toString()).toBe(
+        "40000000",
+      );
+    });
+
+    it("相続開始年でなければ相続財産の入力があっても除外しない", () => {
+      const result = determineAssetDisclosureRequirement({
+        ...baseInput,
+        overseasAssetsExcludingCryptoAndNftJpy: 60_000_000,
+        inheritedOverseasAssetsExcludingCryptoAndNftJpy: 20_000_000,
+      });
+      expect(result.overseasAssetStatement.required).toBe(true);
+      expect(result.overseasAssetStatement.overseasAssetsTotalJpy.toString()).toBe("60000000");
+    });
+
+    it("相続開始年は相続財産債務を除外して財産債務調書の要件1(財産3億円)を判定する", () => {
+      const withoutExclusion = determineAssetDisclosureRequirement({
+        ...baseInput,
+        aggregateIncomeExcludingRetirementJpy: 20_000_001,
+        totalAssetsJpy: 320_000_000,
+      });
+      expect(withoutExclusion.assetLiabilityStatement.satisfiesRequirement1).toBe(true);
+
+      const withExclusion = determineAssetDisclosureRequirement({
+        ...baseInput,
+        aggregateIncomeExcludingRetirementJpy: 20_000_001,
+        totalAssetsJpy: 320_000_000,
+        isInheritanceCommencementYear: true,
+        inheritedTotalAssetsJpy: 30_000_000,
+      });
+      expect(withExclusion.assetLiabilityStatement.satisfiesRequirement1).toBe(false);
+    });
+
+    it("相続開始年は相続により取得した有価証券等を除外して要件1(有価証券等1億円)を判定する", () => {
+      const result = determineAssetDisclosureRequirement({
+        ...baseInput,
+        aggregateIncomeExcludingRetirementJpy: 20_000_001,
+        totalAssetsJpy: 150_000_000,
+        section60SecuritiesEtcJpy: 110_000_000,
+        isInheritanceCommencementYear: true,
+        inheritedSection60SecuritiesEtcJpy: 20_000_000,
+      });
+      expect(result.assetLiabilityStatement.satisfiesRequirement1).toBe(false);
+    });
+
+    it("相続開始年は相続財産債務を除外して財産債務調書の要件2(財産10億円)を判定する", () => {
+      const result = determineAssetDisclosureRequirement({
+        ...baseInput,
+        totalAssetsJpy: 1_050_000_000,
+        isInheritanceCommencementYear: true,
+        inheritedTotalAssetsJpy: 100_000_000,
+      });
+      expect(result.assetLiabilityStatement.satisfiesRequirement2).toBe(false);
+    });
+
+    it("相続又は遺贈により取得した国外財産の価額が国外財産の合計額を超えるとエラーになる", () => {
+      expect(() =>
+        determineAssetDisclosureRequirement({
+          ...baseInput,
+          overseasAssetsExcludingCryptoAndNftJpy: 10_000_000,
+          isInheritanceCommencementYear: true,
+          inheritedOverseasAssetsExcludingCryptoAndNftJpy: 20_000_000,
+        }),
+      ).toThrow();
+    });
+
+    it("相続又は遺贈により取得した財産の価額が財産の合計額を超えるとエラーになる", () => {
+      expect(() =>
+        determineAssetDisclosureRequirement({
+          ...baseInput,
+          totalAssetsJpy: 10_000_000,
+          isInheritanceCommencementYear: true,
+          inheritedTotalAssetsJpy: 20_000_000,
+        }),
+      ).toThrow();
+    });
+
+    it("相続又は遺贈により取得した有価証券等の価額が有価証券等の合計額を超えるとエラーになる", () => {
+      expect(() =>
+        determineAssetDisclosureRequirement({
+          ...baseInput,
+          section60SecuritiesEtcJpy: 10_000_000,
+          isInheritanceCommencementYear: true,
+          inheritedSection60SecuritiesEtcJpy: 20_000_000,
+        }),
+      ).toThrow();
+    });
+  });
 });
