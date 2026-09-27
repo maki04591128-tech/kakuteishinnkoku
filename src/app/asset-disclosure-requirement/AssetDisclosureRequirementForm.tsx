@@ -24,7 +24,9 @@ export function AssetDisclosureRequirementForm() {
   const [hasIncomeTaxReturnObligation, setHasIncomeTaxReturnObligation] = useState(true);
   const [aggregateIncome, setAggregateIncome] = useState("0");
   const [cryptoAssets, setCryptoAssets] = useState("0");
-  const [overseasAssetsExcludingCrypto, setOverseasAssetsExcludingCrypto] = useState("0");
+  const [nftAssets, setNftAssets] = useState("0");
+  const [overseasAssetsExcludingCryptoAndNft, setOverseasAssetsExcludingCryptoAndNft] =
+    useState("0");
   const [totalAssets, setTotalAssets] = useState("0");
   const [section60SecuritiesEtc, setSection60SecuritiesEtc] = useState("0");
 
@@ -35,7 +37,8 @@ export function AssetDisclosureRequirementForm() {
         hasIncomeTaxReturnObligationOrEligibleRefundReturn: hasIncomeTaxReturnObligation,
         aggregateIncomeExcludingRetirementJpy: aggregateIncome || 0,
         cryptoAssetsJpy: cryptoAssets || 0,
-        overseasAssetsExcludingCryptoJpy: overseasAssetsExcludingCrypto || 0,
+        nftAssetsJpy: nftAssets || 0,
+        overseasAssetsExcludingCryptoAndNftJpy: overseasAssetsExcludingCryptoAndNft || 0,
         totalAssetsJpy: totalAssets || 0,
         section60SecuritiesEtcJpy: section60SecuritiesEtc || 0,
       });
@@ -47,7 +50,8 @@ export function AssetDisclosureRequirementForm() {
     hasIncomeTaxReturnObligation,
     aggregateIncome,
     cryptoAssets,
-    overseasAssetsExcludingCrypto,
+    nftAssets,
+    overseasAssetsExcludingCryptoAndNft,
     totalAssets,
     section60SecuritiesEtc,
   ]);
@@ -120,20 +124,35 @@ export function AssetDisclosureRequirementForm() {
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-500">
-            暗号資産を除く国外財産(国外の不動産・預貯金・有価証券等)の価額の合計額
+            NFTのうち暗号資産などの財産的価値を有する資産と交換できるものの価額の
+            合計額(購入したマーケットプレイスが国内・国外いずれでも合算する。
+            ゲーム内でしか使えない等、財産的価値の無いNFTは含めない)
           </span>
           <input
             type="number"
             inputMode="numeric"
             min={0}
-            value={overseasAssetsExcludingCrypto}
-            onChange={(e) => setOverseasAssetsExcludingCrypto(e.target.value)}
+            value={nftAssets}
+            onChange={(e) => setNftAssets(e.target.value)}
             className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-500">
-            財産(国内・国外、暗号資産を含む)の価額の合計額
+            暗号資産・NFTを除く国外財産(国外の不動産・預貯金・有価証券等)の価額の合計額
+          </span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={overseasAssetsExcludingCryptoAndNft}
+            onChange={(e) => setOverseasAssetsExcludingCryptoAndNft(e.target.value)}
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-neutral-500">
+            財産(国内・国外、暗号資産・NFTを含む)の価額の合計額
           </span>
           <input
             type="number"
@@ -147,7 +166,7 @@ export function AssetDisclosureRequirementForm() {
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-500">
             うち所得税法60条の2の有価証券等・未決済信用取引等・未決済デリバティブ取引に
-            係る権利の価額の合計額(暗号資産を含まない)
+            係る権利の価額の合計額(暗号資産・NFTを含まない)
           </span>
           <input
             type="number"
