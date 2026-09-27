@@ -73,19 +73,122 @@ describe("estimateInheritedAnnuityIncome", () => {
     expect(result.contracts[0].miscIncomeJpy.toNumber()).toBe(0);
   });
 
-  it("相続税評価割合がちょうど50%以下の場合はエラーになる(税務署への確認事項)", () => {
+  it("相続税評価割合が50%以下の確定年金(特定期間内)を施行令185条2項1号ロにより計算する", () => {
+    // 相続税評価割合 = 3,000,000/10,000,000 = 0.3(30%) -> 特定期間算出割合60%
+    // 特定期間年数 = 10×0.6-1 = 5(端数なし)、総単位数 = 10×5 = 50
+    // 一単位当たりの金額 = 10,000,000×100%/50 = 200,000
+    // 経過年数3(支払年数4年目) <= 特定期間年数5 -> 200,000×3 = 600,000
+    const result = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 2_000_000,
+        inheritanceTaxValuationJpy: 3_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 4,
+      },
+    ]);
+    const contract = result.contracts[0];
+    expect(contract.inheritanceTaxValuationRatio.toNumber()).toBe(0.3);
+    expect(contract.taxableRatio.toNumber()).toBe(1);
+    expect(contract.specificPeriodYears).toBe(5);
+    expect(contract.taxableUnits.toNumber()).toBe(50);
+    expect(contract.taxableUnitAmountJpy.toNumber()).toBe(200_000);
+    expect(contract.taxablePortionJpy.toNumber()).toBe(600_000);
+    expect(contract.nonTaxablePortionJpy.toNumber()).toBe(1_400_000);
+    expect(contract.necessaryExpenseRatio.toNumber()).toBe(0.2);
+    expect(contract.necessaryExpenseJpy.toNumber()).toBe(120_000);
+    expect(contract.miscIncomeJpy.toNumber()).toBe(480_000);
+  });
+
+  it("相続税評価割合が50%以下の確定年金は、特定期間終了後は「一単位当たりの金額×特定期間年数-1円」で頭打ちになる", () => {
+    // 特定期間年数5年(上と同じ契約)に対し、経過年数6(支払年数7年目、特定期間終了後)
+    const withinPeriod = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 2_000_000,
+        inheritanceTaxValuationJpy: 3_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6, // 経過年数5(特定期間年数と同じ、特定期間内の最終年)
+      },
+    ]).contracts[0];
+    expect(withinPeriod.taxablePortionJpy.toNumber()).toBe(1_000_000); // 200,000×5
+
+    const afterPeriod = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 2_000_000,
+        inheritanceTaxValuationJpy: 3_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 7, // 経過年数6(特定期間年数5を超える)
+      },
+    ]).contracts[0];
+    expect(afterPeriod.taxablePortionJpy.toNumber()).toBe(999_999); // 200,000×5-1
+
+    const stillAfterPeriod = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 2_000_000,
+        inheritanceTaxValuationJpy: 3_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 10, // 経過年数9でも一定額のまま増加しない
+      },
+    ]).contracts[0];
+    expect(stillAfterPeriod.taxablePortionJpy.toNumber()).toBe(999_999);
+  });
+
+  it("特定期間年数の計算で1年未満の端数が生じる場合は切り上げる(施行令185条3項5号)", () => {
+    // 相続税評価割合10%以下 -> 特定期間算出割合20%、残存期間年数7
+    // 特定期間年数 = 7×0.2-1 = 0.4 -> 切り上げて1
+    const result = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 100_000,
+        inheritanceTaxValuationJpy: 500_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 7,
+        paymentYearNumber: 1,
+      },
+    ]);
+    expect(result.contracts[0].inheritanceTaxValuationRatio.toNumber()).toBe(0.05);
+    expect(result.contracts[0].specificPeriodYears).toBe(1);
+    expect(result.contracts[0].taxableUnits.toNumber()).toBe(7);
+  });
+
+  it("相続税評価割合が低く残存期間年数が短いため特定期間年数が1年未満になる場合はエラーになる", () => {
+    // 相続税評価割合10%以下(特定期間算出割合20%)×残存期間年数2 - 1 = -0.6 -> 切り上げても0
     expect(() =>
       estimateInheritedAnnuityIncome([
         {
-          annualAnnuityAmountJpy: 1_000_000,
-          inheritanceTaxValuationJpy: 5_000_000,
+          annualAnnuityAmountJpy: 100_000,
+          inheritanceTaxValuationJpy: 100_000,
           totalScheduledPaymentJpy: 10_000_000,
           totalPremiumsPaidJpy: 2_000_000,
-          remainingYearsAtAcquisition: 10,
-          paymentYearNumber: 6,
+          remainingYearsAtAcquisition: 2,
+          paymentYearNumber: 1,
         },
       ]),
     ).toThrow();
+  });
+
+  it("相続税評価割合がちょうど50%の場合は50%以下の計算方法(施行令185条2項1号ロ)が適用される", () => {
+    const result = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 2_000_000,
+        inheritanceTaxValuationJpy: 5_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 4,
+      },
+    ]);
+    expect(result.contracts[0].inheritanceTaxValuationRatio.toNumber()).toBe(0.5);
+    expect(result.contracts[0].taxableRatio.toNumber()).toBe(1);
+    // 特定期間算出割合100%(40%超50%以下) -> 特定期間年数 = 10×1-1 = 9
+    expect(result.contracts[0].specificPeriodYears).toBe(9);
   });
 
   it("一課税単位当たりの金額の整数倍が年金の額を超える場合は上限が適用される(施行令185条2項1号6号)", () => {

@@ -12,16 +12,18 @@ import { Decimal } from "decimal.js";
  * (`privateAnnuityIncome.ts`が対象とする、保険料負担者=年金受取人である通常の個人年金保険の
  * 雑所得(施行令183条)とは異なる計算方法。国税庁タックスアンサーNo.1620)。
  *
- * 本モジュールが対応する範囲(施行令185条2項1号イ。国税庁タックスアンサーNo.1620の
- * 「新相続税法対象年金」のうち確定年金、かつ相続税評価割合が100分の50を超える場合):
+ * 本モジュールが対応する範囲(施行令185条2項1号。国税庁タックスアンサーNo.1620の
+ * 「新相続税法対象年金」のうち確定年金):
  *
  * 1. 相続税評価割合 = 相続税評価額 ÷ 年金の支払総額(確定年金なので確定額)
- * 2. 課税割合: 相続税評価割合に応じて次の速算表により決定する(相続税評価割合が
- *    100分の50以下の場合は別の複雑な算式(施行令185条2項1号ロ、特定期間年数を用いる)
- *    によるため、国税庁タックスアンサーNo.1620も「税務署にお問合せください」と案内して
- *    おり、本ツールでは対象外(今後の課題)とする)。
+ * 2. 相続税評価割合に応じた割合(国税庁「相続等に係る生命保険契約等に基づく年金の雑所得の
+ *    金額の計算書(施行令185条2項又は186条2項に基づき計算する場合)」の⑦欄。以下の速算表
+ *    による。50%以下の場合は一律100%(2項1号ロは「支払総額」をそのまま単位数で除すため、
+ *    3項4号の「課税割合」という概念自体が定義されない。50%超の場合のみ3項4号の「課税割合」に
+ *    一致する))。
  *
- *      相続税評価割合           課税割合
+ *      相続税評価割合           割合
+ *      50%以下                 100%
  *      50%超   55%以下          45%
  *      55%超   60%以下          40%
  *      60%超   65%以下          35%
@@ -36,17 +38,33 @@ import { Decimal } from "decimal.js";
  *      95%超   98%以下           2%
  *      98%超                     0%
  *
- * 3. 課税単位数 = 残存期間年数 ×(残存期間年数-1)÷ 2
- *    (残存期間年数は、その年金の支払を受ける居住者に係る支払開始日(その居住者が最初に
- *    年金の支払を受ける日)における残りの支払年数。生命保険会社が発行する年金支払通知書
- *    等に記載されている)
- * 4. 課税部分(支払総額のうち課税対象となる総額) = 支払総額 × 課税割合
- * 5. 一課税単位当たりの金額 = 課税部分 ÷ 課税単位数
+ * 3. 課税部分(支払総額のうち課税対象となる総額) = 支払総額 × 上記の割合
+ *    (50%以下の場合は割合が常に100%のため、課税部分の総額 = 支払総額そのものになる)
+ * 4. 単位数の計算(相続税評価割合が50%超か以下かで算式が異なる。施行令185条2項1号イ・ロ):
+ *    - 50%超(イ): 課税単位数 = 残存期間年数 ×(残存期間年数-1)÷ 2
+ *    - 50%以下(ロ): まず特定期間年数(施行令185条3項5号)を次の速算表により算出する。
+ *
+ *        相続税評価割合           特定期間算出割合
+ *        10%以下                  20%
+ *        10%超   20%以下          40%
+ *        20%超   30%以下          60%
+ *        30%超   40%以下          80%
+ *        40%超   50%以下         100%
+ *
+ *      特定期間年数 = 残存期間年数 × 特定期間算出割合 - 1年(1年未満の端数は切り上げ)。
+ *      総単位数 = 残存期間年数 × 特定期間年数。
+ * 5. 一単位当たりの金額 = 課税部分(3) ÷ 単位数(4)
  * 6. 経過年数 = 支払年数(支払開始日の年を1年目とする)- 1(端数切り捨て)
- * 7. その年分の課税部分の年金収入額(支払年金対応額) = 一課税単位当たりの金額 × 経過年数。
- *    ただし、この金額がその年に支払を受ける年金の額以上になる場合は、一課税単位当たりの
- *    金額の整数倍の金額のうち年金の額に満たない最も多い金額とする(施行令185条2項1号
- *    6号)。年金支給初年(経過年数0)は必ず全額非課税になる。
+ * 7. その年分の課税部分の年金収入額(支払年金対応額)は、相続税評価割合が50%超か以下かで
+ *    算式が異なる(施行令185条2項1号イ・ロ)。
+ *    - 50%超(イ): 一単位当たりの金額 × 経過年数
+ *    - 50%以下(ロ): 経過年数が特定期間年数以下の間(支払を受ける日が「特定期間」内)は
+ *      一単位当たりの金額 × 経過年数。経過年数が特定期間年数を超えた後(特定期間終了後)は、
+ *      一単位当たりの金額 × 特定期間年数 - 1円で頭打ちになり、それ以降は経過年数が増えても
+ *      一定額のまま増加しない。
+ *    いずれの場合も、この金額がその年に支払を受ける年金の額以上になる場合は、一単位当たりの
+ *    金額の整数倍の金額のうち年金の額に満たない最も多い金額とする(施行令185条2項1号6号)。
+ *    年金支給初年(経過年数0)は必ず全額非課税になる。
  * 8. 非課税部分の金額 = その年に支払を受ける年金の額 - 課税部分の年金収入額
  * 9. 必要経費に算入する金額 = 課税部分の年金収入額 ×(保険料又は掛金の総額 ÷ 支払総額)
  *    (施行令185条2項後段が準用する同条1項8号。割合は小数点以下2位まで算出し3位以下を
@@ -62,15 +80,21 @@ import { Decimal } from "decimal.js";
  *   「支払総額(見込額)+一時金の額」に占める割合分に按分した金額とする
  *   (`privateAnnuityIncome.ts`が施行令183条1項3号について実装済みの考え方と同じ按分方法)。
  *
+ * 相続税評価割合が100分の50以下の確定年金(施行令185条2項1号ロ・3項5号)への対応(機能144)。
+ * 国税庁タックスアンサーNo.1620は「税務署にお問合せください」と案内するのみで具体的な
+ * 計算方法を示していないが、e-Govで確認した施行令185条2項1号ロ・3項5号の条文本文に加え、
+ * 国税庁が公開する「相続等に係る生命保険契約等に基づく年金の雑所得の金額の計算書(施行令
+ * 185条2項又は186条2項に基づき計算する場合)」(様式・記載要領。国税庁法令解釈通達
+ * https://www.nta.go.jp/law/tsutatsu/kobetsu/shotoku/shinkoku/101020/01.pdf)により、
+ * 条文の各要素(特定期間年数・総単位数・一単位当たりの金額・支払年金対応額)の算式・端数処理
+ * (特定期間年数は1年未満切り上げ)・6号の頭打ち処理(様式別表4)を実データの記載例に基づき
+ * 相互に確認できたため、今回実装した。
+ *
  * **対象外とした範囲(今後の課題):**
  * - 旧相続税法対象年金(年金受給権につき、平成22年度税制改正前の相続税法24条の評価方法の
  *   適用があるもの。施行令185条1項)。残存期間年数の長さに応じてさらに複雑な算式(40%・
  *   30%の乗率や特定単位数等)になり、かつ平成22年度税制改正から既に15年以上が経過して
  *   おり現存する契約は限られると考えられるため対象外とした。
- * - 相続税評価割合が100分の50以下の確定年金(施行令185条2項1号ロ)。国税庁タックスアンサー
- *   No.1620も具体的な計算方法を示さず「税務署にお問合せください」と案内している(なお、
- *   e-Govで確認した施行令185条2項1号ロ・3項5号の条文自体には「特定期間年数」を用いた
- *   算式が存在するが、実装・検証には別途慎重な確認が必要なため今回は見送った)。
  * - 終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)。別表(余命年数表)に
  *   基づく支払開始日余命年数・支払総額見込額の算出が前提になり、`privateAnnuityIncome.ts`が
  *   既に対象外としている支払総額見込額の算出と同様の理由で対象外とした。
@@ -105,13 +129,21 @@ export interface InheritedAnnuityContractResult {
   name: string;
   /** 相続税評価割合(相続税評価額÷支払総額) */
   inheritanceTaxValuationRatio: Decimal;
-  /** 課税割合(速算表による) */
+  /**
+   * 相続税評価割合に応じた割合(課税部分の総額=支払総額×この割合。相続税評価割合が50%以下の
+   * 場合は一律100%になる。50%超の場合のみ施行令185条3項4号の「課税割合」に一致する)
+   */
   taxableRatio: Decimal;
+  /**
+   * 特定期間年数(施行令185条3項5号。相続税評価割合が100分の50以下の場合のみ算出する。
+   * 50%超の場合はundefined)
+   */
+  specificPeriodYears?: number;
   /** 経過年数 */
   elapsedYears: number;
-  /** 課税単位数 */
+  /** 単位数(50%超の場合は課税単位数、50%以下の場合は総単位数) */
   taxableUnits: Decimal;
-  /** 一課税単位当たりの金額 */
+  /** 一単位当たりの金額 */
   taxableUnitAmountJpy: Decimal;
   /** その年分の課税部分の年金収入額(支払年金対応額) */
   taxablePortionJpy: Decimal;
@@ -132,25 +164,26 @@ export interface InheritedAnnuityIncomeResult {
   notes: string[];
 }
 
-interface TaxableRatioBracket {
+interface RatioBracket {
   minExclusive: number;
   maxInclusive: number;
-  taxableRatio: number;
+  ratio: number;
 }
 
-const TAXABLE_RATIO_TABLE: TaxableRatioBracket[] = [
-  { minExclusive: 0.5, maxInclusive: 0.55, taxableRatio: 0.45 },
-  { minExclusive: 0.55, maxInclusive: 0.6, taxableRatio: 0.4 },
-  { minExclusive: 0.6, maxInclusive: 0.65, taxableRatio: 0.35 },
-  { minExclusive: 0.65, maxInclusive: 0.7, taxableRatio: 0.3 },
-  { minExclusive: 0.7, maxInclusive: 0.75, taxableRatio: 0.25 },
-  { minExclusive: 0.75, maxInclusive: 0.8, taxableRatio: 0.2 },
-  { minExclusive: 0.8, maxInclusive: 0.83, taxableRatio: 0.17 },
-  { minExclusive: 0.83, maxInclusive: 0.86, taxableRatio: 0.14 },
-  { minExclusive: 0.86, maxInclusive: 0.89, taxableRatio: 0.11 },
-  { minExclusive: 0.89, maxInclusive: 0.92, taxableRatio: 0.08 },
-  { minExclusive: 0.92, maxInclusive: 0.95, taxableRatio: 0.05 },
-  { minExclusive: 0.95, maxInclusive: 0.98, taxableRatio: 0.02 },
+// 3項4号「課税割合」の速算表。50%超のみ定義されている(50%以下は上のlookupTaxableRatioで別途100%を返す)。
+const TAXABLE_RATIO_TABLE: RatioBracket[] = [
+  { minExclusive: 0.5, maxInclusive: 0.55, ratio: 0.45 },
+  { minExclusive: 0.55, maxInclusive: 0.6, ratio: 0.4 },
+  { minExclusive: 0.6, maxInclusive: 0.65, ratio: 0.35 },
+  { minExclusive: 0.65, maxInclusive: 0.7, ratio: 0.3 },
+  { minExclusive: 0.7, maxInclusive: 0.75, ratio: 0.25 },
+  { minExclusive: 0.75, maxInclusive: 0.8, ratio: 0.2 },
+  { minExclusive: 0.8, maxInclusive: 0.83, ratio: 0.17 },
+  { minExclusive: 0.83, maxInclusive: 0.86, ratio: 0.14 },
+  { minExclusive: 0.86, maxInclusive: 0.89, ratio: 0.11 },
+  { minExclusive: 0.89, maxInclusive: 0.92, ratio: 0.08 },
+  { minExclusive: 0.92, maxInclusive: 0.95, ratio: 0.05 },
+  { minExclusive: 0.95, maxInclusive: 0.98, ratio: 0.02 },
 ];
 
 function toDecimal(value: Decimal.Value): Decimal {
@@ -169,11 +202,15 @@ function requireInteger(value: number, label: string, min: number): void {
   }
 }
 
+/**
+ * 相続税評価割合に応じた割合(施行令185条2項1号イの「課税割合」(3項4号)を50%超の場合に、
+ * 50%以下の場合は一律100%(2項1号ロは支払総額をそのまま単位数で除すため課税割合という
+ * 概念自体が無い)を返す。国税庁の様式「相続等に係る生命保険契約等に基づく年金の雑所得の
+ * 金額の計算書」⑦欄と同じ速算表)。
+ */
 function lookupTaxableRatio(inheritanceTaxValuationRatio: Decimal): Decimal {
   if (inheritanceTaxValuationRatio.lessThanOrEqualTo(0.5)) {
-    throw new Error(
-      "相続税評価割合が100分の50以下の場合の計算方法は本ツールでは未対応です(国税庁タックスアンサーNo.1620にもとづき税務署にご確認ください)",
-    );
+    return new Decimal(1);
   }
   if (inheritanceTaxValuationRatio.greaterThan(0.98)) {
     return new Decimal(0);
@@ -185,24 +222,62 @@ function lookupTaxableRatio(inheritanceTaxValuationRatio: Decimal): Decimal {
   );
   if (!bracket) {
     // 0.5 < 割合 <= 0.98 は上の速算表で網羅されているため到達しない
-    throw new Error("相続税評価割合に対応する課税割合が見つかりませんでした");
+    throw new Error("相続税評価割合に対応する割合が見つかりませんでした");
   }
-  return new Decimal(bracket.taxableRatio);
+  return new Decimal(bracket.ratio);
+}
+
+/** 特定期間年数(施行令185条3項5号)の算出に用いる「特定期間算出割合」の速算表 */
+function lookupSpecificPeriodRatio(inheritanceTaxValuationRatio: Decimal): Decimal {
+  if (inheritanceTaxValuationRatio.lessThanOrEqualTo(0.1)) {
+    return new Decimal(0.2);
+  }
+  if (inheritanceTaxValuationRatio.lessThanOrEqualTo(0.2)) {
+    return new Decimal(0.4);
+  }
+  if (inheritanceTaxValuationRatio.lessThanOrEqualTo(0.3)) {
+    return new Decimal(0.6);
+  }
+  if (inheritanceTaxValuationRatio.lessThanOrEqualTo(0.4)) {
+    return new Decimal(0.8);
+  }
+  return new Decimal(1);
 }
 
 /**
- * 施行令185条2項1号6号: 一課税単位当たりの金額 × 経過年数(支払年金対応額)が
- * その年に支払を受ける年金の額以上になる場合は、一課税単位当たりの金額の整数倍の
- * 金額のうち年金の額に満たない最も多い金額とする。
+ * 特定期間年数(施行令185条3項5号) = 残存期間年数 × 特定期間算出割合 - 1年
+ * (計算結果に1年未満の端数を生じたときは切り上げる)。
  */
-function capTaxablePortion(
+function computeSpecificPeriodYears(
+  remainingYearsAtAcquisition: number,
+  specificPeriodRatio: Decimal,
+): number {
+  const years = specificPeriodRatio
+    .times(remainingYearsAtAcquisition)
+    .minus(1)
+    .ceil()
+    .toNumber();
+  if (years < 1) {
+    throw new Error(
+      "相続税評価割合が低い一方で残存期間年数が短いため、特定期間年数が1年未満になる組み合わせです" +
+        "(施行令185条3項5号)。本ツールでは対応していません。",
+    );
+  }
+  return years;
+}
+
+/**
+ * 施行令185条2項6号: 一課税単位当たりの金額(又は一単位当たりの金額)の整数倍を用いて計算した
+ * 支払年金対応額がその年に支払を受ける年金の額以上になる場合は、前各号の規定にかかわらず、
+ * 当該整数倍の金額のうち年金の額に満たない最も多い金額とする。
+ */
+function capBySixGou(
   taxableUnitAmountJpy: Decimal,
-  elapsedYears: number,
+  rawTaxablePortionJpy: Decimal,
   annualAnnuityAmountJpy: Decimal,
 ): Decimal {
-  const raw = taxableUnitAmountJpy.times(elapsedYears);
-  if (raw.lessThan(annualAnnuityAmountJpy) || taxableUnitAmountJpy.isZero()) {
-    return raw;
+  if (rawTaxablePortionJpy.lessThan(annualAnnuityAmountJpy) || taxableUnitAmountJpy.isZero()) {
+    return rawTaxablePortionJpy.isNegative() ? new Decimal(0) : rawTaxablePortionJpy;
   }
   let multiples = annualAnnuityAmountJpy.dividedBy(taxableUnitAmountJpy).floor();
   if (multiples.times(taxableUnitAmountJpy).greaterThanOrEqualTo(annualAnnuityAmountJpy)) {
@@ -249,18 +324,42 @@ export function estimateInheritedAnnuityIncome(
     const inheritanceTaxValuationRatio = inheritanceTaxValuationJpy.dividedBy(
       totalScheduledPaymentJpy,
     );
+    const isLowValuationRatio = inheritanceTaxValuationRatio.lessThanOrEqualTo(0.5);
     const taxableRatio = lookupTaxableRatio(inheritanceTaxValuationRatio);
-
-    const taxableUnits = new Decimal(contract.remainingYearsAtAcquisition)
-      .times(contract.remainingYearsAtAcquisition - 1)
-      .dividedBy(2);
     const totalTaxablePortionJpy = totalScheduledPaymentJpy.times(taxableRatio);
+
+    let taxableUnits: Decimal;
+    let specificPeriodYears: number | undefined;
+    if (isLowValuationRatio) {
+      const specificPeriodRatio = lookupSpecificPeriodRatio(inheritanceTaxValuationRatio);
+      specificPeriodYears = computeSpecificPeriodYears(
+        contract.remainingYearsAtAcquisition,
+        specificPeriodRatio,
+      );
+      taxableUnits = new Decimal(contract.remainingYearsAtAcquisition).times(specificPeriodYears);
+    } else {
+      taxableUnits = new Decimal(contract.remainingYearsAtAcquisition)
+        .times(contract.remainingYearsAtAcquisition - 1)
+        .dividedBy(2);
+    }
     const taxableUnitAmountJpy = totalTaxablePortionJpy.dividedBy(taxableUnits);
 
     const elapsedYears = contract.paymentYearNumber - 1;
-    const taxablePortionJpy = capTaxablePortion(
+    let rawTaxablePortionJpy: Decimal;
+    if (isLowValuationRatio) {
+      // 2項1号ロ: 特定期間(経過年数<=特定期間年数)は経過年数に比例、特定期間終了後は
+      // 「一単位当たりの金額×特定期間年数-1円」で頭打ちになり以後増加しない。
+      rawTaxablePortionJpy =
+        elapsedYears <= (specificPeriodYears as number)
+          ? taxableUnitAmountJpy.times(elapsedYears)
+          : taxableUnitAmountJpy.times(specificPeriodYears as number).minus(1);
+    } else {
+      // 2項1号イ: 経過年数に比例して増加し続ける
+      rawTaxablePortionJpy = taxableUnitAmountJpy.times(elapsedYears);
+    }
+    const taxablePortionJpy = capBySixGou(
       taxableUnitAmountJpy,
-      elapsedYears,
+      rawTaxablePortionJpy,
       annualAnnuityAmountJpy,
     );
     const nonTaxablePortionJpy = annualAnnuityAmountJpy.minus(taxablePortionJpy);
@@ -284,6 +383,7 @@ export function estimateInheritedAnnuityIncome(
       name,
       inheritanceTaxValuationRatio,
       taxableRatio,
+      specificPeriodYears,
       elapsedYears,
       taxableUnits,
       taxableUnitAmountJpy,
@@ -299,11 +399,11 @@ export function estimateInheritedAnnuityIncome(
 
   const notes: string[] = [
     "死亡保険金を年金形式で受給している場合等、保険契約等に係る保険料の負担者でない方が相続等により取得した年金受給権に基づき確定年金の支払を受ける場合、その年金受給権は相続税・贈与税の課税対象になっているため、二重課税を避けるべく年金の収入金額を非課税部分と課税部分に振り分けて雑所得を計算する(所得税法35条・所得税法施行令185条2項、最高裁平成22年7月6日判決、国税庁タックスアンサーNo.1620)。",
-    "相続税評価割合(相続税評価額÷支払総額)に応じた課税割合の速算表により、支払総額のうち課税部分の総額を算出し、これを課税単位数(残存期間年数×(残存期間年数-1)÷2)で割った「一課税単位当たりの金額」に経過年数を乗じてその年分の課税部分の年金収入額を計算する。年金支給初年(経過年数0)は必ず全額非課税になり、2年目以降は課税部分が階段状に増加する。",
+    "相続税評価割合に応じた割合(50%以下は一律100%、50%超は速算表による)に応じて、支払総額のうち課税部分の総額を算出する。この課税部分の総額を単位数(50%超は課税単位数=残存期間年数×(残存期間年数-1)÷2、50%以下は総単位数=残存期間年数×特定期間年数)で割った「一単位当たりの金額」に経過年数を乗じてその年分の課税部分の年金収入額を計算する。年金支給初年(経過年数0)は必ず全額非課税になる。",
+    "相続税評価割合が100分の50以下の確定年金(施行令185条2項1号ロ)は、特定期間年数(施行令185条3項5号。残存期間年数×特定期間算出割合-1年、1年未満切り上げ)を境に計算方法が変わる。特定期間(経過年数が特定期間年数以下)は50%超の場合と同様に経過年数に比例して増加するが、特定期間終了後は「一単位当たりの金額×特定期間年数-1円」で頭打ちになり、それ以降は経過年数が増えても一定額のまま増加しない(機能144)。",
     "必要経費に算入する金額は、その年分の課税部分の年金収入額に「保険料又は掛金の総額÷支払総額」の割合(小数点以下2位まで算出し3位以下切り上げ)を乗じて計算する(施行令185条2項が準用する同条1項8号・11号。保険料負担者=年金受取人である通常の個人年金保険の必要経費割合(施行令183条1項、`/private-annuity-income`)と同じ端数処理)。",
     "年金のほか一時金も支払う内容の契約である場合、保険料総額のうち年金に対応する部分だけを按分して必要経費の計算に用いる(施行令185条2項が準用する同条1項10号)。",
     "年金の支払開始日以後に分配を受けた剰余金・割戻金の額は、必要経費の控除対象にはならず、そのまま総収入金額(雑所得の金額)に加算する(施行令185条2項7号)。",
-    "相続税評価割合が100分の50以下の確定年金の計算方法(施行令185条2項1号ロ)は対象外とした。国税庁タックスアンサーNo.1620も「税務署にお問合せください」と案内している。",
     "終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)、平成22年度税制改正前の相続税法24条の評価方法の適用がある「旧相続税法対象年金」(施行令185条1項)は対象外とした(今後の課題)。",
     "当初年金受取人と現在の年金受取人が異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項が準用する同条1項9号)、年の途中で年金の支払が開始・終了した場合の月割計算は対象外とした(今後の課題)。",
     "この試算結果(totalMiscIncomeJpy)は、他の総合課税の雑所得と合算した後の金額として`/tax-estimate`へ手入力で反映すること。所得区分そのものの計算のためDBへの登録機能は持たない単体の試算画面。",

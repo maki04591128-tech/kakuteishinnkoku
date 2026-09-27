@@ -255,8 +255,9 @@ export function InheritedAnnuityIncomeForm() {
       {result === null ? (
         <p className="text-sm text-red-600">
           入力値を確認してください(年金の額・相続税評価額・保険料総額は0以上、支払総額は正の値、
-          残存期間年数は2以上の整数、支払年数は1以上残存期間年数以下の整数、相続税評価割合は
-          100分の50超である必要があります)。
+          残存期間年数は2以上の整数、支払年数は1以上残存期間年数以下の整数である必要があります。
+          相続税評価割合が低い一方で残存期間年数が短い組み合わせ(特定期間年数が1年未満になる
+          場合)は本ツールでは対応していません)。
         </p>
       ) : (
         <>
@@ -272,7 +273,7 @@ export function InheritedAnnuityIncomeForm() {
                   <tr className="border-b border-neutral-300 text-left text-neutral-500 dark:border-neutral-700">
                     <th className="py-2 pr-4">契約</th>
                     <th className="py-2 pr-4">相続税評価割合</th>
-                    <th className="py-2 pr-4">課税割合</th>
+                    <th className="py-2 pr-4">割合/特定期間年数</th>
                     <th className="py-2 pr-4">課税部分の年金収入額</th>
                     <th className="py-2 pr-4">非課税部分の金額</th>
                     <th className="py-2 pr-4">必要経費の額</th>
@@ -286,7 +287,11 @@ export function InheritedAnnuityIncomeForm() {
                       <td className="py-2 pr-4">
                         {row.inheritanceTaxValuationRatio.times(100).toDecimalPlaces(1).toString()}%
                       </td>
-                      <td className="py-2 pr-4">{row.taxableRatio.times(100).toString()}%</td>
+                      <td className="py-2 pr-4">
+                        {row.specificPeriodYears !== undefined
+                          ? `特定期間${row.specificPeriodYears}年`
+                          : `${row.taxableRatio.times(100).toString()}%`}
+                      </td>
                       <td className="py-2 pr-4">{yen(row.taxablePortionJpy)}</td>
                       <td className="py-2 pr-4">{yen(row.nonTaxablePortionJpy)}</td>
                       <td className="py-2 pr-4">{yen(row.necessaryExpenseJpy)}</td>
