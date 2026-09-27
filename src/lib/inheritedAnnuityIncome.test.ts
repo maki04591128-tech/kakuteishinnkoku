@@ -446,6 +446,116 @@ describe("estimateInheritedAnnuityIncome", () => {
     ).toThrow();
   });
 
+  it("支払を受けた月数を省略すると12か月(満額)として計算される(従来どおり)", () => {
+    const result = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 1_000_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+      },
+    ]);
+    expect(result.contracts[0].paymentMonthsInYear).toBe(12);
+    expect(result.contracts[0].taxablePortionJpy.toNumber()).toBeCloseTo(88_888.8889, 3);
+  });
+
+  it("年の途中で年金の支払が終了した場合、支払年金対応額を月数÷12で月割計算する(施行令185条1項1号イ)", () => {
+    // 国税庁タックスアンサーNo.1620の計算例(評価割合90%・支払年数6年目)と同じ契約で、
+    // その年に6か月分しか支払を受けなかった場合、月割前の金額(88,888.8889)の6/12になる
+    const fullYear = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 1_000_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+      },
+    ]).contracts[0];
+    const halfYear = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 500_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+        paymentMonthsInYear: 6,
+      },
+    ]).contracts[0];
+    expect(halfYear.paymentMonthsInYear).toBe(6);
+    expect(halfYear.taxablePortionJpy.toNumber()).toBeCloseTo(
+      fullYear.taxablePortionJpy.toNumber() / 2,
+      6,
+    );
+    expect(halfYear.nonTaxablePortionJpy.toNumber()).toBeCloseTo(500_000 - 44_444.4445, 3);
+  });
+
+  it("月割後は必要経費の金額も月割後の課税部分の年金収入額を基準に計算される", () => {
+    const halfYear = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 500_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+        paymentMonthsInYear: 6,
+      },
+    ]).contracts[0];
+    // 必要経費割合は従来どおり0.2(月割の影響を受けない)。必要経費額は月割後の課税部分に0.2を乗じる
+    expect(halfYear.necessaryExpenseRatio.toNumber()).toBe(0.2);
+    expect(halfYear.necessaryExpenseJpy.toNumber()).toBeCloseTo(
+      halfYear.taxablePortionJpy.toNumber() * 0.2,
+      6,
+    );
+  });
+
+  it("2項6号の頭打ちも月割後の一課税単位当たりの金額を基準に判定する", () => {
+    // 一課税単位当たりの金額=250,000(施行令185条2項1号6号のテストと同じ契約)。
+    // 12か月なら経過年数2の生の金額500,000が年金の額500,000以上で頭打ち(1倍=250,000)になるが、
+    // 3か月しか支払を受けなかった場合は月割後の一課税単位当たりの金額=62,500になり、
+    // 月割後の生の支払年金対応額(125,000)がその年に支払を受けた年金の額(100,000)以上のため
+    // 頭打みが働き、62,500(1倍)が課税部分になる
+    const result = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 100_000,
+        inheritanceTaxValuationJpy: 13_950_000,
+        totalScheduledPaymentJpy: 15_000_000,
+        totalPremiumsPaidJpy: 3_000_000,
+        remainingYearsAtAcquisition: 3,
+        paymentYearNumber: 3,
+        paymentMonthsInYear: 3,
+      },
+    ]);
+    const contract = result.contracts[0];
+    expect(contract.taxableUnitAmountJpy.toNumber()).toBe(250_000);
+    expect(contract.taxablePortionJpy.toNumber()).toBe(62_500);
+    expect(contract.nonTaxablePortionJpy.toNumber()).toBe(37_500);
+  });
+
+  it("支払を受けた月数が1未満または13以上、あるいは整数でない場合はエラーになる", () => {
+    const base = {
+      annualAnnuityAmountJpy: 1_000_000,
+      inheritanceTaxValuationJpy: 9_000_000,
+      totalScheduledPaymentJpy: 10_000_000,
+      totalPremiumsPaidJpy: 2_000_000,
+      remainingYearsAtAcquisition: 10,
+      paymentYearNumber: 6,
+    };
+    expect(() =>
+      estimateInheritedAnnuityIncome([{ ...base, paymentMonthsInYear: 0 }]),
+    ).toThrow();
+    expect(() =>
+      estimateInheritedAnnuityIncome([{ ...base, paymentMonthsInYear: 13 }]),
+    ).toThrow();
+    expect(() =>
+      estimateInheritedAnnuityIncome([{ ...base, paymentMonthsInYear: 6.5 }]),
+    ).toThrow();
+  });
+
   it("契約が0件なら合計は0円", () => {
     const result = estimateInheritedAnnuityIncome([]);
     expect(result.totalMiscIncomeJpy.toNumber()).toBe(0);

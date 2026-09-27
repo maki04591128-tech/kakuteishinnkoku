@@ -19,6 +19,7 @@ interface ContractRow {
   paymentYearNumber: string;
   lumpSumAmount: string;
   surplusDistribution: string;
+  paymentMonthsInYear: string;
 }
 
 function newContractRow(key: string): ContractRow {
@@ -33,6 +34,7 @@ function newContractRow(key: string): ContractRow {
     paymentYearNumber: "1",
     lumpSumAmount: "0",
     surplusDistribution: "0",
+    paymentMonthsInYear: "12",
   };
 }
 
@@ -54,6 +56,7 @@ export function InheritedAnnuityIncomeForm() {
           paymentYearNumber: Number(row.paymentYearNumber || 0),
           lumpSumAmountJpy: row.lumpSumAmount || 0,
           surplusDistributionJpy: row.surplusDistribution || 0,
+          paymentMonthsInYear: Number(row.paymentMonthsInYear || 12),
         })),
       );
     } catch {
@@ -230,6 +233,27 @@ export function InheritedAnnuityIncomeForm() {
                 className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
               />
             </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-neutral-500">
+                その年に年金の支払を受けた月数(年の途中で開始・終了した場合。通常は12)
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={12}
+                step={1}
+                value={row.paymentMonthsInYear}
+                onChange={(e) =>
+                  setContracts((prev) =>
+                    prev.map((r) =>
+                      r.key === row.key ? { ...r, paymentMonthsInYear: e.target.value } : r,
+                    ),
+                  )
+                }
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </label>
             <button
               type="button"
               onClick={() => setContracts((prev) => prev.filter((r) => r.key !== row.key))}
@@ -255,9 +279,9 @@ export function InheritedAnnuityIncomeForm() {
       {result === null ? (
         <p className="text-sm text-red-600">
           入力値を確認してください(年金の額・相続税評価額・保険料総額は0以上、支払総額は正の値、
-          残存期間年数は2以上の整数、支払年数は1以上残存期間年数以下の整数である必要があります。
-          相続税評価割合が低い一方で残存期間年数が短い組み合わせ(特定期間年数が1年未満になる
-          場合)は本ツールでは対応していません)。
+          残存期間年数は2以上の整数、支払年数は1以上残存期間年数以下の整数、支払を受けた月数は
+          1以上12以下の整数である必要があります。相続税評価割合が低い一方で残存期間年数が短い
+          組み合わせ(特定期間年数が1年未満になる場合)は本ツールでは対応していません)。
         </p>
       ) : (
         <>
@@ -274,6 +298,7 @@ export function InheritedAnnuityIncomeForm() {
                     <th className="py-2 pr-4">契約</th>
                     <th className="py-2 pr-4">相続税評価割合</th>
                     <th className="py-2 pr-4">割合/特定期間年数</th>
+                    <th className="py-2 pr-4">支払月数</th>
                     <th className="py-2 pr-4">課税部分の年金収入額</th>
                     <th className="py-2 pr-4">非課税部分の金額</th>
                     <th className="py-2 pr-4">必要経費の額</th>
@@ -292,6 +317,7 @@ export function InheritedAnnuityIncomeForm() {
                           ? `特定期間${row.specificPeriodYears}年`
                           : `${row.taxableRatio.times(100).toString()}%`}
                       </td>
+                      <td className="py-2 pr-4">{row.paymentMonthsInYear}か月</td>
                       <td className="py-2 pr-4">{yen(row.taxablePortionJpy)}</td>
                       <td className="py-2 pr-4">{yen(row.nonTaxablePortionJpy)}</td>
                       <td className="py-2 pr-4">{yen(row.necessaryExpenseJpy)}</td>
