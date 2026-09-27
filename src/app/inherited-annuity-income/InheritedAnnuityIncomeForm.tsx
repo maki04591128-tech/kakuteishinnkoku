@@ -17,6 +17,8 @@ interface ContractRow {
   totalPremiumsPaid: string;
   remainingYearsAtAcquisition: string;
   paymentYearNumber: string;
+  lumpSumAmount: string;
+  surplusDistribution: string;
 }
 
 function newContractRow(key: string): ContractRow {
@@ -29,6 +31,8 @@ function newContractRow(key: string): ContractRow {
     totalPremiumsPaid: "0",
     remainingYearsAtAcquisition: "10",
     paymentYearNumber: "1",
+    lumpSumAmount: "0",
+    surplusDistribution: "0",
   };
 }
 
@@ -48,6 +52,8 @@ export function InheritedAnnuityIncomeForm() {
           totalPremiumsPaidJpy: row.totalPremiumsPaid || 0,
           remainingYearsAtAcquisition: Number(row.remainingYearsAtAcquisition || 0),
           paymentYearNumber: Number(row.paymentYearNumber || 0),
+          lumpSumAmountJpy: row.lumpSumAmount || 0,
+          surplusDistributionJpy: row.surplusDistribution || 0,
         })),
       );
     } catch {
@@ -180,6 +186,44 @@ export function InheritedAnnuityIncomeForm() {
                   setContracts((prev) =>
                     prev.map((r) =>
                       r.key === row.key ? { ...r, paymentYearNumber: e.target.value } : r,
+                    ),
+                  )
+                }
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-neutral-500">
+                年金のほか一時金も支払う契約の場合の一時金の額(無ければ0)
+              </span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                value={row.lumpSumAmount}
+                onChange={(e) =>
+                  setContracts((prev) =>
+                    prev.map((r) =>
+                      r.key === row.key ? { ...r, lumpSumAmount: e.target.value } : r,
+                    ),
+                  )
+                }
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-neutral-500">
+                支払開始日以後に分配を受けた剰余金・割戻金の額(無ければ0)
+              </span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                value={row.surplusDistribution}
+                onChange={(e) =>
+                  setContracts((prev) =>
+                    prev.map((r) =>
+                      r.key === row.key ? { ...r, surplusDistribution: e.target.value } : r,
                     ),
                   )
                 }

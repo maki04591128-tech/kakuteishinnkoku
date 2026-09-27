@@ -254,6 +254,95 @@ describe("estimateInheritedAnnuityIncome", () => {
     ).toThrow();
   });
 
+  it("剰余金・割戻金の額は必要経費控除の対象外でそのまま雑所得に加算する(施行令185条2項7号)", () => {
+    const withoutSurplus = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 1_000_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+      },
+    ]).contracts[0];
+    const withSurplus = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 1_000_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 2_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+        surplusDistributionJpy: 30_000,
+      },
+    ]).contracts[0];
+    // 剰余金は必要経費の計算(必要経費割合・課税部分の年金収入額)には影響せず、雑所得にのみ加算される
+    expect(withSurplus.necessaryExpenseRatio.toNumber()).toBe(
+      withoutSurplus.necessaryExpenseRatio.toNumber(),
+    );
+    expect(withSurplus.necessaryExpenseJpy.toNumber()).toBeCloseTo(
+      withoutSurplus.necessaryExpenseJpy.toNumber(),
+      6,
+    );
+    expect(withSurplus.miscIncomeJpy.toNumber()).toBeCloseTo(
+      withoutSurplus.miscIncomeJpy.toNumber() + 30_000,
+      6,
+    );
+  });
+
+  it("年金のほか一時金も支払う契約の場合、保険料総額を支払総額の按分比率で調整する(施行令185条2項が準用する1項10号)", () => {
+    const result = estimateInheritedAnnuityIncome([
+      {
+        annualAnnuityAmountJpy: 1_000_000,
+        inheritanceTaxValuationJpy: 9_000_000,
+        totalScheduledPaymentJpy: 10_000_000,
+        totalPremiumsPaidJpy: 3_000_000,
+        remainingYearsAtAcquisition: 10,
+        paymentYearNumber: 6,
+        lumpSumAmountJpy: 5_000_000,
+      },
+    ]);
+    const contract = result.contracts[0];
+    // 按分後の保険料総額 = 3,000,000 * 10,000,000 / (10,000,000+5,000,000) = 2,000,000
+    // 必要経費割合 = 2,000,000 / 10,000,000 = 0.2(端数なし)
+    expect(contract.necessaryExpenseRatio.toNumber()).toBe(0.2);
+    expect(contract.taxablePortionJpy.toNumber()).toBeCloseTo(88_888.8889, 3);
+    expect(contract.necessaryExpenseJpy.toNumber()).toBeCloseTo(17_777.7778, 3);
+    expect(contract.miscIncomeJpy.toNumber()).toBeCloseTo(71_111.1111, 3);
+  });
+
+  it("一時金の額が負の値だとエラーになる", () => {
+    expect(() =>
+      estimateInheritedAnnuityIncome([
+        {
+          annualAnnuityAmountJpy: 1_000_000,
+          inheritanceTaxValuationJpy: 9_000_000,
+          totalScheduledPaymentJpy: 10_000_000,
+          totalPremiumsPaidJpy: 2_000_000,
+          remainingYearsAtAcquisition: 10,
+          paymentYearNumber: 6,
+          lumpSumAmountJpy: -1,
+        },
+      ]),
+    ).toThrow();
+  });
+
+  it("剰余金・割戻金の額が負の値だとエラーになる", () => {
+    expect(() =>
+      estimateInheritedAnnuityIncome([
+        {
+          annualAnnuityAmountJpy: 1_000_000,
+          inheritanceTaxValuationJpy: 9_000_000,
+          totalScheduledPaymentJpy: 10_000_000,
+          totalPremiumsPaidJpy: 2_000_000,
+          remainingYearsAtAcquisition: 10,
+          paymentYearNumber: 6,
+          surplusDistributionJpy: -1,
+        },
+      ]),
+    ).toThrow();
+  });
+
   it("契約が0件なら合計は0円", () => {
     const result = estimateInheritedAnnuityIncome([]);
     expect(result.totalMiscIncomeJpy.toNumber()).toBe(0);
