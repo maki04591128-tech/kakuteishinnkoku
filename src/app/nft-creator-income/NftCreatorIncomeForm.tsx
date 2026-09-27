@@ -16,6 +16,7 @@ interface NftRow {
   sellingAndAdminExpenses: string;
   artCreationCost: string;
   isNonResidentTransfer: boolean;
+  isGratuitousGift: boolean;
 }
 
 function newNftRow(key: string): NftRow {
@@ -27,6 +28,7 @@ function newNftRow(key: string): NftRow {
     sellingAndAdminExpenses: "0",
     artCreationCost: "0",
     isNonResidentTransfer: false,
+    isGratuitousGift: false,
   };
 }
 
@@ -45,6 +47,7 @@ export function NftCreatorIncomeForm() {
           sellingAndAdminExpensesJpy: row.sellingAndAdminExpenses || 0,
           artCreationCostJpy: row.artCreationCost || 0,
           isNonResidentTransfer: row.isNonResidentTransfer,
+          isGratuitousGift: row.isGratuitousGift,
         })),
       });
     } catch {
@@ -168,6 +171,25 @@ export function NftCreatorIncomeForm() {
                 非居住者による譲渡(国内源泉所得に該当せず課税対象外。著作権自体を譲渡した場合は対象外)
               </span>
             </label>
+            <label className="flex items-center gap-2 text-sm sm:col-span-4">
+              <input
+                type="checkbox"
+                checked={row.isGratuitousGift}
+                onChange={(e) =>
+                  setItems((prev) =>
+                    prev.map((r) =>
+                      r.key === row.key
+                        ? { ...r, isGratuitousGift: e.target.checked }
+                        : r,
+                    ),
+                  )
+                }
+                className="h-4 w-4"
+              />
+              <span className="text-neutral-500">
+                知人への無償贈与(所得税の課税関係は生じない。組成費用等も必要経費に算入不可)
+              </span>
+            </label>
             <button
               type="button"
               onClick={() => setItems((prev) => prev.filter((r) => r.key !== row.key))}
@@ -222,6 +244,14 @@ export function NftCreatorIncomeForm() {
               非居住者による譲渡として国内源泉所得に該当せず課税対象外とした譲渡収入
               ({yen(result.nonResidentExcludedRevenueJpy)})は、上記の雑所得の金額から
               除外しています。
+            </p>
+          )}
+
+          {result.giftExcludedExpensesJpy.greaterThan(0) && (
+            <p className="rounded-md border border-dashed border-sky-300 bg-sky-50 p-3 text-sm text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
+              知人への無償贈与として所得税の課税関係が生じないとした行の組成費用等
+              ({yen(result.giftExcludedExpensesJpy)})は、収入が無いため必要経費として
+              控除できず、上記の雑所得の金額から除外しています。
             </p>
           )}
 
