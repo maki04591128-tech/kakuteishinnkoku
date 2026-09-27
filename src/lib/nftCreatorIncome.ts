@@ -39,6 +39,17 @@ import { Decimal } from "decimal.js";
  * (FAQ問3の(注)により問10(源泉所得税)の対象になり得る。本ツールは判定しない)。
  * isNonResidentTransferをtrueにした行は、国内源泉所得に該当しないものとして
  * miscIncomeJpyの計算から除外し、参考情報として合計額を別途返す。
+ *
+ * 機能125・129が問1・問3(いずれも「有償で譲渡した場合」)を対象としていたのに
+ * 対し、機能131は問2「NFTを組成して知人に贈与した場合(一次流通)」に対応した。
+ * FAQ問2により、デジタルアートを制作しそれに紐づけたNFTを知人に無償で贈与しても、
+ * 所得税法上の所得(収入等の形で新たに取得する経済的価値)が生じないため、所得税の
+ * 課税関係は一切生じない(受贈者側の贈与税の取扱いは問9を参照。本ツールのスコープ外)。
+ * 無償贈与である以上、譲渡収入は通常0円だが、この行に紐づく組成費用・販売費及び
+ * 一般管理費についても、そもそも所得(収入)自体が発生しないため必要経費として
+ * 控除する余地がない(赤字を作り出して他の雑所得と通算することはできない)。
+ * isGratuitousGiftをtrueにした行は、収入・必要経費のいずれもmiscIncomeJpyの
+ * 計算から除外し、参考情報として除外した必要経費の合計額を別途返す。
  */
 
 export interface NftCreatorIncomeItem {
@@ -60,6 +71,13 @@ export interface NftCreatorIncomeItem {
    * 譲渡した場合は対象外(問10の源泉所得税の対象になり得るため、この判定は使わない)。
    */
   isNonResidentTransfer: boolean;
+  /**
+   * このNFTを知人に無償で贈与した場合はtrue(FAQ問2)。所得税法上の所得が生じない
+   * ため、所得税の課税関係は一切生じない。この行の譲渡収入・必要経費(組成費用・
+   * 販売費及び一般管理費)はいずれもmiscIncomeJpyの計算から除外される。受贈者側の
+   * 贈与税の取扱いは問9(相続税・贈与税関係。本ツールのスコープ外)を参照。
+   */
+  isGratuitousGift: boolean;
 }
 
 export interface NftCreatorIncomeInput {
@@ -78,6 +96,12 @@ export interface NftCreatorIncomeResult {
    * 計算から除外した譲渡収入の合計(isNonResidentTransferがtrueの行の合計)。
    */
   nonResidentExcludedRevenueJpy: Decimal;
+  /**
+   * 参考情報: 知人への無償贈与(FAQ問2)としてmiscIncomeJpyの計算から除外した
+   * 必要経費(組成費用+販売費及び一般管理費)の合計(isGratuitousGiftがtrueの行の合計)。
+   * 所得税の課税関係が生じない以上、この費用を必要経費として控除する余地はない。
+   */
+  giftExcludedExpensesJpy: Decimal;
   /**
    * 雑所得の金額(譲渡収入の合計-必要経費の合計)。赤字(マイナス)になる場合も
    * そのまま返す。FAQ問1注3のとおり、赤字の場合は他の所得区分との損益通算はできず、
@@ -100,6 +124,7 @@ export function estimateNftCreatorIncome(
   let deductibleExpensesJpy = new Decimal(0);
   let excludedArtCreationCostJpy = new Decimal(0);
   let nonResidentExcludedRevenueJpy = new Decimal(0);
+  let giftExcludedExpensesJpy = new Decimal(0);
 
   for (const item of input.items) {
     const transferRevenueJpy = new Decimal(item.transferRevenueJpy);
@@ -113,6 +138,15 @@ export function estimateNftCreatorIncome(
     requireNonNegative(artCreationCostJpy, "デジタルアート等の制作費");
 
     excludedArtCreationCostJpy = excludedArtCreationCostJpy.plus(artCreationCostJpy);
+
+    if (item.isGratuitousGift) {
+      // 所得税法上の所得が生じないため、所得税の課税関係は一切生じない(FAQ問2)。
+      // 収入が無い以上、組成費用等を必要経費として控除する余地も無い。
+      giftExcludedExpensesJpy = giftExcludedExpensesJpy
+        .plus(mintingCostJpy)
+        .plus(sellingAndAdminExpensesJpy);
+      continue;
+    }
 
     if (item.isNonResidentTransfer) {
       // 国内源泉所得に該当しないため、日本の所得税の課税対象にならない(FAQ問3)。
@@ -135,6 +169,7 @@ export function estimateNftCreatorIncome(
     "必要経費(NFTの組成費用・販売費及び一般管理費)に算入できるのは、そのNFTを組成(ミント)するために要した費用(ガス代・プラットフォーム手数料等)であり、デジタルアート等そのものの制作費は含まれない(FAQ問1注2)。本ツールでは制作費を別欄で入力できるようにし、必要経費には合算せず参考情報(excludedArtCreationCostJpy)として表示する。",
     "雑所得の金額が赤字(マイナス)の場合、他の所得区分との損益通算はできない(雑所得内の通算のみ可能。FAQ問1注3)。本ツールはこの制限を強制せず、赤字の場合もそのままmiscIncomeJpyとして返すため、実際の申告にあたっては暗号資産等の他の雑所得と合算してから0円を下限に扱う必要がある。",
     "非居住者が日本のマーケットプレイスでNFTを譲渡した場合(FAQ問3)、その取引が問1と同じ「デジタルアートの閲覧に関する権利」の設定に係る取引である限り、国内源泉所得(所法161条)に該当せず日本の所得税の課税対象とならない。isNonResidentTransferをtrueにした行はmiscIncomeJpyの計算から除外し、参考情報としてnonResidentExcludedRevenueJpyに集計する。著作権自体を譲渡した場合はこの判定の対象外(問10により源泉所得税の対象になり得るため、この場合はisNonResidentTransferをtrueにしないこと)。",
+    "デジタルアートを制作しそれに紐づけたNFTを知人に無償で贈与した場合(FAQ問2)、収入等の形で新たに経済的価値を取得したとは認められないため、所得税の課税関係は一切生じない。isGratuitousGiftをtrueにした行は、譲渡収入だけでなく組成費用・販売費及び一般管理費もmiscIncomeJpyの計算から除外し(収入が無い以上、必要経費として控除する余地も無いため)、参考情報としてgiftExcludedExpensesJpyに集計する。受贈者側の贈与税の取扱いは問9(相続税・贈与税関係)の対象であり、本ツールのスコープ外。",
     "購入したNFTが不正アクセスにより消失した場合の雑損控除・必要経費算入は`/nft-loss-deduction`(機能128)、ブロックチェーンゲームの報酬としてゲーム内通貨を取得した場合は`/blockchain-game-income`(機能126)でそれぞれ試算すること。",
     "各金額は円未満の端数を切り捨てずDecimalの計算結果をそのまま返す概算値。",
   ];
@@ -144,6 +179,7 @@ export function estimateNftCreatorIncome(
     deductibleExpensesJpy,
     excludedArtCreationCostJpy,
     nonResidentExcludedRevenueJpy,
+    giftExcludedExpensesJpy,
     miscIncomeJpy,
     notes,
   };

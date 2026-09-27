@@ -13,6 +13,7 @@ describe("estimateNftCreatorIncome", () => {
           sellingAndAdminExpensesJpy: 20_000,
           artCreationCostJpy: 50_000,
           isNonResidentTransfer: false,
+          isGratuitousGift: false,
         },
       ],
     });
@@ -20,6 +21,7 @@ describe("estimateNftCreatorIncome", () => {
     expect(result.deductibleExpensesJpy.toNumber()).toBe(30_000);
     expect(result.excludedArtCreationCostJpy.toNumber()).toBe(50_000);
     expect(result.nonResidentExcludedRevenueJpy.toNumber()).toBe(0);
+    expect(result.giftExcludedExpensesJpy.toNumber()).toBe(0);
     expect(result.miscIncomeJpy.toNumber()).toBe(270_000);
   });
 
@@ -33,6 +35,7 @@ describe("estimateNftCreatorIncome", () => {
           sellingAndAdminExpensesJpy: 5_000,
           artCreationCostJpy: 0,
           isNonResidentTransfer: false,
+          isGratuitousGift: false,
         },
         {
           description: "作品2",
@@ -41,6 +44,7 @@ describe("estimateNftCreatorIncome", () => {
           sellingAndAdminExpensesJpy: 10_000,
           artCreationCostJpy: 0,
           isNonResidentTransfer: false,
+          isGratuitousGift: false,
         },
       ],
     });
@@ -59,6 +63,7 @@ describe("estimateNftCreatorIncome", () => {
           sellingAndAdminExpensesJpy: 2_000,
           artCreationCostJpy: 0,
           isNonResidentTransfer: false,
+          isGratuitousGift: false,
         },
       ],
     });
@@ -76,6 +81,7 @@ describe("estimateNftCreatorIncome", () => {
             sellingAndAdminExpensesJpy: 0,
             artCreationCostJpy: 0,
             isNonResidentTransfer: false,
+            isGratuitousGift: false,
           },
         ],
       }),
@@ -87,6 +93,7 @@ describe("estimateNftCreatorIncome", () => {
     expect(result.totalRevenueJpy.toNumber()).toBe(0);
     expect(result.deductibleExpensesJpy.toNumber()).toBe(0);
     expect(result.nonResidentExcludedRevenueJpy.toNumber()).toBe(0);
+    expect(result.giftExcludedExpensesJpy.toNumber()).toBe(0);
     expect(result.miscIncomeJpy.toNumber()).toBe(0);
   });
 
@@ -100,6 +107,7 @@ describe("estimateNftCreatorIncome", () => {
           sellingAndAdminExpensesJpy: 20_000,
           artCreationCostJpy: 0,
           isNonResidentTransfer: true,
+          isGratuitousGift: false,
         },
       ],
     });
@@ -119,6 +127,7 @@ describe("estimateNftCreatorIncome", () => {
           sellingAndAdminExpensesJpy: 5_000,
           artCreationCostJpy: 0,
           isNonResidentTransfer: false,
+          isGratuitousGift: false,
         },
         {
           description: "非居住者期間中に譲渡した作品",
@@ -127,6 +136,7 @@ describe("estimateNftCreatorIncome", () => {
           sellingAndAdminExpensesJpy: 1_000,
           artCreationCostJpy: 0,
           isNonResidentTransfer: true,
+          isGratuitousGift: false,
         },
       ],
     });
@@ -134,5 +144,55 @@ describe("estimateNftCreatorIncome", () => {
     expect(result.deductibleExpensesJpy.toNumber()).toBe(10_000);
     expect(result.nonResidentExcludedRevenueJpy.toNumber()).toBe(50_000);
     expect(result.miscIncomeJpy.toNumber()).toBe(90_000);
+  });
+
+  it("知人への無償贈与(FAQ問2)は所得税の課税関係が生じず、収入・必要経費とも除外する", () => {
+    const result = estimateNftCreatorIncome({
+      items: [
+        {
+          description: "知人に無償贈与したデジタルアート",
+          transferRevenueJpy: 0,
+          mintingCostJpy: 10_000,
+          sellingAndAdminExpensesJpy: 2_000,
+          artCreationCostJpy: 50_000,
+          isNonResidentTransfer: false,
+          isGratuitousGift: true,
+        },
+      ],
+    });
+    expect(result.totalRevenueJpy.toNumber()).toBe(0);
+    expect(result.deductibleExpensesJpy.toNumber()).toBe(0);
+    expect(result.giftExcludedExpensesJpy.toNumber()).toBe(12_000);
+    expect(result.excludedArtCreationCostJpy.toNumber()).toBe(50_000);
+    expect(result.miscIncomeJpy.toNumber()).toBe(0);
+  });
+
+  it("有償譲渡分と無償贈与分が混在する場合、無償贈与分の収入・必要経費だけを除外して合算する", () => {
+    const result = estimateNftCreatorIncome({
+      items: [
+        {
+          description: "第三者に有償譲渡した作品",
+          transferRevenueJpy: 300_000,
+          mintingCostJpy: 10_000,
+          sellingAndAdminExpensesJpy: 20_000,
+          artCreationCostJpy: 0,
+          isNonResidentTransfer: false,
+          isGratuitousGift: false,
+        },
+        {
+          description: "知人に無償贈与した作品",
+          transferRevenueJpy: 0,
+          mintingCostJpy: 5_000,
+          sellingAndAdminExpensesJpy: 0,
+          artCreationCostJpy: 0,
+          isNonResidentTransfer: false,
+          isGratuitousGift: true,
+        },
+      ],
+    });
+    expect(result.totalRevenueJpy.toNumber()).toBe(300_000);
+    expect(result.deductibleExpensesJpy.toNumber()).toBe(30_000);
+    expect(result.giftExcludedExpensesJpy.toNumber()).toBe(5_000);
+    expect(result.miscIncomeJpy.toNumber()).toBe(270_000);
   });
 });
