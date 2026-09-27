@@ -90,18 +90,40 @@ import { Decimal } from "decimal.js";
  * (特定期間年数は1年未満切り上げ)・6号の頭打ち処理(様式別表4)を実データの記載例に基づき
  * 相互に確認できたため、今回実装した。
  *
+ * 年の途中で年金の支払が開始・終了した場合の月割計算への対応(機能147)。e-Gov(法令API)で
+ * 施行令185条の条文本文を直接取得して確認したところ、1項1号イが定義する「支払年金対応額」
+ * (「...を乗じて計算した金額に係る支払年金対応額(当該計算した金額にその支払を受ける年金の額に
+ * 係る月数を乗じてこれを十二で除して計算した金額をいう。以下この項及び次項において「支払年金
+ * 対応額」という。)」)は、「次項」すなわち2項でもそのまま用いられる旨が明記されており、2項1号
+ * イ・ロの「...に係る支払年金対応額の合計額」はいずれもこの月割済みの金額を指す。したがって、
+ * これまで実装していた「一課税単位当たりの金額(または一単位当たりの金額)×経過年数」等の
+ * 計算結果(施行令上の未定義の中間値)は、その年に年金の支払を受けた月数が12か月に満たない
+ * 場合、さらに(月数÷12)を乗じた金額が実際の支払年金対応額(総収入金額算入額)になる。2項6号
+ * (頭打ち)の条文にも同様に「...金額に当該年金の額に係る月数を乗じてこれを十二で除して計算した
+ * 金額のうち当該年金の額に満たない最も多い金額」と、独立して同じ月割の考え方が明記されている
+ * (頭打ちの基準となる一課税単位・一単位当たりの金額そのものを月数/12倍してから整数倍を
+ * 探す形で実装した。整数倍を先に掛けてから月割しても同じ値になるため計算順序による差は無い)。
+ * 支払を受けた月数(1以上12以下の整数、既定値12)を契約ごとの任意入力とし、年金支給開始年
+ * (経過年数0で必ず全額非課税になる年)以外にも、契約最終年(残存期間年数満了に伴う最終回の
+ * 支払が年の途中で終わる場合)等、実際にその年に支払を受けた月数が12か月に満たないケースに
+ * 対応できるようにした。
+ *
  * **対象外とした範囲(今後の課題):**
  * - 旧相続税法対象年金(年金受給権につき、平成22年度税制改正前の相続税法24条の評価方法の
  *   適用があるもの。施行令185条1項)。残存期間年数の長さに応じてさらに複雑な算式(40%・
  *   30%の乗率や特定単位数等)になり、かつ平成22年度税制改正から既に15年以上が経過して
  *   おり現存する契約は限られると考えられるため対象外とした。
- * - 終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)。別表(余命年数表)に
- *   基づく支払開始日余命年数・支払総額見込額の算出が前提になり、`privateAnnuityIncome.ts`が
- *   既に対象外としている支払総額見込額の算出と同様の理由で対象外とした。
+ * - 終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)。e-Govで条文本文を
+ *   確認したところ、これらはいずれも「支払開始日余命年数」(施行令185条1項2号イ・3項の別表に
+ *   定める余命年数)の算出が前提になる。この余命年数は所得税法施行規則(財務省令)により
+ *   「厚生労働省作成の完全生命表に掲げる年齢及び性別に応じた平均余命」を用いると定められており、
+ *   年齢0歳から100歳超までを男女別に網羅する大規模な表(かつ5年ごとの国勢調査を基に更新され、
+ *   年金の支払開始日時点でどの版が適用されるかの判定も必要)になるため、一次情報で正確な表の
+ *   全体を確認・維持する負担が`privateAnnuityIncome.ts`が対象外としている支払総額見込額の
+ *   算出と同様に大きく、今回も対象外とした。
  * - 当初年金受取人(支払開始日に最初にその年金の支払を受けていた者)が現在の年金受取人と
  *   異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項が準用する同条1項9号)。
  *   本ツールは当初年金受取人=現在の年金受取人である一次相続のケースのみを対象とする。
- * - 年の途中で年金の支払が開始・終了した場合の月割計算。
  */
 
 export interface InheritedAnnuityContract {
@@ -123,6 +145,12 @@ export interface InheritedAnnuityContract {
   lumpSumAmountJpy?: Decimal.Value;
   /** 年金の支払開始日以後に分配を受けた剰余金・割戻金の額(無ければ0) */
   surplusDistributionJpy?: Decimal.Value;
+  /**
+   * その年に年金の支払を受けた月数(1以上12以下の整数。省略時は12か月=満額とみなす)。
+   * 年金の支払が年の途中で開始・終了した場合に、施行令185条1項1号イが定義する
+   * 「支払年金対応額」(2項でも同じ定義が用いられる)の月割計算に用いる(機能147)。
+   */
+  paymentMonthsInYear?: number;
 }
 
 export interface InheritedAnnuityContractResult {
@@ -141,6 +169,8 @@ export interface InheritedAnnuityContractResult {
   specificPeriodYears?: number;
   /** 経過年数 */
   elapsedYears: number;
+  /** その年に年金の支払を受けた月数(1〜12。省略時は12) */
+  paymentMonthsInYear: number;
   /** 単位数(50%超の場合は課税単位数、50%以下の場合は総単位数) */
   taxableUnits: Decimal;
   /** 一単位当たりの金額 */
@@ -199,6 +229,16 @@ function requireNonNegative(value: Decimal, label: string): void {
 function requireInteger(value: number, label: string, min: number): void {
   if (!Number.isInteger(value) || value < min) {
     throw new Error(`${label}は${min}以上の整数である必要があります`);
+  }
+}
+
+/**
+ * その年に年金の支払を受けた月数(施行令185条1項1号イが定義する「支払年金対応額」の
+ * 月割計算に用いる「その支払を受ける年金の額に係る月数」)は1以上12以下の整数である必要がある。
+ */
+function requirePaymentMonths(months: number): void {
+  if (!Number.isInteger(months) || months < 1 || months > 12) {
+    throw new Error("その年に年金の支払を受けた月数は1以上12以下の整数である必要があります");
   }
 }
 
@@ -267,26 +307,37 @@ function computeSpecificPeriodYears(
 }
 
 /**
- * 施行令185条2項6号: 一課税単位当たりの金額(又は一単位当たりの金額)の整数倍を用いて計算した
- * 支払年金対応額がその年に支払を受ける年金の額以上になる場合は、前各号の規定にかかわらず、
- * 当該整数倍の金額のうち年金の額に満たない最も多い金額とする。
+ * 施行令185条2項6号: 一課税単位当たりの金額(又は一単位当たりの金額)の整数倍に当該年金の額に
+ * 係る月数を乗じてこれを十二で除して計算した金額(支払年金対応額)がその年に支払を受ける年金の
+ * 額以上になる場合は、前各号の規定にかかわらず、当該整数倍の金額(月割後)のうち年金の額に
+ * 満たない最も多い金額とする。
+ *
+ * `proratedUnitAmountJpy`・`proratedRawTaxablePortionJpy`はいずれも月割済み(一課税単位・一単位
+ * 当たりの金額、及びそれを用いて計算した支払年金対応額に、あらかじめ月数÷12を乗じたもの)を
+ * 渡す。整数倍を先に計算してから月割しても、月割してから整数倍を探しても同じ値になるため
+ * (乗法の結合法則)、月割後の一課税単位当たりの金額を基準に整数倍を探す実装で条文と一致する。
  */
 function capBySixGou(
-  taxableUnitAmountJpy: Decimal,
-  rawTaxablePortionJpy: Decimal,
+  proratedUnitAmountJpy: Decimal,
+  proratedRawTaxablePortionJpy: Decimal,
   annualAnnuityAmountJpy: Decimal,
 ): Decimal {
-  if (rawTaxablePortionJpy.lessThan(annualAnnuityAmountJpy) || taxableUnitAmountJpy.isZero()) {
-    return rawTaxablePortionJpy.isNegative() ? new Decimal(0) : rawTaxablePortionJpy;
+  if (
+    proratedRawTaxablePortionJpy.lessThan(annualAnnuityAmountJpy) ||
+    proratedUnitAmountJpy.isZero()
+  ) {
+    return proratedRawTaxablePortionJpy.isNegative()
+      ? new Decimal(0)
+      : proratedRawTaxablePortionJpy;
   }
-  let multiples = annualAnnuityAmountJpy.dividedBy(taxableUnitAmountJpy).floor();
-  if (multiples.times(taxableUnitAmountJpy).greaterThanOrEqualTo(annualAnnuityAmountJpy)) {
+  let multiples = annualAnnuityAmountJpy.dividedBy(proratedUnitAmountJpy).floor();
+  if (multiples.times(proratedUnitAmountJpy).greaterThanOrEqualTo(annualAnnuityAmountJpy)) {
     multiples = multiples.minus(1);
   }
   if (multiples.isNegative()) {
     return new Decimal(0);
   }
-  return taxableUnitAmountJpy.times(multiples);
+  return proratedUnitAmountJpy.times(multiples);
 }
 
 export function estimateInheritedAnnuityIncome(
@@ -304,6 +355,7 @@ export function estimateInheritedAnnuityIncome(
     const surplusDistributionJpy = contract.surplusDistributionJpy
       ? toDecimal(contract.surplusDistributionJpy)
       : new Decimal(0);
+    const paymentMonthsInYear = contract.paymentMonthsInYear ?? 12;
 
     requireNonNegative(annualAnnuityAmountJpy, "年金の額");
     requireNonNegative(inheritanceTaxValuationJpy, "相続税評価額");
@@ -315,6 +367,7 @@ export function estimateInheritedAnnuityIncome(
     }
     requireInteger(contract.remainingYearsAtAcquisition, "残存期間年数", 2);
     requireInteger(contract.paymentYearNumber, "支払年数", 1);
+    requirePaymentMonths(paymentMonthsInYear);
     if (contract.paymentYearNumber > contract.remainingYearsAtAcquisition) {
       throw new Error(
         "支払年数が残存期間年数を超えています(見込みを超えて支払が続く場合の扱いは対象外です)",
@@ -357,9 +410,18 @@ export function estimateInheritedAnnuityIncome(
       // 2項1号イ: 経過年数に比例して増加し続ける
       rawTaxablePortionJpy = taxableUnitAmountJpy.times(elapsedYears);
     }
+    // 施行令185条1項1号イが定義する「支払年金対応額」(2項でも同じ定義を用いる。機能147)は、
+    // 上記の計算結果に「その支払を受ける年金の額に係る月数÷12」を乗じた金額になる。
+    // 2項6号(頭打ち)も一課税単位・一単位当たりの金額の整数倍に同じ月割係数を乗じるため、
+    // 一課税単位・一単位当たりの金額そのものを先に月割してからcapBySixGouへ渡す
+    // (乗法の結合法則により、先にrawTaxablePortionJpyを月割してから整数倍を探しても同じ値になる)。
+    const proratedUnitAmountJpy = taxableUnitAmountJpy.times(paymentMonthsInYear).dividedBy(12);
+    const proratedRawTaxablePortionJpy = rawTaxablePortionJpy
+      .times(paymentMonthsInYear)
+      .dividedBy(12);
     const taxablePortionJpy = capBySixGou(
-      taxableUnitAmountJpy,
-      rawTaxablePortionJpy,
+      proratedUnitAmountJpy,
+      proratedRawTaxablePortionJpy,
       annualAnnuityAmountJpy,
     );
     const nonTaxablePortionJpy = annualAnnuityAmountJpy.minus(taxablePortionJpy);
@@ -385,6 +447,7 @@ export function estimateInheritedAnnuityIncome(
       taxableRatio,
       specificPeriodYears,
       elapsedYears,
+      paymentMonthsInYear,
       taxableUnits,
       taxableUnitAmountJpy,
       taxablePortionJpy,
@@ -404,8 +467,9 @@ export function estimateInheritedAnnuityIncome(
     "必要経費に算入する金額は、その年分の課税部分の年金収入額に「保険料又は掛金の総額÷支払総額」の割合(小数点以下2位まで算出し3位以下切り上げ)を乗じて計算する(施行令185条2項が準用する同条1項8号・11号。保険料負担者=年金受取人である通常の個人年金保険の必要経費割合(施行令183条1項、`/private-annuity-income`)と同じ端数処理)。",
     "年金のほか一時金も支払う内容の契約である場合、保険料総額のうち年金に対応する部分だけを按分して必要経費の計算に用いる(施行令185条2項が準用する同条1項10号)。",
     "年金の支払開始日以後に分配を受けた剰余金・割戻金の額は、必要経費の控除対象にはならず、そのまま総収入金額(雑所得の金額)に加算する(施行令185条2項7号)。",
+    "年の途中で年金の支払が開始・終了した場合、その年に年金の支払を受けた月数(1〜12。省略時は12か月=満額)を入力すると、施行令185条1項1号イが定義する「支払年金対応額」(2項でも同じ定義を用いる)に基づき、課税部分の年金収入額に月数÷12を乗じて月割計算する(機能147)。2項6号の頭打ちの基準額(一課税単位・一単位当たりの金額の整数倍)にも同じ月割係数を適用する。",
     "終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)、平成22年度税制改正前の相続税法24条の評価方法の適用がある「旧相続税法対象年金」(施行令185条1項)は対象外とした(今後の課題)。",
-    "当初年金受取人と現在の年金受取人が異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項が準用する同条1項9号)、年の途中で年金の支払が開始・終了した場合の月割計算は対象外とした(今後の課題)。",
+    "当初年金受取人と現在の年金受取人が異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項が準用する同条1項9号)は対象外とした(今後の課題)。",
     "この試算結果(totalMiscIncomeJpy)は、他の総合課税の雑所得と合算した後の金額として`/tax-estimate`へ手入力で反映すること。所得区分そのものの計算のためDBへの登録機能は持たない単体の試算画面。",
     "各金額は円未満の端数を切り捨てずDecimalの計算結果をそのまま返す概算値。",
   ];
