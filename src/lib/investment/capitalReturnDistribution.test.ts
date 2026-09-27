@@ -104,4 +104,53 @@ describe("calculateCapitalReturnDistributions", () => {
       ]),
     ).toThrow();
   });
+
+  it("課税口座(isNisa省略時)の場合、課税対象額は経済的な金額とそのまま一致する", () => {
+    const result = calculateCapitalReturnDistributions(100_000, 1, [
+      { distributionPerUnitJpy: 500, deemedDividendPerUnitJpy: 200, paybackRatio: 0.002 },
+    ]);
+
+    expect(result.isNisa).toBe(false);
+    expect(result.events[0].taxableDeemedDividendJpy.toNumber()).toBe(200);
+    expect(result.events[0].taxableDeemedTransferGainLossJpy.toNumber()).toBe(100);
+    expect(result.totalTaxableDeemedDividendJpy.toNumber()).toBe(200);
+    expect(result.totalTaxableDeemedTransferGainLossJpy.toNumber()).toBe(100);
+  });
+
+  it("NISA口座(isNisa=true)の場合、みなし配当・みなし譲渡益(黒字)は課税対象額が常に0円になる", () => {
+    const result = calculateCapitalReturnDistributions(
+      100_000,
+      1,
+      [{ distributionPerUnitJpy: 500, deemedDividendPerUnitJpy: 200, paybackRatio: 0.002 }],
+      true,
+    );
+
+    expect(result.isNisa).toBe(true);
+    // 経済的な金額(参考値)は課税口座の場合と変わらない
+    expect(result.events[0].deemedDividendJpy.toNumber()).toBe(200);
+    expect(result.events[0].deemedTransferGainLossJpy.toNumber()).toBe(100);
+    // 課税対象額はNISAのため0円
+    expect(result.events[0].taxableDeemedDividendJpy.toNumber()).toBe(0);
+    expect(result.events[0].taxableDeemedTransferGainLossJpy.toNumber()).toBe(0);
+    expect(result.totalTaxableDeemedDividendJpy.toNumber()).toBe(0);
+    expect(result.totalTaxableDeemedTransferGainLossJpy.toNumber()).toBe(0);
+    // 取得価額の減額調整自体はNISA口座かどうかにかかわらず同じ
+    expect(result.closingAcquisitionCostPerUnitJpy.toNumber()).toBe(99_800);
+  });
+
+  it("NISA口座(isNisa=true)でみなし譲渡損(赤字)が生じる場合も課税対象額は0円になる(損失はなかったものとみなす)", () => {
+    // 大和ハウスリート第33期の実例(損益分岐点19,000円を上回る取得価額でみなし譲渡損が生じる設例)
+    const result = calculateCapitalReturnDistributions(
+      320_000,
+      10,
+      [{ label: "第33期", distributionPerUnitJpy: 19, deemedDividendPerUnitJpy: 0, paybackRatio: 0.001 }],
+      true,
+    );
+
+    expect(result.events[0].deemedTransferGainLossJpy.toNumber()).toBe(190 - 3_200);
+    expect(result.events[0].taxableDeemedTransferGainLossJpy.toNumber()).toBe(0);
+    expect(result.totalTaxableDeemedTransferGainLossJpy.toNumber()).toBe(0);
+    // 経済的な合計値(参考値)は課税口座と同じ-3,010円のまま
+    expect(result.totalDeemedTransferGainLossJpy.toNumber()).toBe(-3_010);
+  });
 });

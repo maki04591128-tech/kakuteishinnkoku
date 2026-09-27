@@ -30,6 +30,7 @@ export function CapitalReturnDistributionForm() {
   const idPrefix = useId();
   const [openingAcquisitionCost, setOpeningAcquisitionCost] = useState("320000");
   const [holdingUnits, setHoldingUnits] = useState("10");
+  const [isNisa, setIsNisa] = useState(false);
   const [events, setEvents] = useState<EventRow[]>([newEventRow("initial", 1)]);
   const nextRowIdRef = useRef(0);
 
@@ -44,11 +45,12 @@ export function CapitalReturnDistributionForm() {
           deemedDividendPerUnitJpy: row.deemedDividend || 0,
           paybackRatio: row.paybackRatio || 0,
         })),
+        isNisa,
       );
     } catch {
       return null;
     }
-  }, [openingAcquisitionCost, holdingUnits, events]);
+  }, [openingAcquisitionCost, holdingUnits, events, isNisa]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,6 +78,16 @@ export function CapitalReturnDistributionForm() {
           />
         </label>
       </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={isNisa}
+          onChange={(e) => setIsNisa(e.target.checked)}
+          className="h-4 w-4"
+        />
+        <span>NISA口座(非課税管理勘定等)で保有している</span>
+      </label>
 
       <div className="flex flex-col gap-3">
         {events.map((row, index) => (
@@ -181,16 +193,31 @@ export function CapitalReturnDistributionForm() {
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-lg border border-neutral-900 p-4 dark:border-white">
-              <p className="text-sm text-neutral-500">みなし配当額の合計(配当所得)</p>
-              <p className="mt-1 text-3xl font-semibold">{yen(result.totalDeemedDividendJpy)}</p>
+              <p className="text-sm text-neutral-500">
+                課税対象となるみなし配当額の合計(配当所得)
+              </p>
+              <p className="mt-1 text-3xl font-semibold">
+                {yen(result.totalTaxableDeemedDividendJpy)}
+              </p>
+              {isNisa && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  (経済的な金額の参考値: {yen(result.totalDeemedDividendJpy)}。NISA口座のため非課税)
+                </p>
+              )}
             </div>
             <div className="rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
               <p className="text-sm text-neutral-500">
-                みなし譲渡損益の合計(上場株式等の譲渡所得等)
+                課税対象となるみなし譲渡損益の合計(上場株式等の譲渡所得等)
               </p>
               <p className="mt-1 text-3xl font-semibold">
-                {yen(result.totalDeemedTransferGainLossJpy)}
+                {yen(result.totalTaxableDeemedTransferGainLossJpy)}
               </p>
+              {isNisa && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  (経済的な金額の参考値: {yen(result.totalDeemedTransferGainLossJpy)}。NISA口座のため
+                  譲渡益は非課税・譲渡損はなかったものとみなされる)
+                </p>
+              )}
             </div>
           </div>
 
