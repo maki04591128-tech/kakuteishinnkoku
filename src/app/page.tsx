@@ -467,6 +467,12 @@ export default async function Home({
           国外転出(贈与)時課税制度を試算する
         </Link>
         <Link
+          href="/inheritance-exit-tax"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          国外転出(相続)時課税制度を試算する
+        </Link>
+        <Link
           href="/angel-tax-capital-gain-deduction"
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
