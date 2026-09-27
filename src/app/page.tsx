@@ -556,6 +556,12 @@ export default async function Home({
         >
           国外財産調書・財産債務調書の提出要否を判定する
         </Link>
+        <Link
+          href="/underreporting-penalty-adjustment"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          国外財産調書・財産債務調書に係る過少申告加算税等の軽減・加重措置を判定する
+        </Link>
       </section>
 
       <section className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
