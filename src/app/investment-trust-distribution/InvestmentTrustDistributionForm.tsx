@@ -1,23 +1,32 @@
 "use client";
 
 import { useId, useMemo, useRef, useState } from "react";
-import { classifyInvestmentTrustDistributions } from "@/lib/investment/distributionClassification";
+import {
+  classifyInvestmentTrustDistributions,
+  type InvestmentTrustTimelineEvent,
+} from "@/lib/investment/distributionClassification";
 
 function yen(value: { toString(): string }): string {
   const n = Number(value.toString());
   return `¥${n.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}`;
 }
 
+type EventRowType = "DISTRIBUTION" | "PURCHASE" | "REDEMPTION";
+
 interface EventRow {
   key: string;
+  type: EventRowType;
   label: string;
+  /** DISTRIBUTIONの分配金額 / PURCHASEの購入口数 / REDEMPTIONの解約口数 */
   distribution: string;
+  /** DISTRIBUTIONの分配落ち後基準価額 / PURCHASEの購入時基準価額 */
   postNav: string;
 }
 
 function newEventRow(key: string, index: number): EventRow {
   return {
     key,
+    type: "DISTRIBUTION",
     label: `第${index}回`,
     distribution: "0",
     postNav: "0",
@@ -36,11 +45,28 @@ export function InvestmentTrustDistributionForm() {
       return classifyInvestmentTrustDistributions(
         openingPrincipal || 0,
         Number(holdingUnits || 0),
-        events.map((row) => ({
-          label: row.label,
-          distributionPer10kUnitsJpy: row.distribution || 0,
-          postDistributionNavPer10kUnitsJpy: row.postNav || 0,
-        })),
+        events.map((row): InvestmentTrustTimelineEvent => {
+          if (row.type === "PURCHASE") {
+            return {
+              type: "PURCHASE",
+              label: row.label,
+              units: Number(row.distribution || 0),
+              pricePer10kUnitsJpy: row.postNav || 0,
+            };
+          }
+          if (row.type === "REDEMPTION") {
+            return {
+              type: "REDEMPTION",
+              label: row.label,
+              units: Number(row.distribution || 0),
+            };
+          }
+          return {
+            label: row.label,
+            distributionPer10kUnitsJpy: row.distribution || 0,
+            postDistributionNavPer10kUnitsJpy: row.postNav || 0,
+          };
+        }),
       );
     } catch {
       return null;
@@ -78,9 +104,27 @@ export function InvestmentTrustDistributionForm() {
         {events.map((row, index) => (
           <fieldset
             key={row.key}
-            className="grid grid-cols-1 gap-3 rounded-md border border-neutral-200 p-3 sm:grid-cols-4 dark:border-neutral-800"
+            className="grid grid-cols-1 gap-3 rounded-md border border-neutral-200 p-3 sm:grid-cols-5 dark:border-neutral-800"
           >
-            <legend className="px-1 text-sm font-medium">分配 {index + 1}</legend>
+            <legend className="px-1 text-sm font-medium">イベント {index + 1}</legend>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-neutral-500">種別</span>
+              <select
+                value={row.type}
+                onChange={(e) =>
+                  setEvents((prev) =>
+                    prev.map((r) =>
+                      r.key === row.key ? { ...r, type: e.target.value as EventRowType } : r,
+                    ),
+                  )
+                }
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+              >
+                <option value="DISTRIBUTION">分配</option>
+                <option value="PURCHASE">追加購入</option>
+                <option value="REDEMPTION">一部解約</option>
+              </select>
+            </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-neutral-500">ラベル(決算日等)</span>
               <input
@@ -95,7 +139,13 @@ export function InvestmentTrustDistributionForm() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-neutral-500">分配金額(1万口当たり)</span>
+              <span className="text-neutral-500">
+                {row.type === "DISTRIBUTION"
+                  ? "分配金額(1万口当たり)"
+                  : row.type === "PURCHASE"
+                    ? "追加購入口数"
+                    : "一部解約口数"}
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -111,21 +161,27 @@ export function InvestmentTrustDistributionForm() {
                 className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-neutral-500">分配落ち後基準価額(1万口当たり)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                value={row.postNav}
-                onChange={(e) =>
-                  setEvents((prev) =>
-                    prev.map((r) => (r.key === row.key ? { ...r, postNav: e.target.value } : r)),
-                  )
-                }
-                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
-              />
-            </label>
+            {row.type !== "REDEMPTION" && (
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-neutral-500">
+                  {row.type === "PURCHASE"
+                    ? "購入時基準価額(1万口当たり)"
+                    : "分配落ち後基準価額(1万口当たり)"}
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={row.postNav}
+                  onChange={(e) =>
+                    setEvents((prev) =>
+                      prev.map((r) => (r.key === row.key ? { ...r, postNav: e.target.value } : r)),
+                    )
+                  }
+                  className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+                />
+              </label>
+            )}
             <button
               type="button"
               onClick={() => setEvents((prev) => prev.filter((r) => r.key !== row.key))}
@@ -144,13 +200,13 @@ export function InvestmentTrustDistributionForm() {
           }}
           className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
-          分配を追加
+          イベントを追加(分配・追加購入・一部解約)
         </button>
       </div>
 
       {result === null ? (
         <p className="text-sm text-red-600">
-          入力値を確認してください(分配前個別元本・保有口数・分配金額・基準価額はいずれも0以上、保有口数は正の整数)。
+          入力値を確認してください(分配前個別元本・保有口数・分配金額・基準価額はいずれも0以上、保有口数・追加購入口数・一部解約口数は正の整数、一部解約口数はその時点の保有口数以下である必要があります)。
         </p>
       ) : (
         <>
@@ -169,19 +225,28 @@ export function InvestmentTrustDistributionForm() {
             </div>
           </div>
 
-          <p className="text-sm text-neutral-500">
-            最終的な個別元本(1万口当たり):{" "}
-            <span className="font-medium text-neutral-900 dark:text-neutral-100">
-              {yen(result.closingPrincipalPer10kUnitsJpy)}
-            </span>
-          </p>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-neutral-500">
+            <p>
+              最終的な個別元本(1万口当たり):{" "}
+              <span className="font-medium text-neutral-900 dark:text-neutral-100">
+                {yen(result.closingPrincipalPer10kUnitsJpy)}
+              </span>
+            </p>
+            <p>
+              最終的な保有口数:{" "}
+              <span className="font-medium text-neutral-900 dark:text-neutral-100">
+                {result.closingHoldingUnits.toLocaleString("ja-JP")}口
+              </span>
+            </p>
+          </div>
 
           {result.events.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse text-sm">
+              <table className="w-full min-w-[840px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-neutral-300 text-left text-neutral-500 dark:border-neutral-700">
                     <th className="py-2 pr-4">ラベル</th>
+                    <th className="py-2 pr-4">保有口数</th>
                     <th className="py-2 pr-4">分配前個別元本(1万口)</th>
                     <th className="py-2 pr-4">普通分配金(1万口)</th>
                     <th className="py-2 pr-4">特別分配金(1万口)</th>
@@ -194,6 +259,7 @@ export function InvestmentTrustDistributionForm() {
                   {result.events.map((row) => (
                     <tr key={row.label} className="border-b border-neutral-100 dark:border-neutral-900">
                       <td className="py-2 pr-4 font-medium">{row.label}</td>
+                      <td className="py-2 pr-4">{row.holdingUnits.toLocaleString("ja-JP")}口</td>
                       <td className="py-2 pr-4">{yen(row.openingPrincipalPer10kUnitsJpy)}</td>
                       <td className="py-2 pr-4">{yen(row.taxableDistributionPer10kUnitsJpy)}</td>
                       <td className="py-2 pr-4">{yen(row.nonTaxableDistributionPer10kUnitsJpy)}</td>

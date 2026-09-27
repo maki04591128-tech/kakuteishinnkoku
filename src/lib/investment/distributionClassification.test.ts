@@ -100,4 +100,86 @@ describe("classifyInvestmentTrustDistributions", () => {
     ]);
     expect(result.totalTaxableDistributionJpy.toNumber()).toBe(300);
   });
+
+  it("追加購入時は口数加重平均で個別元本を再計算する(証券会社公表の設例: 10,000円×100万口→9,500円で100万口追加購入→9,750円)", () => {
+    const result = classifyInvestmentTrustDistributions(10_000, 1_000_000, [
+      { type: "PURCHASE", units: 1_000_000, pricePer10kUnitsJpy: 9_500 },
+    ]);
+    expect(result.closingPrincipalPer10kUnitsJpy.toNumber()).toBe(9_750);
+    expect(result.closingHoldingUnits).toBe(2_000_000);
+    expect(result.events).toHaveLength(0);
+  });
+
+  it("追加購入後の個別元本を用いて後続の分配を区分する", () => {
+    const result = classifyInvestmentTrustDistributions(10_000, 1_000_000, [
+      { type: "PURCHASE", label: "買い増し", units: 1_000_000, pricePer10kUnitsJpy: 9_500 },
+      { label: "決算", distributionPer10kUnitsJpy: 100, postDistributionNavPer10kUnitsJpy: 9_700 },
+    ]);
+
+    // 追加購入後の個別元本9,750円、分配落ち後基準価額9,700円 < 9,750円なので
+    // 特別分配金 = min(100, 9,750-9,700) = 50円、普通分配金 = 50円。
+    expect(result.events[0].openingPrincipalPer10kUnitsJpy.toNumber()).toBe(9_750);
+    expect(result.events[0].holdingUnits).toBe(2_000_000);
+    expect(result.events[0].nonTaxableDistributionPer10kUnitsJpy.toNumber()).toBe(50);
+    expect(result.events[0].taxableDistributionPer10kUnitsJpy.toNumber()).toBe(50);
+    // 保有口数2,000,000口(1万口当たりの200倍)換算
+    expect(result.events[0].taxableDistributionJpy.toNumber()).toBe(50 * 200);
+    expect(result.events[0].nonTaxableDistributionJpy.toNumber()).toBe(50 * 200);
+  });
+
+  it("一部解約は保有口数のみ減少させ、1万口当たりの個別元本は変わらない", () => {
+    const result = classifyInvestmentTrustDistributions(10_500, 20_000, [
+      { type: "REDEMPTION", label: "一部解約", units: 10_000 },
+      { distributionPer10kUnitsJpy: 600, postDistributionNavPer10kUnitsJpy: 10_200 },
+    ]);
+
+    expect(result.closingHoldingUnits).toBe(10_000);
+    expect(result.events[0].openingPrincipalPer10kUnitsJpy.toNumber()).toBe(10_500);
+    expect(result.events[0].holdingUnits).toBe(10_000);
+    // 1万口当たりの区分額は口数に依存しない(通常の分配と同じ結果)
+    expect(result.events[0].taxableDistributionPer10kUnitsJpy.toNumber()).toBe(300);
+    expect(result.events[0].nonTaxableDistributionPer10kUnitsJpy.toNumber()).toBe(300);
+    // 実額は解約後の保有口数(10,000口=1万口当たりの1.0倍)で換算する
+    expect(result.events[0].taxableDistributionJpy.toNumber()).toBe(300);
+  });
+
+  it("一部解約口数が保有口数を超える場合はエラーになる", () => {
+    expect(() =>
+      classifyInvestmentTrustDistributions(10_000, 10_000, [
+        { type: "REDEMPTION", units: 10_001 },
+      ]),
+    ).toThrow();
+  });
+
+  it("追加購入口数・一部解約口数が0以下または非整数の場合はエラーになる", () => {
+    expect(() =>
+      classifyInvestmentTrustDistributions(10_000, 10_000, [
+        { type: "PURCHASE", units: 0, pricePer10kUnitsJpy: 10_000 },
+      ]),
+    ).toThrow();
+    expect(() =>
+      classifyInvestmentTrustDistributions(10_000, 10_000, [
+        { type: "REDEMPTION", units: 1.5 },
+      ]),
+    ).toThrow();
+  });
+
+  it("追加購入・一部解約・分配を組み合わせた一連の時系列を処理できる", () => {
+    const result = classifyInvestmentTrustDistributions(10_500, 10_000, [
+      { label: "第1回分配", distributionPer10kUnitsJpy: 600, postDistributionNavPer10kUnitsJpy: 10_200 },
+      { type: "PURCHASE", units: 10_000, pricePer10kUnitsJpy: 10_000 },
+      { type: "REDEMPTION", units: 5_000 },
+      { label: "第2回分配", distributionPer10kUnitsJpy: 300, postDistributionNavPer10kUnitsJpy: 10_050 },
+    ]);
+
+    // 第1回分配後の個別元本: 10,200円。
+    // 追加購入(10,000口を10,000円で): (10,200*10,000/10,000 + 10,000*10,000/10,000) * 10,000 / 20,000 = 10,100円。
+    // 一部解約(5,000口): 個別元本は変わらず10,100円、保有口数15,000口。
+    expect(result.events[1].openingPrincipalPer10kUnitsJpy.toNumber()).toBe(10_100);
+    expect(result.events[1].holdingUnits).toBe(15_000);
+    // 分配落ち後基準価額10,050円 < 10,100円 なので特別分配金 = min(300, 50) = 50円、普通分配金 = 250円。
+    expect(result.events[1].nonTaxableDistributionPer10kUnitsJpy.toNumber()).toBe(50);
+    expect(result.events[1].taxableDistributionPer10kUnitsJpy.toNumber()).toBe(250);
+    expect(result.closingHoldingUnits).toBe(15_000);
+  });
 });
