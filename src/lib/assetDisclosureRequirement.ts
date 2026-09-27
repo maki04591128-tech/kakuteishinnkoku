@@ -14,12 +14,25 @@ import { Decimal } from "decimal.js";
  * 国税庁「国外財産調書制度(FAQ)」問11で明記されており、この判定を自動化する
  * 意義が大きいと判断した。
  *
+ * 機能139・140で投資・暗号資産の「保有」に着目した両調書の判定・加算税調整を
+ * 実装した後、暗号資産の周辺領域であるNFTについてはコードベース・READMEの
+ * どこにも両調書への記載要否の判定が反映されていなかったギャップに対応した
+ * (機能141)。国税庁「NFTに関する税務上の取扱いについて(FAQ)」(令和5年1月13日)
+ * 問13〜問15を一次情報として確認したところ、NFTも暗号資産と同じ国外送金等調書
+ * 規則12条3項6号の適用を受け、国外財産調書では所在が保有者本人の住所により
+ * 判定されるため常に記載対象外になる一方(問15)、財産債務調書では暗号資産と
+ * 同様に所在を問わず記載対象になる(問13)という、暗号資産と共通する非対称な
+ * 取扱いであることを確認した。
+ *
  * 一次情報:
  * - 国外送金等調書法5条・6条の2、国外送金等調書令10条、国外送金等調書規則12条
  * - 国税庁「国外財産調書制度(FAQ)」問2・問11(令和5年4月版で提出期限が翌年
  *   6月30日に改正されたことを反映済み)
  * - 国税庁タックスアンサーNo.7456「国外財産調書の提出義務」・
  *   No.7457「財産債務調書の提出義務」
+ * - 国税庁「NFTに関する税務上の取扱いについて(FAQ)」(令和5年1月13日、課税総括課
+ *   情報等第1号)問13「財産債務調書への記載の要否」・問14「財産債務調書への
+ *   NFTの価額の記載方法」・問15「国外財産調書への記載の要否」
  *
  * ## 国外財産調書(国外送金等調書法5条)
  *
@@ -32,6 +45,11 @@ import { Decimal } from "decimal.js";
  *   保管する交換業者・ウォレットが国内か国外かを問わず、暗号資産は「国外にある
  *   財産」に該当せず、国外財産調書への記載対象にはならない(問11)。この点を
  *   踏まえ、本ツールでは暗号資産の価額を国外財産の合計額の判定に含めない。
+ * - NFTも同じ国外送金等調書規則12条3項6号により所在が保有者本人の住所で
+ *   判定されるため、購入したマーケットプレイスが国内・国外いずれの所在で
+ *   あっても「国外にある財産」には該当せず、国外財産調書への記載対象には
+ *   ならない(NFT FAQ問15)。本ツールでは暗号資産と同様、NFTの価額も国外財産の
+ *   合計額の判定に含めない。
  * - 提出期限は、その年の翌年6月30日(令和4年度税制改正により翌年3月15日から
  *   延長。令和5年分以後に適用)。
  *
@@ -44,7 +62,8 @@ import { Decimal } from "decimal.js";
  *   超え、かつ、その年の12月31日において(a)価額の合計額が3億円以上の財産、
  *   又は(b)価額の合計額が1億円以上の有価証券等(所得税法60条の2第1項の
  *   有価証券等並びに同条2項の未決済信用取引等及び同条3項の未決済デリバティブ
- *   取引に係る権利。暗号資産はこの「有価証券等」に含まれない)を有する方。
+ *   取引に係る権利。暗号資産・NFTはいずれもこの「有価証券等」に含まれない)を
+ *   有する方。
  * - 要件2: 要件1に該当しない場合でも、その年の12月31日において価額の合計額が
  *   10億円以上の財産を有する居住者の方(令和4年度税制改正で追加。非居住者は
  *   対象外)。
@@ -54,6 +73,17 @@ import { Decimal } from "decimal.js";
  *   含めない。記載する価額は12月31日時点の時価(活発な市場がある場合は取引を
  *   行う暗号資産交換業者の同日時点の取引価格)、時価の算定が困難な場合は
  *   取得価額等を基にした見積価額。
+ * - NFTも暗号資産と同様、財産の合計額(3億円・10億円の判定)には含めるが
+ *   「有価証券等」(1億円の判定)には含めない。ただし記載が必要になるのは
+ *   「12月31日において暗号資産などの財産的価値を有する資産と交換できる
+ *   もの」に限られる点が暗号資産(常に記載対象)との違いで(問13)、財産債務
+ *   調書合計表では種類別(アート・音楽・スポーツ・ゲーム等)・用途別・所在別
+ *   (ただし所在は暗号資産と同じく保有者の住所により判定するため実質的に
+ *   常に「国内」区分になる)に記載する。価額は12月31日時点の時価、又は
+ *   時価の算定が困難な場合は(1)12月31日時点(直近)の売買実例価額、(2)無ければ
+ *   翌年1月1日から調書の提出期限までの譲渡価額、(3)いずれも無ければ取得価額、
+ *   の順で算定した見積価額による(問14)。この価額算定そのものは本ツールでは
+ *   行わず、ユーザーが算定した価額の入力を前提とする。
  * - 提出期限は、その年の翌年6月30日(国外財産調書と同時期に延長)。
  */
 
@@ -93,10 +123,18 @@ export interface AssetDisclosureRequirementInput {
    */
   cryptoAssetsJpy: Decimal.Value;
   /**
-   * 暗号資産を除く、その年の12月31日において保有する国外財産(国外にある
+   * その年の12月31日において保有するNFTのうち、暗号資産などの財産的価値を
+   * 有する資産と交換できるもの(NFT FAQ問13)の価額の合計額。購入した
+   * マーケットプレイスの所在地(国内・国外)を問わず入力する(暗号資産と同様、
+   * 国外財産調書の判定からは自動的に除外し、財産債務調書の財産の合計額には
+   * 算入する)。ゲーム内でしか使えない等、財産的価値の無いNFTは含めない。
+   */
+  nftAssetsJpy: Decimal.Value;
+  /**
+   * 暗号資産・NFTを除く、その年の12月31日において保有する国外財産(国外にある
    * 不動産・預貯金・有価証券等)の価額の合計額。
    */
-  overseasAssetsExcludingCryptoJpy: Decimal.Value;
+  overseasAssetsExcludingCryptoAndNftJpy: Decimal.Value;
   /**
    * その年の12月31日において保有する財産(国内・国外、暗号資産を含む)の
    * 価額の合計額。財産債務調書の要件1(a)・要件2の判定に用いる。
@@ -143,9 +181,10 @@ export function determineAssetDisclosureRequirement(
   input: AssetDisclosureRequirementInput,
 ): AssetDisclosureRequirementResult {
   const cryptoAssetsJpy = toDecimal(input.cryptoAssetsJpy, "暗号資産の価額");
-  const overseasAssetsExcludingCryptoJpy = toDecimal(
-    input.overseasAssetsExcludingCryptoJpy,
-    "暗号資産を除く国外財産の価額",
+  const nftAssetsJpy = toDecimal(input.nftAssetsJpy, "NFTの価額");
+  const overseasAssetsExcludingCryptoAndNftJpy = toDecimal(
+    input.overseasAssetsExcludingCryptoAndNftJpy,
+    "暗号資産・NFTを除く国外財産の価額",
   );
   const totalAssetsJpy = toDecimal(input.totalAssetsJpy, "財産の価額の合計額");
   const section60SecuritiesEtcJpy = toDecimal(
@@ -157,8 +196,8 @@ export function determineAssetDisclosureRequirement(
     "退職所得を除く各種所得金額の合計額",
   );
 
-  // 国外財産調書: 暗号資産は所在の判定上、常に国内財産として扱われ含まれない。
-  const overseasAssetsTotalJpy = overseasAssetsExcludingCryptoJpy;
+  // 国外財産調書: 暗号資産・NFTは所在の判定上、常に国内財産として扱われ含まれない。
+  const overseasAssetsTotalJpy = overseasAssetsExcludingCryptoAndNftJpy;
   const isResidentEligibleForOverseasStatement = input.residencyStatus === "RESIDENT";
   const exceedsOverseasThreshold = overseasAssetsTotalJpy.greaterThan(
     OVERSEAS_ASSET_STATEMENT_THRESHOLD_JPY,
@@ -172,9 +211,9 @@ export function determineAssetDisclosureRequirement(
         ? "非永住者は国外財産調書の提出義務者にならない(国外送金等調書法5条1項は「非永住者以外の居住者」に限定)。"
         : "非居住者は国外財産調書の提出義務者にならない(国外送金等調書法5条1項は居住者に限定)。";
   } else if (exceedsOverseasThreshold) {
-    overseasReason = `暗号資産を除く国外財産の価額の合計額(${overseasAssetsTotalJpy.toString()}円)が5,000万円を超えるため、国外財産調書の提出義務がある。暗号資産は保有者本人の住所(国内)により所在が判定されるため、保管先の交換業者・ウォレットが国外であっても国外財産には該当しない(国外財産調書制度FAQ問11)。`;
+    overseasReason = `暗号資産・NFTを除く国外財産の価額の合計額(${overseasAssetsTotalJpy.toString()}円)が5,000万円を超えるため、国外財産調書の提出義務がある。暗号資産・NFTは保有者本人の住所(国内)により所在が判定されるため、保管先の交換業者・ウォレットやマーケットプレイスが国外であっても国外財産には該当しない(国外財産調書制度FAQ問11、NFTに関する税務上の取扱いについてFAQ問15)。`;
   } else {
-    overseasReason = `暗号資産を除く国外財産の価額の合計額(${overseasAssetsTotalJpy.toString()}円)が5,000万円以下のため、国外財産調書の提出義務はない。暗号資産(${cryptoAssetsJpy.toString()}円)は所在が保有者本人の住所により判定されるため、この合計額に含めていない。`;
+    overseasReason = `暗号資産・NFTを除く国外財産の価額の合計額(${overseasAssetsTotalJpy.toString()}円)が5,000万円以下のため、国外財産調書の提出義務はない。暗号資産(${cryptoAssetsJpy.toString()}円)・NFT(${nftAssetsJpy.toString()}円)は所在が保有者本人の住所により判定されるため、この合計額に含めていない。`;
   }
 
   // 財産債務調書: 暗号資産は「その他の財産」として財産の合計額には含まれるが、
@@ -199,9 +238,9 @@ export function determineAssetDisclosureRequirement(
 
   let assetLiabilityReason: string;
   if (satisfiesRequirement1) {
-    assetLiabilityReason = `退職所得を除く各種所得金額の合計額(${aggregateIncomeExcludingRetirementJpy.toString()}円)が2,000万円を超え、かつ財産の合計額(${totalAssetsJpy.toString()}円、暗号資産${cryptoAssetsJpy.toString()}円を含む)が3億円以上、又は所得税法60条の2の有価証券等の価額(${section60SecuritiesEtcJpy.toString()}円、暗号資産を含まない)が1億円以上であるため、財産債務調書の提出義務がある(要件1)。`;
+    assetLiabilityReason = `退職所得を除く各種所得金額の合計額(${aggregateIncomeExcludingRetirementJpy.toString()}円)が2,000万円を超え、かつ財産の合計額(${totalAssetsJpy.toString()}円、暗号資産${cryptoAssetsJpy.toString()}円・NFT${nftAssetsJpy.toString()}円を含む)が3億円以上、又は所得税法60条の2の有価証券等の価額(${section60SecuritiesEtcJpy.toString()}円、暗号資産・NFTを含まない)が1億円以上であるため、財産債務調書の提出義務がある(要件1)。`;
   } else if (satisfiesRequirement2) {
-    assetLiabilityReason = `要件1(所得2,000万円超かつ財産3億円以上等)には該当しないが、財産の合計額(${totalAssetsJpy.toString()}円、暗号資産${cryptoAssetsJpy.toString()}円を含む)が10億円以上の居住者であるため、財産債務調書の提出義務がある(要件2。非居住者は対象外)。`;
+    assetLiabilityReason = `要件1(所得2,000万円超かつ財産3億円以上等)には該当しないが、財産の合計額(${totalAssetsJpy.toString()}円、暗号資産${cryptoAssetsJpy.toString()}円・NFT${nftAssetsJpy.toString()}円を含む)が10億円以上の居住者であるため、財産債務調書の提出義務がある(要件2。非居住者は対象外)。`;
   } else if (!isResidentForRequirement2 && totalAssetsJpy.greaterThanOrEqualTo(
     ASSET_LIABILITY_STATEMENT_LARGE_ASSETS_THRESHOLD_JPY,
   )) {
@@ -213,7 +252,9 @@ export function determineAssetDisclosureRequirement(
 
   const notes: string[] = [
     "国外送金等調書法5条・6条の2、国外送金等調書令10条、国外送金等調書規則12条、国税庁「国外財産調書制度(FAQ)」問2・問11、タックスアンサーNo.7456・No.7457に基づく判定。",
-    "暗号資産は、国外財産調書では所在が保有者本人の住所により判定されるため保管先の国内外を問わず国外財産に含めず、財産債務調書では所在を問わず「その他の財産」として財産の合計額に含めるが所得税法60条の2の「有価証券等」には該当しない、という異なる取扱いになる点に注意する。",
+    "暗号資産・NFTは、国外財産調書では所在が保有者本人の住所により判定されるため保管先(交換業者・ウォレット・マーケットプレイス)の国内外を問わず国外財産に含めず、財産債務調書では所在を問わず「その他の財産」として財産の合計額に含めるが所得税法60条の2の「有価証券等」には該当しない、という異なる取扱いになる点に注意する(国税庁「NFTに関する税務上の取扱いについて(FAQ)」問13・問15)。",
+    "財産債務調書へのNFTの記載が必要になるのは、12月31日において暗号資産などの財産的価値を有する資産と交換できるものに限られる(NFT FAQ問13)。ゲーム内でしか使えない等、財産的価値の無いNFTに該当するかどうかはユーザー自身の確認事項とし、本ツールでは判定しない。",
+    "NFTの価額は12月31日時点の時価、時価の算定が困難な場合は(1)直近の売買実例価額、(2)無ければ翌年1月1日から調書の提出期限までの譲渡価額、(3)いずれも無ければ取得価額、の順で算定した見積価額による(NFT FAQ問14)。この価額算定自体は本ツールでは行わない。",
   ];
 
   return {
