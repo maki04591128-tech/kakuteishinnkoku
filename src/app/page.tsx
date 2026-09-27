@@ -574,6 +574,12 @@ export default async function Home({
         >
           投資信託の分配金(普通分配金・特別分配金)の区分を試算する
         </Link>
+        <Link
+          href="/capital-return-distribution"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          J-REIT等の出資等減少分配に伴うみなし配当・みなし譲渡損益を試算する
+        </Link>
       </section>
 
       <section className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">

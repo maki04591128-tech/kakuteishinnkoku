@@ -38,7 +38,11 @@ export default function InvestmentTrustDistributionPage() {
         </Link>
         )の入力として用いること。特定口座の年間取引報告書上の分配金額と本ツールの試算結果が
         一致するかはユーザー自身で確認すること。期中の追加購入・一部解約による保有口数の
-        変動、上場投資法人(J-REIT)の出資等減少分配(資本の払戻し)は対象外。
+        変動は対象外。上場投資法人(J-REIT)の出資等減少分配(資本の払戻し)は別制度のため
+        <Link href="/capital-return-distribution" className="underline">
+          /capital-return-distribution
+        </Link>
+        で試算できる。
       </p>
     </div>
   );
