@@ -586,6 +586,12 @@ export default async function Home({
         >
           J-REIT等の出資等減少分配に伴うみなし配当・みなし譲渡損益を試算する
         </Link>
+        <Link
+          href="/old-nisa-expiry"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        >
+          旧NISAの非課税期間終了時の取得価額付け替えを試算する
+        </Link>
       </section>
 
       <section className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
