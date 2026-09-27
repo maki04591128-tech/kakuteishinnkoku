@@ -53,20 +53,29 @@ import { Decimal } from "decimal.js";
  *    切り上げる(同項11号)。`privateAnnuityIncome.ts`の必要経費割合と同じ端数処理)
  * 10. 雑所得の金額 = 課税部分の年金収入額 - 必要経費に算入する金額
  *
+ * 施行令185条2項は必要経費の計算について前項(1項)8号〜11号を準用しており、本モジュールは
+ * このうち次の2点にも対応する(機能143。e-Govで確認した施行令185条の条文に基づく):
+ * - 7号: 年金の支払開始日以後に分配を受けた剰余金又は割戻しを受けた割戻金の額は、必要経費
+ *   控除の対象にはならず、そのままその年分の雑所得に係る総収入金額に加算する。
+ * - 10号(1項10号。2項で準用): 当該生命保険契約等が年金のほか一時金も支払う内容のもので
+ *   ある場合、8号ロの保険料総額は、保険料総額のうち支払総額(見込額)が
+ *   「支払総額(見込額)+一時金の額」に占める割合分に按分した金額とする
+ *   (`privateAnnuityIncome.ts`が施行令183条1項3号について実装済みの考え方と同じ按分方法)。
+ *
  * **対象外とした範囲(今後の課題):**
  * - 旧相続税法対象年金(年金受給権につき、平成22年度税制改正前の相続税法24条の評価方法の
  *   適用があるもの。施行令185条1項)。残存期間年数の長さに応じてさらに複雑な算式(40%・
  *   30%の乗率や特定単位数等)になり、かつ平成22年度税制改正から既に15年以上が経過して
  *   おり現存する契約は限られると考えられるため対象外とした。
  * - 相続税評価割合が100分の50以下の確定年金(施行令185条2項1号ロ)。国税庁タックスアンサー
- *   No.1620も具体的な計算方法を示さず「税務署にお問合せください」と案内している。
- * - 終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)。余命年数表に
- *   基づく支払総額見込額・余命期間年数の算出が前提になり、`privateAnnuityIncome.ts`が
+ *   No.1620も具体的な計算方法を示さず「税務署にお問合せください」と案内している(なお、
+ *   e-Govで確認した施行令185条2項1号ロ・3項5号の条文自体には「特定期間年数」を用いた
+ *   算式が存在するが、実装・検証には別途慎重な確認が必要なため今回は見送った)。
+ * - 終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)。別表(余命年数表)に
+ *   基づく支払開始日余命年数・支払総額見込額の算出が前提になり、`privateAnnuityIncome.ts`が
  *   既に対象外としている支払総額見込額の算出と同様の理由で対象外とした。
- * - 年金の支払開始後に分配を受けた剰余金・割戻金の加算(施行令185条2項7号)、年金のほか
- *   一時金も支払う契約の場合の保険料按分(同条1項10号の準用)。
  * - 当初年金受取人(支払開始日に最初にその年金の支払を受けていた者)が現在の年金受取人と
- *   異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項後段が準用する同条1項9号)。
+ *   異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項が準用する同条1項9号)。
  *   本ツールは当初年金受取人=現在の年金受取人である一次相続のケースのみを対象とする。
  * - 年の途中で年金の支払が開始・終了した場合の月割計算。
  */
@@ -86,6 +95,10 @@ export interface InheritedAnnuityContract {
   remainingYearsAtAcquisition: number;
   /** 支払年数(支払開始日の年を1年目とする整数) */
   paymentYearNumber: number;
+  /** 年金のほか一時金も支払う内容の契約である場合の一時金の額(無ければ0) */
+  lumpSumAmountJpy?: Decimal.Value;
+  /** 年金の支払開始日以後に分配を受けた剰余金・割戻金の額(無ければ0) */
+  surplusDistributionJpy?: Decimal.Value;
 }
 
 export interface InheritedAnnuityContractResult {
@@ -210,10 +223,18 @@ export function estimateInheritedAnnuityIncome(
     const inheritanceTaxValuationJpy = toDecimal(contract.inheritanceTaxValuationJpy);
     const totalScheduledPaymentJpy = toDecimal(contract.totalScheduledPaymentJpy);
     const totalPremiumsPaidJpy = toDecimal(contract.totalPremiumsPaidJpy);
+    const lumpSumAmountJpy = contract.lumpSumAmountJpy
+      ? toDecimal(contract.lumpSumAmountJpy)
+      : new Decimal(0);
+    const surplusDistributionJpy = contract.surplusDistributionJpy
+      ? toDecimal(contract.surplusDistributionJpy)
+      : new Decimal(0);
 
     requireNonNegative(annualAnnuityAmountJpy, "年金の額");
     requireNonNegative(inheritanceTaxValuationJpy, "相続税評価額");
     requireNonNegative(totalPremiumsPaidJpy, "保険料又は掛金の総額");
+    requireNonNegative(lumpSumAmountJpy, "一時金の額");
+    requireNonNegative(surplusDistributionJpy, "剰余金・割戻金の額");
     if (totalScheduledPaymentJpy.lessThanOrEqualTo(0)) {
       throw new Error("確定年金の支払総額は正の値である必要があります");
     }
@@ -244,11 +265,20 @@ export function estimateInheritedAnnuityIncome(
     );
     const nonTaxablePortionJpy = annualAnnuityAmountJpy.minus(taxablePortionJpy);
 
-    const necessaryExpenseRatio = totalPremiumsPaidJpy
+    // 1項10号(2項で準用): 一時金も支払う契約の場合、保険料総額を支払総額の按分比率で調整する
+    const adjustedPremiumTotal = lumpSumAmountJpy.isZero()
+      ? totalPremiumsPaidJpy
+      : totalPremiumsPaidJpy
+          .times(totalScheduledPaymentJpy)
+          .dividedBy(totalScheduledPaymentJpy.plus(lumpSumAmountJpy));
+
+    // 1項11号(2項で準用): 割合は小数点以下2位まで算出し、3位以下を切り上げる
+    const necessaryExpenseRatio = adjustedPremiumTotal
       .dividedBy(totalScheduledPaymentJpy)
       .toDecimalPlaces(2, Decimal.ROUND_UP);
     const necessaryExpenseJpy = taxablePortionJpy.times(necessaryExpenseRatio);
-    const miscIncomeJpy = taxablePortionJpy.minus(necessaryExpenseJpy);
+    // 2項7号: 剰余金・割戻金は必要経費控除の対象外でそのまま総収入金額に加算する
+    const miscIncomeJpy = taxablePortionJpy.minus(necessaryExpenseJpy).plus(surplusDistributionJpy);
 
     return {
       name,
@@ -271,9 +301,11 @@ export function estimateInheritedAnnuityIncome(
     "死亡保険金を年金形式で受給している場合等、保険契約等に係る保険料の負担者でない方が相続等により取得した年金受給権に基づき確定年金の支払を受ける場合、その年金受給権は相続税・贈与税の課税対象になっているため、二重課税を避けるべく年金の収入金額を非課税部分と課税部分に振り分けて雑所得を計算する(所得税法35条・所得税法施行令185条2項、最高裁平成22年7月6日判決、国税庁タックスアンサーNo.1620)。",
     "相続税評価割合(相続税評価額÷支払総額)に応じた課税割合の速算表により、支払総額のうち課税部分の総額を算出し、これを課税単位数(残存期間年数×(残存期間年数-1)÷2)で割った「一課税単位当たりの金額」に経過年数を乗じてその年分の課税部分の年金収入額を計算する。年金支給初年(経過年数0)は必ず全額非課税になり、2年目以降は課税部分が階段状に増加する。",
     "必要経費に算入する金額は、その年分の課税部分の年金収入額に「保険料又は掛金の総額÷支払総額」の割合(小数点以下2位まで算出し3位以下切り上げ)を乗じて計算する(施行令185条2項が準用する同条1項8号・11号。保険料負担者=年金受取人である通常の個人年金保険の必要経費割合(施行令183条1項、`/private-annuity-income`)と同じ端数処理)。",
+    "年金のほか一時金も支払う内容の契約である場合、保険料総額のうち年金に対応する部分だけを按分して必要経費の計算に用いる(施行令185条2項が準用する同条1項10号)。",
+    "年金の支払開始日以後に分配を受けた剰余金・割戻金の額は、必要経費の控除対象にはならず、そのまま総収入金額(雑所得の金額)に加算する(施行令185条2項7号)。",
     "相続税評価割合が100分の50以下の確定年金の計算方法(施行令185条2項1号ロ)は対象外とした。国税庁タックスアンサーNo.1620も「税務署にお問合せください」と案内している。",
     "終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)、平成22年度税制改正前の相続税法24条の評価方法の適用がある「旧相続税法対象年金」(施行令185条1項)は対象外とした(今後の課題)。",
-    "年金の支払開始後に分配を受けた剰余金・割戻金の加算、年金のほか一時金も支払う契約の場合の保険料按分、当初年金受取人と現在の年金受取人が異なる場合(二次相続等)の必要経費の特例計算は対象外とした(今後の課題)。",
+    "当初年金受取人と現在の年金受取人が異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項が準用する同条1項9号)、年の途中で年金の支払が開始・終了した場合の月割計算は対象外とした(今後の課題)。",
     "この試算結果(totalMiscIncomeJpy)は、他の総合課税の雑所得と合算した後の金額として`/tax-estimate`へ手入力で反映すること。所得区分そのものの計算のためDBへの登録機能は持たない単体の試算画面。",
     "各金額は円未満の端数を切り捨てずDecimalの計算結果をそのまま返す概算値。",
   ];
