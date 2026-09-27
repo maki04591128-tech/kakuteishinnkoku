@@ -20,6 +20,8 @@ interface ContractRow {
   lumpSumAmount: string;
   surplusDistribution: string;
   paymentMonthsInYear: string;
+  originalRecipientDiffers: boolean;
+  originalRecipientTotalScheduledPayment: string;
 }
 
 function newContractRow(key: string): ContractRow {
@@ -35,6 +37,8 @@ function newContractRow(key: string): ContractRow {
     lumpSumAmount: "0",
     surplusDistribution: "0",
     paymentMonthsInYear: "12",
+    originalRecipientDiffers: false,
+    originalRecipientTotalScheduledPayment: "0",
   };
 }
 
@@ -57,6 +61,9 @@ export function InheritedAnnuityIncomeForm() {
           lumpSumAmountJpy: row.lumpSumAmount || 0,
           surplusDistributionJpy: row.surplusDistribution || 0,
           paymentMonthsInYear: Number(row.paymentMonthsInYear || 12),
+          originalRecipientTotalScheduledPaymentJpy: row.originalRecipientDiffers
+            ? row.originalRecipientTotalScheduledPayment || 0
+            : undefined,
         })),
       );
     } catch {
@@ -254,6 +261,49 @@ export function InheritedAnnuityIncomeForm() {
                 className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
               />
             </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-3">
+              <span className="flex items-center gap-2 text-neutral-500">
+                <input
+                  type="checkbox"
+                  checked={row.originalRecipientDiffers}
+                  onChange={(e) =>
+                    setContracts((prev) =>
+                      prev.map((r) =>
+                        r.key === row.key
+                          ? { ...r, originalRecipientDiffers: e.target.checked }
+                          : r,
+                      ),
+                    )
+                  }
+                />
+                当初年金受取人(支払開始日に最初にその年金の支払を受けていた者)が自分以外である
+                (二次相続等)
+              </span>
+            </label>
+            {row.originalRecipientDiffers && (
+              <label className="flex flex-col gap-1 text-sm sm:col-span-3">
+                <span className="text-neutral-500">
+                  当初年金受取人自身に係る支払総額(通常は契約全体の当初の支払総額。必要経費の
+                  割合の計算にのみ用いる)
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={row.originalRecipientTotalScheduledPayment}
+                  onChange={(e) =>
+                    setContracts((prev) =>
+                      prev.map((r) =>
+                        r.key === row.key
+                          ? { ...r, originalRecipientTotalScheduledPayment: e.target.value }
+                          : r,
+                      ),
+                    )
+                  }
+                  className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+                />
+              </label>
+            )}
             <button
               type="button"
               onClick={() => setContracts((prev) => prev.filter((r) => r.key !== row.key))}
@@ -320,7 +370,12 @@ export function InheritedAnnuityIncomeForm() {
                       <td className="py-2 pr-4">{row.paymentMonthsInYear}か月</td>
                       <td className="py-2 pr-4">{yen(row.taxablePortionJpy)}</td>
                       <td className="py-2 pr-4">{yen(row.nonTaxablePortionJpy)}</td>
-                      <td className="py-2 pr-4">{yen(row.necessaryExpenseJpy)}</td>
+                      <td className="py-2 pr-4">
+                        {yen(row.necessaryExpenseJpy)}
+                        {row.usesOriginalRecipientRatio && (
+                          <span className="ml-1 text-xs text-neutral-400">(当初受取人基準)</span>
+                        )}
+                      </td>
                       <td className="py-2 pr-4">{yen(row.miscIncomeJpy)}</td>
                     </tr>
                   ))}

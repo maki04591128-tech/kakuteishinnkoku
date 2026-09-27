@@ -108,6 +108,33 @@ import { Decimal } from "decimal.js";
  * 支払が年の途中で終わる場合)等、実際にその年に支払を受けた月数が12か月に満たないケースに
  * 対応できるようにした。
  *
+ * 当初年金受取人と現在の年金受取人が異なる場合(二次相続等)の必要経費計算への対応(機能150)。
+ * e-Gov(法令API)で施行令185条の条文本文を直接取得して確認したところ、次の2点が判明した。
+ *
+ * 1. 1項1号が定義する「支払開始日」(2項でも同じ定義を用いる)は、「その日において年金の
+ *    支払を受ける者が当該居住者以外の者である場合には、当該居住者が最初に年金の支払を受ける
+ *    日」と定義されている。すなわち、残存期間年数・経過年数・支払総額(「当該居住者が支払を
+ *    受ける金額」と定義される)はいずれも、現在その年金の支払を受けている居住者(本人)を
+ *    基準に数え直した値であり、二次相続等で現在の受取人が途中から支払を受け始めた場合でも、
+ *    既存の入力欄(`totalScheduledPaymentJpy`・`remainingYearsAtAcquisition`・
+ *    `paymentYearNumber`)に本人基準の値をそのまま入力すれば1号から6号までの総収入金額の
+ *    計算(課税部分・非課税部分の振り分け)は変更なく成立する。
+ * 2. 一方、必要経費の計算(1項8号・9号。2項で準用)は例外で、9号が「当該当初年金受取人に
+ *    係る当該年金の支払開始の日における第百八十三条第一項第二号又は前号に規定する割合」を
+ *    使うと定めている。すなわち、当初年金受取人(支払開始日に最初にその年金の支払を受けて
+ *    いた者)と現在の受取人が異なる場合、必要経費の割合は現在の受取人本人の支払総額
+ *    (二次相続以後の残存分のみで、上記1.のとおり本人基準に縮小された金額)ではなく、
+ *    当初年金受取人自身の支払総額(通常は契約全体の当初の支払総額)を分母として計算する
+ *    必要がある(現在の受取人本人の縮小された支払総額を分母にすると必要経費の割合を
+ *    過大に見積もってしまうため)。保険料又は掛金の総額(8号ロ)自体は契約単位で定まる値
+ *    であり受取人に応じて変わらないため、既存の`totalPremiumsPaidJpy`をそのまま使える。
+ *
+ * これを受け、当初年金受取人と現在の受取人が異なる場合に限り、当初年金受取人自身の支払
+ * 総額を`originalRecipientTotalScheduledPaymentJpy`として別途入力できるようにし、必要経費の
+ * 割合(および一時金がある場合の1項10号の按分)の分母にのみこれを用いる(省略時は
+ * `totalScheduledPaymentJpy`と同じ値とみなし、従来どおり当初受取人=現在の受取人の
+ * ケースとして計算する)。
+ *
  * **対象外とした範囲(今後の課題):**
  * - 旧相続税法対象年金(年金受給権につき、平成22年度税制改正前の相続税法24条の評価方法の
  *   適用があるもの。施行令185条1項)。残存期間年数の長さに応じてさらに複雑な算式(40%・
@@ -121,9 +148,11 @@ import { Decimal } from "decimal.js";
  *   年金の支払開始日時点でどの版が適用されるかの判定も必要)になるため、一次情報で正確な表の
  *   全体を確認・維持する負担が`privateAnnuityIncome.ts`が対象外としている支払総額見込額の
  *   算出と同様に大きく、今回も対象外とした。
- * - 当初年金受取人(支払開始日に最初にその年金の支払を受けていた者)が現在の年金受取人と
- *   異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項が準用する同条1項9号)。
- *   本ツールは当初年金受取人=現在の年金受取人である一次相続のケースのみを対象とする。
+ * - 当初年金受取人自身がさらに別の者からの承継(三次相続以降)により年金受給権を取得していた
+ *   場合、9号の「当初年金受取人に係る…前号に規定する割合」が入れ子(前号=8号ではなく9号
+ *   自身)になり得るが、この多段の承継は稀なケースと考え対象外とした(この場合も
+ *   `originalRecipientTotalScheduledPaymentJpy`には、真に最初にその年金の支払を受けていた者
+ *   自身の支払総額を入力すればそのまま計算できる)。
  */
 
 export interface InheritedAnnuityContract {
@@ -151,6 +180,14 @@ export interface InheritedAnnuityContract {
    * 「支払年金対応額」(2項でも同じ定義が用いられる)の月割計算に用いる(機能147)。
    */
   paymentMonthsInYear?: number;
+  /**
+   * 当初年金受取人(支払開始日に最初にその年金の支払を受けていた者)が現在の受取人(本人)と
+   * 異なる場合(二次相続等)に、当初年金受取人自身に係る支払総額(通常は契約全体の当初の
+   * 支払総額)を入力する。必要経費の割合(施行令185条2項が準用する同条1項9号)の分母に
+   * のみ用いる(1号〜6号の総収入金額の計算には影響しない)。省略時は`totalScheduledPaymentJpy`
+   * と同じ値とみなし、当初年金受取人=現在の受取人であるケース(同条1項8号)として計算する。
+   */
+  originalRecipientTotalScheduledPaymentJpy?: Decimal.Value;
 }
 
 export interface InheritedAnnuityContractResult {
@@ -183,6 +220,12 @@ export interface InheritedAnnuityContractResult {
   necessaryExpenseRatio: Decimal;
   /** 必要経費に算入する金額 */
   necessaryExpenseJpy: Decimal;
+  /**
+   * 当初年金受取人と現在の受取人が異なるものとして必要経費の割合を計算したかどうか
+   * (`originalRecipientTotalScheduledPaymentJpy`が入力され、かつ`totalScheduledPaymentJpy`と
+   * 異なる値の場合にtrue。施行令185条1項9号の適用有無)
+   */
+  usesOriginalRecipientRatio: boolean;
   /** この契約分の雑所得の金額 */
   miscIncomeJpy: Decimal;
 }
@@ -365,6 +408,13 @@ export function estimateInheritedAnnuityIncome(
     if (totalScheduledPaymentJpy.lessThanOrEqualTo(0)) {
       throw new Error("確定年金の支払総額は正の値である必要があります");
     }
+    const originalRecipientTotalScheduledPaymentJpy =
+      contract.originalRecipientTotalScheduledPaymentJpy !== undefined
+        ? toDecimal(contract.originalRecipientTotalScheduledPaymentJpy)
+        : totalScheduledPaymentJpy;
+    if (originalRecipientTotalScheduledPaymentJpy.lessThanOrEqualTo(0)) {
+      throw new Error("当初年金受取人に係る支払総額は正の値である必要があります");
+    }
     requireInteger(contract.remainingYearsAtAcquisition, "残存期間年数", 2);
     requireInteger(contract.paymentYearNumber, "支払年数", 1);
     requirePaymentMonths(paymentMonthsInYear);
@@ -426,16 +476,23 @@ export function estimateInheritedAnnuityIncome(
     );
     const nonTaxablePortionJpy = annualAnnuityAmountJpy.minus(taxablePortionJpy);
 
+    // 1項8号・9号(2項で準用): 必要経費の割合の分母は、当初年金受取人=現在の受取人であれば
+    // 本人の支払総額(8号)、異なる場合は当初年金受取人自身の支払総額(9号)を用いる(機能150)。
+    const usesOriginalRecipientRatio = !originalRecipientTotalScheduledPaymentJpy.equals(
+      totalScheduledPaymentJpy,
+    );
+    const necessaryExpenseRatioBaseJpy = originalRecipientTotalScheduledPaymentJpy;
+
     // 1項10号(2項で準用): 一時金も支払う契約の場合、保険料総額を支払総額の按分比率で調整する
     const adjustedPremiumTotal = lumpSumAmountJpy.isZero()
       ? totalPremiumsPaidJpy
       : totalPremiumsPaidJpy
-          .times(totalScheduledPaymentJpy)
-          .dividedBy(totalScheduledPaymentJpy.plus(lumpSumAmountJpy));
+          .times(necessaryExpenseRatioBaseJpy)
+          .dividedBy(necessaryExpenseRatioBaseJpy.plus(lumpSumAmountJpy));
 
     // 1項11号(2項で準用): 割合は小数点以下2位まで算出し、3位以下を切り上げる
     const necessaryExpenseRatio = adjustedPremiumTotal
-      .dividedBy(totalScheduledPaymentJpy)
+      .dividedBy(necessaryExpenseRatioBaseJpy)
       .toDecimalPlaces(2, Decimal.ROUND_UP);
     const necessaryExpenseJpy = taxablePortionJpy.times(necessaryExpenseRatio);
     // 2項7号: 剰余金・割戻金は必要経費控除の対象外でそのまま総収入金額に加算する
@@ -454,6 +511,7 @@ export function estimateInheritedAnnuityIncome(
       nonTaxablePortionJpy,
       necessaryExpenseRatio,
       necessaryExpenseJpy,
+      usesOriginalRecipientRatio,
       miscIncomeJpy,
     };
   });
@@ -469,7 +527,7 @@ export function estimateInheritedAnnuityIncome(
     "年金の支払開始日以後に分配を受けた剰余金・割戻金の額は、必要経費の控除対象にはならず、そのまま総収入金額(雑所得の金額)に加算する(施行令185条2項7号)。",
     "年の途中で年金の支払が開始・終了した場合、その年に年金の支払を受けた月数(1〜12。省略時は12か月=満額)を入力すると、施行令185条1項1号イが定義する「支払年金対応額」(2項でも同じ定義を用いる)に基づき、課税部分の年金収入額に月数÷12を乗じて月割計算する(機能147)。2項6号の頭打ちの基準額(一課税単位・一単位当たりの金額の整数倍)にも同じ月割係数を適用する。",
     "終身年金・有期年金・保証期間付終身(有期)年金(施行令185条2項2号〜5号)、平成22年度税制改正前の相続税法24条の評価方法の適用がある「旧相続税法対象年金」(施行令185条1項)は対象外とした(今後の課題)。",
-    "当初年金受取人と現在の年金受取人が異なる場合(二次相続等)の必要経費の特例計算(施行令185条2項が準用する同条1項9号)は対象外とした(今後の課題)。",
+    "当初年金受取人(支払開始日に最初にその年金の支払を受けていた者)が現在の受取人(本人)と異なる場合(二次相続等)は、残存期間年数・経過年数・支払総額(既存の入力欄)は本人が支払を受け始めた日を基準に数え直した値をそのまま入力すればよいが、必要経費の割合(施行令185条1項9号)の分母だけは当初年金受取人自身の支払総額(通常は契約全体の当初の支払総額)を用いる必要があるため、`originalRecipientTotalScheduledPaymentJpy`に入力すること(機能150。省略時は本人の支払総額と同一とみなし、当初受取人=現在の受取人であるケース(1項8号)として計算する)。",
     "この試算結果(totalMiscIncomeJpy)は、他の総合課税の雑所得と合算した後の金額として`/tax-estimate`へ手入力で反映すること。所得区分そのものの計算のためDBへの登録機能は持たない単体の試算画面。",
     "各金額は円未満の端数を切り捨てずDecimalの計算結果をそのまま返す概算値。",
   ];
