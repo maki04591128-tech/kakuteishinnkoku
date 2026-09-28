@@ -435,10 +435,20 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (`getResidentTaxAdjustmentDeductionRecord`のシグネチャ・戻り値は変更していない)。
   1-1〜1-14と全く同じパターンで移行できた。
 
-- [ ] 1-16以降. 残り11ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
+- [x] 1-16. `OpeningBalance`モデル用のリポジトリを導入し`src/lib/openingBalance.ts`を移行
+
+  **実装内容(2026-09-28):** `src/lib/repositories/openingBalanceRepository.ts`に
+  `OpeningBalanceRepository`インターフェース(`findByTaxYearId`)と
+  `createPrismaOpeningBalanceRepository()`を追加した。
+  `src/lib/openingBalance.ts`は`prisma.openingBalance`を直接呼ぶのをやめ、この
+  リポジトリに処理を委譲するように変更した(`loadOpeningBalances`のシグネチャ・
+  戻り値は変更していない。`deriveCarryForwardCandidates`はDBに依存しない
+  純粋関数のため変更不要)。1-1〜1-15と全く同じパターンで移行できた。
+
+- [ ] 1-17以降. 残り10ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
       Server Component 7個含む)を順次移行(進めるごとにこのリストに追記)。
       lib層の残りは`src/lib/investment/foreignTaxCredit.ts`・
-      `src/lib/openingBalance.ts`・`src/lib/reporting.ts`の3ファイル。
+      `src/lib/reporting.ts`の2ファイル。
 
 #### フェーズ2: クライアントサイドDB実装
 
