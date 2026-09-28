@@ -263,7 +263,36 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.employmentIncomeRecord`直接呼び出しは、`actions.ts`自体の移行時に
   別途対応する)。
 
-- [ ] 1-4以降. 残り23ファイル(`src/app/actions.ts`含む)を順次移行
+- [x] 1-4. `BarrierFreeRenovationDeductionRecord`モデル用のリポジトリを導入し
+      `src/lib/barrierFreeRenovationDeduction.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/barrierFreeRenovationDeductionRecordRepository.ts`に
+  `BarrierFreeRenovationDeductionRecordRepository`インターフェース
+  (`findByTaxYearId`)と`createPrismaBarrierFreeRenovationDeductionRecordRepository()`
+  を追加した。`src/lib/barrierFreeRenovationDeduction.ts`は`prisma.taxYear`/
+  `prisma.barrierFreeRenovationDeductionRecord`を直接呼ぶのをやめ、このリポジトリと
+  `1-1`で導入済みの`TaxYearRepository`に処理を委譲するように変更した
+  (`getBarrierFreeRenovationDeductionRecord`のシグネチャ・戻り値は変更していない)。
+
+- [x] 1-5. `EarthquakeRenovationDeductionRecord`モデル用のリポジトリを導入し
+      `src/lib/earthquakeRenovationDeduction.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/earthquakeRenovationDeductionRecordRepository.ts`に
+  `EarthquakeRenovationDeductionRecordRepository`インターフェース
+  (`findByTaxYearId`)と`createPrismaEarthquakeRenovationDeductionRecordRepository()`
+  を追加した。`src/lib/earthquakeRenovationDeduction.ts`は`prisma.taxYear`/
+  `prisma.earthquakeRenovationDeductionRecord`を直接呼ぶのをやめ、このリポジトリと
+  `TaxYearRepository`に処理を委譲するように変更した
+  (`getEarthquakeRenovationDeductionRecord`のシグネチャ・戻り値は変更していない)。
+  なお、残りのファイルの多くも同じ「`taxYear.findUnique({ where: { year } })`→
+  `XxxRecord.findUnique({ where: { taxYearId } })`」パターンのため、以後の移行でも
+  同様の手順で進められる見込み(`energySavingRenovationDeduction.ts`・
+  `multiHouseholdRenovationDeduction.ts`・`durabilityImprovementRenovationDeduction.ts`・
+  `childRearingRenovationDeduction.ts`・`certifiedHousingConstructionCredit.ts`等)。
+
+- [ ] 1-6以降. 残り21ファイル(`src/app/actions.ts`含む)を順次移行
       (進めるごとにこのリストに追記)
 
 #### フェーズ2: クライアントサイドDB実装
