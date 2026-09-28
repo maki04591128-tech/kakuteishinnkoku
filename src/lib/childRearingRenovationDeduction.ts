@@ -1,5 +1,10 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaChildRearingRenovationDeductionRecordRepository } from "./repositories/childRearingRenovationDeductionRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const childRearingRenovationDeductionRecordRepository =
+  createPrismaChildRearingRenovationDeductionRecordRepository();
 
 /**
  * 子育て対応改修工事をした場合の住宅特定改修特別税額控除(税額控除。租税特別措置法
@@ -271,12 +276,12 @@ export interface ChildRearingRenovationDeductionRecordEntry {
 export async function getChildRearingRenovationDeductionRecord(
   year: number,
 ): Promise<ChildRearingRenovationDeductionRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.childRearingRenovationDeductionRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await childRearingRenovationDeductionRecordRepository.findByTaxYearId(
+    taxYear.id,
+  );
   if (!record) return null;
 
   return {

@@ -335,7 +335,23 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   1-7と全く同じパターンで移行できたため、残りの`childRearingRenovationDeduction.ts`・
   `certifiedHousingConstructionCredit.ts`等も同様の手順で進められる見込み。
 
-- [ ] 1-9以降. 残り18ファイル(`src/app/actions.ts`含む)を順次移行
+- [x] 1-9. `ChildRearingRenovationDeductionRecord`モデル用のリポジトリを導入し
+      `src/lib/childRearingRenovationDeduction.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/childRearingRenovationDeductionRecordRepository.ts`に
+  `ChildRearingRenovationDeductionRecordRepository`インターフェース
+  (`findByTaxYearId`)と
+  `createPrismaChildRearingRenovationDeductionRecordRepository()`を追加した。
+  `src/lib/childRearingRenovationDeduction.ts`は`prisma.taxYear`/
+  `prisma.childRearingRenovationDeductionRecord`を直接呼ぶのをやめ、このリポジトリと
+  `TaxYearRepository`に処理を委譲するように変更した
+  (`getChildRearingRenovationDeductionRecord`のシグネチャ・戻り値は変更していない。
+  `src/app/actions.ts`側の`prisma.childRearingRenovationDeductionRecord`直接呼び出しは
+  `actions.ts`自体の移行時に別途対応する)。1-8と全く同じパターンで移行できたため、
+  残りの`certifiedHousingConstructionCredit.ts`等も同様の手順で進められる見込み。
+
+- [ ] 1-10以降. 残り17ファイル(`src/app/actions.ts`含む)を順次移行
       (進めるごとにこのリストに追記)
 
 #### フェーズ2: クライアントサイドDB実装
