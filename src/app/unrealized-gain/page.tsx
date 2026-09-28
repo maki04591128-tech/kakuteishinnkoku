@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { buildYearReport } from "@/lib/reporting";
 import { listTaxYears } from "@/lib/taxYear";
+import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
 import { UnrealizedGainForm, type UnrealizedGainFormHolding } from "./UnrealizedGainForm";
+
+const marketPriceRepository = createPrismaMarketPriceRepository();
 
 export default async function UnrealizedGainPage({
   searchParams,
@@ -16,7 +18,7 @@ export default async function UnrealizedGainPage({
 
   const [report, marketPrices] = await Promise.all([
     buildYearReport(year),
-    prisma.marketPrice.findMany(),
+    marketPriceRepository.findMany(),
   ]);
   const marketPriceBySymbol = new Map(
     marketPrices.map((p) => [p.symbol.toUpperCase(), p.priceJpy.toString()]),
