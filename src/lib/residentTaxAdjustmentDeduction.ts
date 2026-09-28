@@ -1,5 +1,9 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "./repositories/residentTaxAdjustmentDeductionRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const residentTaxAdjustmentDeductionRecordRepository = createPrismaResidentTaxAdjustmentDeductionRecordRepository();
 
 /**
  * 個人住民税の調整控除(地方税法附則3条の3等)を試算する。他の所得控除試算画面と
@@ -399,12 +403,10 @@ export interface ResidentTaxAdjustmentDeductionRecordEntry {
 export async function getResidentTaxAdjustmentDeductionRecord(
   year: number,
 ): Promise<ResidentTaxAdjustmentDeductionRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.residentTaxAdjustmentDeductionRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await residentTaxAdjustmentDeductionRecordRepository.findByTaxYearId(taxYear.id);
   if (!record) return null;
 
   return {
