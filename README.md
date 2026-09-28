@@ -351,7 +351,24 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `actions.ts`自体の移行時に別途対応する)。1-8と全く同じパターンで移行できたため、
   残りの`certifiedHousingConstructionCredit.ts`等も同様の手順で進められる見込み。
 
-- [ ] 1-10以降. 残り17ファイル(`src/app/actions.ts`含む)を順次移行
+- [x] 1-10. `certifiedHousingConstructionCredit.ts`(`CertifiedHousingConstructionCreditRecord`・
+      `CertifiedHousingConstructionCreditCarryforward`の2モデル)を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/certifiedHousingConstructionCreditRecordRepository.ts`と
+  `certifiedHousingConstructionCreditCarryforwardRepository.ts`にそれぞれ
+  `findByTaxYearId`のみを持つリポジトリを追加した。
+  `src/lib/certifiedHousingConstructionCredit.ts`は`prisma.taxYear`・
+  `prisma.certifiedHousingConstructionCreditRecord`・
+  `prisma.certifiedHousingConstructionCreditCarryforward`を直接呼ぶのをやめ、この
+  2つのリポジトリと`TaxYearRepository`に処理を委譲するように変更した
+  (`getCertifiedHousingConstructionCreditRecord`・
+  `getCertifiedHousingConstructionCreditCarryforward`のシグネチャ・戻り値は
+  変更していない。`src/app/actions.ts`側の直接呼び出しは`actions.ts`自体の
+  移行時に別途対応する)。1モデルにつきリポジトリ1つという1〜9の方針を、
+  2モデルを持つファイルにもそのまま適用できた。
+
+- [ ] 1-11以降. 残り16ファイル(`src/app/actions.ts`含む)を順次移行
       (進めるごとにこのリストに追記)
 
 #### フェーズ2: クライアントサイドDB実装
