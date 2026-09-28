@@ -1,4 +1,3 @@
-import { prisma } from "./db";
 import type {
   CryptoOpeningBalance,
   CryptoPortfolioYearResult,
@@ -7,6 +6,9 @@ import type {
   InvestmentOpeningBalance,
   InvestmentPortfolioYearResult,
 } from "./investment/calculator";
+import { createPrismaOpeningBalanceRepository } from "./repositories/openingBalanceRepository";
+
+const openingBalanceRepository = createPrismaOpeningBalanceRepository();
 
 export interface OpeningBalancesByYear {
   crypto: Record<string, CryptoOpeningBalance>;
@@ -23,7 +25,7 @@ export interface OpeningBalancesByYear {
 export async function loadOpeningBalances(
   taxYearId: number,
 ): Promise<OpeningBalancesByYear> {
-  const rows = await prisma.openingBalance.findMany({ where: { taxYearId } });
+  const rows = await openingBalanceRepository.findByTaxYearId(taxYearId);
 
   const crypto: Record<string, CryptoOpeningBalance> = {};
   const investment: Record<string, InvestmentOpeningBalance> = {};
