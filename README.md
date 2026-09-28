@@ -130,9 +130,89 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   デフォルト値(`crypto_cost_method`のAVERAGE)を検証するテストを追加した。
   OPFSベースの永続化(実機Capacitor WebView相当)の検証はフェーズ2で行う。
 
-- [ ] 0-3. 金額(Decimal.js)をクライアントDBに保存・復元する際の型変換方式
+- [x] 0-3. 金額(Decimal.js)をクライアントDBに保存・復元する際の型変換方式
       (文字列化して保存し復元時に`new Decimal()`する等)を確定し、既存の
       Prismaスキーマ(`prisma/schema.prisma`)のDecimal相当カラムとの対応表を作る。
+
+  **検証結果(2026-09-28時点、実際に`npx prisma db push`で作成したSQLite
+  ファイルを一次情報として確認):** SQLiteには`DECIMAL`型の実体が無く、
+  `DECIMAL`と宣言した列は単にNUMERIC型affinityが付くだけで格納形式は
+  挿入値の型に従う。現行の自宅サーバー版(Prisma+SQLite)でDecimal値
+  (`new Decimal("0.123456789012345678")`)を保存して読み戻すと
+  `0.12345678901234568`になり、17桁を超える有効数字が失われることを
+  確認した(`typeof(quantity)`が`real`であることも確認済み)。Prismaの
+  クエリエンジンがDecimal値をJSの倍精度浮動小数点数としてバインドして
+  いるためであり、本アプリが`decimal.js`を採用した理由(金額計算を
+  浮動小数点誤差なく行う)と矛盾する挙動である。
+
+  **決定: クライアントDB側のDecimal相当カラムは全て`TEXT`型とし、
+  保存時は`Decimal.prototype.toFixed()`(引数無し)で指数表記を使わず
+  文字列化し、復元時は`new Decimal(text)`でそのまま復元する。** どちらの
+  変換も情報の欠落が無く、桁数に関わらず元の値と厳密に一致する
+  (自宅サーバー版のPrisma+SQLite実装より精度面で優れる)。NULL許容の
+  Decimal列(下表の「NULL許可」列)は`TEXT`のNULL許容列とし、値が
+  `null`の場合はそのまま`null`を保存・復元する。実装は
+  `src/lib/clientDb/decimalCodec.ts`
+  (`encodeDecimal`/`decodeDecimal`/`encodeNullableDecimal`/
+  `decodeNullableDecimal`)に置き、`decimalCodec.test.ts`で
+  高精度な値の往復一致・指数表記回避・NULL許容版の挙動を検証した。
+
+  **Prismaスキーマ(`prisma/schema.prisma`)のDecimal列との対応表:**
+  (全列とも クライアントDB型は`TEXT`、変換関数は上記
+  `encodeDecimal`/`decodeDecimal`。NULL許可の列は
+  `encodeNullableDecimal`/`decodeNullableDecimal`を使う。)
+
+  | モデル | フィールド | NULL許可 | Prisma側デフォルト |
+  | --- | --- | --- | --- |
+  | OpeningBalance | quantity, costBasisJpy | - | - |
+  | OpeningBalanceByInstitution | quantity | - | - |
+  | InvestmentLossCarryforward | remainingAmountJpy | - | - |
+  | FuturesLossCarryforward | remainingAmountJpy | - | - |
+  | AngelTaxLossCarryforward | remainingAmountJpy | - | - |
+  | ForeignTaxCreditCarryforward | remainingAmountJpy | - | - |
+  | ForeignTaxCreditSpareLimitCarryforward | remainingAmountJpy | - | - |
+  | CasualtyLossCarryforward | remainingAmountJpy | - | - |
+  | HomeSaleLossCarryforward | remainingAmountJpy | - | - |
+  | HomeReplacementLossCarryforward | remainingAmountJpy | - | - |
+  | EmploymentIncomeRecord | grossSalaryJpy | - | - |
+  | IncomeDeduction | incomeTaxAmountJpy, residentTaxAmountJpy | - | - |
+  | MortgageDeductionRecord | nationalTaxCreditJpy | - | - |
+  | MortgageDeductionRecord | residentTaxCreditJpy | - | 0 |
+  | ForeignTaxCreditRecord | totalCreditJpy | - | - |
+  | ForeignTaxCreditRecord | nationalTaxCreditJpy, residentTaxCreditJpy | - | 0 |
+  | ResidentTaxAdjustmentDeductionRecord | adjustmentDeductionJpy | - | - |
+  | DonationTaxCreditRecord | totalTaxCreditJpy | - | - |
+  | DonationTaxCreditRecord | residentTaxBasicDeductionJpy | - | 0 |
+  | DistributionAdjustedForeignTaxCreditRecord | creditJpy | - | - |
+  | EarthquakeRenovationDeductionRecord | creditJpy | - | - |
+  | EnergySavingRenovationDeductionRecord | creditJpy | - | - |
+  | BarrierFreeRenovationDeductionRecord | creditJpy | - | - |
+  | MultiHouseholdRenovationDeductionRecord | creditJpy | - | - |
+  | DurabilityImprovementRenovationDeductionRecord | creditJpy | - | - |
+  | ChildRearingRenovationDeductionRecord | creditJpy | - | - |
+  | CertifiedHousingConstructionCreditRecord | creditJpy | - | - |
+  | CertifiedHousingConstructionCreditCarryforward | remainingAmountJpy | - | - |
+  | NisaLifetimeQuota | openingUsedJpy | - | - |
+  | NisaLifetimeQuota | soldCostBasisJpy | - | 0 |
+  | CryptoTrade | quantity, unitPriceJpy | - | - |
+  | CryptoTrade | marketValueUnitPriceJpy | ✓ | - |
+  | CryptoTrade | feeJpy | - | 0 |
+  | CryptoMarginTrade | realizedPnlJpy | - | - |
+  | CryptoMarginTrade | feeJpy, swapJpy | - | 0 |
+  | FuturesTrade | realizedPnlJpy | - | - |
+  | FuturesTrade | feeJpy, swapJpy | - | 0 |
+  | InvestmentTrade | quantity, unitPriceJpy | - | - |
+  | InvestmentTrade | feeJpy, foreignTaxWithheldJpy, distributionAdjustedForeignTaxJpy | - | 0 |
+  | StockMarginTrade | realizedPnlJpy | - | - |
+  | StockMarginTrade | feeJpy, interestAdjustmentJpy | - | 0 |
+  | CryptoCreditTrade | realizedPnlJpy | - | - |
+  | CryptoCreditTrade | feeJpy, interestAdjustmentJpy | - | 0 |
+  | BrokerAnnualReport | proceedsJpy, acquisitionCostJpy | - | - |
+  | BrokerAnnualReport | dividendJpy | - | 0 |
+  | CashflowEntry | amountJpy | - | - |
+  | MarketPrice | priceJpy | - | - |
+  | AssetBalanceSnapshot | balanceJpy | - | - |
+  | AssetBalanceSnapshot | quantity | ✓ | - |
 
 #### フェーズ1: データアクセス層の抽象化(リポジトリパターン導入)
 
@@ -181,7 +261,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ0-3)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ1-1)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
