@@ -368,7 +368,35 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   移行時に別途対応する)。1モデルにつきリポジトリ1つという1〜9の方針を、
   2モデルを持つファイルにもそのまま適用できた。
 
-- [ ] 1-11以降. 残り16ファイル(`src/app/actions.ts`含む)を順次移行
+- [x] 1-11. `DonationTaxCreditRecord`モデル用のリポジトリを導入し
+      `src/lib/donationTaxCredit.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/donationTaxCreditRecordRepository.ts`に
+  `DonationTaxCreditRecordRepository`インターフェース(`findByTaxYearId`)と
+  `createPrismaDonationTaxCreditRecordRepository()`を追加した。
+  `src/lib/donationTaxCredit.ts`は`prisma.taxYear`/`prisma.donationTaxCreditRecord`を
+  直接呼ぶのをやめ、このリポジトリと`TaxYearRepository`に処理を委譲するように変更した
+  (`getDonationTaxCreditRecord`のシグネチャ・戻り値は変更していない。
+  `src/app/actions.ts`側の直接呼び出しは`actions.ts`自体の移行時に別途対応する)。
+  1〜1-10と全く同じパターンで移行できた。
+
+- [x] 1-12. `IncomeDeduction`モデル用のリポジトリを導入し
+      `src/lib/incomeDeduction.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/incomeDeductionRepository.ts`に
+  `IncomeDeductionRepository`インターフェース(`findByTaxYearId`。1年分で複数件
+  (区分ごと)存在するため戻り値は配列)と`createPrismaIncomeDeductionRepository()`を
+  追加した。`src/lib/incomeDeduction.ts`は`prisma.taxYear`/`prisma.incomeDeduction`を
+  直接呼ぶのをやめ、このリポジトリと`TaxYearRepository`に処理を委譲するように変更した
+  (`getIncomeDeductionEntries`のシグネチャ・戻り値は変更していない。
+  `src/app/actions.ts`側の直接呼び出しは`actions.ts`自体の移行時に別途対応する)。
+  これまでの`findUnique`(1レコード)を使うモデルと異なり`findMany`
+  (1年分で複数レコード)を使うモデルだが、戻り値を配列にするだけで同じ
+  パターンをそのまま適用できた。
+
+- [ ] 1-13以降. 残り14ファイル(`src/app/actions.ts`含む)を順次移行
       (進めるごとにこのリストに追記)
 
 #### フェーズ2: クライアントサイドDB実装
