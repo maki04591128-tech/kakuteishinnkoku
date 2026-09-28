@@ -1,5 +1,13 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaCertifiedHousingConstructionCreditCarryforwardRepository } from "./repositories/certifiedHousingConstructionCreditCarryforwardRepository";
+import { createPrismaCertifiedHousingConstructionCreditRecordRepository } from "./repositories/certifiedHousingConstructionCreditRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const certifiedHousingConstructionCreditRecordRepository =
+  createPrismaCertifiedHousingConstructionCreditRecordRepository();
+const certifiedHousingConstructionCreditCarryforwardRepository =
+  createPrismaCertifiedHousingConstructionCreditCarryforwardRepository();
 
 /**
  * 認定住宅等新築等特別税額控除(投資型減税。租税特別措置法41条の19の4。
@@ -282,12 +290,12 @@ export interface CertifiedHousingConstructionCreditRecordEntry {
 export async function getCertifiedHousingConstructionCreditRecord(
   year: number,
 ): Promise<CertifiedHousingConstructionCreditRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.certifiedHousingConstructionCreditRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await certifiedHousingConstructionCreditRecordRepository.findByTaxYearId(
+    taxYear.id,
+  );
   if (!record) return null;
 
   return {
@@ -314,12 +322,12 @@ export interface CertifiedHousingConstructionCreditCarryforwardEntry {
 export async function getCertifiedHousingConstructionCreditCarryforward(
   year: number,
 ): Promise<CertifiedHousingConstructionCreditCarryforwardEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.certifiedHousingConstructionCreditCarryforward.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await certifiedHousingConstructionCreditCarryforwardRepository.findByTaxYearId(
+    taxYear.id,
+  );
   if (!record) return null;
 
   return {
