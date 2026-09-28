@@ -537,13 +537,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   書き込み(`upsert`/`delete`/`createMany`)は`src/app/actions.ts`側にあり、
   `actions.ts`自体の移行時に別途対応する。
 
-- [ ] 1-24以降. 残り3ファイル(`src/app/actions.ts`・`src/app/import/page.tsx`
-      (Server Component)を含む)を順次移行(進めるごとにこのリストに追記)。
-      lib層の残りは`src/lib/reporting.ts`の1ファイル(複数モデルにまたがる
-      集計処理のため、他のlib層ファイルより複雑。1-16までと異なり
-      `Promise.all`で複数のリポジトリを組み合わせる形になる見込み)。
-      残るpage.tsxは`import`(1モデルではなく多数のモデルを一括読み込みする
-      2856行の大きなページで、優先度を下げてよい)。
+- [x] 1-24. `src/lib/reporting.ts`(`buildYearReport`)を移行
+
+  **実装内容(2026-09-28):** `CryptoTrade`・`CryptoMarginTrade`・
+  `CryptoCreditTrade`・`InvestmentTrade`・`StockMarginTrade`・`FuturesTrade`・
+  `InvestmentLossCarryforward`・`FuturesLossCarryforward`・`NisaLifetimeQuota`・
+  `AssetBalanceSnapshot`の10モデルそれぞれに`findByTaxYearId(taxYearId)`のみを
+  持つリポジトリを`src/lib/repositories/`配下に追加した(1〜9と同じ、
+  1モデル1リポジトリのパターン)。`src/lib/reporting.ts`は`prisma.taxYear`
+  (`findByYear`。`1-1`で導入済みの`TaxYearRepository`を再利用)と上記10モデルへの
+  `prisma.xxx.findMany({ where: { taxYearId } })`直接呼び出しをやめ、対応する
+  リポジトリに処理を委譲するように変更した(`Promise.all`で複数のリポジトリを
+  組み合わせる形。`buildYearReport`のシグネチャ・戻り値・計算ロジックは一切
+  変更していない)。`src/app/actions.ts`・`src/app/import/page.tsx`側にある
+  同モデルへの直接呼び出しは、それぞれの移行時に別途この10リポジトリへ委譲する。
+  これでlib層(`src/lib/*.ts`)のPrisma直接呼び出しは全て移行完了。残るは
+  `src/app/actions.ts`・`src/app/import/page.tsx`の2ファイルのみ。
+
+- [ ] 1-25以降. 残り2ファイル(`src/app/actions.ts`・`src/app/import/page.tsx`
+      (Server Component))を順次移行(進めるごとにこのリストに追記)。
+      `actions.ts`(2229行、ほぼ全機能の登録・削除処理)は
+      1機能(1〜数モデル)ずつ切り出して移行するのが安全(1回のブラッシュアップ
+      で1〜2機能分ずつ進める想定)。`import/page.tsx`(1モデルではなく多数の
+      モデルを一括読み込みする2856行の大きなページ)は優先度を下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 

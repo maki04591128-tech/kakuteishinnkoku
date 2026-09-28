@@ -1,0 +1,21 @@
+/**
+ * フェーズ1(リポジトリパターン導入): `src/lib/reporting.ts`が直接
+ * `prisma.investmentTrade`を呼んでいた処理をこのインターフェース経由に
+ * 置き換える。挙動は既存のPrisma実装と完全に一致させる。
+ * (`src/app/actions.ts`・`src/app/import/page.tsx`側の`prisma.investmentTrade`
+ * 呼び出しはそれぞれの移行時に別途このリポジトリへ委譲する)
+ */
+import type { InvestmentTrade } from "@prisma/client";
+import { prisma } from "../db";
+
+export interface InvestmentTradeRepository {
+  findByTaxYearId(taxYearId: number): Promise<InvestmentTrade[]>;
+}
+
+export function createPrismaInvestmentTradeRepository(): InvestmentTradeRepository {
+  return {
+    async findByTaxYearId(taxYearId: number): Promise<InvestmentTrade[]> {
+      return prisma.investmentTrade.findMany({ where: { taxYearId } });
+    },
+  };
+}
