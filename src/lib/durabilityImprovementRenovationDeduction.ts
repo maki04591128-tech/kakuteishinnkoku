@@ -1,5 +1,10 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaDurabilityImprovementRenovationDeductionRecordRepository } from "./repositories/durabilityImprovementRenovationDeductionRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const durabilityImprovementRenovationDeductionRecordRepository =
+  createPrismaDurabilityImprovementRenovationDeductionRecordRepository();
 
 /**
  * 耐久性向上改修工事をした場合の住宅特定改修特別税額控除(税額控除。租税特別措置法
@@ -321,12 +326,12 @@ export interface DurabilityImprovementRenovationDeductionRecordEntry {
 export async function getDurabilityImprovementRenovationDeductionRecord(
   year: number,
 ): Promise<DurabilityImprovementRenovationDeductionRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.durabilityImprovementRenovationDeductionRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await durabilityImprovementRenovationDeductionRecordRepository.findByTaxYearId(
+    taxYear.id,
+  );
   if (!record) return null;
 
   return {
