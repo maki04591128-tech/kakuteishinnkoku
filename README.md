@@ -410,12 +410,22 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (`getDistributionAdjustedForeignTaxCreditRecord`のシグネチャ・戻り値は変更していない)。
   1〜1-12と全く同じパターンで移行できた。
 
-- [ ] 1-14以降. 残り13ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
+- [x] 1-14. `MortgageDeductionRecord`モデル用のリポジトリを導入し
+      `src/lib/mortgageDeduction.ts`を移行
+
+  **実装内容(2026-09-28):** `src/lib/repositories/mortgageDeductionRecordRepository.ts`に
+  `MortgageDeductionRecordRepository`インターフェース(`findByTaxYearId`)と
+  `createPrismaMortgageDeductionRecordRepository()`を追加した。
+  `src/lib/mortgageDeduction.ts`は`prisma.taxYear`/`prisma.mortgageDeductionRecord`を
+  直接呼ぶのをやめ、このリポジトリと`TaxYearRepository`に処理を委譲するように変更した
+  (`getMortgageDeductionRecord`のシグネチャ・戻り値は変更していない)。
+  1-1〜1-13と全く同じパターンで移行できた。
+
+- [ ] 1-15以降. 残り12ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
       Server Component 7個含む)を順次移行(進めるごとにこのリストに追記)。
-      lib層の残りは`src/lib/mortgageDeduction.ts`・
-      `src/lib/residentTaxAdjustmentDeduction.ts`・
+      lib層の残りは`src/lib/residentTaxAdjustmentDeduction.ts`・
       `src/lib/investment/foreignTaxCredit.ts`・`src/lib/openingBalance.ts`・
-      `src/lib/reporting.ts`の5ファイル。
+      `src/lib/reporting.ts`の4ファイル。
 
 #### フェーズ2: クライアントサイドDB実装
 
