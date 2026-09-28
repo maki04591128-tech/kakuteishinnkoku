@@ -1,5 +1,10 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaMultiHouseholdRenovationDeductionRecordRepository } from "./repositories/multiHouseholdRenovationDeductionRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const multiHouseholdRenovationDeductionRecordRepository =
+  createPrismaMultiHouseholdRenovationDeductionRecordRepository();
 
 /**
  * 多世帯同居改修工事をした場合の住宅特定改修特別税額控除(税額控除。租税特別措置法
@@ -253,12 +258,12 @@ export interface MultiHouseholdRenovationDeductionRecordEntry {
 export async function getMultiHouseholdRenovationDeductionRecord(
   year: number,
 ): Promise<MultiHouseholdRenovationDeductionRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.multiHouseholdRenovationDeductionRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await multiHouseholdRenovationDeductionRecordRepository.findByTaxYearId(
+    taxYear.id,
+  );
   if (!record) return null;
 
   return {

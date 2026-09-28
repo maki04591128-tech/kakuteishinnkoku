@@ -292,7 +292,35 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `multiHouseholdRenovationDeduction.ts`・`durabilityImprovementRenovationDeduction.ts`・
   `childRearingRenovationDeduction.ts`・`certifiedHousingConstructionCredit.ts`等)。
 
-- [ ] 1-6以降. 残り21ファイル(`src/app/actions.ts`含む)を順次移行
+- [x] 1-6. `EnergySavingRenovationDeductionRecord`モデル用のリポジトリを導入し
+      `src/lib/energySavingRenovationDeduction.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/energySavingRenovationDeductionRecordRepository.ts`に
+  `EnergySavingRenovationDeductionRecordRepository`インターフェース
+  (`findByTaxYearId`)と`createPrismaEnergySavingRenovationDeductionRecordRepository()`
+  を追加した。`src/lib/energySavingRenovationDeduction.ts`は`prisma.taxYear`/
+  `prisma.energySavingRenovationDeductionRecord`を直接呼ぶのをやめ、このリポジトリと
+  `TaxYearRepository`に処理を委譲するように変更した
+  (`getEnergySavingRenovationDeductionRecord`のシグネチャ・戻り値は変更していない)。
+
+- [x] 1-7. `MultiHouseholdRenovationDeductionRecord`モデル用のリポジトリを導入し
+      `src/lib/multiHouseholdRenovationDeduction.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/multiHouseholdRenovationDeductionRecordRepository.ts`に
+  `MultiHouseholdRenovationDeductionRecordRepository`インターフェース
+  (`findByTaxYearId`)と
+  `createPrismaMultiHouseholdRenovationDeductionRecordRepository()`を追加した。
+  `src/lib/multiHouseholdRenovationDeduction.ts`は`prisma.taxYear`/
+  `prisma.multiHouseholdRenovationDeductionRecord`を直接呼ぶのをやめ、このリポジトリと
+  `TaxYearRepository`に処理を委譲するように変更した
+  (`getMultiHouseholdRenovationDeductionRecord`のシグネチャ・戻り値は変更していない)。
+  1-5と同様のパターンで移行できたため、残りの`durabilityImprovementRenovationDeduction.ts`・
+  `childRearingRenovationDeduction.ts`・`certifiedHousingConstructionCredit.ts`等も
+  同様の手順で進められる見込み。
+
+- [ ] 1-8以降. 残り19ファイル(`src/app/actions.ts`含む)を順次移行
       (進めるごとにこのリストに追記)
 
 #### フェーズ2: クライアントサイドDB実装
