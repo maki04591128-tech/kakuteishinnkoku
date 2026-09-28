@@ -5,13 +5,14 @@
  * (Android)版ではフェーズ2でクライアントサイドDB実装をこのインターフェースに
  * 合わせて追加する想定。挙動は既存のPrisma実装と完全に一致させる。
  */
-import type { TaxYear } from "@prisma/client";
+import type { CryptoCostMethod, TaxYear } from "@prisma/client";
 import { prisma } from "../db";
 
 export interface TaxYearRepository {
   getOrCreateTaxYear(year: number): Promise<TaxYear>;
   findByYear(year: number): Promise<TaxYear | null>;
   listTaxYears(): Promise<number[]>;
+  updateCryptoCostMethod(id: number, cryptoCostMethod: CryptoCostMethod): Promise<void>;
 }
 
 export function createPrismaTaxYearRepository(): TaxYearRepository {
@@ -34,6 +35,13 @@ export function createPrismaTaxYearRepository(): TaxYearRepository {
         select: { year: true },
       });
       return years.map((y) => y.year);
+    },
+
+    async updateCryptoCostMethod(id: number, cryptoCostMethod: CryptoCostMethod): Promise<void> {
+      await prisma.taxYear.update({
+        where: { id },
+        data: { cryptoCostMethod },
+      });
     },
   };
 }

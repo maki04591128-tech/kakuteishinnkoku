@@ -554,12 +554,24 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   これでlib層(`src/lib/*.ts`)のPrisma直接呼び出しは全て移行完了。残るは
   `src/app/actions.ts`・`src/app/import/page.tsx`の2ファイルのみ。
 
-- [ ] 1-25以降. 残り2ファイル(`src/app/actions.ts`・`src/app/import/page.tsx`
-      (Server Component))を順次移行(進めるごとにこのリストに追記)。
-      `actions.ts`(2229行、ほぼ全機能の登録・削除処理)は
-      1機能(1〜数モデル)ずつ切り出して移行するのが安全(1回のブラッシュアップ
-      で1〜2機能分ずつ進める想定)。`import/page.tsx`(1モデルではなく多数の
-      モデルを一括読み込みする2856行の大きなページ)は優先度を下げてよい。
+- [x] 1-25. `src/app/actions.ts`の`setCryptoCostMethod`(暗号資産の評価方法
+      〈総平均法/移動平均法〉の変更)を移行
+
+  **実装内容(2026-09-28):** `1-1`で導入済みの`TaxYearRepository`に
+  `updateCryptoCostMethod(id, cryptoCostMethod)`メソッドを追加し
+  (`TaxYear.id`は`Int`のため引数型は`number`)、`createPrismaTaxYearRepository()`
+  側にPrismaの`prisma.taxYear.update()`をそのままラップする実装を追加した。
+  `src/app/actions.ts`は`setCryptoCostMethod`内の`prisma.taxYear.update()`
+  直接呼び出しをやめ、このメソッドに委譲するように変更した(関数シグネチャ・
+  挙動は変更していない)。`actions.ts`内の残り約30箇所の`prisma.xxx`直接呼び出し
+  (暗号資産/株式取引の登録・削除、各種繰越控除のupsert等)は未移行。
+
+- [ ] 1-26以降. `src/app/actions.ts`の残り機能(暗号資産/株式取引の登録・削除、
+      各種繰越控除のupsert等、約30箇所の`prisma.xxx`呼び出し)と
+      `src/app/import/page.tsx`(Server Component)を順次移行
+      (進めるごとにこのリストに追記)。1回のブラッシュアップで1〜2機能分
+      ずつ進める想定。`import/page.tsx`(1モデルではなく多数のモデルを
+      一括読み込みする2856行の大きなページ)は優先度を下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 

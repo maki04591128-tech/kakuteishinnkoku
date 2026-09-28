@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Decimal } from "decimal.js";
 import { prisma } from "@/lib/db";
+import { createPrismaTaxYearRepository } from "@/lib/repositories/taxYearRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -58,6 +59,8 @@ function isKnownExchangeCsvPreset(
   return preset in EXCHANGE_LABELS;
 }
 
+const taxYearRepository = createPrismaTaxYearRepository();
+
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const method = requireString(formData, "cryptoCostMethod");
@@ -67,10 +70,7 @@ export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.taxYear.update({
-    where: { id: taxYear.id },
-    data: { cryptoCostMethod: method },
-  });
+  await taxYearRepository.updateCryptoCostMethod(taxYear.id, method);
 
   revalidatePath("/import");
   revalidatePath("/");
