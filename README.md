@@ -460,11 +460,42 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   1-1〜1-16と全く同じパターンで移行できた。純粋関数
   `calculateForeignTaxCredit`はDBに依存しないため変更不要。
 
-- [ ] 1-18以降. 残り9ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
-      Server Component 7個含む)を順次移行(進めるごとにこのリストに追記)。
+- [x] 1-18. `AngelTaxLossCarryforward`モデル用のリポジトリを導入し
+      `src/app/angel-tax-loss-carryforward/page.tsx`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/angelTaxLossCarryforwardRepository.ts`に
+  `AngelTaxLossCarryforwardRepository`インターフェース(`findByTaxYearId`。
+  既存の`orderBy: { originYear: "asc" }`をそのまま実装内に含める)と
+  `createPrismaAngelTaxLossCarryforwardRepository()`を追加した。
+  `src/app/angel-tax-loss-carryforward/page.tsx`は`prisma.angelTaxLossCarryforward`
+  を直接呼ぶのをやめ、このリポジトリに処理を委譲するように変更した(表示内容・
+  並び順は変更していない)。1-1〜1-17まではlib層ファイルの移行だったが、
+  今回初めてページ(Server Component)側の直接prisma呼び出しを移行した。
+  同ページの登録・削除フォームが呼ぶ`setAngelTaxLossCarryforward`/
+  `deleteAngelTaxLossCarryforward`(`src/app/actions.ts`側)は、`actions.ts`
+  自体の移行時に別途対応する(1-17までと同じ方針)。
+
+- [x] 1-19. `CasualtyLossCarryforward`モデル用のリポジトリを導入し
+      `src/app/casualty-loss-deduction/page.tsx`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/casualtyLossCarryforwardRepository.ts`に
+  `CasualtyLossCarryforwardRepository`インターフェース(`findByTaxYearId`)と
+  `createPrismaCasualtyLossCarryforwardRepository()`を追加した。
+  `src/app/casualty-loss-deduction/page.tsx`は`prisma.casualtyLossCarryforward`
+  を直接呼ぶのをやめ、このリポジトリに処理を委譲するように変更した。
+  1-18と全く同じパターンで移行できた。
+
+- [ ] 1-20以降. 残り7ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
+      Server Component 5個含む)を順次移行(進めるごとにこのリストに追記)。
       lib層の残りは`src/lib/reporting.ts`の1ファイル(複数モデルにまたがる
       集計処理のため、他のlib層ファイルより複雑。1-16までと異なり
       `Promise.all`で複数のリポジトリを組み合わせる形になる見込み)。
+      残るpage.tsxは`foreign-tax-credit`(2モデル)・
+      `home-replacement-loss-deduction`・`home-sale-loss-deduction`・
+      `unrealized-gain`・`import`(1モデルではなく多数のモデルを一括読み込みする
+      2856行の大きなページで、他の4つより優先度を下げてよい)。
 
 #### フェーズ2: クライアントサイドDB実装
 

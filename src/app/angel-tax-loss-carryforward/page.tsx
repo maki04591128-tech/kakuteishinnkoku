@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
+import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
 import { deleteAngelTaxLossCarryforward, setAngelTaxLossCarryforward } from "@/app/actions";
 import { AngelTaxLossCarryforwardForm } from "./AngelTaxLossCarryforwardForm";
+
+const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
 
 function yen(value: { toString(): string }): string {
   const n = Number(value.toString());
@@ -20,10 +22,7 @@ export default async function AngelTaxLossCarryforwardPage({
   const year = Number(params.year) || availableYears[0] || currentCalendarYear;
 
   const taxYear = await getOrCreateTaxYear(year);
-  const carryforwards = await prisma.angelTaxLossCarryforward.findMany({
-    where: { taxYearId: taxYear.id },
-    orderBy: { originYear: "asc" },
-  });
+  const carryforwards = await angelTaxLossCarryforwardRepository.findByTaxYearId(taxYear.id);
   const carryforwardEntries = carryforwards.map((c) => ({
     originYear: c.originYear,
     remainingAmountJpy: c.remainingAmountJpy.toString(),
