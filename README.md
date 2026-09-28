@@ -525,13 +525,24 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `src/app/import/page.tsx`側にあり、それぞれの移行時に同じ
   `MarketPriceRepository`にメソッドを追加して対応する。
 
-- [ ] 1-23以降. 残り4ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
-      Server Component 2個含む)を順次移行(進めるごとにこのリストに追記)。
+- [x] 1-23. `ForeignTaxCreditCarryforward`・`ForeignTaxCreditSpareLimitCarryforward`
+      モデル用のリポジトリを導入し`src/app/foreign-tax-credit/page.tsx`を移行
+
+  **実装内容(2026-09-28):** `src/lib/repositories/foreignTaxCreditCarryforwardRepository.ts`
+  ・`src/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository.ts`に
+  それぞれ`findByTaxYearId`を持つリポジトリインターフェースと
+  `createPrisma*Repository()`を追加した。`src/app/foreign-tax-credit/page.tsx`は
+  この2モデルへの`prisma.xxx.findMany()`直接呼び出しをやめ、各リポジトリに
+  処理を委譲するように変更した(1-16までと同じパターン)。この2モデルへの
+  書き込み(`upsert`/`delete`/`createMany`)は`src/app/actions.ts`側にあり、
+  `actions.ts`自体の移行時に別途対応する。
+
+- [ ] 1-24以降. 残り3ファイル(`src/app/actions.ts`・`src/app/import/page.tsx`
+      (Server Component)を含む)を順次移行(進めるごとにこのリストに追記)。
       lib層の残りは`src/lib/reporting.ts`の1ファイル(複数モデルにまたがる
       集計処理のため、他のlib層ファイルより複雑。1-16までと異なり
       `Promise.all`で複数のリポジトリを組み合わせる形になる見込み)。
-      残るpage.tsxは`foreign-tax-credit`(2モデル)・
-      `import`(1モデルではなく多数のモデルを一括読み込みする
+      残るpage.tsxは`import`(1モデルではなく多数のモデルを一括読み込みする
       2856行の大きなページで、優先度を下げてよい)。
 
 #### フェーズ2: クライアントサイドDB実装
