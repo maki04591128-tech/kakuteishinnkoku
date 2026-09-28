@@ -396,8 +396,26 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (1年分で複数レコード)を使うモデルだが、戻り値を配列にするだけで同じ
   パターンをそのまま適用できた。
 
-- [ ] 1-13以降. 残り14ファイル(`src/app/actions.ts`含む)を順次移行
-      (進めるごとにこのリストに追記)
+- [x] 1-13. `DistributionAdjustedForeignTaxCreditRecord`モデル用のリポジトリを導入し
+      `src/lib/investment/distributionAdjustedForeignTaxCredit.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/distributionAdjustedForeignTaxCreditRecordRepository.ts`に
+  `DistributionAdjustedForeignTaxCreditRecordRepository`インターフェース
+  (`findByTaxYearId`)と
+  `createPrismaDistributionAdjustedForeignTaxCreditRecordRepository()`を追加した。
+  `src/lib/investment/distributionAdjustedForeignTaxCredit.ts`は`prisma.taxYear`/
+  `prisma.distributionAdjustedForeignTaxCreditRecord`を直接呼ぶのをやめ、このリポジトリと
+  `TaxYearRepository`に処理を委譲するように変更した
+  (`getDistributionAdjustedForeignTaxCreditRecord`のシグネチャ・戻り値は変更していない)。
+  1〜1-12と全く同じパターンで移行できた。
+
+- [ ] 1-14以降. 残り13ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
+      Server Component 7個含む)を順次移行(進めるごとにこのリストに追記)。
+      lib層の残りは`src/lib/mortgageDeduction.ts`・
+      `src/lib/residentTaxAdjustmentDeduction.ts`・
+      `src/lib/investment/foreignTaxCredit.ts`・`src/lib/openingBalance.ts`・
+      `src/lib/reporting.ts`の5ファイル。
 
 #### フェーズ2: クライアントサイドDB実装
 
