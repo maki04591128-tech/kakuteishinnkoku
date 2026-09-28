@@ -1,5 +1,9 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaIncomeDeductionRepository } from "./repositories/incomeDeductionRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const incomeDeductionRepository = createPrismaIncomeDeductionRepository();
 
 /**
  * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
@@ -175,12 +179,10 @@ export function summarizeIncomeDeductions(
  * まだ`TaxYear`が作成されていない年は登録が存在しないため空配列を返す。
  */
 export async function getIncomeDeductionEntries(year: number): Promise<IncomeDeductionEntry[]> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return [];
 
-  const records = await prisma.incomeDeduction.findMany({
-    where: { taxYearId: taxYear.id },
-  });
+  const records = await incomeDeductionRepository.findByTaxYearId(taxYear.id);
 
   return records.map((record) => ({
     type: record.type as IncomeDeductionType,

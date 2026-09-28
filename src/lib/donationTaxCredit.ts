@@ -1,6 +1,10 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
 import { RECONSTRUCTION_SURTAX_RATE } from "./incomeTax";
+import { createPrismaDonationTaxCreditRecordRepository } from "./repositories/donationTaxCreditRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const donationTaxCreditRecordRepository = createPrismaDonationTaxCreditRecordRepository();
 
 /**
  * 政党等・認定NPO法人等・公益社団法人等寄附金特別控除(税額控除)の試算
@@ -351,12 +355,10 @@ export interface DonationTaxCreditRecordEntry {
 export async function getDonationTaxCreditRecord(
   year: number,
 ): Promise<DonationTaxCreditRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.donationTaxCreditRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await donationTaxCreditRecordRepository.findByTaxYearId(taxYear.id);
   if (!record) return null;
 
   return {
