@@ -1,17 +1,11 @@
-import { prisma } from "./db";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
 
 export async function getOrCreateTaxYear(year: number) {
-  return prisma.taxYear.upsert({
-    where: { year },
-    create: { year },
-    update: {},
-  });
+  return taxYearRepository.getOrCreateTaxYear(year);
 }
 
 export async function listTaxYears(): Promise<number[]> {
-  const years = await prisma.taxYear.findMany({
-    orderBy: { year: "desc" },
-    select: { year: true },
-  });
-  return years.map((y) => y.year);
+  return taxYearRepository.listTaxYears();
 }

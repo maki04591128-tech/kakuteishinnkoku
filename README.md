@@ -223,7 +223,18 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
 「現状分析」の26ファイル一覧を参照し、完了したものからこのチェックリストに
 追記する)。
 
-- [ ] 1-1. `TaxYear`モデル用のリポジトリを導入し`src/lib/taxYear.ts`を移行
+- [x] 1-1. `TaxYear`モデル用のリポジトリを導入し`src/lib/taxYear.ts`を移行
+
+  **実装内容(2026-09-28):** `src/lib/repositories/taxYearRepository.ts`に
+  `TaxYearRepository`インターフェース(`getOrCreateTaxYear`/`listTaxYears`)と、
+  既存のPrisma実装をそのままラップする`createPrismaTaxYearRepository()`を
+  追加した。`src/lib/taxYear.ts`は`prisma.taxYear`を直接呼ぶのをやめ、この
+  リポジトリのインスタンスに処理を委譲するだけの薄いラッパーに変更した
+  (関数シグネチャ・戻り値・呼び出し元(`src/app/actions.ts`等26ファイル)は
+  一切変更していない)。スタンドアロン(Android)版ではフェーズ2で
+  `TaxYearRepository`を満たすクライアントサイドDB実装を追加し、
+  `src/lib/taxYear.ts`側で実装を差し替えられるようにする想定。
+
 - [ ] 1-2以降. 残り25ファイルを順次移行(進めるごとにこのリストに追記)
 
 #### フェーズ2: クライアントサイドDB実装
