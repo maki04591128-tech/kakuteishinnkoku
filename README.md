@@ -235,7 +235,36 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `TaxYearRepository`を満たすクライアントサイドDB実装を追加し、
   `src/lib/taxYear.ts`側で実装を差し替えられるようにする想定。
 
-- [ ] 1-2以降. 残り25ファイルを順次移行(進めるごとにこのリストに追記)
+- [x] 1-2. `LoginAttempt`モデル用のリポジトリを導入し`src/lib/auth/loginRateLimit.ts`を移行
+
+  **実装内容(2026-09-28):** `src/lib/repositories/loginAttemptRepository.ts`に
+  `LoginAttemptRepository`インターフェース
+  (`findRecentAttemptTimestamps`/`createAttempt`/`deleteOlderThan`/
+  `deleteByIpAddress`)と`createPrismaLoginAttemptRepository()`を追加した。
+  `src/lib/auth/loginRateLimit.ts`は`prisma.loginAttempt`を直接呼ぶのをやめ、
+  このリポジトリに処理を委譲するように変更した(ロック判定の純粋関数
+  `evaluateLoginRateLimit`・公開関数のシグネチャは変更していない)。
+
+- [x] 1-3. `EmploymentIncomeRecord`モデル用のリポジトリを導入し
+      `src/lib/employmentIncome.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/employmentIncomeRecordRepository.ts`に
+  `EmploymentIncomeRecordRepository`インターフェース(`findByTaxYearId`)と
+  `createPrismaEmploymentIncomeRecordRepository()`を追加した。また、
+  この移行で`prisma.taxYear.findUnique({ where: { year } })`という
+  「年からTaxYearレコードを取得する(無ければ作らない)」パターンが
+  `1-1`で導入した`TaxYearRepository`に無かったため、`findByYear`メソッドを
+  追加した(残り23ファイルの多くが同じパターンを使っており、以後の移行でも
+  この`findByYear`を再利用する想定)。`src/lib/employmentIncome.ts`は
+  `prisma.taxYear`/`prisma.employmentIncomeRecord`を直接呼ぶのをやめ、
+  両リポジトリに処理を委譲するように変更した(`getEmploymentIncomeRecord`の
+  シグネチャ・戻り値は変更していない。`src/app/actions.ts`側の
+  `prisma.employmentIncomeRecord`直接呼び出しは、`actions.ts`自体の移行時に
+  別途対応する)。
+
+- [ ] 1-4以降. 残り23ファイル(`src/app/actions.ts`含む)を順次移行
+      (進めるごとにこのリストに追記)
 
 #### フェーズ2: クライアントサイドDB実装
 

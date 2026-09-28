@@ -1,6 +1,10 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaEmploymentIncomeRecordRepository } from "./repositories/employmentIncomeRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
 import { employmentIncomeDeductionJpy } from "./specificExpenseDeduction";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const employmentIncomeRecordRepository = createPrismaEmploymentIncomeRecordRepository();
 
 /**
  * 給与所得の試算(`/employment-income`)。給与収入金額(源泉徴収票の「支払金額」)から、
@@ -76,12 +80,10 @@ export interface EmploymentIncomeRecordEntry {
 export async function getEmploymentIncomeRecord(
   year: number,
 ): Promise<EmploymentIncomeRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.employmentIncomeRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await employmentIncomeRecordRepository.findByTaxYearId(taxYear.id);
   if (!record) return null;
 
   const grossSalaryJpy = new Decimal(record.grossSalaryJpy.toString());

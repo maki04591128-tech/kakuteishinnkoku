@@ -10,6 +10,7 @@ import { prisma } from "../db";
 
 export interface TaxYearRepository {
   getOrCreateTaxYear(year: number): Promise<TaxYear>;
+  findByYear(year: number): Promise<TaxYear | null>;
   listTaxYears(): Promise<number[]>;
 }
 
@@ -21,6 +22,10 @@ export function createPrismaTaxYearRepository(): TaxYearRepository {
         create: { year },
         update: {},
       });
+    },
+
+    async findByYear(year: number): Promise<TaxYear | null> {
+      return prisma.taxYear.findUnique({ where: { year } });
     },
 
     async listTaxYears(): Promise<number[]> {
