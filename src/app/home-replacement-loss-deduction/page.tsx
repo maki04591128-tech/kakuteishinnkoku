@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
 import { findIncomeDeductionEntry, getIncomeDeductionEntries } from "@/lib/incomeDeduction";
+import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
 import { HomeReplacementLossDeductionForm } from "./HomeReplacementLossDeductionForm";
+
+const homeReplacementLossCarryforwardRepository =
+  createPrismaHomeReplacementLossCarryforwardRepository();
 
 export default async function HomeReplacementLossDeductionPage({
   searchParams,
@@ -24,10 +27,7 @@ export default async function HomeReplacementLossDeductionPage({
     : null;
 
   const taxYear = await getOrCreateTaxYear(year);
-  const carryforwards = await prisma.homeReplacementLossCarryforward.findMany({
-    where: { taxYearId: taxYear.id },
-    orderBy: { originYear: "asc" },
-  });
+  const carryforwards = await homeReplacementLossCarryforwardRepository.findByTaxYearId(taxYear.id);
   const carryforwardEntries = carryforwards.map((c) => ({
     originYear: c.originYear,
     remainingAmountJpy: c.remainingAmountJpy.toString(),
