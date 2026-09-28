@@ -1,5 +1,10 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaEnergySavingRenovationDeductionRecordRepository } from "./repositories/energySavingRenovationDeductionRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const energySavingRenovationDeductionRecordRepository =
+  createPrismaEnergySavingRenovationDeductionRecordRepository();
 
 /**
  * 省エネ改修工事をした場合の住宅特定改修特別税額控除(税額控除。租税特別措置法
@@ -237,12 +242,12 @@ export interface EnergySavingRenovationDeductionRecordEntry {
 export async function getEnergySavingRenovationDeductionRecord(
   year: number,
 ): Promise<EnergySavingRenovationDeductionRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.energySavingRenovationDeductionRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await energySavingRenovationDeductionRecordRepository.findByTaxYearId(
+    taxYear.id,
+  );
   if (!record) return null;
 
   return {
