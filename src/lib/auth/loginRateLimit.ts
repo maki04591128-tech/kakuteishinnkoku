@@ -1,4 +1,6 @@
-import { prisma } from "@/lib/db";
+import { createPrismaLoginAttemptRepository } from "@/lib/repositories/loginAttemptRepository";
+
+const loginAttemptRepository = createPrismaLoginAttemptRepository();
 
 /// この回数分の失敗が直近のウィンドウ内で発生したらロックアウトする
 export const LOGIN_MAX_ATTEMPTS = 5;
@@ -35,24 +37,24 @@ export function evaluateLoginRateLimit(
 
 export async function checkLoginRateLimit(ipAddress: string): Promise<LoginRateLimitStatus> {
   const now = Date.now();
-  const attempts = await prisma.loginAttempt.findMany({
-    where: { ipAddress, createdAt: { gt: new Date(now - LOGIN_WINDOW_MS) } },
-    select: { createdAt: true },
-  });
+  const timestamps = await loginAttemptRepository.findRecentAttemptTimestamps(
+    ipAddress,
+    new Date(now - LOGIN_WINDOW_MS),
+  );
   return evaluateLoginRateLimit(
-    attempts.map((a) => a.createdAt.getTime()),
+    timestamps.map((t) => t.getTime()),
     now,
   );
 }
 
 export async function recordFailedLoginAttempt(ipAddress: string): Promise<void> {
-  await prisma.loginAttempt.create({ data: { ipAddress } });
+  await loginAttemptRepository.createAttempt(ipAddress);
   // ロック判定に不要になった古いレコードは都度削除し、テーブルの肥大化を防ぐ。
-  await prisma.loginAttempt.deleteMany({
-    where: { createdAt: { lt: new Date(Date.now() - LOGIN_WINDOW_MS - LOGIN_LOCKOUT_MS) } },
-  });
+  await loginAttemptRepository.deleteOlderThan(
+    new Date(Date.now() - LOGIN_WINDOW_MS - LOGIN_LOCKOUT_MS),
+  );
 }
 
 export async function clearLoginAttempts(ipAddress: string): Promise<void> {
-  await prisma.loginAttempt.deleteMany({ where: { ipAddress } });
+  await loginAttemptRepository.deleteByIpAddress(ipAddress);
 }
