@@ -1,9 +1,14 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { buildYearReport } from "@/lib/reporting";
+import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
+import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
 import { ForeignTaxCreditForm } from "./ForeignTaxCreditForm";
+
+const foreignTaxCreditCarryforwardRepository = createPrismaForeignTaxCreditCarryforwardRepository();
+const foreignTaxCreditSpareLimitCarryforwardRepository =
+  createPrismaForeignTaxCreditSpareLimitCarryforwardRepository();
 
 export default async function ForeignTaxCreditPage({
   searchParams,
@@ -22,14 +27,8 @@ export default async function ForeignTaxCreditPage({
 
   const taxYear = await getOrCreateTaxYear(year);
   const [carryforwards, spareLimitCarryforwards, report, registeredRecord] = await Promise.all([
-    prisma.foreignTaxCreditCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
-    prisma.foreignTaxCreditSpareLimitCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
+    foreignTaxCreditCarryforwardRepository.findByTaxYearId(taxYear.id),
+    foreignTaxCreditSpareLimitCarryforwardRepository.findByTaxYearId(taxYear.id),
     buildYearReport(year),
     getForeignTaxCreditRecord(year),
   ]);
