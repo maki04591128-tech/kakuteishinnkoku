@@ -87,12 +87,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
 
 ### フェーズ構成(1回のブラッシュアップで1ステップずつ進める)
 
-#### フェーズ0: 技術検証(PoC)— 未着手・次にやること
+#### フェーズ0: 技術検証(PoC)
 
-- [ ] 0-1. クライアントサイドSQLite技術(sql.js / wa-sqlite等)の比較検討。
+- [x] 0-1. クライアントサイドSQLite技術(sql.js / wa-sqlite等)の比較検討。
       バンドルサイズ・WASM対応・永続化方式(OPFS/IndexedDB)・Next.jsの
       静的書き出し(`output: "export"`)およびCapacitorのWebView上での動作実績を、
       各ライブラリの公式README・ドキュメントを一次情報として確認しREADMEに記録する。
+
+  **比較結果(2026-09-28時点、各リポジトリの公式READMEを一次情報として確認):**
+
+  | 項目 | sql.js | wa-sqlite |
+  | --- | --- | --- |
+  | WASM対応 | 対応(デフォルト)。旧ブラウザ向けにasm.js版も提供 | 対応。ES6 modules + WASM。同期/非同期の2ビルドを提供 |
+  | 永続化方式 | **無し。仮想DBファイルはメモリ上のみ**で、公式READMEに「変更は永続化されない」と明記。DB全体をUint8Arrayにエクスポートし、呼び出し側でIndexedDB等に保存・復元する実装が別途必要 | **VFS(仮想ファイルシステム)としてOPFSベース(`AccessHandlePoolVFS`等複数種)・IndexedDBベース(`IDBBatchAtomicVFS`等)を標準提供**。SQLite本体からページ単位でストレージに読み書きでき、DB全体の都度シリアライズが不要 |
+  | バンドルサイズ | 明確な記載なし(WASMが小さく高速なコード生成に資するとのみ言及) | 明確な記載なし。ビルド成果物は`dist/`にVFS実装ごとに分割されており、必要なVFSのみ読み込み可能 |
+  | Next.js `output: "export"`実績 | READMEに直接の言及なし(静的アセットとしてWASMを配置するだけの一般的なブラウザ向けライブラリのため技術的な阻害要因は無い) | 同上 |
+  | Capacitor(Android WebView)実績 | READMEに直接の言及なし | 同上。ただしOPFS自体はMDN(Baseline: Widely available、2023年3月以降主要ブラウザで対応)が一次情報として確認でき、Capacitor AndroidのWebView(Chromiumベース)でも利用可能と判断できる。`createSyncAccessHandle()`はWeb Workerコンテキスト限定という制約がある(メインスレッド不可) |
+
+  **決定: `wa-sqlite`を採用する。** 理由は、`sql.js`がメモリ内DBのみでアプリ側が
+  変更のたびにDB全体をシリアライズしてIndexedDB等に保存し直す実装を要するのに対し、
+  `wa-sqlite`はOPFS/IndexedDBのVFS実装をSQLite本体に直結できるため、確定申告データ
+  (複数年・多数取引の永続データ)を扱う本アプリでは実装の堅牢性・保存効率の面で有利
+  なため。永続化方式はOPFS版VFS(`AccessHandlePoolVFS`)を第一候補とし、フェーズ2の
+  PoCで実際にCapacitor WebView相当の環境(Chromium)で動作確認する。
+  `createSyncAccessHandle()`はWorker限定のため、クライアントDBアクセスは
+  Web Worker経由に設計する(フェーズ2で詳細化)。
+
 - [ ] 0-2. 選定した技術で最小のPoC(1テーブル程度のCRUD)を
       `src/lib/clientDb/`配下に実装し、`npx vitest run`で動作するテストを書く。
       ブラウザAPI(OPFS等)に依存する部分はモック化するか、Node環境でも動く
@@ -148,7 +168,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ0-1)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ0-2)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
