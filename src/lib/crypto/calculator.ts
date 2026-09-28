@@ -438,6 +438,14 @@ export interface CryptoPortfolioYearResult {
   bySymbol: CryptoSymbolYearResult[];
   /** 全銘柄合計の雑所得金額(暗号資産分) */
   totalRealizedGainJpy: Decimal;
+  /**
+   * 全銘柄合計の収入金額(必要経費控除前。proceedsJpy+incomeJpyの合計)。
+   * 所得区分の判定(機能138・`incomeClassification.ts`の`totalRevenueJpy`)で
+   * 300万円基準の判定に用いる「暗号資産取引に係る収入金額」に相当する。証拠金取引
+   * (`marginCalculator.ts`)・信用取引(`creditTrading.ts`)は決済損益(純額)のみを
+   * 保持し総収入金額を持たないため、現物取引(このモジュール)分のみの合計値になる。
+   */
+  totalRevenueJpy: Decimal;
 }
 
 /**
@@ -474,8 +482,12 @@ export function calculateCryptoPortfolioYear(
     (sum, result) => sum.plus(result.realizedGainJpy),
     new Decimal(0),
   );
+  const totalRevenueJpy = bySymbol.reduce(
+    (sum, result) => sum.plus(result.proceedsJpy).plus(result.incomeJpy),
+    new Decimal(0),
+  );
 
-  return { bySymbol, totalRealizedGainJpy };
+  return { bySymbol, totalRealizedGainJpy, totalRevenueJpy };
 }
 
 export function calculateCryptoPortfolioYearMovingAverage(

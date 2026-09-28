@@ -19,9 +19,13 @@ const CATEGORY_BADGE_CLASS: Record<CryptoIncomeCategory, string> = {
   NEEDS_INDIVIDUAL_JUDGMENT: "border-amber-500",
 };
 
-export function CryptoIncomeClassificationForm() {
+export function CryptoIncomeClassificationForm({
+  defaultTotalRevenueJpy = 0,
+}: {
+  defaultTotalRevenueJpy?: number;
+}) {
   const idPrefix = useId();
-  const [totalRevenue, setTotalRevenue] = useState("0");
+  const [totalRevenue, setTotalRevenue] = useState(String(defaultTotalRevenueJpy));
   const [isIncidentalToExistingBusiness, setIsIncidentalToExistingBusiness] = useState(false);
   const [hasBookkeeping, setHasBookkeeping] = useState(false);
   const [profitMotiveRecognized, setProfitMotiveRecognized] = useState(true);
