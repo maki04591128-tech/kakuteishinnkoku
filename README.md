@@ -445,10 +445,26 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   戻り値は変更していない。`deriveCarryForwardCandidates`はDBに依存しない
   純粋関数のため変更不要)。1-1〜1-15と全く同じパターンで移行できた。
 
-- [ ] 1-17以降. 残り10ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
+- [x] 1-17. `ForeignTaxCreditRecord`モデル用のリポジトリを導入し
+      `src/lib/investment/foreignTaxCredit.ts`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/foreignTaxCreditRecordRepository.ts`に
+  `ForeignTaxCreditRecordRepository`インターフェース(`findByTaxYearId`)と
+  `createPrismaForeignTaxCreditRecordRepository()`を追加した。
+  `src/lib/investment/foreignTaxCredit.ts`は`prisma.taxYear`/
+  `prisma.foreignTaxCreditRecord`を直接呼ぶのをやめ、このリポジトリと
+  `TaxYearRepository`に処理を委譲するように変更した
+  (`getForeignTaxCreditRecord`のシグネチャ・戻り値は変更していない。
+  `src/app/actions.ts`側の直接呼び出しは`actions.ts`自体の移行時に別途対応する)。
+  1-1〜1-16と全く同じパターンで移行できた。純粋関数
+  `calculateForeignTaxCredit`はDBに依存しないため変更不要。
+
+- [ ] 1-18以降. 残り9ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
       Server Component 7個含む)を順次移行(進めるごとにこのリストに追記)。
-      lib層の残りは`src/lib/investment/foreignTaxCredit.ts`・
-      `src/lib/reporting.ts`の2ファイル。
+      lib層の残りは`src/lib/reporting.ts`の1ファイル(複数モデルにまたがる
+      集計処理のため、他のlib層ファイルより複雑。1-16までと異なり
+      `Promise.all`で複数のリポジトリを組み合わせる形になる見込み)。
 
 #### フェーズ2: クライアントサイドDB実装
 
