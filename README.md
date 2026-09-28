@@ -113,10 +113,23 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `createSyncAccessHandle()`はWorker限定のため、クライアントDBアクセスは
   Web Worker経由に設計する(フェーズ2で詳細化)。
 
-- [ ] 0-2. 選定した技術で最小のPoC(1テーブル程度のCRUD)を
+- [x] 0-2. 選定した技術で最小のPoC(1テーブル程度のCRUD)を
       `src/lib/clientDb/`配下に実装し、`npx vitest run`で動作するテストを書く。
       ブラウザAPI(OPFS等)に依存する部分はモック化するか、Node環境でも動く
       永続化方式(まずはメモリ内実装でも可)から始めて良い。
+
+  **実装内容(2026-09-28):** `src/lib/clientDb/sqlite.ts`でwa-sqliteを
+  Vitest(Node)環境上でロードするラッパーを実装した。wa-sqliteのWASM本体は
+  ブラウザのfetch前提のローダーになっているため、Node環境では`wasmBinary`
+  オプションに`fs.readFileSync`で読み込んだバイト列を直接渡すことで
+  回避した。永続化はOPFSではなく、wa-sqlite付属の同期式`MemoryVFS`
+  (プロセス内メモリのみ)を使用(0-2の「まずはメモリ内実装でも可」の方針通り)。
+  `src/lib/clientDb/taxYearRepository.ts`で`src/lib/taxYear.ts`
+  (Prisma版)相当の`getOrCreateTaxYear`/`listTaxYears`をSQL文で素朴に実装し、
+  `taxYearRepository.test.ts`で重複登録時の一意性・年の降順取得・
+  デフォルト値(`crypto_cost_method`のAVERAGE)を検証するテストを追加した。
+  OPFSベースの永続化(実機Capacitor WebView相当)の検証はフェーズ2で行う。
+
 - [ ] 0-3. 金額(Decimal.js)をクライアントDBに保存・復元する際の型変換方式
       (文字列化して保存し復元時に`new Decimal()`する等)を確定し、既存の
       Prismaスキーマ(`prisma/schema.prisma`)のDecimal相当カラムとの対応表を作る。
@@ -168,7 +181,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ0-2)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ0-3)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
