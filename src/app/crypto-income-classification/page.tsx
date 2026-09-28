@@ -1,7 +1,21 @@
 import Link from "next/link";
+import { buildYearReport } from "@/lib/reporting";
+import { listTaxYears } from "@/lib/taxYear";
 import { CryptoIncomeClassificationForm } from "./CryptoIncomeClassificationForm";
 
-export default function CryptoIncomeClassificationPage() {
+export default async function CryptoIncomeClassificationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>;
+}) {
+  const params = await searchParams;
+  const availableYears = await listTaxYears();
+  const currentCalendarYear = new Date().getFullYear();
+  const year = Number(params.year) || availableYears[0] || currentCalendarYear;
+
+  const report = await buildYearReport(year);
+  const defaultTotalRevenueJpy = report?.crypto.totalRevenueJpy.toNumber() ?? 0;
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
       <header>
@@ -9,7 +23,7 @@ export default function CryptoIncomeClassificationPage() {
           ← ダッシュボードに戻る
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">
-          暗号資産取引の所得区分(事業所得・雑所得)を判定する
+          暗号資産取引の所得区分(事業所得・雑所得)を判定する({year}年分)
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
           暗号資産取引による利益は原則として雑所得(その他雑所得)に区分されるが、
@@ -18,10 +32,13 @@ export default function CryptoIncomeClassificationPage() {
           帳簿書類の保存の有無に応じて事業所得又は雑所得(業務に係る雑所得)に、既存の
           事業に付随した取引である場合は収入金額を問わず事業所得に区分される。この画面は
           この所得区分の判定のみを行う。
+          {report && report.crypto.totalRevenueJpy.greaterThan(0)
+            ? "収入金額はこの年に登録済みの現物取引(/importの暗号資産の取引明細)から自動集計した金額を初期値として表示している。証拠金・信用取引は決済損益(純額)のみを保持し総収入金額を持たないため合算されない(手入力で加算すること)。"
+            : "収入金額は手入力で試算できる。"}
         </p>
       </header>
 
-      <CryptoIncomeClassificationForm />
+      <CryptoIncomeClassificationForm defaultTotalRevenueJpy={defaultTotalRevenueJpy} />
 
       <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
         本ツールの既存の暗号資産の損益計算(

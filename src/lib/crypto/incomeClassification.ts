@@ -34,10 +34,14 @@ import { Decimal } from "decimal.js";
  * ここでいう収入金額は、暗号資産の雑所得の金額(収入金額-必要経費)ではなく、
  * 売却対価・商品購入時の使用に伴う対価・暗号資産同士の交換における譲渡対価・
  * マイニング等により取得した時点の時価等を合計した総収入金額(必要経費控除前)を
- * 指す。既存の`estimateCryptoYearlyPnl`等が銘柄ごとに計算する`proceedsJpy`
- * (譲渡による収入)・`incomeJpy`(マイニング等の受取時収入)の全銘柄合計に相当する
- * 金額を、本モジュールでは`totalRevenueJpy`としてユーザー自身が集計して入力する
- * 前提とする(既存の損益計算モジュールを自動集計する統合は行わない)。
+ * 指す。既存の`calculateCryptoPortfolioYear`等が銘柄ごとに計算する`proceedsJpy`
+ * (譲渡による収入)・`incomeJpy`(マイニング等の受取時収入)の全銘柄合計
+ * (`CryptoPortfolioYearResult.totalRevenueJpy`)に相当する金額を、本モジュールでは
+ * `totalRevenueJpy`として入力として受け取る。`/crypto-income-classification`
+ * (機能138)の画面では、この現物取引分の合計値を`buildYearReport`経由で自動集計し
+ * 初期値として表示するが(機能155)、証拠金取引(`marginCalculator.ts`)・信用取引
+ * (`creditTrading.ts`)は決済損益(純額)のみを保持し総収入金額を持たないため、
+ * それらの分は自動集計に含まれずユーザーが手入力で加算する前提のままとした。
  */
 
 export type CryptoIncomeCategory =

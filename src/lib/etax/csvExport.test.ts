@@ -387,7 +387,7 @@ describe("buildTaxFilingDraftCsv", () => {
   it("カンマを含む値を正しくクォートする", () => {
     const summary = buildTaxFilingSummary(
       2026,
-      { bySymbol: [], totalRealizedGainJpy: new Decimal(0) },
+      { bySymbol: [], totalRealizedGainJpy: new Decimal(0), totalRevenueJpy: new Decimal(0) },
       {
         bySymbol: [],
         totalRealizedGainJpy: new Decimal(0),

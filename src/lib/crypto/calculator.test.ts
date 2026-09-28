@@ -335,6 +335,10 @@ describe("calculateCryptoPortfolioYear", () => {
     expect(eth.realizedGainJpy.toNumber()).toBe(-100_000);
 
     expect(result.totalRealizedGainJpy.toNumber()).toBe(400_000);
+    // 収入金額(機能138の所得区分判定に用いる)は損益ではなく譲渡対価の合計
+    // (BTC 3,500,000円 + ETH 5×180,000円 = 4,400,000円)。マイニング等の受取が
+    // 無いためincomeJpy分は0円。
+    expect(result.totalRevenueJpy.toNumber()).toBe(4_400_000);
   });
 
   it("当年取引が無くても期首残高がある銘柄は結果に含まれる", () => {
@@ -345,6 +349,24 @@ describe("calculateCryptoPortfolioYear", () => {
     expect(result.bySymbol).toHaveLength(1);
     expect(result.bySymbol[0].closingQuantity.toNumber()).toBe(1);
     expect(result.totalRealizedGainJpy.toNumber()).toBe(0);
+    expect(result.totalRevenueJpy.toNumber()).toBe(0);
+  });
+
+  it("マイニング等の受取(INCOME)は収入金額に含め、譲渡対価と合算する", () => {
+    const result = calculateCryptoPortfolioYear([
+      { symbol: "BTC", type: "INCOME", quantity: 1, unitPriceJpy: 3_000_000 },
+      { symbol: "BTC", type: "SELL", quantity: 1, unitPriceJpy: 3_500_000 },
+    ]);
+
+    expect(result.totalRevenueJpy.toNumber()).toBe(3_000_000 + 3_500_000);
+  });
+
+  it("GIFT_IN(贈与・相続等による取得)は収入金額に含めない", () => {
+    const result = calculateCryptoPortfolioYear([
+      { symbol: "BTC", type: "GIFT_IN", quantity: 1, unitPriceJpy: 3_000_000 },
+    ]);
+
+    expect(result.totalRevenueJpy.toNumber()).toBe(0);
   });
 
   it("method: MOVING_AVERAGE を指定すると全銘柄が移動平均法で計算される", () => {
