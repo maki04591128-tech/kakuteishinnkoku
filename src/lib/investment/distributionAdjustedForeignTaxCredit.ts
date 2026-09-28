@@ -1,5 +1,10 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
+import { createPrismaDistributionAdjustedForeignTaxCreditRecordRepository } from "../repositories/distributionAdjustedForeignTaxCreditRecordRepository";
+import { createPrismaTaxYearRepository } from "../repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const distributionAdjustedForeignTaxCreditRecordRepository =
+  createPrismaDistributionAdjustedForeignTaxCreditRecordRepository();
 
 /**
  * 分配時調整外国税相当額控除(所得税法93条の2)。
@@ -106,12 +111,12 @@ export interface DistributionAdjustedForeignTaxCreditRecordEntry {
 export async function getDistributionAdjustedForeignTaxCreditRecord(
   year: number,
 ): Promise<DistributionAdjustedForeignTaxCreditRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.distributionAdjustedForeignTaxCreditRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await distributionAdjustedForeignTaxCreditRecordRepository.findByTaxYearId(
+    taxYear.id,
+  );
   if (!record) return null;
 
   return {
