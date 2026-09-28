@@ -1,5 +1,9 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaMortgageDeductionRecordRepository } from "./repositories/mortgageDeductionRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const mortgageDeductionRecordRepository = createPrismaMortgageDeductionRecordRepository();
 
 /**
  * 住宅借入金等特別控除(住宅ローン控除)を試算する(租税特別措置法41条)。
@@ -778,12 +782,10 @@ export interface MortgageDeductionRecordEntry {
 export async function getMortgageDeductionRecord(
   year: number,
 ): Promise<MortgageDeductionRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.mortgageDeductionRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await mortgageDeductionRecordRepository.findByTaxYearId(taxYear.id);
   if (!record) return null;
 
   return {
