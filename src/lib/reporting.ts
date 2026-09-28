@@ -1,5 +1,15 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+import { createPrismaCryptoTradeRepository } from "./repositories/cryptoTradeRepository";
+import { createPrismaCryptoMarginTradeRepository } from "./repositories/cryptoMarginTradeRepository";
+import { createPrismaCryptoCreditTradeRepository } from "./repositories/cryptoCreditTradeRepository";
+import { createPrismaInvestmentTradeRepository } from "./repositories/investmentTradeRepository";
+import { createPrismaStockMarginTradeRepository } from "./repositories/stockMarginTradeRepository";
+import { createPrismaFuturesTradeRepository } from "./repositories/futuresTradeRepository";
+import { createPrismaInvestmentLossCarryforwardRepository } from "./repositories/investmentLossCarryforwardRepository";
+import { createPrismaFuturesLossCarryforwardRepository } from "./repositories/futuresLossCarryforwardRepository";
+import { createPrismaNisaLifetimeQuotaRepository } from "./repositories/nisaLifetimeQuotaRepository";
+import { createPrismaAssetBalanceSnapshotRepository } from "./repositories/assetBalanceSnapshotRepository";
 import {
   calculateCryptoPortfolioYearByMethod,
   type CryptoCostMethod,
@@ -44,6 +54,21 @@ import {
   reconcileAssetBalances,
   type AssetBalanceReconciliationResult,
 } from "./moneyforward/assetBalanceReconciliation";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const cryptoTradeRepository = createPrismaCryptoTradeRepository();
+const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();
+const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();
+const investmentTradeRepository = createPrismaInvestmentTradeRepository();
+const stockMarginTradeRepository = createPrismaStockMarginTradeRepository();
+const futuresTradeRepository = createPrismaFuturesTradeRepository();
+const investmentLossCarryforwardRepository =
+  createPrismaInvestmentLossCarryforwardRepository();
+const futuresLossCarryforwardRepository =
+  createPrismaFuturesLossCarryforwardRepository();
+const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
+const assetBalanceSnapshotRepository =
+  createPrismaAssetBalanceSnapshotRepository();
 
 /**
  * 指定した課税年度のDB上の取引をすべて読み出し、計算エンジンに渡して
@@ -97,7 +122,7 @@ export async function buildYearReport(year: number): Promise<{
    */
   assetBalanceReconciliation: AssetBalanceReconciliationResult[];
 } | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) {
     return {
       crypto: calculateCryptoPortfolioYearByMethod("AVERAGE", []),
@@ -130,23 +155,17 @@ export async function buildYearReport(year: number): Promise<{
     nisaLifetimeQuotaEntries,
     assetBalanceSnapshots,
   ] = await Promise.all([
-    prisma.cryptoTrade.findMany({ where: { taxYearId: taxYear.id } }),
-    prisma.cryptoMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
-    prisma.cryptoCreditTrade.findMany({ where: { taxYearId: taxYear.id } }),
-    prisma.investmentTrade.findMany({ where: { taxYearId: taxYear.id } }),
-    prisma.stockMarginTrade.findMany({ where: { taxYearId: taxYear.id } }),
-    prisma.futuresTrade.findMany({ where: { taxYearId: taxYear.id } }),
+    cryptoTradeRepository.findByTaxYearId(taxYear.id),
+    cryptoMarginTradeRepository.findByTaxYearId(taxYear.id),
+    cryptoCreditTradeRepository.findByTaxYearId(taxYear.id),
+    investmentTradeRepository.findByTaxYearId(taxYear.id),
+    stockMarginTradeRepository.findByTaxYearId(taxYear.id),
+    futuresTradeRepository.findByTaxYearId(taxYear.id),
     loadOpeningBalances(taxYear.id),
-    prisma.investmentLossCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-    }),
-    prisma.futuresLossCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-    }),
-    prisma.nisaLifetimeQuota.findMany({
-      where: { taxYearId: taxYear.id },
-    }),
-    prisma.assetBalanceSnapshot.findMany({ where: { taxYearId: taxYear.id } }),
+    investmentLossCarryforwardRepository.findByTaxYearId(taxYear.id),
+    futuresLossCarryforwardRepository.findByTaxYearId(taxYear.id),
+    nisaLifetimeQuotaRepository.findByTaxYearId(taxYear.id),
+    assetBalanceSnapshotRepository.findByTaxYearId(taxYear.id),
   ]);
 
   const crypto = calculateCryptoPortfolioYearByMethod(
