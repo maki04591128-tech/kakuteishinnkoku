@@ -1,5 +1,10 @@
 import { Decimal } from "decimal.js";
-import { prisma } from "./db";
+import { createPrismaEarthquakeRenovationDeductionRecordRepository } from "./repositories/earthquakeRenovationDeductionRecordRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+
+const taxYearRepository = createPrismaTaxYearRepository();
+const earthquakeRenovationDeductionRecordRepository =
+  createPrismaEarthquakeRenovationDeductionRecordRepository();
 
 /**
  * 住宅耐震改修特別控除(税額控除。租税特別措置法41条の19の2)。
@@ -242,12 +247,12 @@ export interface EarthquakeRenovationDeductionRecordEntry {
 export async function getEarthquakeRenovationDeductionRecord(
   year: number,
 ): Promise<EarthquakeRenovationDeductionRecordEntry | null> {
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (!taxYear) return null;
 
-  const record = await prisma.earthquakeRenovationDeductionRecord.findUnique({
-    where: { taxYearId: taxYear.id },
-  });
+  const record = await earthquakeRenovationDeductionRecordRepository.findByTaxYearId(
+    taxYear.id,
+  );
   if (!record) return null;
 
   return {
