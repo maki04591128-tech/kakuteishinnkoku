@@ -487,15 +487,26 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   を直接呼ぶのをやめ、このリポジトリに処理を委譲するように変更した。
   1-18と全く同じパターンで移行できた。
 
-- [ ] 1-20以降. 残り7ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
-      Server Component 5個含む)を順次移行(進めるごとにこのリストに追記)。
+- [x] 1-20. `HomeSaleLossCarryforward`モデル用のリポジトリを導入し
+      `src/app/home-sale-loss-deduction/page.tsx`を移行
+
+  **実装内容(2026-09-28):**
+  `src/lib/repositories/homeSaleLossCarryforwardRepository.ts`に
+  `HomeSaleLossCarryforwardRepository`インターフェース(`findByTaxYearId`)と
+  `createPrismaHomeSaleLossCarryforwardRepository()`を追加した。
+  `src/app/home-sale-loss-deduction/page.tsx`は`prisma.homeSaleLossCarryforward`
+  を直接呼ぶのをやめ、このリポジトリに処理を委譲するように変更した。
+  1-19までと全く同じパターンで移行できた。
+
+- [ ] 1-21以降. 残り6ファイル(`src/app/actions.ts`・`src/app/**/page.tsx`の
+      Server Component 4個含む)を順次移行(進めるごとにこのリストに追記)。
       lib層の残りは`src/lib/reporting.ts`の1ファイル(複数モデルにまたがる
       集計処理のため、他のlib層ファイルより複雑。1-16までと異なり
       `Promise.all`で複数のリポジトリを組み合わせる形になる見込み)。
       残るpage.tsxは`foreign-tax-credit`(2モデル)・
-      `home-replacement-loss-deduction`・`home-sale-loss-deduction`・
+      `home-replacement-loss-deduction`・
       `unrealized-gain`・`import`(1モデルではなく多数のモデルを一括読み込みする
-      2856行の大きなページで、他の4つより優先度を下げてよい)。
+      2856行の大きなページで、他の3つより優先度を下げてよい)。
 
 #### フェーズ2: クライアントサイドDB実装
 
