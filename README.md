@@ -602,13 +602,36 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   直接呼び出しをやめ、このリポジトリに委譲するように変更した
   (関数シグネチャ・挙動は変更していない)。
 
-- [ ] 1-29以降. `src/app/actions.ts`の残り機能(暗号資産信用取引・
-      株式信用取引/先物取引の登録・削除、各種繰越控除のupsert等、
-      約25箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
-      (Server Component)を順次移行(進めるごとにこのリストに追記)。
-      1回のブラッシュアップで1〜2機能分ずつ進める想定。
-      `import/page.tsx`(1モデルではなく多数のモデルを一括読み込みする
-      2856行の大きなページ)は優先度を下げてよい。
+- [x] 1-29. `src/app/actions.ts`の`addCryptoCreditTrade`/`deleteCryptoCreditTrade`
+      (暗号資産信用取引の登録・削除)を移行
+
+  **実装内容(2026-09-29):** `1-24`で導入済みの`CryptoCreditTradeRepository`
+  (`findByTaxYearId`のみ)に`create(data)`/`delete(id)`を追加した
+  (`1-28`の`CryptoMarginTradeRepository`と同じ形。`create`の引数型は
+  `Prisma.CryptoCreditTradeUncheckedCreateInput`)。`src/app/actions.ts`の
+  `addCryptoCreditTrade`/`deleteCryptoCreditTrade`は
+  `prisma.cryptoCreditTrade.create()`/`prisma.cryptoCreditTrade.delete()`
+  直接呼び出しをやめ、このリポジトリに委譲するように変更した
+  (関数シグネチャ・挙動は変更していない)。
+
+- [x] 1-30. `src/app/actions.ts`の`addStockMarginTrade`/`deleteStockMarginTrade`
+      (株式信用取引の登録・削除)を移行
+
+  **実装内容(2026-09-29):** `1-24`で導入済みの`StockMarginTradeRepository`
+  (`findByTaxYearId`のみ)に`create(data)`/`delete(id)`を追加した
+  (`create`の引数型は`Prisma.StockMarginTradeUncheckedCreateInput`)。
+  `src/app/actions.ts`の`addStockMarginTrade`/`deleteStockMarginTrade`は
+  `prisma.stockMarginTrade.create()`/`prisma.stockMarginTrade.delete()`
+  直接呼び出しをやめ、このリポジトリに委譲するように変更した
+  (関数シグネチャ・挙動は変更していない)。
+
+- [ ] 1-31以降. `src/app/actions.ts`の残り機能(先物取引の登録・削除、
+      各種繰越控除のupsert等、約23箇所の`prisma.xxx`呼び出し)と
+      `src/app/import/page.tsx`(Server Component)を順次移行
+      (進めるごとにこのリストに追記)。1回のブラッシュアップで
+      1〜2機能分ずつ進める想定。`import/page.tsx`(1モデルではなく
+      多数のモデルを一括読み込みする2856行の大きなページ)は
+      優先度を下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 
