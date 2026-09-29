@@ -16,6 +16,7 @@ import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/reposito
 import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/openingBalanceRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
+import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -84,6 +85,7 @@ const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
 const openingBalanceRepository = createPrismaOpeningBalanceRepository();
 const openingBalanceByInstitutionRepository =
   createPrismaOpeningBalanceByInstitutionRepository();
+const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -893,12 +895,11 @@ export async function setNisaLifetimeQuota(formData: FormData): Promise<void> {
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.nisaLifetimeQuota.upsert({
-    where: {
-      taxYearId_nisaType: { taxYearId: taxYear.id, nisaType },
-    },
-    create: { taxYearId: taxYear.id, nisaType, openingUsedJpy, soldCostBasisJpy },
-    update: { openingUsedJpy, soldCostBasisJpy },
+  await nisaLifetimeQuotaRepository.upsert({
+    taxYearId: taxYear.id,
+    nisaType,
+    openingUsedJpy,
+    soldCostBasisJpy,
   });
 
   revalidatePath("/import");
@@ -909,7 +910,7 @@ export async function setNisaLifetimeQuota(formData: FormData): Promise<void> {
 export async function deleteNisaLifetimeQuota(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.nisaLifetimeQuota.delete({ where: { id } });
+  await nisaLifetimeQuotaRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=nisaLifetime`);
@@ -929,23 +930,20 @@ export async function carryForwardNisaLifetimeQuota(
     ? deriveNisaLifetimeCarryForwardCandidates(previousReport.nisaLifetimeQuota)
     : [];
 
-  const existing = await prisma.nisaLifetimeQuota.findMany({
-    where: { taxYearId: taxYear.id },
-    select: { nisaType: true },
-  });
+  const existing = await nisaLifetimeQuotaRepository.findByTaxYearId(
+    taxYear.id,
+  );
   const existingTypes = new Set(existing.map((e) => e.nisaType));
 
   const toCreate = candidates.filter((c) => !existingTypes.has(c.nisaType));
 
-  if (toCreate.length > 0) {
-    await prisma.nisaLifetimeQuota.createMany({
-      data: toCreate.map((c) => ({
-        taxYearId: taxYear.id,
-        nisaType: c.nisaType,
-        openingUsedJpy: c.openingUsedJpy,
-      })),
-    });
-  }
+  await nisaLifetimeQuotaRepository.createMany(
+    toCreate.map((c) => ({
+      taxYearId: taxYear.id,
+      nisaType: c.nisaType,
+      openingUsedJpy: c.openingUsedJpy,
+    })),
+  );
 
   revalidatePath("/import");
   revalidatePath("/");
