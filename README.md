@@ -962,15 +962,31 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   変換など、行データの加工ロジック自体は`actions.ts`側に残し、挙動は
   変更していない)。
 
-- [ ] 1-50以降. `src/app/actions.ts`の残り機能(暗号資産信用取引CSV・
-      先物取引CSV・マネーフォワード資産残高CSVの各インポート処理内にある
-      3箇所の`prisma.$transaction`(取込明細の一括登録・`ImportBatch`の
-      作成等)と、インポート削除処理の`prisma.$transaction([...])`
-      (`AssetBalanceSnapshot`一括削除・`ImportBatch`削除)を順次移行)と
-      `src/app/import/page.tsx`(Server Component)を順次移行(進めるごとに
-      このリストに追記)。1回のブラッシュアップで1〜2機能分ずつ進める想定。
-      `import/page.tsx`(1モデルではなく多数のモデルを一括読み込みする
-      2856行の大きなページ)は優先度を下げてよい。
+- [x] 1-50. `src/app/actions.ts`の`importCryptoMarginCsv`
+      (暗号資産信用取引CSVインポート内の`prisma.$transaction`
+      (`ImportBatch`の作成・`CryptoMarginTrade`一括登録))をリポジトリパターン導入
+
+  **実装内容(2026-09-29):** `src/lib/repositories/cryptoMarginTradeRepository.ts`の
+  `CryptoMarginTradeRepository`に`importCsvBatch`メソッド(`ImportBatch`の作成と
+  `CryptoMarginTrade`の一括登録を1つの`prisma.$transaction`内で行う既存の挙動を
+  そのままラップする。`1-49`の`cryptoTradeRepository.importCsvBatch`と同じ設計)を
+  追加した。`src/app/actions.ts`の`importCryptoMarginCsv`は`prisma.$transaction`
+  (`tx.importBatch.create`/`tx.cryptoMarginTrade.createMany`)の直接呼び出しをやめ、
+  このリポジトリに処理を委譲するように変更した(関数シグネチャ・挙動
+  (`sourceType: "crypto_margin_csv"`固定・トランザクションの原子性含む)は
+  変更していない)。残り2箇所の`prisma.$transaction`(先物取引CSV・マネーフォワード
+  資産残高CSVの各インポート)も同じパターンのため、以後の移行でも同様の手順で
+  進められる見込み。
+
+- [ ] 1-51以降. `src/app/actions.ts`の残り機能(先物取引CSV・マネーフォワード
+      資産残高CSVの各インポート処理内にある2箇所の`prisma.$transaction`
+      (取込明細の一括登録・`ImportBatch`の作成等)と、インポート削除処理の
+      `prisma.$transaction([...])`(`AssetBalanceSnapshot`一括削除・
+      `ImportBatch`削除)を順次移行)と`src/app/import/page.tsx`
+      (Server Component)を順次移行(進めるごとにこのリストに追記)。
+      1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
+      (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
+      優先度を下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 
