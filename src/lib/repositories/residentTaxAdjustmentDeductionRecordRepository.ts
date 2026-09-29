@@ -8,6 +8,8 @@ import { prisma } from "../db";
 
 export interface ResidentTaxAdjustmentDeductionRecordRepository {
   findByTaxYearId(taxYearId: number): Promise<ResidentTaxAdjustmentDeductionRecord | null>;
+  upsert(params: { taxYearId: number; adjustmentDeductionJpy: string }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaResidentTaxAdjustmentDeductionRecordRepository(): ResidentTaxAdjustmentDeductionRecordRepository {
@@ -16,6 +18,18 @@ export function createPrismaResidentTaxAdjustmentDeductionRecordRepository(): Re
       return prisma.residentTaxAdjustmentDeductionRecord.findUnique({
         where: { taxYearId },
       });
+    },
+
+    async upsert({ taxYearId, adjustmentDeductionJpy }): Promise<void> {
+      await prisma.residentTaxAdjustmentDeductionRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, adjustmentDeductionJpy },
+        update: { adjustmentDeductionJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.residentTaxAdjustmentDeductionRecord.deleteMany({ where: { taxYearId } });
     },
   };
 }

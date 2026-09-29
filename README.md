@@ -911,12 +911,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   既存の`taxYearRepository.findByYear`に委譲するように変更した
   (関数シグネチャ・挙動は変更していない)。
 
-- [ ] 1-47以降. `src/app/actions.ts`の残り機能
-      (`saveResidentTaxAdjustmentDeductionRecord`/
-      `deleteResidentTaxAdjustmentDeductionRecord`/
-      `saveEmploymentIncomeRecord`/`deleteEmploymentIncomeRecord`等の各種控除
-      レコードのupsert/deleteMany、インポート取込の`prisma.$transaction`処理等、
-      残り約14箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+- [x] 1-47. `src/app/actions.ts`の`saveResidentTaxAdjustmentDeductionRecord`/
+      `deleteResidentTaxAdjustmentDeductionRecord`(住民税の調整控除
+      シミュレーターの当年分試算結果(`ResidentTaxAdjustmentDeductionRecord`)の
+      登録・削除)、`saveEmploymentIncomeRecord`/`deleteEmploymentIncomeRecord`
+      (給与所得の試算(`EmploymentIncomeRecord`)で入力した給与収入金額の
+      登録・削除)をリポジトリパターン導入
+
+  **実装内容(2026-09-29):** `ResidentTaxAdjustmentDeductionRecordRepository`・
+  `EmploymentIncomeRecordRepository`(いずれもこれまで`findByTaxYearId`のみ
+  既存だった)に、`1-40`〜`1-46`までと同じ`taxYearId`単一キーの
+  `upsert(params)`/`deleteByTaxYearId(taxYearId)`を追加した。
+  `src/app/actions.ts`の該当4関数は`prisma.residentTaxAdjustmentDeductionRecord`/
+  `prisma.employmentIncomeRecord`直接呼び出しと削除関数内の
+  `prisma.taxYear.findUnique`をやめ、それぞれのリポジトリ・既存の
+  `taxYearRepository.findByYear`に委譲するように変更した(関数シグネチャ・
+  挙動は変更していない)。
+
+- [ ] 1-48以降. `src/app/actions.ts`の残り機能(マネーフォワード家計簿CSV・
+      暗号資産取引所CSV・暗号資産信用取引CSV・先物取引CSV・マネーフォワード
+      資産残高CSVの各インポート処理内にある5箇所の`prisma.$transaction`
+      (取込明細の一括登録・`ImportBatch`の作成等)と、インポート削除処理の
+      `prisma.$transaction([...])`(`AssetBalanceSnapshot`一括削除・
+      `ImportBatch`削除)を順次移行)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
       (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
