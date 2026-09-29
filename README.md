@@ -875,11 +875,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `CertifiedHousingConstructionCreditCarryforward`の消費処理と一体のため、
   次項(1-45)で`Carryforward`側とまとめて移行する。
 
-- [ ] 1-45以降. `src/app/actions.ts`の残り機能(`carryForwardCertifiedHousingConstructionCreditExcess`/
+- [x] 1-45. `src/app/actions.ts`の`carryForwardCertifiedHousingConstructionCreditExcess`/
       `applyCertifiedHousingConstructionCreditCarryforward`/
-      `deleteCertifiedHousingConstructionCreditCarryforward`を含む各種控除
-      レコードのupsert/deleteMany、インポート取込のトランザクション処理等、
-      残り約35箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      `deleteCertifiedHousingConstructionCreditCarryforward`(認定住宅等新築等
+      特別税額控除の繰越額(`CertifiedHousingConstructionCreditCarryforward`)の
+      登録・消費・取消)をリポジトリパターン導入
+
+  **実装内容(2026-09-29):** `CertifiedHousingConstructionCreditCarryforwardRepository`
+  (これまで`findByTaxYearId`のみ既存だった)に`upsert(params)`/
+  `deleteByTaxYearId(taxYearId)`を追加した(`upsert`のユニークキーは
+  `taxYearId`単一キー、`1-40`〜`1-44`と同じ形)。`src/app/actions.ts`の該当3
+  関数は`prisma.certifiedHousingConstructionCreditCarryforward`/
+  `prisma.certifiedHousingConstructionCreditRecord`/`prisma.taxYear`の直接
+  呼び出しをやめ、このリポジトリ・`1-44`で既に導入済みの
+  `certifiedHousingConstructionCreditRecordRepository`・
+  `taxYearRepository.findByYear`に委譲するように変更した(関数シグネチャ・
+  挙動は変更していない。単一レコードの`delete`は、呼び出し元で存在確認済みの
+  ため挙動が同じ`deleteByTaxYearId`(`deleteMany`)に統一した)。
+
+- [ ] 1-46以降. `src/app/actions.ts`の残り機能(`saveIncomeDeduction`/
+      `deleteIncomeDeduction`/`saveMortgageDeductionRecord`/
+      `deleteMortgageDeductionRecord`/
+      `saveResidentTaxAdjustmentDeductionRecord`/
+      `deleteResidentTaxAdjustmentDeductionRecord`/
+      `saveEmploymentIncomeRecord`/`deleteEmploymentIncomeRecord`等の各種控除
+      レコードのupsert/deleteMany、インポート取込の`prisma.$transaction`処理等、
+      残り約19箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
       (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は

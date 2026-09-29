@@ -35,6 +35,7 @@ import { createPrismaMultiHouseholdRenovationDeductionRecordRepository } from "@
 import { createPrismaDurabilityImprovementRenovationDeductionRecordRepository } from "@/lib/repositories/durabilityImprovementRenovationDeductionRecordRepository";
 import { createPrismaChildRearingRenovationDeductionRecordRepository } from "@/lib/repositories/childRearingRenovationDeductionRecordRepository";
 import { createPrismaCertifiedHousingConstructionCreditRecordRepository } from "@/lib/repositories/certifiedHousingConstructionCreditRecordRepository";
+import { createPrismaCertifiedHousingConstructionCreditCarryforwardRepository } from "@/lib/repositories/certifiedHousingConstructionCreditCarryforwardRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -133,6 +134,8 @@ const childRearingRenovationDeductionRecordRepository =
   createPrismaChildRearingRenovationDeductionRecordRepository();
 const certifiedHousingConstructionCreditRecordRepository =
   createPrismaCertifiedHousingConstructionCreditRecordRepository();
+const certifiedHousingConstructionCreditCarryforwardRepository =
+  createPrismaCertifiedHousingConstructionCreditCarryforwardRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -1693,10 +1696,10 @@ export async function carryForwardCertifiedHousingConstructionCreditExcess(
   const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
 
   const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  await prisma.certifiedHousingConstructionCreditCarryforward.upsert({
-    where: { taxYearId: nextTaxYear.id },
-    create: { taxYearId: nextTaxYear.id, originYear: year, remainingAmountJpy },
-    update: { originYear: year, remainingAmountJpy },
+  await certifiedHousingConstructionCreditCarryforwardRepository.upsert({
+    taxYearId: nextTaxYear.id,
+    originYear: year,
+    remainingAmountJpy,
   });
 
   revalidatePath("/certified-housing-construction-credit");
@@ -1715,29 +1718,24 @@ export async function applyCertifiedHousingConstructionCreditCarryforward(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   const carryforward = taxYear
-    ? await prisma.certifiedHousingConstructionCreditCarryforward.findUnique({
-        where: { taxYearId: taxYear.id },
-      })
+    ? await certifiedHousingConstructionCreditCarryforwardRepository.findByTaxYearId(taxYear.id)
     : null;
 
   if (taxYear && carryforward) {
-    const existingRecord = await prisma.certifiedHousingConstructionCreditRecord.findUnique({
-      where: { taxYearId: taxYear.id },
-    });
+    const existingRecord = await certifiedHousingConstructionCreditRecordRepository.findByTaxYearId(
+      taxYear.id,
+    );
     const combinedCreditJpy = new Decimal(existingRecord?.creditJpy.toString() ?? "0")
       .plus(carryforward.remainingAmountJpy.toString())
       .toString();
 
-    await prisma.certifiedHousingConstructionCreditRecord.upsert({
-      where: { taxYearId: taxYear.id },
-      create: { taxYearId: taxYear.id, creditJpy: combinedCreditJpy },
-      update: { creditJpy: combinedCreditJpy },
+    await certifiedHousingConstructionCreditRecordRepository.upsert({
+      taxYearId: taxYear.id,
+      creditJpy: combinedCreditJpy,
     });
-    await prisma.certifiedHousingConstructionCreditCarryforward.delete({
-      where: { taxYearId: taxYear.id },
-    });
+    await certifiedHousingConstructionCreditCarryforwardRepository.deleteByTaxYearId(taxYear.id);
   }
 
   revalidatePath("/tax-estimate");
@@ -1754,11 +1752,9 @@ export async function deleteCertifiedHousingConstructionCreditCarryforward(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (taxYear) {
-    await prisma.certifiedHousingConstructionCreditCarryforward.deleteMany({
-      where: { taxYearId: taxYear.id },
-    });
+    await certifiedHousingConstructionCreditCarryforwardRepository.deleteByTaxYearId(taxYear.id);
   }
 
   revalidatePath("/certified-housing-construction-credit");
