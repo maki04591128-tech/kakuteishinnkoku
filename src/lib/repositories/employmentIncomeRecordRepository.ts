@@ -8,12 +8,26 @@ import { prisma } from "../db";
 
 export interface EmploymentIncomeRecordRepository {
   findByTaxYearId(taxYearId: number): Promise<EmploymentIncomeRecord | null>;
+  upsert(params: { taxYearId: number; grossSalaryJpy: string }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaEmploymentIncomeRecordRepository(): EmploymentIncomeRecordRepository {
   return {
     async findByTaxYearId(taxYearId: number): Promise<EmploymentIncomeRecord | null> {
       return prisma.employmentIncomeRecord.findUnique({ where: { taxYearId } });
+    },
+
+    async upsert({ taxYearId, grossSalaryJpy }): Promise<void> {
+      await prisma.employmentIncomeRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, grossSalaryJpy },
+        update: { grossSalaryJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.employmentIncomeRecord.deleteMany({ where: { taxYearId } });
     },
   };
 }
