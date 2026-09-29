@@ -33,6 +33,8 @@ import { createPrismaEnergySavingRenovationDeductionRecordRepository } from "@/l
 import { createPrismaBarrierFreeRenovationDeductionRecordRepository } from "@/lib/repositories/barrierFreeRenovationDeductionRecordRepository";
 import { createPrismaMultiHouseholdRenovationDeductionRecordRepository } from "@/lib/repositories/multiHouseholdRenovationDeductionRecordRepository";
 import { createPrismaDurabilityImprovementRenovationDeductionRecordRepository } from "@/lib/repositories/durabilityImprovementRenovationDeductionRecordRepository";
+import { createPrismaChildRearingRenovationDeductionRecordRepository } from "@/lib/repositories/childRearingRenovationDeductionRecordRepository";
+import { createPrismaCertifiedHousingConstructionCreditRecordRepository } from "@/lib/repositories/certifiedHousingConstructionCreditRecordRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -127,6 +129,10 @@ const multiHouseholdRenovationDeductionRecordRepository =
   createPrismaMultiHouseholdRenovationDeductionRecordRepository();
 const durabilityImprovementRenovationDeductionRecordRepository =
   createPrismaDurabilityImprovementRenovationDeductionRecordRepository();
+const childRearingRenovationDeductionRecordRepository =
+  createPrismaChildRearingRenovationDeductionRecordRepository();
+const certifiedHousingConstructionCreditRecordRepository =
+  createPrismaCertifiedHousingConstructionCreditRecordRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -1598,10 +1604,9 @@ export async function saveChildRearingRenovationDeductionRecord(
   const creditJpy = requireString(formData, "creditJpy");
 
   const taxYear = await getOrCreateTaxYear(year);
-  await prisma.childRearingRenovationDeductionRecord.upsert({
-    where: { taxYearId: taxYear.id },
-    create: { taxYearId: taxYear.id, creditJpy },
-    update: { creditJpy },
+  await childRearingRenovationDeductionRecordRepository.upsert({
+    taxYearId: taxYear.id,
+    creditJpy,
   });
 
   revalidatePath("/tax-estimate");
@@ -1618,11 +1623,9 @@ export async function deleteChildRearingRenovationDeductionRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (taxYear) {
-    await prisma.childRearingRenovationDeductionRecord.deleteMany({
-      where: { taxYearId: taxYear.id },
-    });
+    await childRearingRenovationDeductionRecordRepository.deleteByTaxYearId(taxYear.id);
   }
 
   revalidatePath("/tax-estimate");
@@ -1645,10 +1648,9 @@ export async function saveCertifiedHousingConstructionCreditRecord(
   const creditJpy = requireString(formData, "creditJpy");
 
   const taxYear = await getOrCreateTaxYear(year);
-  await prisma.certifiedHousingConstructionCreditRecord.upsert({
-    where: { taxYearId: taxYear.id },
-    create: { taxYearId: taxYear.id, creditJpy },
-    update: { creditJpy },
+  await certifiedHousingConstructionCreditRecordRepository.upsert({
+    taxYearId: taxYear.id,
+    creditJpy,
   });
 
   revalidatePath("/tax-estimate");
@@ -1665,11 +1667,9 @@ export async function deleteCertifiedHousingConstructionCreditRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (taxYear) {
-    await prisma.certifiedHousingConstructionCreditRecord.deleteMany({
-      where: { taxYearId: taxYear.id },
-    });
+    await certifiedHousingConstructionCreditRecordRepository.deleteByTaxYearId(taxYear.id);
   }
 
   revalidatePath("/tax-estimate");

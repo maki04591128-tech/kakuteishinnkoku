@@ -8,6 +8,8 @@ import { prisma } from "../db";
 
 export interface CertifiedHousingConstructionCreditRecordRepository {
   findByTaxYearId(taxYearId: number): Promise<CertifiedHousingConstructionCreditRecord | null>;
+  upsert(params: { taxYearId: number; creditJpy: string }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaCertifiedHousingConstructionCreditRecordRepository(): CertifiedHousingConstructionCreditRecordRepository {
@@ -18,6 +20,18 @@ export function createPrismaCertifiedHousingConstructionCreditRecordRepository()
       return prisma.certifiedHousingConstructionCreditRecord.findUnique({
         where: { taxYearId },
       });
+    },
+
+    async upsert({ taxYearId, creditJpy }): Promise<void> {
+      await prisma.certifiedHousingConstructionCreditRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, creditJpy },
+        update: { creditJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.certifiedHousingConstructionCreditRecord.deleteMany({ where: { taxYearId } });
     },
   };
 }
