@@ -701,13 +701,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.openingBalanceByInstitution`呼び出しは今回未移行(下記1-36以降で
   `import/page.tsx`をまとめて対応する際に行う)。
 
-- [ ] 1-36以降. `src/app/actions.ts`の残り機能(各種繰越控除の
-      upsert/delete/createMany、各種控除レコードのupsert/deleteMany、
-      インポート取込のトランザクション処理等、残り約88箇所の`prisma.xxx`
-      呼び出し)と`src/app/import/page.tsx`(Server Component)を順次移行
-      (進めるごとにこのリストに追記)。1回のブラッシュアップで
-      1〜2機能分ずつ進める想定。`import/page.tsx`(1モデルではなく
-      多数のモデルを一括読み込みする2856行の大きなページ)は
+- [x] 1-36. `src/lib/reporting.ts`で導入済みだった`NisaLifetimeQuotaRepository`
+      (`findByTaxYearId`のみ)に`src/app/actions.ts`の
+      `setNisaLifetimeQuota`/`deleteNisaLifetimeQuota`/
+      `carryForwardNisaLifetimeQuota`(NISA生涯投資枠の登録・削除・
+      翌年への繰越)を移行
+
+  **実装内容(2026-09-29):** `1-32`〜`1-35`の各繰越控除系リポジトリと
+  同じ形で`upsert(params)`/`delete(id)`/`createMany(data)`を追加した
+  (`upsert`のユニークキーは`taxYearId_nisaType`複合キー、`nisaType`は
+  `@prisma/client`の`InvestmentNisaType`型をそのまま使用)。
+  `carryForwardNisaLifetimeQuota`が既存登録区分の判定に使っていた
+  `prisma.nisaLifetimeQuota.findMany({ select: { nisaType: true } })`は、
+  `findByTaxYearId`が返す全カラムのレコードから`nisaType`を参照するだけで
+  等価なため、専用の`select`クエリを追加せずそのまま置き換えた。
+  `src/app/actions.ts`の該当3関数は`prisma.nisaLifetimeQuota`直接呼び出しを
+  やめ、このリポジトリに委譲するように変更した(関数シグネチャ・挙動は
+  変更していない)。
+
+- [ ] 1-37以降. `src/app/actions.ts`の残り機能(各種控除レコードの
+      upsert/deleteMany、インポート取込のトランザクション処理等、
+      残り約84箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      (Server Component)を順次移行(進めるごとにこのリストに追記)。
+      1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
+      (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
       優先度を下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
