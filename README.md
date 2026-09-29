@@ -781,9 +781,25 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.angelTaxLossCarryforward`直接呼び出しをやめ、それぞれのリポジトリに
   委譲するように変更した(関数シグネチャ・挙動は変更していない)。
 
-- [ ] 1-40以降. `src/app/actions.ts`の残り機能(各種控除レコードの
+- [x] 1-40. `src/app/actions.ts`の`saveForeignTaxCreditRecord`/
+      `deleteForeignTaxCreditRecord`(外国税額控除シミュレーターの当年分試算結果)、
+      `saveDonationTaxCreditRecord`/`deleteDonationTaxCreditRecord`
+      (政党等・認定NPO法人等・公益社団法人等寄附金特別控除シミュレーターの
+      当年分試算結果)をリポジトリパターン導入
+
+  **実装内容(2026-09-29):** `ForeignTaxCreditRecordRepository`・
+  `DonationTaxCreditRecordRepository`(いずれも各`page.tsx`向けに
+  `findByTaxYearId`のみ既存だった)に`upsert(params)`/
+  `deleteByTaxYearId(taxYearId)`を追加した(`upsert`のユニークキーは
+  いずれも`taxYearId`単一キー)。`src/app/actions.ts`の該当4関数は
+  `prisma.foreignTaxCreditRecord`/`prisma.donationTaxCreditRecord`
+  直接呼び出しと削除関数内の`prisma.taxYear.findUnique`をやめ、それぞれの
+  リポジトリ・`taxYearRepository.findByYear`に委譲するように変更した
+  (関数シグネチャ・挙動は変更していない)。
+
+- [ ] 1-41以降. `src/app/actions.ts`の残り機能(各種控除レコードの
       upsert/deleteMany、インポート取込のトランザクション処理等、
-      残り約52箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      残り約46箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
       (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は

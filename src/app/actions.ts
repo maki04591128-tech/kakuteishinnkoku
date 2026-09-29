@@ -25,6 +25,8 @@ import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositori
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
 import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
+import { createPrismaForeignTaxCreditRecordRepository } from "@/lib/repositories/foreignTaxCreditRecordRepository";
+import { createPrismaDonationTaxCreditRecordRepository } from "@/lib/repositories/donationTaxCreditRecordRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -105,6 +107,8 @@ const homeSaleLossCarryforwardRepository = createPrismaHomeSaleLossCarryforwardR
 const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
 const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
+const foreignTaxCreditRecordRepository = createPrismaForeignTaxCreditRecordRepository();
+const donationTaxCreditRecordRepository = createPrismaDonationTaxCreditRecordRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -1234,10 +1238,11 @@ export async function saveForeignTaxCreditRecord(formData: FormData): Promise<vo
   const residentTaxCreditJpy = requireString(formData, "residentTaxCreditJpy");
 
   const taxYear = await getOrCreateTaxYear(year);
-  await prisma.foreignTaxCreditRecord.upsert({
-    where: { taxYearId: taxYear.id },
-    create: { taxYearId: taxYear.id, totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
-    update: { totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
+  await foreignTaxCreditRecordRepository.upsert({
+    taxYearId: taxYear.id,
+    totalCreditJpy,
+    nationalTaxCreditJpy,
+    residentTaxCreditJpy,
   });
 
   revalidatePath("/foreign-tax-credit");
@@ -1250,9 +1255,9 @@ export async function saveForeignTaxCreditRecord(formData: FormData): Promise<vo
  */
 export async function deleteForeignTaxCreditRecord(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (taxYear) {
-    await prisma.foreignTaxCreditRecord.deleteMany({ where: { taxYearId: taxYear.id } });
+    await foreignTaxCreditRecordRepository.deleteByTaxYearId(taxYear.id);
   }
 
   revalidatePath("/tax-estimate");
@@ -1274,10 +1279,10 @@ export async function saveDonationTaxCreditRecord(formData: FormData): Promise<v
   const residentTaxBasicDeductionJpy = requireString(formData, "residentTaxBasicDeductionJpy");
 
   const taxYear = await getOrCreateTaxYear(year);
-  await prisma.donationTaxCreditRecord.upsert({
-    where: { taxYearId: taxYear.id },
-    create: { taxYearId: taxYear.id, totalTaxCreditJpy, residentTaxBasicDeductionJpy },
-    update: { totalTaxCreditJpy, residentTaxBasicDeductionJpy },
+  await donationTaxCreditRecordRepository.upsert({
+    taxYearId: taxYear.id,
+    totalTaxCreditJpy,
+    residentTaxBasicDeductionJpy,
   });
 
   revalidatePath("/tax-estimate");
@@ -1291,9 +1296,9 @@ export async function saveDonationTaxCreditRecord(formData: FormData): Promise<v
  */
 export async function deleteDonationTaxCreditRecord(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (taxYear) {
-    await prisma.donationTaxCreditRecord.deleteMany({ where: { taxYearId: taxYear.id } });
+    await donationTaxCreditRecordRepository.deleteByTaxYearId(taxYear.id);
   }
 
   revalidatePath("/tax-estimate");

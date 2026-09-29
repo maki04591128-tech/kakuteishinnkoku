@@ -8,6 +8,13 @@ import { prisma } from "../db";
 
 export interface ForeignTaxCreditRecordRepository {
   findByTaxYearId(taxYearId: number): Promise<ForeignTaxCreditRecord | null>;
+  upsert(params: {
+    taxYearId: number;
+    totalCreditJpy: string;
+    nationalTaxCreditJpy: string;
+    residentTaxCreditJpy: string;
+  }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaForeignTaxCreditRecordRepository(): ForeignTaxCreditRecordRepository {
@@ -16,6 +23,23 @@ export function createPrismaForeignTaxCreditRecordRepository(): ForeignTaxCredit
       return prisma.foreignTaxCreditRecord.findUnique({
         where: { taxYearId },
       });
+    },
+
+    async upsert({
+      taxYearId,
+      totalCreditJpy,
+      nationalTaxCreditJpy,
+      residentTaxCreditJpy,
+    }): Promise<void> {
+      await prisma.foreignTaxCreditRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
+        update: { totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.foreignTaxCreditRecord.deleteMany({ where: { taxYearId } });
     },
   };
 }
