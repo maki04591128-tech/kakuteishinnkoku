@@ -947,16 +947,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   リポジトリに専用メソッドを追加し、トランザクションごとラップする)で
   進められる見込み。
 
-- [ ] 1-49以降. `src/app/actions.ts`の残り機能(暗号資産取引所CSV・
-      暗号資産信用取引CSV・先物取引CSV・マネーフォワード資産残高CSVの各
-      インポート処理内にある4箇所の`prisma.$transaction`
-      (取込明細の一括登録・`ImportBatch`の作成等)と、インポート削除処理の
-      `prisma.$transaction([...])`(`AssetBalanceSnapshot`一括削除・
-      `ImportBatch`削除)を順次移行)と`src/app/import/page.tsx`
-      (Server Component)を順次移行(進めるごとにこのリストに追記)。
-      1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
-      (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
-      優先度を下げてよい。
+- [x] 1-49. `src/app/actions.ts`の`importCryptoExchangeCsv`
+      (暗号資産取引所CSVインポート内の`prisma.$transaction`
+      (`ImportBatch`の作成・`CryptoTrade`一括登録))をリポジトリパターン導入
+
+  **実装内容(2026-09-29):** `src/lib/repositories/cryptoTradeRepository.ts`の
+  `CryptoTradeRepository`に`importCsvBatch`メソッド(`ImportBatch`の作成と
+  `CryptoTrade`の一括登録を1つの`prisma.$transaction`内で行う既存の挙動を
+  そのままラップする)を追加した。`src/app/actions.ts`の
+  `importCryptoExchangeCsv`は`prisma.$transaction`
+  (`tx.importBatch.create`/`tx.cryptoTrade.createMany`)の直接呼び出しをやめ、
+  このリポジトリに処理を委譲するように変更した(取引所プリセット・手動
+  カラムマッピングに応じた`source`文字列の組み立てやCSV行のDecimal→文字列
+  変換など、行データの加工ロジック自体は`actions.ts`側に残し、挙動は
+  変更していない)。
+
+- [ ] 1-50以降. `src/app/actions.ts`の残り機能(暗号資産信用取引CSV・
+      先物取引CSV・マネーフォワード資産残高CSVの各インポート処理内にある
+      3箇所の`prisma.$transaction`(取込明細の一括登録・`ImportBatch`の
+      作成等)と、インポート削除処理の`prisma.$transaction([...])`
+      (`AssetBalanceSnapshot`一括削除・`ImportBatch`削除)を順次移行)と
+      `src/app/import/page.tsx`(Server Component)を順次移行(進めるごとに
+      このリストに追記)。1回のブラッシュアップで1〜2機能分ずつ進める想定。
+      `import/page.tsx`(1モデルではなく多数のモデルを一括読み込みする
+      2856行の大きなページ)は優先度を下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 

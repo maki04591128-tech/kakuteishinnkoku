@@ -243,37 +243,25 @@ export async function importCryptoExchangeCsv(formData: FormData): Promise<void>
 
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.$transaction(async (tx) => {
-    const batch = await tx.importBatch.create({
-      data: {
-        taxYearId: taxYear.id,
-        sourceType: `crypto_csv_${preset}`,
-        fileName: file.name,
-        rowCount: rows.length,
-      },
-    });
-
-    if (rows.length > 0) {
-      await tx.cryptoTrade.createMany({
-        data: rows.map((row) => ({
-          taxYearId: taxYear.id,
-          tradedAt: row.tradedAt,
-          symbol: row.symbol,
-          type: row.type as never,
-          quantity: row.quantity.toString(),
-          unitPriceJpy: row.unitPriceJpy.toString(),
-          feeJpy: row.feeJpy.toString(),
-          exchange: row.exchange ?? exchangeLabel,
-          memo: row.memo ?? null,
-          source: hasManualMapping
-            ? `exchange_csv:${preset}:manual`
-            : isKnownExchangeCsvPreset(preset)
-              ? `exchange_csv:${preset}`
-              : `exchange_csv:${preset}:auto`,
-          importBatchId: batch.id,
-        })),
-      });
-    }
+  await cryptoTradeRepository.importCsvBatch({
+    taxYearId: taxYear.id,
+    sourceType: `crypto_csv_${preset}`,
+    fileName: file.name,
+    rows: rows.map((row) => ({
+      tradedAt: row.tradedAt,
+      symbol: row.symbol,
+      type: row.type,
+      quantity: row.quantity.toString(),
+      unitPriceJpy: row.unitPriceJpy.toString(),
+      feeJpy: row.feeJpy.toString(),
+      exchange: row.exchange ?? exchangeLabel,
+      memo: row.memo ?? null,
+      source: hasManualMapping
+        ? `exchange_csv:${preset}:manual`
+        : isKnownExchangeCsvPreset(preset)
+          ? `exchange_csv:${preset}`
+          : `exchange_csv:${preset}:auto`,
+    })),
   });
 
   revalidatePath("/import");
