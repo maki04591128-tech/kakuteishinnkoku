@@ -11,6 +11,7 @@ import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryp
 import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
 import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stockMarginTradeRepository";
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
+import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -72,6 +73,7 @@ const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();
 const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();
 const stockMarginTradeRepository = createPrismaStockMarginTradeRepository();
 const futuresTradeRepository = createPrismaFuturesTradeRepository();
+const futuresLossCarryforwardRepository = createPrismaFuturesLossCarryforwardRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -569,12 +571,10 @@ export async function setFuturesLossCarryforward(formData: FormData): Promise<vo
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.futuresLossCarryforward.upsert({
-    where: {
-      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
-    },
-    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
-    update: { remainingAmountJpy },
+  await futuresLossCarryforwardRepository.upsert({
+    taxYearId: taxYear.id,
+    originYear,
+    remainingAmountJpy,
   });
 
   revalidatePath("/import");
@@ -585,7 +585,7 @@ export async function setFuturesLossCarryforward(formData: FormData): Promise<vo
 export async function deleteFuturesLossCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.futuresLossCarryforward.delete({ where: { id } });
+  await futuresLossCarryforwardRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=futuresLossCarryforward`);
@@ -602,23 +602,18 @@ export async function carryForwardFuturesLoss(formData: FormData): Promise<void>
   const candidates =
     previousReport?.futuresLossCarryforward.carryforwardToNextYear ?? [];
 
-  const existing = await prisma.futuresLossCarryforward.findMany({
-    where: { taxYearId: taxYear.id },
-    select: { originYear: true },
-  });
+  const existing = await futuresLossCarryforwardRepository.findByTaxYearId(taxYear.id);
   const existingYears = new Set(existing.map((e) => e.originYear));
 
   const toCreate = candidates.filter((c) => !existingYears.has(c.originYear));
 
-  if (toCreate.length > 0) {
-    await prisma.futuresLossCarryforward.createMany({
-      data: toCreate.map((c) => ({
-        taxYearId: taxYear.id,
-        originYear: c.originYear,
-        remainingAmountJpy: c.remainingAmountJpy.toString(),
-      })),
-    });
-  }
+  await futuresLossCarryforwardRepository.createMany(
+    toCreate.map((c) => ({
+      taxYearId: taxYear.id,
+      originYear: c.originYear,
+      remainingAmountJpy: c.remainingAmountJpy.toString(),
+    })),
+  );
 
   revalidatePath("/import");
   revalidatePath("/");
