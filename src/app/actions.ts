@@ -17,6 +17,8 @@ import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/opening
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
 import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
+import { createPrismaAssetSymbolMappingRepository } from "@/lib/repositories/assetSymbolMappingRepository";
+import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -86,6 +88,8 @@ const openingBalanceRepository = createPrismaOpeningBalanceRepository();
 const openingBalanceByInstitutionRepository =
   createPrismaOpeningBalanceByInstitutionRepository();
 const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
+const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
+const marketPriceRepository = createPrismaMarketPriceRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -1027,11 +1031,7 @@ export async function setAssetSymbolMapping(formData: FormData): Promise<void> {
   const assetName = requireString(formData, "assetName").trim();
   const symbol = requireString(formData, "symbol").trim().toUpperCase();
 
-  await prisma.assetSymbolMapping.upsert({
-    where: { assetName },
-    create: { assetName, symbol },
-    update: { symbol },
-  });
+  await assetSymbolMappingRepository.upsert({ assetName, symbol });
 
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=assetBalance`);
@@ -1040,7 +1040,7 @@ export async function setAssetSymbolMapping(formData: FormData): Promise<void> {
 export async function deleteAssetSymbolMapping(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.assetSymbolMapping.delete({ where: { id } });
+  await assetSymbolMappingRepository.delete(id);
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=assetBalance`);
 }
@@ -1055,11 +1055,7 @@ export async function setMarketPrice(formData: FormData): Promise<void> {
   const symbol = requireString(formData, "symbol").trim().toUpperCase();
   const priceJpy = requireString(formData, "priceJpy").trim();
 
-  await prisma.marketPrice.upsert({
-    where: { symbol },
-    create: { symbol, priceJpy },
-    update: { priceJpy },
-  });
+  await marketPriceRepository.upsert({ symbol, priceJpy });
 
   revalidatePath("/import");
   revalidatePath("/unrealized-gain");
@@ -1069,7 +1065,7 @@ export async function setMarketPrice(formData: FormData): Promise<void> {
 export async function deleteMarketPrice(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.marketPrice.delete({ where: { id } });
+  await marketPriceRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/unrealized-gain");
   redirect(`/import?year=${year}&tab=assetBalance`);
