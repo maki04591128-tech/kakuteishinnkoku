@@ -40,6 +40,7 @@ import { createPrismaIncomeDeductionRepository } from "@/lib/repositories/income
 import { createPrismaMortgageDeductionRecordRepository } from "@/lib/repositories/mortgageDeductionRecordRepository";
 import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/residentTaxAdjustmentDeductionRecordRepository";
 import { createPrismaEmploymentIncomeRecordRepository } from "@/lib/repositories/employmentIncomeRecordRepository";
+import { createPrismaCashflowEntryRepository } from "@/lib/repositories/cashflowEntryRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -145,6 +146,7 @@ const mortgageDeductionRecordRepository = createPrismaMortgageDeductionRecordRep
 const residentTaxAdjustmentDeductionRecordRepository =
   createPrismaResidentTaxAdjustmentDeductionRecordRepository();
 const employmentIncomeRecordRepository = createPrismaEmploymentIncomeRecordRepository();
+const cashflowEntryRepository = createPrismaCashflowEntryRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -177,32 +179,20 @@ export async function importMoneyForwardCsv(formData: FormData): Promise<void> {
 
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.$transaction(async (tx) => {
-    const batch = await tx.importBatch.create({
-      data: {
-        taxYearId: taxYear.id,
-        sourceType: "moneyforward_cashflow",
-        fileName: file.name,
-        rowCount: rows.length,
-      },
-    });
-
-    if (rows.length > 0) {
-      await tx.cashflowEntry.createMany({
-        data: rows.map((row) => ({
-          importBatchId: batch.id,
-          date: row.date,
-          content: row.content,
-          amountJpy: row.amountJpy.toString(),
-          direction: row.direction,
-          largeCategory: row.largeCategory,
-          middleCategory: row.middleCategory,
-          institution: row.institution,
-          memo: row.memo,
-          isCalculationTarget: row.isCalculationTarget,
-        })),
-      });
-    }
+  await cashflowEntryRepository.importMoneyForwardCsv({
+    taxYearId: taxYear.id,
+    fileName: file.name,
+    rows: rows.map((row) => ({
+      date: row.date,
+      content: row.content,
+      amountJpy: row.amountJpy.toString(),
+      direction: row.direction,
+      largeCategory: row.largeCategory,
+      middleCategory: row.middleCategory,
+      institution: row.institution,
+      memo: row.memo,
+      isCalculationTarget: row.isCalculationTarget,
+    })),
   });
 
   revalidatePath("/import");

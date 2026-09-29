@@ -928,9 +928,28 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `taxYearRepository.findByYear`に委譲するように変更した(関数シグネチャ・
   挙動は変更していない)。
 
-- [ ] 1-48以降. `src/app/actions.ts`の残り機能(マネーフォワード家計簿CSV・
-      暗号資産取引所CSV・暗号資産信用取引CSV・先物取引CSV・マネーフォワード
-      資産残高CSVの各インポート処理内にある5箇所の`prisma.$transaction`
+- [x] 1-48. `src/app/actions.ts`の`importMoneyForwardCsv`
+      (マネーフォワード家計簿CSVインポート内の`prisma.$transaction`
+      (`ImportBatch`の作成・`CashflowEntry`一括登録))をリポジトリパターン導入
+
+  **実装内容(2026-09-29):** `src/lib/repositories/cashflowEntryRepository.ts`に
+  `CashflowEntryRepository`インターフェース(`importMoneyForwardCsv`。
+  `ImportBatch`の作成と`CashflowEntry`の一括登録を1つの`prisma.$transaction`内で
+  行う既存の挙動をそのままラップする)と`createPrismaCashflowEntryRepository()`を
+  追加した。`src/app/actions.ts`の`importMoneyForwardCsv`は`prisma.$transaction`
+  (`tx.importBatch.create`/`tx.cashflowEntry.createMany`)の直接呼び出しをやめ、
+  このリポジトリに処理を委譲するように変更した(関数シグネチャ・挙動
+  (`sourceType: "moneyforward_cashflow"`固定・トランザクションの原子性含む)は
+  変更していない)。他の4箇所の`prisma.$transaction`
+  (暗号資産取引所CSV・暗号資産信用取引CSV・先物取引CSV・マネーフォワード
+  資産残高CSVの各インポート)は`ImportBatch`作成+別モデルへの一括登録という
+  同じパターンのため、以後の移行でも同様の手順(インポート先モデルの
+  リポジトリに専用メソッドを追加し、トランザクションごとラップする)で
+  進められる見込み。
+
+- [ ] 1-49以降. `src/app/actions.ts`の残り機能(暗号資産取引所CSV・
+      暗号資産信用取引CSV・先物取引CSV・マネーフォワード資産残高CSVの各
+      インポート処理内にある4箇所の`prisma.$transaction`
       (取込明細の一括登録・`ImportBatch`の作成等)と、インポート削除処理の
       `prisma.$transaction([...])`(`AssetBalanceSnapshot`一括削除・
       `ImportBatch`削除)を順次移行)と`src/app/import/page.tsx`
