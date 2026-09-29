@@ -8,6 +8,12 @@ import { prisma } from "../db";
 
 export interface MortgageDeductionRecordRepository {
   findByTaxYearId(taxYearId: number): Promise<MortgageDeductionRecord | null>;
+  upsert(params: {
+    taxYearId: number;
+    nationalTaxCreditJpy: string;
+    residentTaxCreditJpy: string;
+  }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaMortgageDeductionRecordRepository(): MortgageDeductionRecordRepository {
@@ -16,6 +22,18 @@ export function createPrismaMortgageDeductionRecordRepository(): MortgageDeducti
       return prisma.mortgageDeductionRecord.findUnique({
         where: { taxYearId },
       });
+    },
+
+    async upsert({ taxYearId, nationalTaxCreditJpy, residentTaxCreditJpy }): Promise<void> {
+      await prisma.mortgageDeductionRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, nationalTaxCreditJpy, residentTaxCreditJpy },
+        update: { nationalTaxCreditJpy, residentTaxCreditJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.mortgageDeductionRecord.deleteMany({ where: { taxYearId } });
     },
   };
 }

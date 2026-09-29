@@ -3,11 +3,18 @@
  * `prisma.incomeDeduction`を呼んでいた処理をこのインターフェース経由に
  * 置き換える。挙動は既存のPrisma実装と完全に一致させる。
  */
-import type { IncomeDeduction } from "@prisma/client";
+import type { IncomeDeduction, IncomeDeductionType } from "@prisma/client";
 import { prisma } from "../db";
 
 export interface IncomeDeductionRepository {
   findByTaxYearId(taxYearId: number): Promise<IncomeDeduction[]>;
+  upsert(params: {
+    taxYearId: number;
+    type: IncomeDeductionType;
+    incomeTaxAmountJpy: string;
+    residentTaxAmountJpy: string;
+  }): Promise<void>;
+  deleteByTaxYearIdAndType(taxYearId: number, type: IncomeDeductionType): Promise<void>;
 }
 
 export function createPrismaIncomeDeductionRepository(): IncomeDeductionRepository {
@@ -16,6 +23,18 @@ export function createPrismaIncomeDeductionRepository(): IncomeDeductionReposito
       return prisma.incomeDeduction.findMany({
         where: { taxYearId },
       });
+    },
+
+    async upsert({ taxYearId, type, incomeTaxAmountJpy, residentTaxAmountJpy }): Promise<void> {
+      await prisma.incomeDeduction.upsert({
+        where: { taxYearId_type: { taxYearId, type } },
+        create: { taxYearId, type, incomeTaxAmountJpy, residentTaxAmountJpy },
+        update: { incomeTaxAmountJpy, residentTaxAmountJpy },
+      });
+    },
+
+    async deleteByTaxYearIdAndType(taxYearId: number, type: IncomeDeductionType): Promise<void> {
+      await prisma.incomeDeduction.deleteMany({ where: { taxYearId, type } });
     },
   };
 }

@@ -893,14 +893,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   挙動は変更していない。単一レコードの`delete`は、呼び出し元で存在確認済みの
   ため挙動が同じ`deleteByTaxYearId`(`deleteMany`)に統一した)。
 
-- [ ] 1-46以降. `src/app/actions.ts`の残り機能(`saveIncomeDeduction`/
-      `deleteIncomeDeduction`/`saveMortgageDeductionRecord`/
-      `deleteMortgageDeductionRecord`/
-      `saveResidentTaxAdjustmentDeductionRecord`/
+- [x] 1-46. `src/app/actions.ts`の`saveIncomeDeduction`/`deleteIncomeDeduction`
+      (所得控除試算結果(`IncomeDeduction`、区分ごとに1件)の登録・削除)、
+      `saveMortgageDeductionRecord`/`deleteMortgageDeductionRecord`
+      (住宅ローン控除(`MortgageDeductionRecord`)の当年分試算結果の登録・削除)を
+      リポジトリパターン導入
+
+  **実装内容(2026-09-29):** `IncomeDeductionRepository`
+  (これまで`findByTaxYearId`のみ既存だった)に`upsert(params)`
+  (ユニークキーは`taxYearId_type`の複合キー)・
+  `deleteByTaxYearIdAndType(taxYearId, type)`を追加した。
+  `MortgageDeductionRecordRepository`(同じく`findByTaxYearId`のみ既存だった)には
+  `1-40`〜`1-45`までと同じ`taxYearId`単一キーの`upsert(params)`/
+  `deleteByTaxYearId(taxYearId)`を追加した。`src/app/actions.ts`の該当4関数は
+  `prisma.incomeDeduction`/`prisma.mortgageDeductionRecord`直接呼び出しと
+  削除関数内の`prisma.taxYear.findUnique`をやめ、それぞれのリポジトリ・
+  既存の`taxYearRepository.findByYear`に委譲するように変更した
+  (関数シグネチャ・挙動は変更していない)。
+
+- [ ] 1-47以降. `src/app/actions.ts`の残り機能
+      (`saveResidentTaxAdjustmentDeductionRecord`/
       `deleteResidentTaxAdjustmentDeductionRecord`/
       `saveEmploymentIncomeRecord`/`deleteEmploymentIncomeRecord`等の各種控除
       レコードのupsert/deleteMany、インポート取込の`prisma.$transaction`処理等、
-      残り約19箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      残り約14箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
       (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
