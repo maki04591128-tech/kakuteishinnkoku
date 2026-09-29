@@ -719,9 +719,27 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   やめ、このリポジトリに委譲するように変更した(関数シグネチャ・挙動は
   変更していない)。
 
-- [ ] 1-37以降. `src/app/actions.ts`の残り機能(各種控除レコードの
+- [x] 1-37. `src/app/actions.ts`の`setAssetSymbolMapping`/
+      `deleteAssetSymbolMapping`(マネーフォワード資産名⇔銘柄シンボル対応の
+      登録・削除)と`setMarketPrice`/`deleteMarketPrice`(銘柄の現在価格の
+      登録・削除)を移行
+
+  **実装内容(2026-09-29):** `AssetSymbolMapping`は今回初めてリポジトリ化する
+  モデルのため、新規に`src/lib/repositories/assetSymbolMappingRepository.ts`
+  に`AssetSymbolMappingRepository`インターフェース(`upsert`/`delete`)と
+  `createPrismaAssetSymbolMappingRepository()`を追加した。`MarketPrice`は
+  `src/app/unrealized-gain/page.tsx`向けに`findMany`のみ既存だった
+  `src/lib/repositories/marketPriceRepository.ts`に`upsert`/`delete`を
+  追加した。`src/app/actions.ts`の該当4関数は`prisma.assetSymbolMapping`/
+  `prisma.marketPrice`直接呼び出しをやめ、それぞれのリポジトリに委譲する
+  ように変更した(関数シグネチャ・挙動は変更していない)。
+  `src/app/import/page.tsx`側の`prisma.assetSymbolMapping`/
+  `prisma.marketPrice`呼び出しは今回未移行(下記1-38以降で
+  `import/page.tsx`をまとめて対応する際に行う)。
+
+- [ ] 1-38以降. `src/app/actions.ts`の残り機能(各種控除レコードの
       upsert/deleteMany、インポート取込のトランザクション処理等、
-      残り約84箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      残り約80箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
       (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
