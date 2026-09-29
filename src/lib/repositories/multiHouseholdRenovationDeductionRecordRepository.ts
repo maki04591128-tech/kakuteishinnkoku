@@ -8,6 +8,8 @@ import { prisma } from "../db";
 
 export interface MultiHouseholdRenovationDeductionRecordRepository {
   findByTaxYearId(taxYearId: number): Promise<MultiHouseholdRenovationDeductionRecord | null>;
+  upsert(params: { taxYearId: number; creditJpy: string }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaMultiHouseholdRenovationDeductionRecordRepository(): MultiHouseholdRenovationDeductionRecordRepository {
@@ -16,6 +18,18 @@ export function createPrismaMultiHouseholdRenovationDeductionRecordRepository():
       taxYearId: number,
     ): Promise<MultiHouseholdRenovationDeductionRecord | null> {
       return prisma.multiHouseholdRenovationDeductionRecord.findUnique({ where: { taxYearId } });
+    },
+
+    async upsert({ taxYearId, creditJpy }): Promise<void> {
+      await prisma.multiHouseholdRenovationDeductionRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, creditJpy },
+        update: { creditJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.multiHouseholdRenovationDeductionRecord.deleteMany({ where: { taxYearId } });
     },
   };
 }
