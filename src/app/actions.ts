@@ -6,6 +6,7 @@ import { Decimal } from "decimal.js";
 import { prisma } from "@/lib/db";
 import { createPrismaTaxYearRepository } from "@/lib/repositories/taxYearRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
+import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -62,6 +63,7 @@ function isKnownExchangeCsvPreset(
 
 const taxYearRepository = createPrismaTaxYearRepository();
 const cryptoTradeRepository = createPrismaCryptoTradeRepository();
+const investmentTradeRepository = createPrismaInvestmentTradeRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -269,32 +271,30 @@ export async function addInvestmentTrade(formData: FormData): Promise<void> {
     );
   }
 
-  await prisma.investmentTrade.create({
-    data: {
-      taxYearId: taxYear.id,
-      tradedAt: new Date(requireString(formData, "tradedAt")),
-      symbol: requireString(formData, "symbol"),
-      name: optionalString(formData, "name"),
-      assetType: assetType as never,
-      isReit,
-      mutualFundHighForeignRatio,
-      mutualFundVeryHighForeignRatio,
-      isListed,
-      type: requireString(formData, "type") as never,
-      quantity: requireString(formData, "quantity"),
-      unitPriceJpy: requireString(formData, "unitPriceJpy"),
-      feeJpy: optionalString(formData, "feeJpy") ?? "0",
-      accountType: requireString(formData, "accountType") as never,
-      isNisa,
-      nisaType: optionalString(formData, "nisaType") as never,
-      isForeign: formData.get("isForeign") === "on",
-      foreignTaxWithheldJpy: optionalString(formData, "foreignTaxWithheldJpy") ?? "0",
-      distributionAdjustedForeignTaxJpy:
-        optionalString(formData, "distributionAdjustedForeignTaxJpy") ?? "0",
-      broker: optionalString(formData, "broker"),
-      memo: optionalString(formData, "memo"),
-      source: "manual",
-    },
+  await investmentTradeRepository.create({
+    taxYearId: taxYear.id,
+    tradedAt: new Date(requireString(formData, "tradedAt")),
+    symbol: requireString(formData, "symbol"),
+    name: optionalString(formData, "name"),
+    assetType: assetType as never,
+    isReit,
+    mutualFundHighForeignRatio,
+    mutualFundVeryHighForeignRatio,
+    isListed,
+    type: requireString(formData, "type") as never,
+    quantity: requireString(formData, "quantity"),
+    unitPriceJpy: requireString(formData, "unitPriceJpy"),
+    feeJpy: optionalString(formData, "feeJpy") ?? "0",
+    accountType: requireString(formData, "accountType") as never,
+    isNisa,
+    nisaType: optionalString(formData, "nisaType") as never,
+    isForeign: formData.get("isForeign") === "on",
+    foreignTaxWithheldJpy: optionalString(formData, "foreignTaxWithheldJpy") ?? "0",
+    distributionAdjustedForeignTaxJpy:
+      optionalString(formData, "distributionAdjustedForeignTaxJpy") ?? "0",
+    broker: optionalString(formData, "broker"),
+    memo: optionalString(formData, "memo"),
+    source: "manual",
   });
 
   revalidatePath("/import");
@@ -465,7 +465,7 @@ export async function importCryptoMarginCsv(formData: FormData): Promise<void> {
 export async function deleteInvestmentTrade(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.investmentTrade.delete({ where: { id } });
+  await investmentTradeRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=investment`);
