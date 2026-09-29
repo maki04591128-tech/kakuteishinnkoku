@@ -21,6 +21,10 @@ import { createPrismaAssetSymbolMappingRepository } from "@/lib/repositories/ass
 import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
 import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
 import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
+import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositories/casualtyLossCarryforwardRepository";
+import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
+import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
+import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -96,6 +100,11 @@ const foreignTaxCreditCarryforwardRepository =
   createPrismaForeignTaxCreditCarryforwardRepository();
 const foreignTaxCreditSpareLimitCarryforwardRepository =
   createPrismaForeignTaxCreditSpareLimitCarryforwardRepository();
+const casualtyLossCarryforwardRepository = createPrismaCasualtyLossCarryforwardRepository();
+const homeSaleLossCarryforwardRepository = createPrismaHomeSaleLossCarryforwardRepository();
+const homeReplacementLossCarryforwardRepository =
+  createPrismaHomeReplacementLossCarryforwardRepository();
+const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -1935,12 +1944,10 @@ export async function setCasualtyLossCarryforward(formData: FormData): Promise<v
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.casualtyLossCarryforward.upsert({
-    where: {
-      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
-    },
-    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
-    update: { remainingAmountJpy },
+  await casualtyLossCarryforwardRepository.upsert({
+    taxYearId: taxYear.id,
+    originYear,
+    remainingAmountJpy,
   });
 
   revalidatePath("/import");
@@ -1951,7 +1958,7 @@ export async function setCasualtyLossCarryforward(formData: FormData): Promise<v
 export async function deleteCasualtyLossCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.casualtyLossCarryforward.delete({ where: { id } });
+  await casualtyLossCarryforwardRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/casualty-loss-deduction");
   redirect(`/import?year=${year}&tab=casualtyLossCarryforward`);
@@ -1972,22 +1979,17 @@ export async function carryForwardCasualtyLossExcess(formData: FormData): Promis
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
   const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing = await prisma.casualtyLossCarryforward.findMany({
-    where: { taxYearId: nextTaxYear.id },
-    select: { originYear: true },
-  });
+  const existing = await casualtyLossCarryforwardRepository.findByTaxYearId(nextTaxYear.id);
   const existingYears = new Set(existing.map((e) => e.originYear));
   const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
 
-  if (toCreate.length > 0) {
-    await prisma.casualtyLossCarryforward.createMany({
-      data: toCreate.map((e) => ({
-        taxYearId: nextTaxYear.id,
-        originYear: e.originYear,
-        remainingAmountJpy: e.remainingAmountJpy,
-      })),
-    });
-  }
+  await casualtyLossCarryforwardRepository.createMany(
+    toCreate.map((e) => ({
+      taxYearId: nextTaxYear.id,
+      originYear: e.originYear,
+      remainingAmountJpy: e.remainingAmountJpy,
+    })),
+  );
 
   revalidatePath("/import");
   redirect(`/casualty-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
@@ -2002,12 +2004,10 @@ export async function setHomeSaleLossCarryforward(formData: FormData): Promise<v
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.homeSaleLossCarryforward.upsert({
-    where: {
-      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
-    },
-    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
-    update: { remainingAmountJpy },
+  await homeSaleLossCarryforwardRepository.upsert({
+    taxYearId: taxYear.id,
+    originYear,
+    remainingAmountJpy,
   });
 
   revalidatePath("/import");
@@ -2018,7 +2018,7 @@ export async function setHomeSaleLossCarryforward(formData: FormData): Promise<v
 export async function deleteHomeSaleLossCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.homeSaleLossCarryforward.delete({ where: { id } });
+  await homeSaleLossCarryforwardRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/home-sale-loss-deduction");
   redirect(`/import?year=${year}&tab=homeSaleLossCarryforward`);
@@ -2039,22 +2039,17 @@ export async function carryForwardHomeSaleLossExcess(formData: FormData): Promis
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
   const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing = await prisma.homeSaleLossCarryforward.findMany({
-    where: { taxYearId: nextTaxYear.id },
-    select: { originYear: true },
-  });
+  const existing = await homeSaleLossCarryforwardRepository.findByTaxYearId(nextTaxYear.id);
   const existingYears = new Set(existing.map((e) => e.originYear));
   const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
 
-  if (toCreate.length > 0) {
-    await prisma.homeSaleLossCarryforward.createMany({
-      data: toCreate.map((e) => ({
-        taxYearId: nextTaxYear.id,
-        originYear: e.originYear,
-        remainingAmountJpy: e.remainingAmountJpy,
-      })),
-    });
-  }
+  await homeSaleLossCarryforwardRepository.createMany(
+    toCreate.map((e) => ({
+      taxYearId: nextTaxYear.id,
+      originYear: e.originYear,
+      remainingAmountJpy: e.remainingAmountJpy,
+    })),
+  );
 
   revalidatePath("/import");
   redirect(`/home-sale-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
@@ -2069,12 +2064,10 @@ export async function setHomeReplacementLossCarryforward(formData: FormData): Pr
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.homeReplacementLossCarryforward.upsert({
-    where: {
-      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
-    },
-    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
-    update: { remainingAmountJpy },
+  await homeReplacementLossCarryforwardRepository.upsert({
+    taxYearId: taxYear.id,
+    originYear,
+    remainingAmountJpy,
   });
 
   revalidatePath("/import");
@@ -2085,7 +2078,7 @@ export async function setHomeReplacementLossCarryforward(formData: FormData): Pr
 export async function deleteHomeReplacementLossCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.homeReplacementLossCarryforward.delete({ where: { id } });
+  await homeReplacementLossCarryforwardRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/home-replacement-loss-deduction");
   redirect(`/import?year=${year}&tab=homeReplacementLossCarryforward`);
@@ -2107,22 +2100,18 @@ export async function carryForwardHomeReplacementLossExcess(formData: FormData):
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
   const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing = await prisma.homeReplacementLossCarryforward.findMany({
-    where: { taxYearId: nextTaxYear.id },
-    select: { originYear: true },
-  });
+  const existing =
+    await homeReplacementLossCarryforwardRepository.findByTaxYearId(nextTaxYear.id);
   const existingYears = new Set(existing.map((e) => e.originYear));
   const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
 
-  if (toCreate.length > 0) {
-    await prisma.homeReplacementLossCarryforward.createMany({
-      data: toCreate.map((e) => ({
-        taxYearId: nextTaxYear.id,
-        originYear: e.originYear,
-        remainingAmountJpy: e.remainingAmountJpy,
-      })),
-    });
-  }
+  await homeReplacementLossCarryforwardRepository.createMany(
+    toCreate.map((e) => ({
+      taxYearId: nextTaxYear.id,
+      originYear: e.originYear,
+      remainingAmountJpy: e.remainingAmountJpy,
+    })),
+  );
 
   revalidatePath("/import");
   redirect(`/home-replacement-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
@@ -2145,12 +2134,10 @@ export async function setAngelTaxLossCarryforward(formData: FormData): Promise<v
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.angelTaxLossCarryforward.upsert({
-    where: {
-      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
-    },
-    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
-    update: { remainingAmountJpy },
+  await angelTaxLossCarryforwardRepository.upsert({
+    taxYearId: taxYear.id,
+    originYear,
+    remainingAmountJpy,
   });
 
   revalidatePath("/angel-tax-loss-carryforward");
@@ -2160,7 +2147,7 @@ export async function setAngelTaxLossCarryforward(formData: FormData): Promise<v
 export async function deleteAngelTaxLossCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.angelTaxLossCarryforward.delete({ where: { id } });
+  await angelTaxLossCarryforwardRepository.delete(id);
   revalidatePath("/angel-tax-loss-carryforward");
   redirect(`/angel-tax-loss-carryforward?year=${year}`);
 }

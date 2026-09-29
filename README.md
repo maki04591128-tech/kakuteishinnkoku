@@ -758,9 +758,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   ユニークキーが`taxYearId`単独で他の控除限度額系と形が異なる)は今回
   未移行(下記1-39で対応)。
 
-- [ ] 1-39以降. `src/app/actions.ts`の残り機能(各種控除レコードの
+- [x] 1-39. `src/app/actions.ts`の`setCasualtyLossCarryforward`/
+      `deleteCasualtyLossCarryforward`/`carryForwardCasualtyLossExcess`
+      (雑損控除の繰越損失額の登録・削除・翌年への繰越)、
+      `setHomeSaleLossCarryforward`/`deleteHomeSaleLossCarryforward`/
+      `carryForwardHomeSaleLossExcess`(特定居住用財産の譲渡損失の繰越控除)、
+      `setHomeReplacementLossCarryforward`/
+      `deleteHomeReplacementLossCarryforward`/
+      `carryForwardHomeReplacementLossExcess`(居住用財産の買換え等の場合の
+      譲渡損失の繰越控除)、`setAngelTaxLossCarryforward`/
+      `deleteAngelTaxLossCarryforward`(エンジェル税制の譲渡損失の繰越控除)を移行
+
+  **実装内容(2026-09-29):** `1-32`〜`1-35`の各繰越控除系リポジトリと同じ形で
+  `CasualtyLossCarryforwardRepository`・`HomeSaleLossCarryforwardRepository`・
+  `HomeReplacementLossCarryforwardRepository`(いずれも各`page.tsx`向けに
+  `findByTaxYearId`のみ既存だった)に`upsert(params)`/`delete(id)`/
+  `createMany(data)`を追加した(`upsert`のユニークキーは
+  `taxYearId_originYear`複合キー)。`AngelTaxLossCarryforwardRepository`は
+  対応するactions.ts側に翌年への一括繰越機能が無いため`upsert`/`delete`のみ
+  追加した。`src/app/actions.ts`の該当11関数は`prisma.casualtyLossCarryforward`/
+  `prisma.homeSaleLossCarryforward`/`prisma.homeReplacementLossCarryforward`/
+  `prisma.angelTaxLossCarryforward`直接呼び出しをやめ、それぞれのリポジトリに
+  委譲するように変更した(関数シグネチャ・挙動は変更していない)。
+
+- [ ] 1-40以降. `src/app/actions.ts`の残り機能(各種控除レコードの
       upsert/deleteMany、インポート取込のトランザクション処理等、
-      残り約72箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      残り約52箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
       (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
