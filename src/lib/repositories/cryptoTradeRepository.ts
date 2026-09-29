@@ -8,10 +8,28 @@
 import type { CryptoTrade, Prisma } from "@prisma/client";
 import { prisma } from "../db";
 
+export interface CryptoTradeImportRow {
+  tradedAt: Date;
+  symbol: string;
+  type: string;
+  quantity: string;
+  unitPriceJpy: string;
+  feeJpy: string;
+  exchange: string | null;
+  memo: string | null;
+  source: string;
+}
+
 export interface CryptoTradeRepository {
   findByTaxYearId(taxYearId: number): Promise<CryptoTrade[]>;
   create(data: Prisma.CryptoTradeUncheckedCreateInput): Promise<CryptoTrade>;
   delete(id: number): Promise<void>;
+  importCsvBatch(input: {
+    taxYearId: number;
+    sourceType: string;
+    fileName: string;
+    rows: CryptoTradeImportRow[];
+  }): Promise<void>;
 }
 
 export function createPrismaCryptoTradeRepository(): CryptoTradeRepository {
@@ -26,6 +44,37 @@ export function createPrismaCryptoTradeRepository(): CryptoTradeRepository {
 
     async delete(id: number): Promise<void> {
       await prisma.cryptoTrade.delete({ where: { id } });
+    },
+
+    async importCsvBatch({ taxYearId, sourceType, fileName, rows }): Promise<void> {
+      await prisma.$transaction(async (tx) => {
+        const batch = await tx.importBatch.create({
+          data: {
+            taxYearId,
+            sourceType,
+            fileName,
+            rowCount: rows.length,
+          },
+        });
+
+        if (rows.length > 0) {
+          await tx.cryptoTrade.createMany({
+            data: rows.map((row) => ({
+              taxYearId,
+              tradedAt: row.tradedAt,
+              symbol: row.symbol,
+              type: row.type as never,
+              quantity: row.quantity,
+              unitPriceJpy: row.unitPriceJpy,
+              feeJpy: row.feeJpy,
+              exchange: row.exchange,
+              memo: row.memo,
+              source: row.source,
+              importBatchId: batch.id,
+            })),
+          });
+        }
+      });
     },
   };
 }
