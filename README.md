@@ -590,9 +590,21 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.investmentTrade.delete()`直接呼び出しをやめ、このリポジトリに
   委譲するように変更した(関数シグネチャ・挙動は変更していない)。
 
-- [ ] 1-28以降. `src/app/actions.ts`の残り機能(暗号資産証拠金/信用取引・
+- [x] 1-28. `src/app/actions.ts`の`addCryptoMarginTrade`/`deleteCryptoMarginTrade`
+      (暗号資産証拠金取引の登録・削除)を移行
+
+  **実装内容(2026-09-29):** `1-24`で導入済みの`CryptoMarginTradeRepository`
+  (`findByTaxYearId`のみ)に`create(data)`/`delete(id)`を追加した
+  (`1-26`の`CryptoTradeRepository`と同じ形。`create`の引数型は
+  `Prisma.CryptoMarginTradeUncheckedCreateInput`)。`src/app/actions.ts`の
+  `addCryptoMarginTrade`/`deleteCryptoMarginTrade`は
+  `prisma.cryptoMarginTrade.create()`/`prisma.cryptoMarginTrade.delete()`
+  直接呼び出しをやめ、このリポジトリに委譲するように変更した
+  (関数シグネチャ・挙動は変更していない)。
+
+- [ ] 1-29以降. `src/app/actions.ts`の残り機能(暗号資産信用取引・
       株式信用取引/先物取引の登録・削除、各種繰越控除のupsert等、
-      約27箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      約25箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。
       `import/page.tsx`(1モデルではなく多数のモデルを一括読み込みする
