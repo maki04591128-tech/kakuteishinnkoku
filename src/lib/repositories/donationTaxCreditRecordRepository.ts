@@ -8,6 +8,12 @@ import { prisma } from "../db";
 
 export interface DonationTaxCreditRecordRepository {
   findByTaxYearId(taxYearId: number): Promise<DonationTaxCreditRecord | null>;
+  upsert(params: {
+    taxYearId: number;
+    totalTaxCreditJpy: string;
+    residentTaxBasicDeductionJpy: string;
+  }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaDonationTaxCreditRecordRepository(): DonationTaxCreditRecordRepository {
@@ -16,6 +22,18 @@ export function createPrismaDonationTaxCreditRecordRepository(): DonationTaxCred
       return prisma.donationTaxCreditRecord.findUnique({
         where: { taxYearId },
       });
+    },
+
+    async upsert({ taxYearId, totalTaxCreditJpy, residentTaxBasicDeductionJpy }): Promise<void> {
+      await prisma.donationTaxCreditRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, totalTaxCreditJpy, residentTaxBasicDeductionJpy },
+        update: { totalTaxCreditJpy, residentTaxBasicDeductionJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.donationTaxCreditRecord.deleteMany({ where: { taxYearId } });
     },
   };
 }
