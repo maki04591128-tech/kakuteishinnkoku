@@ -10,6 +10,8 @@ export interface DurabilityImprovementRenovationDeductionRecordRepository {
   findByTaxYearId(
     taxYearId: number,
   ): Promise<DurabilityImprovementRenovationDeductionRecord | null>;
+  upsert(params: { taxYearId: number; creditJpy: string }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaDurabilityImprovementRenovationDeductionRecordRepository(): DurabilityImprovementRenovationDeductionRecordRepository {
@@ -18,6 +20,20 @@ export function createPrismaDurabilityImprovementRenovationDeductionRecordReposi
       taxYearId: number,
     ): Promise<DurabilityImprovementRenovationDeductionRecord | null> {
       return prisma.durabilityImprovementRenovationDeductionRecord.findUnique({
+        where: { taxYearId },
+      });
+    },
+
+    async upsert({ taxYearId, creditJpy }): Promise<void> {
+      await prisma.durabilityImprovementRenovationDeductionRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, creditJpy },
+        update: { creditJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.durabilityImprovementRenovationDeductionRecord.deleteMany({
         where: { taxYearId },
       });
     },
