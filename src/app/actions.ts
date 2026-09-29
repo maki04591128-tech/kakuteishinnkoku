@@ -13,6 +13,8 @@ import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stock
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
 import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
+import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/openingBalanceRepository";
+import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
@@ -79,6 +81,9 @@ const futuresLossCarryforwardRepository = createPrismaFuturesLossCarryforwardRep
 const investmentLossCarryforwardRepository =
   createPrismaInvestmentLossCarryforwardRepository();
 const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
+const openingBalanceRepository = createPrismaOpeningBalanceRepository();
+const openingBalanceByInstitutionRepository =
+  createPrismaOpeningBalanceByInstitutionRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -715,26 +720,14 @@ export async function setOpeningBalance(formData: FormData): Promise<void> {
   const quantity = requireString(formData, "quantity");
   const costBasisJpy = requireString(formData, "costBasisJpy");
 
-  await prisma.openingBalance.upsert({
-    where: {
-      taxYearId_assetClass_symbol_isNisa_isListed: {
-        taxYearId: taxYear.id,
-        assetClass,
-        symbol,
-        isNisa,
-        isListed,
-      },
-    },
-    create: {
-      taxYearId: taxYear.id,
-      assetClass,
-      symbol,
-      isNisa,
-      isListed,
-      quantity,
-      costBasisJpy,
-    },
-    update: { quantity, costBasisJpy },
+  await openingBalanceRepository.upsert({
+    taxYearId: taxYear.id,
+    assetClass,
+    symbol,
+    isNisa,
+    isListed,
+    quantity,
+    costBasisJpy,
   });
 
   revalidatePath("/import");
@@ -745,7 +738,7 @@ export async function setOpeningBalance(formData: FormData): Promise<void> {
 export async function deleteOpeningBalance(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.openingBalance.delete({ where: { id } });
+  await openingBalanceRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=opening`);
@@ -768,23 +761,12 @@ export async function setOpeningBalanceByInstitution(
   const institution = requireString(formData, "institution").trim();
   const quantity = requireString(formData, "quantity");
 
-  await prisma.openingBalanceByInstitution.upsert({
-    where: {
-      taxYearId_assetClass_symbol_institution: {
-        taxYearId: taxYear.id,
-        assetClass,
-        symbol,
-        institution,
-      },
-    },
-    create: {
-      taxYearId: taxYear.id,
-      assetClass,
-      symbol,
-      institution,
-      quantity,
-    },
-    update: { quantity },
+  await openingBalanceByInstitutionRepository.upsert({
+    taxYearId: taxYear.id,
+    assetClass,
+    symbol,
+    institution,
+    quantity,
   });
 
   revalidatePath("/import");
@@ -796,7 +778,7 @@ export async function deleteOpeningBalanceByInstitution(
 ): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.openingBalanceByInstitution.delete({ where: { id } });
+  await openingBalanceByInstitutionRepository.delete(id);
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=assetBalance`);
 }
@@ -812,10 +794,7 @@ export async function carryForwardOpeningBalances(
   const taxYear = await getOrCreateTaxYear(year);
   const candidates = await buildCarryForwardCandidates(year - 1);
 
-  const existing = await prisma.openingBalance.findMany({
-    where: { taxYearId: taxYear.id },
-    select: { assetClass: true, symbol: true, isNisa: true, isListed: true },
-  });
+  const existing = await openingBalanceRepository.findByTaxYearId(taxYear.id);
   const existingKeys = new Set(
     existing.map((e) => `${e.assetClass}:${e.symbol}:${e.isNisa}:${e.isListed}`),
   );
@@ -824,19 +803,17 @@ export async function carryForwardOpeningBalances(
     (c) => !existingKeys.has(`${c.assetClass}:${c.symbol}:${c.isNisa}:${c.isListed}`),
   );
 
-  if (toCreate.length > 0) {
-    await prisma.openingBalance.createMany({
-      data: toCreate.map((c) => ({
-        taxYearId: taxYear.id,
-        assetClass: c.assetClass,
-        symbol: c.symbol,
-        isNisa: c.isNisa,
-        isListed: c.isListed,
-        quantity: c.quantity,
-        costBasisJpy: c.costBasisJpy,
-      })),
-    });
-  }
+  await openingBalanceRepository.createMany(
+    toCreate.map((c) => ({
+      taxYearId: taxYear.id,
+      assetClass: c.assetClass,
+      symbol: c.symbol,
+      isNisa: c.isNisa,
+      isListed: c.isListed,
+      quantity: c.quantity,
+      costBasisJpy: c.costBasisJpy,
+    })),
+  );
 
   revalidatePath("/import");
   revalidatePath("/");

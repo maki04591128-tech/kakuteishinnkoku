@@ -683,9 +683,27 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.brokerAnnualReport.findMany`呼び出しは今回未移行(下記1-35以降で
   `import/page.tsx`をまとめて対応する際に行う)。
 
-- [ ] 1-35以降. `src/app/actions.ts`の残り機能(各種繰越控除の
+- [x] 1-35. `src/app/actions.ts`の`setOpeningBalance`/`deleteOpeningBalance`/
+      `carryForwardOpeningBalances`/`setOpeningBalanceByInstitution`/
+      `deleteOpeningBalanceByInstitution`(期首残高・期首残高の金融機関別
+      内訳の登録・削除・繰越)を移行
+
+  **実装内容(2026-09-29):** `src/lib/repositories/openingBalanceRepository.ts`
+  (1-16で`findByTaxYearId`のみ導入済み)に`upsert`/`delete`/`createMany`を
+  追加した。`OpeningBalanceByInstitution`は今回初めてリポジトリ化するモデルの
+  ため、新規に`src/lib/repositories/openingBalanceByInstitutionRepository.ts`
+  に`OpeningBalanceByInstitutionRepository`インターフェース(`upsert`/`delete`)
+  と`createPrismaOpeningBalanceByInstitutionRepository()`を追加した。
+  `src/app/actions.ts`の該当5関数は`prisma.openingBalance`/
+  `prisma.openingBalanceByInstitution`直接呼び出しをやめ、それぞれの
+  リポジトリに委譲するように変更した(関数シグネチャ・挙動は変更していない)。
+  `src/app/import/page.tsx`側の`prisma.openingBalance`/
+  `prisma.openingBalanceByInstitution`呼び出しは今回未移行(下記1-36以降で
+  `import/page.tsx`をまとめて対応する際に行う)。
+
+- [ ] 1-36以降. `src/app/actions.ts`の残り機能(各種繰越控除の
       upsert/delete/createMany、各種控除レコードのupsert/deleteMany、
-      インポート取込のトランザクション処理等、残り約95箇所の`prisma.xxx`
+      インポート取込のトランザクション処理等、残り約88箇所の`prisma.xxx`
       呼び出し)と`src/app/import/page.tsx`(Server Component)を順次移行
       (進めるごとにこのリストに追記)。1回のブラッシュアップで
       1〜2機能分ずつ進める想定。`import/page.tsx`(1モデルではなく
