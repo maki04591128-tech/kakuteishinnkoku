@@ -737,9 +737,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.marketPrice`呼び出しは今回未移行(下記1-38以降で
   `import/page.tsx`をまとめて対応する際に行う)。
 
-- [ ] 1-38以降. `src/app/actions.ts`の残り機能(各種控除レコードの
+- [x] 1-38. `src/app/actions.ts`の`setForeignTaxCreditCarryforward`/
+      `deleteForeignTaxCreditCarryforward`/`carryForwardForeignTaxCreditExcess`
+      (外国税額控除の控除限度超過額の登録・削除・翌年への繰越)と
+      `setForeignTaxCreditSpareLimitCarryforward`/
+      `deleteForeignTaxCreditSpareLimitCarryforward`/
+      `carryForwardForeignTaxCreditSpareLimit`(控除余裕額側の同処理)を移行
+
+  **実装内容(2026-09-29):** `1-32`〜`1-35`の各繰越控除系リポジトリと同じ形で
+  `ForeignTaxCreditCarryforwardRepository`・
+  `ForeignTaxCreditSpareLimitCarryforwardRepository`(いずれも
+  `src/app/foreign-tax-credit/page.tsx`向けに`findByTaxYearId`のみ既存
+  だった)に`upsert(params)`/`delete(id)`/`createMany(data)`を追加した
+  (`upsert`のユニークキーは`taxYearId_originYear`複合キー)。
+  `src/app/actions.ts`の該当6関数は`prisma.foreignTaxCreditCarryforward`/
+  `prisma.foreignTaxCreditSpareLimitCarryforward`直接呼び出しをやめ、
+  それぞれのリポジトリに委譲するように変更した(関数シグネチャ・挙動は
+  変更していない)。同じ`src/app/foreign-tax-credit`機能内の
+  `saveForeignTaxCreditRecord`(`ForeignTaxCreditRecord`モデル、`upsert`の
+  ユニークキーが`taxYearId`単独で他の控除限度額系と形が異なる)は今回
+  未移行(下記1-39で対応)。
+
+- [ ] 1-39以降. `src/app/actions.ts`の残り機能(各種控除レコードの
       upsert/deleteMany、インポート取込のトランザクション処理等、
-      残り約80箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      残り約72箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
       (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
