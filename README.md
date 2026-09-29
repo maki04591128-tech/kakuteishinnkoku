@@ -625,9 +625,21 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   直接呼び出しをやめ、このリポジトリに委譲するように変更した
   (関数シグネチャ・挙動は変更していない)。
 
-- [ ] 1-31以降. `src/app/actions.ts`の残り機能(先物取引の登録・削除、
-      各種繰越控除のupsert等、約23箇所の`prisma.xxx`呼び出し)と
-      `src/app/import/page.tsx`(Server Component)を順次移行
+- [x] 1-31. `src/app/actions.ts`の`addFuturesTrade`/`deleteFuturesTrade`
+      (先物取引の登録・削除)を移行
+
+  **実装内容(2026-09-29):** `1-24`で導入済みの`FuturesTradeRepository`
+  (`findByTaxYearId`のみ)に、これまでの取引系リポジトリ(`1-26`〜`1-30`)と
+  同じ形で`create(data)`/`delete(id)`を追加した(`create`の引数型は
+  `Prisma.FuturesTradeUncheckedCreateInput`)。`src/app/actions.ts`の
+  `addFuturesTrade`/`deleteFuturesTrade`は`prisma.futuresTrade.create()`/
+  `prisma.futuresTrade.delete()`直接呼び出しをやめ、このリポジトリに
+  委譲するように変更した(関数シグネチャ・挙動は変更していない)。
+
+- [ ] 1-32以降. `src/app/actions.ts`の残り機能(各種繰越控除の
+      upsert/delete/createMany、各種控除レコードのupsert/deleteMany、
+      インポート取込のトランザクション処理等、約80箇所の`prisma.xxx`
+      呼び出し)と`src/app/import/page.tsx`(Server Component)を順次移行
       (進めるごとにこのリストに追記)。1回のブラッシュアップで
       1〜2機能分ずつ進める想定。`import/page.tsx`(1モデルではなく
       多数のモデルを一括読み込みする2856行の大きなページ)は

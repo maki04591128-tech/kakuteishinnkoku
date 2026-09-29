@@ -10,6 +10,7 @@ import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/invest
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
 import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
 import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stockMarginTradeRepository";
+import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -70,6 +71,7 @@ const investmentTradeRepository = createPrismaInvestmentTradeRepository();
 const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();
 const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();
 const stockMarginTradeRepository = createPrismaStockMarginTradeRepository();
+const futuresTradeRepository = createPrismaFuturesTradeRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -475,18 +477,16 @@ export async function addFuturesTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.futuresTrade.create({
-    data: {
-      taxYearId: taxYear.id,
-      settledAt: new Date(requireString(formData, "settledAt")),
-      symbol: requireString(formData, "symbol"),
-      realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
-      feeJpy: optionalString(formData, "feeJpy") ?? "0",
-      swapJpy: optionalString(formData, "swapJpy") ?? "0",
-      broker: optionalString(formData, "broker"),
-      memo: optionalString(formData, "memo"),
-      source: "manual",
-    },
+  await futuresTradeRepository.create({
+    taxYearId: taxYear.id,
+    settledAt: new Date(requireString(formData, "settledAt")),
+    symbol: requireString(formData, "symbol"),
+    realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
+    feeJpy: optionalString(formData, "feeJpy") ?? "0",
+    swapJpy: optionalString(formData, "swapJpy") ?? "0",
+    broker: optionalString(formData, "broker"),
+    memo: optionalString(formData, "memo"),
+    source: "manual",
   });
 
   revalidatePath("/import");
@@ -497,7 +497,7 @@ export async function addFuturesTrade(formData: FormData): Promise<void> {
 export async function deleteFuturesTrade(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.futuresTrade.delete({ where: { id } });
+  await futuresTradeRepository.delete(id);
   revalidatePath("/import");
   revalidatePath("/");
   redirect(`/import?year=${year}&tab=futures`);
