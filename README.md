@@ -636,9 +636,27 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.futuresTrade.delete()`直接呼び出しをやめ、このリポジトリに
   委譲するように変更した(関数シグネチャ・挙動は変更していない)。
 
-- [ ] 1-32以降. `src/app/actions.ts`の残り機能(各種繰越控除の
+- [x] 1-32. `src/app/actions.ts`の`setFuturesLossCarryforward`/
+      `deleteFuturesLossCarryforward`/`carryForwardFuturesLoss`
+      (先物取引の繰越損失の登録・削除・翌年への繰越)を移行
+
+  **実装内容(2026-09-29):** `1-24`で導入済みの
+  `FuturesLossCarryforwardRepository`(`findByTaxYearId`のみ)に、
+  `upsert(params)`/`delete(id)`/`createMany(data)`を追加した(いずれも
+  既存のPrismaクエリをそのままラップするのみで挙動は変更していない)。
+  `src/app/actions.ts`の`setFuturesLossCarryforward`/
+  `deleteFuturesLossCarryforward`/`carryForwardFuturesLoss`は
+  `prisma.futuresLossCarryforward`直接呼び出しをやめ、このリポジトリに
+  委譲するように変更した(関数シグネチャ・挙動は変更していない)。
+  他の繰越控除系モデル(`investmentLossCarryforward`・
+  `casualtyLossCarryforward`・`homeSaleLossCarryforward`・
+  `homeReplacementLossCarryforward`・`nisaLifetimeQuota`等)も
+  同じ「upsert/delete/findMany+createMany」パターンのため、以後の移行でも
+  同様の手順で進められる見込み。
+
+- [ ] 1-33以降. `src/app/actions.ts`の残り機能(各種繰越控除の
       upsert/delete/createMany、各種控除レコードのupsert/deleteMany、
-      インポート取込のトランザクション処理等、約80箇所の`prisma.xxx`
+      インポート取込のトランザクション処理等、残り約100箇所の`prisma.xxx`
       呼び出し)と`src/app/import/page.tsx`(Server Component)を順次移行
       (進めるごとにこのリストに追記)。1回のブラッシュアップで
       1〜2機能分ずつ進める想定。`import/page.tsx`(1モデルではなく
