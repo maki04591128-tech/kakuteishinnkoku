@@ -815,9 +815,28 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `taxYearRepository.findByYear`に委譲するように変更した
   (関数シグネチャ・挙動は変更していない)。
 
-- [ ] 1-42以降. `src/app/actions.ts`の残り機能(各種控除レコードの
+- [x] 1-42. `src/app/actions.ts`の`saveEnergySavingRenovationDeductionRecord`/
+      `deleteEnergySavingRenovationDeductionRecord`(省エネ改修工事をした場合の
+      住宅特定改修特別税額控除シミュレーターの当年分試算結果)、
+      `saveBarrierFreeRenovationDeductionRecord`/
+      `deleteBarrierFreeRenovationDeductionRecord`(バリアフリー改修工事をした
+      場合の住宅特定改修特別税額控除シミュレーターの当年分試算結果)を
+      リポジトリパターン導入
+
+  **実装内容(2026-09-29):** `EnergySavingRenovationDeductionRecordRepository`・
+  `BarrierFreeRenovationDeductionRecordRepository`(いずれも各`page.tsx`向けに
+  `findByTaxYearId`のみ既存だった)に`upsert(params)`/
+  `deleteByTaxYearId(taxYearId)`を追加した(`upsert`のユニークキーはいずれも
+  `taxYearId`単一キー、`1-40`/`1-41`と同じ形)。`src/app/actions.ts`の該当4
+  関数は`prisma.energySavingRenovationDeductionRecord`/
+  `prisma.barrierFreeRenovationDeductionRecord`直接呼び出しと削除関数内の
+  `prisma.taxYear.findUnique`をやめ、それぞれのリポジトリ・
+  `taxYearRepository.findByYear`に委譲するように変更した
+  (関数シグネチャ・挙動は変更していない)。
+
+- [ ] 1-43以降. `src/app/actions.ts`の残り機能(各種控除レコードの
       upsert/deleteMany、インポート取込のトランザクション処理等、
-      残り約46箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
+      残り約44箇所の`prisma.xxx`呼び出し)と`src/app/import/page.tsx`
       (Server Component)を順次移行(進めるごとにこのリストに追記)。
       1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
       (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
