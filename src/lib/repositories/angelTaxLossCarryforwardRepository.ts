@@ -8,6 +8,12 @@ import { prisma } from "../db";
 
 export interface AngelTaxLossCarryforwardRepository {
   findByTaxYearId(taxYearId: number): Promise<AngelTaxLossCarryforward[]>;
+  upsert(params: {
+    taxYearId: number;
+    originYear: number;
+    remainingAmountJpy: string;
+  }): Promise<void>;
+  delete(id: number): Promise<void>;
 }
 
 export function createPrismaAngelTaxLossCarryforwardRepository(): AngelTaxLossCarryforwardRepository {
@@ -17,6 +23,20 @@ export function createPrismaAngelTaxLossCarryforwardRepository(): AngelTaxLossCa
         where: { taxYearId },
         orderBy: { originYear: "asc" },
       });
+    },
+
+    async upsert({ taxYearId, originYear, remainingAmountJpy }): Promise<void> {
+      await prisma.angelTaxLossCarryforward.upsert({
+        where: {
+          taxYearId_originYear: { taxYearId, originYear },
+        },
+        create: { taxYearId, originYear, remainingAmountJpy },
+        update: { remainingAmountJpy },
+      });
+    },
+
+    async delete(id: number): Promise<void> {
+      await prisma.angelTaxLossCarryforward.delete({ where: { id } });
     },
   };
 }
