@@ -667,9 +667,25 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   直接呼び出しをやめ、このリポジトリに委譲するように変更した
   (関数シグネチャ・挙動は変更していない)。
 
-- [ ] 1-34以降. `src/app/actions.ts`の残り機能(各種繰越控除の
+- [x] 1-34. `src/app/actions.ts`の`setBrokerAnnualReport`/
+      `deleteBrokerAnnualReport`/`importBrokerAnnualReportCsv`
+      (年間取引報告書サマリーの登録・削除・CSV一括取込)を移行
+
+  **実装内容(2026-09-29):** `src/lib/repositories/brokerAnnualReportRepository.ts`
+  に`BrokerAnnualReportRepository`インターフェース
+  (`upsert`/`delete`/`upsertMany`)と`createPrismaBrokerAnnualReportRepository()`
+  を新規追加した(この移行対象は`findByTaxYearId`を使っていなかったため
+  読み取りメソッドは追加していない)。CSV一括取込(`importBrokerAnnualReportCsv`)
+  が使う`prisma.$transaction`によるupsertの配列実行は`upsertMany`にそのまま
+  ラップした。`src/app/actions.ts`の該当3関数は`prisma.brokerAnnualReport`
+  直接呼び出しをやめ、このリポジトリに委譲するように変更した
+  (関数シグネチャ・挙動は変更していない)。`src/app/import/page.tsx`側の
+  `prisma.brokerAnnualReport.findMany`呼び出しは今回未移行(下記1-35以降で
+  `import/page.tsx`をまとめて対応する際に行う)。
+
+- [ ] 1-35以降. `src/app/actions.ts`の残り機能(各種繰越控除の
       upsert/delete/createMany、各種控除レコードのupsert/deleteMany、
-      インポート取込のトランザクション処理等、残り約100箇所の`prisma.xxx`
+      インポート取込のトランザクション処理等、残り約95箇所の`prisma.xxx`
       呼び出し)と`src/app/import/page.tsx`(Server Component)を順次移行
       (進めるごとにこのリストに追記)。1回のブラッシュアップで
       1〜2機能分ずつ進める想定。`import/page.tsx`(1モデルではなく
