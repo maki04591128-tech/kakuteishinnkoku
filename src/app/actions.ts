@@ -27,6 +27,8 @@ import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/rep
 import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
 import { createPrismaForeignTaxCreditRecordRepository } from "@/lib/repositories/foreignTaxCreditRecordRepository";
 import { createPrismaDonationTaxCreditRecordRepository } from "@/lib/repositories/donationTaxCreditRecordRepository";
+import { createPrismaDistributionAdjustedForeignTaxCreditRecordRepository } from "@/lib/repositories/distributionAdjustedForeignTaxCreditRecordRepository";
+import { createPrismaEarthquakeRenovationDeductionRecordRepository } from "@/lib/repositories/earthquakeRenovationDeductionRecordRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -109,6 +111,10 @@ const homeReplacementLossCarryforwardRepository =
 const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
 const foreignTaxCreditRecordRepository = createPrismaForeignTaxCreditRecordRepository();
 const donationTaxCreditRecordRepository = createPrismaDonationTaxCreditRecordRepository();
+const distributionAdjustedForeignTaxCreditRecordRepository =
+  createPrismaDistributionAdjustedForeignTaxCreditRecordRepository();
+const earthquakeRenovationDeductionRecordRepository =
+  createPrismaEarthquakeRenovationDeductionRecordRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -1319,10 +1325,9 @@ export async function saveDistributionAdjustedForeignTaxCreditRecord(
   const creditJpy = requireString(formData, "creditJpy");
 
   const taxYear = await getOrCreateTaxYear(year);
-  await prisma.distributionAdjustedForeignTaxCreditRecord.upsert({
-    where: { taxYearId: taxYear.id },
-    create: { taxYearId: taxYear.id, creditJpy },
-    update: { creditJpy },
+  await distributionAdjustedForeignTaxCreditRecordRepository.upsert({
+    taxYearId: taxYear.id,
+    creditJpy,
   });
 
   revalidatePath("/tax-estimate");
@@ -1339,11 +1344,9 @@ export async function deleteDistributionAdjustedForeignTaxCreditRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (taxYear) {
-    await prisma.distributionAdjustedForeignTaxCreditRecord.deleteMany({
-      where: { taxYearId: taxYear.id },
-    });
+    await distributionAdjustedForeignTaxCreditRecordRepository.deleteByTaxYearId(taxYear.id);
   }
 
   revalidatePath("/tax-estimate");
@@ -1363,10 +1366,9 @@ export async function saveEarthquakeRenovationDeductionRecord(formData: FormData
   const creditJpy = requireString(formData, "creditJpy");
 
   const taxYear = await getOrCreateTaxYear(year);
-  await prisma.earthquakeRenovationDeductionRecord.upsert({
-    where: { taxYearId: taxYear.id },
-    create: { taxYearId: taxYear.id, creditJpy },
-    update: { creditJpy },
+  await earthquakeRenovationDeductionRecordRepository.upsert({
+    taxYearId: taxYear.id,
+    creditJpy,
   });
 
   revalidatePath("/tax-estimate");
@@ -1383,11 +1385,9 @@ export async function deleteEarthquakeRenovationDeductionRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await prisma.taxYear.findUnique({ where: { year } });
+  const taxYear = await taxYearRepository.findByYear(year);
   if (taxYear) {
-    await prisma.earthquakeRenovationDeductionRecord.deleteMany({
-      where: { taxYearId: taxYear.id },
-    });
+    await earthquakeRenovationDeductionRecordRepository.deleteByTaxYearId(taxYear.id);
   }
 
   revalidatePath("/tax-estimate");

@@ -8,6 +8,8 @@ import { prisma } from "../db";
 
 export interface DistributionAdjustedForeignTaxCreditRecordRepository {
   findByTaxYearId(taxYearId: number): Promise<DistributionAdjustedForeignTaxCreditRecord | null>;
+  upsert(params: { taxYearId: number; creditJpy: string }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaDistributionAdjustedForeignTaxCreditRecordRepository(): DistributionAdjustedForeignTaxCreditRecordRepository {
@@ -18,6 +20,18 @@ export function createPrismaDistributionAdjustedForeignTaxCreditRecordRepository
       return prisma.distributionAdjustedForeignTaxCreditRecord.findUnique({
         where: { taxYearId },
       });
+    },
+
+    async upsert({ taxYearId, creditJpy }): Promise<void> {
+      await prisma.distributionAdjustedForeignTaxCreditRecord.upsert({
+        where: { taxYearId },
+        create: { taxYearId, creditJpy },
+        update: { creditJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.distributionAdjustedForeignTaxCreditRecord.deleteMany({ where: { taxYearId } });
     },
   };
 }
