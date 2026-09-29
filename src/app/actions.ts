@@ -13,6 +13,7 @@ import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stock
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
 import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
+import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -77,6 +78,7 @@ const futuresTradeRepository = createPrismaFuturesTradeRepository();
 const futuresLossCarryforwardRepository = createPrismaFuturesLossCarryforwardRepository();
 const investmentLossCarryforwardRepository =
   createPrismaInvestmentLossCarryforwardRepository();
+const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -634,23 +636,13 @@ export async function setBrokerAnnualReport(formData: FormData): Promise<void> {
   const dividendJpy = optionalString(formData, "dividendJpy") ?? "0";
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.brokerAnnualReport.upsert({
-    where: {
-      taxYearId_broker_accountType: {
-        taxYearId: taxYear.id,
-        broker,
-        accountType: accountType as never,
-      },
-    },
-    create: {
-      taxYearId: taxYear.id,
-      broker,
-      accountType: accountType as never,
-      proceedsJpy,
-      acquisitionCostJpy,
-      dividendJpy,
-    },
-    update: { proceedsJpy, acquisitionCostJpy, dividendJpy },
+  await brokerAnnualReportRepository.upsert({
+    taxYearId: taxYear.id,
+    broker,
+    accountType: accountType as never,
+    proceedsJpy,
+    acquisitionCostJpy,
+    dividendJpy,
   });
 
   revalidatePath("/import");
@@ -660,7 +652,7 @@ export async function setBrokerAnnualReport(formData: FormData): Promise<void> {
 export async function deleteBrokerAnnualReport(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.brokerAnnualReport.delete({ where: { id } });
+  await brokerAnnualReportRepository.delete(id);
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=brokerReport`);
 }
@@ -685,31 +677,15 @@ export async function importBrokerAnnualReportCsv(formData: FormData): Promise<v
 
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.$transaction(
-    rows.map((row) =>
-      prisma.brokerAnnualReport.upsert({
-        where: {
-          taxYearId_broker_accountType: {
-            taxYearId: taxYear.id,
-            broker: row.broker,
-            accountType: row.accountType,
-          },
-        },
-        create: {
-          taxYearId: taxYear.id,
-          broker: row.broker,
-          accountType: row.accountType,
-          proceedsJpy: row.proceedsJpy.toString(),
-          acquisitionCostJpy: row.acquisitionCostJpy.toString(),
-          dividendJpy: row.dividendJpy.toString(),
-        },
-        update: {
-          proceedsJpy: row.proceedsJpy.toString(),
-          acquisitionCostJpy: row.acquisitionCostJpy.toString(),
-          dividendJpy: row.dividendJpy.toString(),
-        },
-      }),
-    ),
+  await brokerAnnualReportRepository.upsertMany(
+    rows.map((row) => ({
+      taxYearId: taxYear.id,
+      broker: row.broker,
+      accountType: row.accountType,
+      proceedsJpy: row.proceedsJpy.toString(),
+      acquisitionCostJpy: row.acquisitionCostJpy.toString(),
+      dividendJpy: row.dividendJpy.toString(),
+    })),
   );
 
   revalidatePath("/import");
