@@ -10,6 +10,8 @@ export interface CertifiedHousingConstructionCreditCarryforwardRepository {
   findByTaxYearId(
     taxYearId: number,
   ): Promise<CertifiedHousingConstructionCreditCarryforward | null>;
+  upsert(params: { taxYearId: number; originYear: number; remainingAmountJpy: string }): Promise<void>;
+  deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
 export function createPrismaCertifiedHousingConstructionCreditCarryforwardRepository(): CertifiedHousingConstructionCreditCarryforwardRepository {
@@ -18,6 +20,20 @@ export function createPrismaCertifiedHousingConstructionCreditCarryforwardReposi
       taxYearId: number,
     ): Promise<CertifiedHousingConstructionCreditCarryforward | null> {
       return prisma.certifiedHousingConstructionCreditCarryforward.findUnique({
+        where: { taxYearId },
+      });
+    },
+
+    async upsert({ taxYearId, originYear, remainingAmountJpy }): Promise<void> {
+      await prisma.certifiedHousingConstructionCreditCarryforward.upsert({
+        where: { taxYearId },
+        create: { taxYearId, originYear, remainingAmountJpy },
+        update: { originYear, remainingAmountJpy },
+      });
+    },
+
+    async deleteByTaxYearId(taxYearId: number): Promise<void> {
+      await prisma.certifiedHousingConstructionCreditCarryforward.deleteMany({
         where: { taxYearId },
       });
     },
