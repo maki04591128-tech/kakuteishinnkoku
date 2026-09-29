@@ -19,6 +19,8 @@ import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/bro
 import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
 import { createPrismaAssetSymbolMappingRepository } from "@/lib/repositories/assetSymbolMappingRepository";
 import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
+import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
+import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -90,6 +92,10 @@ const openingBalanceByInstitutionRepository =
 const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
 const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
 const marketPriceRepository = createPrismaMarketPriceRepository();
+const foreignTaxCreditCarryforwardRepository =
+  createPrismaForeignTaxCreditCarryforwardRepository();
+const foreignTaxCreditSpareLimitCarryforwardRepository =
+  createPrismaForeignTaxCreditSpareLimitCarryforwardRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -1080,12 +1086,10 @@ export async function setForeignTaxCreditCarryforward(formData: FormData): Promi
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.foreignTaxCreditCarryforward.upsert({
-    where: {
-      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
-    },
-    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
-    update: { remainingAmountJpy },
+  await foreignTaxCreditCarryforwardRepository.upsert({
+    taxYearId: taxYear.id,
+    originYear,
+    remainingAmountJpy,
   });
 
   revalidatePath("/import");
@@ -1095,7 +1099,7 @@ export async function setForeignTaxCreditCarryforward(formData: FormData): Promi
 export async function deleteForeignTaxCreditCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.foreignTaxCreditCarryforward.delete({ where: { id } });
+  await foreignTaxCreditCarryforwardRepository.delete(id);
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=foreignTaxCredit`);
 }
@@ -1119,22 +1123,19 @@ export async function carryForwardForeignTaxCreditExcess(
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
   const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing = await prisma.foreignTaxCreditCarryforward.findMany({
-    where: { taxYearId: nextTaxYear.id },
-    select: { originYear: true },
-  });
+  const existing = await foreignTaxCreditCarryforwardRepository.findByTaxYearId(
+    nextTaxYear.id,
+  );
   const existingYears = new Set(existing.map((e) => e.originYear));
   const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
 
-  if (toCreate.length > 0) {
-    await prisma.foreignTaxCreditCarryforward.createMany({
-      data: toCreate.map((e) => ({
-        taxYearId: nextTaxYear.id,
-        originYear: e.originYear,
-        remainingAmountJpy: e.remainingAmountJpy,
-      })),
-    });
-  }
+  await foreignTaxCreditCarryforwardRepository.createMany(
+    toCreate.map((e) => ({
+      taxYearId: nextTaxYear.id,
+      originYear: e.originYear,
+      remainingAmountJpy: e.remainingAmountJpy,
+    })),
+  );
 
   revalidatePath("/import");
   redirect(
@@ -1153,12 +1154,10 @@ export async function setForeignTaxCreditSpareLimitCarryforward(
   }
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.foreignTaxCreditSpareLimitCarryforward.upsert({
-    where: {
-      taxYearId_originYear: { taxYearId: taxYear.id, originYear },
-    },
-    create: { taxYearId: taxYear.id, originYear, remainingAmountJpy },
-    update: { remainingAmountJpy },
+  await foreignTaxCreditSpareLimitCarryforwardRepository.upsert({
+    taxYearId: taxYear.id,
+    originYear,
+    remainingAmountJpy,
   });
 
   revalidatePath("/import");
@@ -1170,7 +1169,7 @@ export async function deleteForeignTaxCreditSpareLimitCarryforward(
 ): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await prisma.foreignTaxCreditSpareLimitCarryforward.delete({ where: { id } });
+  await foreignTaxCreditSpareLimitCarryforwardRepository.delete(id);
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=foreignTaxCredit`);
 }
@@ -1192,22 +1191,20 @@ export async function carryForwardForeignTaxCreditSpareLimit(
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
   const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing = await prisma.foreignTaxCreditSpareLimitCarryforward.findMany({
-    where: { taxYearId: nextTaxYear.id },
-    select: { originYear: true },
-  });
+  const existing =
+    await foreignTaxCreditSpareLimitCarryforwardRepository.findByTaxYearId(
+      nextTaxYear.id,
+    );
   const existingYears = new Set(existing.map((e) => e.originYear));
   const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
 
-  if (toCreate.length > 0) {
-    await prisma.foreignTaxCreditSpareLimitCarryforward.createMany({
-      data: toCreate.map((e) => ({
-        taxYearId: nextTaxYear.id,
-        originYear: e.originYear,
-        remainingAmountJpy: e.remainingAmountJpy,
-      })),
-    });
-  }
+  await foreignTaxCreditSpareLimitCarryforwardRepository.createMany(
+    toCreate.map((e) => ({
+      taxYearId: nextTaxYear.id,
+      originYear: e.originYear,
+      remainingAmountJpy: e.remainingAmountJpy,
+    })),
+  );
 
   revalidatePath("/import");
   redirect(
