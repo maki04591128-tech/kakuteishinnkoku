@@ -477,31 +477,19 @@ export async function importCryptoMarginCsv(formData: FormData): Promise<void> {
 
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.$transaction(async (tx) => {
-    const batch = await tx.importBatch.create({
-      data: {
-        taxYearId: taxYear.id,
-        sourceType: "crypto_margin_csv",
-        fileName: file.name,
-        rowCount: rows.length,
-      },
-    });
-
-    if (rows.length > 0) {
-      await tx.cryptoMarginTrade.createMany({
-        data: rows.map((row) => ({
-          taxYearId: taxYear.id,
-          settledAt: row.settledAt,
-          symbol: row.symbol,
-          realizedPnlJpy: row.realizedPnlJpy.toString(),
-          feeJpy: row.feeJpy.toString(),
-          swapJpy: row.swapJpy.toString(),
-          exchange: exchangeLabel,
-          source: "crypto_margin_csv:manual",
-          importBatchId: batch.id,
-        })),
-      });
-    }
+  await cryptoMarginTradeRepository.importCsvBatch({
+    taxYearId: taxYear.id,
+    sourceType: "crypto_margin_csv",
+    fileName: file.name,
+    rows: rows.map((row) => ({
+      settledAt: row.settledAt,
+      symbol: row.symbol,
+      realizedPnlJpy: row.realizedPnlJpy.toString(),
+      feeJpy: row.feeJpy.toString(),
+      swapJpy: row.swapJpy.toString(),
+      exchange: exchangeLabel,
+      source: "crypto_margin_csv:manual",
+    })),
   });
 
   revalidatePath("/import");

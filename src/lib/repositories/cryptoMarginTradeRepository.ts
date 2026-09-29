@@ -8,12 +8,28 @@
 import type { CryptoMarginTrade, Prisma } from "@prisma/client";
 import { prisma } from "../db";
 
+export interface CryptoMarginTradeImportRow {
+  settledAt: Date;
+  symbol: string;
+  realizedPnlJpy: string;
+  feeJpy: string;
+  swapJpy: string;
+  exchange: string | null;
+  source: string;
+}
+
 export interface CryptoMarginTradeRepository {
   findByTaxYearId(taxYearId: number): Promise<CryptoMarginTrade[]>;
   create(
     data: Prisma.CryptoMarginTradeUncheckedCreateInput,
   ): Promise<CryptoMarginTrade>;
   delete(id: number): Promise<void>;
+  importCsvBatch(input: {
+    taxYearId: number;
+    sourceType: string;
+    fileName: string;
+    rows: CryptoMarginTradeImportRow[];
+  }): Promise<void>;
 }
 
 export function createPrismaCryptoMarginTradeRepository(): CryptoMarginTradeRepository {
@@ -30,6 +46,35 @@ export function createPrismaCryptoMarginTradeRepository(): CryptoMarginTradeRepo
 
     async delete(id: number): Promise<void> {
       await prisma.cryptoMarginTrade.delete({ where: { id } });
+    },
+
+    async importCsvBatch({ taxYearId, sourceType, fileName, rows }): Promise<void> {
+      await prisma.$transaction(async (tx) => {
+        const batch = await tx.importBatch.create({
+          data: {
+            taxYearId,
+            sourceType,
+            fileName,
+            rowCount: rows.length,
+          },
+        });
+
+        if (rows.length > 0) {
+          await tx.cryptoMarginTrade.createMany({
+            data: rows.map((row) => ({
+              taxYearId,
+              settledAt: row.settledAt,
+              symbol: row.symbol,
+              realizedPnlJpy: row.realizedPnlJpy,
+              feeJpy: row.feeJpy,
+              swapJpy: row.swapJpy,
+              exchange: row.exchange,
+              source: row.source,
+              importBatchId: batch.id,
+            })),
+          });
+        }
+      });
     },
   };
 }
