@@ -1154,7 +1154,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
 #### フェーズ2: クライアントサイドDB実装
 
 フェーズ0で選定した技術で、フェーズ1の各リポジトリインターフェースを満たす
-クライアントサイド実装を1モデルずつ追加する。
+クライアントサイド実装を1モデルずつ追加する。スキーマは`src/lib/clientDb/schema.ts`
+に`CREATE TABLE`文を1モデルずつ追記していき、各リポジトリの`createClientXxxRepository`
+(Prisma版の`createPrismaXxxRepository`と対になる命名)が、対応するテーブルを
+使ってインターフェースを満たすことをテストで検証する。
+
+- [x] 2-1. `TaxYearRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-09-30):** `src/lib/clientDb/schema.ts`を新設し、
+  フェーズ0-2のPoCで使っていた`tax_year`テーブルのスキーマをここに移した。
+  `src/lib/repositories/taxYearRepository.ts`に`createClientTaxYearRepository(db)`
+  を追加し、`TaxYearRepository`インターフェースの4メソッド全て
+  (`getOrCreateTaxYear`/`findByYear`/`listTaxYears`/`updateCryptoCostMethod`)を
+  wa-sqlite上のSQLで実装した(`findByYear`・`updateCryptoCostMethod`はPoC時点では
+  未実装だった)。戻り値はPrisma版と同じ`TaxYear`型(`id`/`year`/`cryptoCostMethod`/
+  `createdAt`)に揃えている。フェーズ0-2のPoC専用ファイル
+  (`src/lib/clientDb/taxYearRepository.ts`・そのテスト)は本実装に統合したため削除し、
+  `src/lib/repositories/taxYearRepository.test.ts`にPrisma版と同じ挙動
+  (upsert相当の冪等性・年の降順取得・デフォルト値・`updateCryptoCostMethod`での
+  変更)を検証するテストを追加した(`npx vitest run`で全102ファイル1275件が
+  成功することを確認済み)。DB接続は`db.ts`のPrismaシングルトンと異なり非同期で
+  開く必要があるため、`createClientXxxRepository`は呼び出し側が
+  `openClientDb`+`applyClientDbSchema`済みの`ClientDb`を渡す設計とした
+  (アプリへの実際の組み込みはフェーズ3で行う)。次はフェーズ1の残り25モデルから
+  1つずつ同じパターンで進める。
 
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
@@ -1186,7 +1209,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ1-1)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-2)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
