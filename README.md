@@ -1245,6 +1245,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   無関係の既存問題)。同じ形(Decimal1列のみ)のモデルは他にも多いため、以後も
   同じパターンで進められる見込み。
 
+- [x] 2-5. `EarthquakeRenovationDeductionRecord`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-09-30):** `src/lib/clientDb/schema.ts`に
+  `earthquake_renovation_deduction_record`テーブル(`id`/`tax_year_id`(UNIQUE)/
+  `credit_jpy`/`created_at`/`updated_at`)を追記した。
+  `src/lib/repositories/earthquakeRenovationDeductionRecordRepository.ts`に
+  `createClientEarthquakeRenovationDeductionRecordRepository(db)`を追加し、
+  `EarthquakeRenovationDeductionRecordRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)をwa-sqlite上のSQLで実装した。
+  Prismaスキーマの`EarthquakeRenovationDeductionRecord`が2-4の
+  `BarrierFreeRenovationDeductionRecord`と全く同じ形(`id`/`taxYearId`(UNIQUE)/
+  Decimal1列/`createdAt`/`updatedAt`)だったため、2-4と全く同じパターン
+  (`encodeDecimal`での`TEXT`化・`ON CONFLICT ... DO UPDATE`によるupsert・
+  `new Prisma.Decimal(text)`での型復元)をそのまま適用できた。
+  `earthquakeRenovationDeductionRecordRepository.test.ts`にPrisma版と同じ挙動
+  (upsert相当の冪等性・削除・高精度小数値の往復)を検証するテストを追加した
+  (`npm run test`で全106ファイル1299件、`npm run lint`も成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型エラーは引き続き
+  無関係の既存問題)。同じ形(Decimal1列のみ)のモデルは
+  `EnergySavingRenovationDeductionRecord`・`MultiHouseholdRenovationDeductionRecord`・
+  `DurabilityImprovementRenovationDeductionRecord`・
+  `ChildRearingRenovationDeductionRecord`など他にも多いため、以後も同じパターンで
+  進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1275,7 +1299,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-5)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-6)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
