@@ -22,6 +22,13 @@ const STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS login_attempt_ip_address_created_at_idx
     ON login_attempt (ip_address, created_at)`,
+  `CREATE TABLE IF NOT EXISTS employment_income_record (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL UNIQUE,
+    gross_salary_jpy TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
