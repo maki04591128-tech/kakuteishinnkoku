@@ -1198,6 +1198,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   Next.js生成型の問題で本変更とは無関係)。1-1(TaxYear)と全く同じパターンで
   移行できたため、残り24モデルも同様の手順で進められる見込み。
 
+- [x] 2-3. `EmploymentIncomeRecord`モデル用のリポジトリを導入
+
+  **実装内容(2026-09-30):** `src/lib/clientDb/schema.ts`に
+  `employment_income_record`テーブル(`id`/`tax_year_id`(UNIQUE)/
+  `gross_salary_jpy`/`created_at`/`updated_at`)を追記した。
+  `src/lib/repositories/employmentIncomeRecordRepository.ts`に
+  `createClientEmploymentIncomeRecordRepository(db)`を追加し、
+  `EmploymentIncomeRecordRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)をwa-sqlite上のSQLで
+  実装した(`upsert`は`tax_year_id`のUNIQUE制約に対する
+  `ON CONFLICT ... DO UPDATE`で実現)。**2-1・2-2は共にDecimal列を含まない
+  モデルだったが、`grossSalaryJpy`(`Decimal`)を含む本モデルが移行対象では
+  初めてで、フェーズ0-3で決定した`decimalCodec.ts`(`encodeDecimal`。
+  `TEXT`列に`toFixed()`で指数表記無しの文字列化)を実際に使う最初のケースと
+  なった。読み出し時は`Prisma.Decimal`(Prisma生成型`EmploymentIncomeRecord`の
+  `grossSalaryJpy`が要求する型で、アプリ全体で使う`decimal.js`本体の`Decimal`
+  とは別クラス)を`new Prisma.Decimal(text)`で直接構築して型を一致させた。
+  `employmentIncomeRecordRepository.test.ts`にPrisma版と同じ挙動
+  (upsert相当の冪等性・削除、および`0.123456789012345678`のような高精度な
+  小数値が桁落ちなく往復することを`decimalCodec`検証済みの方式で再確認)を
+  検証するテストを追加した(`npm run test`で全104ファイル1287件、
+  `npx tsc --noEmit`・`npm run lint`も成功することを確認済み。
+  `src/app/layout.tsx`の`LayoutProps`型エラーは引き続き無関係の既存問題)。
+  以後Decimal列を含む残り23モデルも同じ`encodeDecimal`/`Prisma.Decimal`
+  構築のパターンで進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
