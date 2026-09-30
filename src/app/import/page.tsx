@@ -69,6 +69,8 @@ import {
 import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
+import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
+import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
 import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
@@ -92,6 +94,10 @@ const investmentLossCarryforwardRepository =
   createPrismaInvestmentLossCarryforwardRepository();
 const futuresLossCarryforwardRepository =
   createPrismaFuturesLossCarryforwardRepository();
+const foreignTaxCreditCarryforwardRepository =
+  createPrismaForeignTaxCreditCarryforwardRepository();
+const foreignTaxCreditSpareLimitCarryforwardRepository =
+  createPrismaForeignTaxCreditSpareLimitCarryforwardRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -215,14 +221,10 @@ export default async function ImportPage({
     futuresLossCarryforwardRepository
       .findByTaxYearId(taxYear.id)
       .then((rows) => [...rows].sort((a, b) => a.originYear - b.originYear)),
-    prisma.foreignTaxCreditCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
-    prisma.foreignTaxCreditSpareLimitCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
+    foreignTaxCreditCarryforwardRepository.findByTaxYearId(taxYear.id),
+    foreignTaxCreditSpareLimitCarryforwardRepository.findByTaxYearId(
+      taxYear.id,
+    ),
     prisma.casualtyLossCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
