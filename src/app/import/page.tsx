@@ -66,6 +66,7 @@ import {
   reconcileAssetBalances,
   reconcileAssetSymbolBalances,
 } from "@/lib/moneyforward/assetBalanceReconciliation";
+import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositories/casualtyLossCarryforwardRepository";
 import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
@@ -73,6 +74,7 @@ import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/reposi
 import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
 import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
+import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
@@ -98,6 +100,10 @@ const foreignTaxCreditCarryforwardRepository =
   createPrismaForeignTaxCreditCarryforwardRepository();
 const foreignTaxCreditSpareLimitCarryforwardRepository =
   createPrismaForeignTaxCreditSpareLimitCarryforwardRepository();
+const casualtyLossCarryforwardRepository =
+  createPrismaCasualtyLossCarryforwardRepository();
+const homeSaleLossCarryforwardRepository =
+  createPrismaHomeSaleLossCarryforwardRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -225,14 +231,8 @@ export default async function ImportPage({
     foreignTaxCreditSpareLimitCarryforwardRepository.findByTaxYearId(
       taxYear.id,
     ),
-    prisma.casualtyLossCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
-    prisma.homeSaleLossCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
+    casualtyLossCarryforwardRepository.findByTaxYearId(taxYear.id),
+    homeSaleLossCarryforwardRepository.findByTaxYearId(taxYear.id),
     prisma.homeReplacementLossCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
