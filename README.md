@@ -1013,10 +1013,19 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   インターフェースまで変わってしまうため、表示順が必要なこのページ側で
   ソートする設計とした)。関数の戻り値・表示内容は変更していない。
 
-- [ ] 1-53以降. `src/app/import/page.tsx`(Server Component。1モデルではなく
-      多数のモデルを一括読み込みする2856行の大きなページ)の残りのPrisma
-      直接呼び出し(`cryptoCreditTrade`・`investmentTrade`・
-      `stockMarginTrade`・`futuresTrade`・`openingBalance`・
+- [x] 1-53. `src/app/import/page.tsx`の`prisma.cryptoCreditTrade.findMany`・
+      `prisma.investmentTrade.findMany`をリポジトリパターン導入
+
+  **実装内容(2026-09-30):** `1-29`・`1-27`で既に導入済みの
+  `cryptoCreditTradeRepository`/`investmentTradeRepository`
+  (`findByTaxYearId`)を`src/app/import/page.tsx`からも呼び出すように変更した。
+  `1-52`と同様、`findByTaxYearId`(orderBy無し)の戻り値を呼び出し側で
+  `settledAt`/`tradedAt`の降順にソートすることで、既存の
+  `prisma.xxx.findMany({ where, orderBy: {...} })`と同じ表示順を再現している。
+  関数の戻り値・表示内容は変更していない。
+
+- [ ] 1-54以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
+      (`stockMarginTrade`・`futuresTrade`・`openingBalance`・
       `openingBalanceByInstitution`・`investmentLossCarryforward`・
       `futuresLossCarryforward`・`foreignTaxCreditCarryforward`・
       `foreignTaxCreditSpareLimitCarryforward`・`casualtyLossCarryforward`・

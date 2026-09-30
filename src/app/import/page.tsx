@@ -66,13 +66,17 @@ import {
   reconcileAssetBalances,
   reconcileAssetSymbolBalances,
 } from "@/lib/moneyforward/assetBalanceReconciliation";
+import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
+import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
 const cryptoTradeRepository = createPrismaCryptoTradeRepository();
 const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();
+const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();
+const investmentTradeRepository = createPrismaInvestmentTradeRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -152,14 +156,16 @@ export default async function ImportPage({
       .then((trades) =>
         [...trades].sort((a, b) => b.settledAt.getTime() - a.settledAt.getTime()),
       ),
-    prisma.cryptoCreditTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { settledAt: "desc" },
-    }),
-    prisma.investmentTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { tradedAt: "desc" },
-    }),
+    cryptoCreditTradeRepository
+      .findByTaxYearId(taxYear.id)
+      .then((trades) =>
+        [...trades].sort((a, b) => b.settledAt.getTime() - a.settledAt.getTime()),
+      ),
+    investmentTradeRepository
+      .findByTaxYearId(taxYear.id)
+      .then((trades) =>
+        [...trades].sort((a, b) => b.tradedAt.getTime() - a.tradedAt.getTime()),
+      ),
     prisma.stockMarginTrade.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { settledAt: "desc" },
