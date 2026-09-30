@@ -69,7 +69,9 @@ import {
 import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
+import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
+import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/openingBalanceRepository";
@@ -86,6 +88,10 @@ const futuresTradeRepository = createPrismaFuturesTradeRepository();
 const openingBalanceRepository = createPrismaOpeningBalanceRepository();
 const openingBalanceByInstitutionRepository =
   createPrismaOpeningBalanceByInstitutionRepository();
+const investmentLossCarryforwardRepository =
+  createPrismaInvestmentLossCarryforwardRepository();
+const futuresLossCarryforwardRepository =
+  createPrismaFuturesLossCarryforwardRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -203,14 +209,12 @@ export default async function ImportPage({
             a.institution.localeCompare(b.institution),
         ),
       ),
-    prisma.investmentLossCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
-    prisma.futuresLossCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
+    investmentLossCarryforwardRepository
+      .findByTaxYearId(taxYear.id)
+      .then((rows) => [...rows].sort((a, b) => a.originYear - b.originYear)),
+    futuresLossCarryforwardRepository
+      .findByTaxYearId(taxYear.id)
+      .then((rows) => [...rows].sort((a, b) => a.originYear - b.originYear)),
     prisma.foreignTaxCreditCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
