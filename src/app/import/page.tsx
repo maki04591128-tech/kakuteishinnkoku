@@ -66,8 +66,13 @@ import {
   reconcileAssetBalances,
   reconcileAssetSymbolBalances,
 } from "@/lib/moneyforward/assetBalanceReconciliation";
+import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
+import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
+
+const cryptoTradeRepository = createPrismaCryptoTradeRepository();
+const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -137,14 +142,16 @@ export default async function ImportPage({
     nisaLifetimeQuotas,
     yearReport,
   ] = await Promise.all([
-    prisma.cryptoTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { tradedAt: "desc" },
-    }),
-    prisma.cryptoMarginTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { settledAt: "desc" },
-    }),
+    cryptoTradeRepository
+      .findByTaxYearId(taxYear.id)
+      .then((trades) =>
+        [...trades].sort((a, b) => b.tradedAt.getTime() - a.tradedAt.getTime()),
+      ),
+    cryptoMarginTradeRepository
+      .findByTaxYearId(taxYear.id)
+      .then((trades) =>
+        [...trades].sort((a, b) => b.settledAt.getTime() - a.settledAt.getTime()),
+      ),
     prisma.cryptoCreditTrade.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { settledAt: "desc" },

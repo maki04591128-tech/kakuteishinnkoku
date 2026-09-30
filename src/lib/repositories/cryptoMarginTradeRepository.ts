@@ -1,9 +1,9 @@
 /**
- * フェーズ1(リポジトリパターン導入): `src/lib/reporting.ts`・`src/app/actions.ts`が
- * 直接`prisma.cryptoMarginTrade`を呼んでいた処理をこのインターフェース経由に
- * 置き換える。挙動は既存のPrisma実装と完全に一致させる。
- * (`src/app/import/page.tsx`側の`prisma.cryptoMarginTrade`呼び出しは
- * 移行時に別途このリポジトリへ委譲する)
+ * フェーズ1(リポジトリパターン導入): `src/lib/reporting.ts`・`src/app/actions.ts`・
+ * `src/app/import/page.tsx`が直接`prisma.cryptoMarginTrade`を呼んでいた処理を
+ * このインターフェース経由に置き換える。挙動は既存のPrisma実装と完全に一致させる。
+ * (`findByTaxYearId`はorderByを持たないため、表示順が必要な呼び出し元
+ * (`src/app/import/page.tsx`)は取得後に呼び出し側でソートする)
  */
 import type { CryptoMarginTrade, Prisma } from "@prisma/client";
 import { prisma } from "../db";

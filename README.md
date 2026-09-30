@@ -1000,10 +1000,31 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   フェーズ1のうち`actions.ts`側の移行対象は完了した。残るは
   `src/app/import/page.tsx`(Server Component)のみ。
 
-- [ ] 1-52以降. `src/app/import/page.tsx`(Server Component。1モデルではなく
-      多数のモデルを一括読み込みする2856行の大きなページ)のPrisma直接呼び出しを、
-      既存の各リポジトリ(`1-1`〜`1-51`で導入済み)経由に順次移行(進めるごとに
-      このリストに追記)。1回のブラッシュアップで1〜2モデル分ずつ進める想定。
+- [x] 1-52. `src/app/import/page.tsx`の`prisma.cryptoTrade.findMany`・
+      `prisma.cryptoMarginTrade.findMany`をリポジトリパターン導入
+
+  **実装内容(2026-09-30):** `1-25`〜`1-26`・`1-49`で既に導入済みの
+  `cryptoTradeRepository`/`cryptoMarginTradeRepository`(`findByTaxYearId`)を
+  `src/app/import/page.tsx`からも呼び出すように変更した。既存の
+  `prisma.cryptoTrade.findMany({ where, orderBy: { tradedAt: "desc" } })`
+  相当を再現するため、`findByTaxYearId`(orderBy無し)の戻り値を呼び出し側で
+  `tradedAt`/`settledAt`の降順にソートしている(`findByTaxYearId`自体に
+  orderByを追加すると他の呼び出し元(`reporting.ts`等、順序に依存しない箇所)の
+  インターフェースまで変わってしまうため、表示順が必要なこのページ側で
+  ソートする設計とした)。関数の戻り値・表示内容は変更していない。
+
+- [ ] 1-53以降. `src/app/import/page.tsx`(Server Component。1モデルではなく
+      多数のモデルを一括読み込みする2856行の大きなページ)の残りのPrisma
+      直接呼び出し(`cryptoCreditTrade`・`investmentTrade`・
+      `stockMarginTrade`・`futuresTrade`・`openingBalance`・
+      `openingBalanceByInstitution`・`investmentLossCarryforward`・
+      `futuresLossCarryforward`・`foreignTaxCreditCarryforward`・
+      `foreignTaxCreditSpareLimitCarryforward`・`casualtyLossCarryforward`・
+      `homeSaleLossCarryforward`・`homeReplacementLossCarryforward`・
+      `brokerAnnualReport`・`importBatch`・`assetSymbolMapping`・
+      `marketPrice`・`nisaLifetimeQuota`)を、既存の各リポジトリ
+      (`1-1`〜`1-51`で導入済み)経由に順次移行(進めるごとにこのリストに
+      追記)。1回のブラッシュアップで1〜2モデル分ずつ進める想定。
       優先度は他フェーズより下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
