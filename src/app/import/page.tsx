@@ -74,6 +74,7 @@ import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/reposi
 import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
 import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
+import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
@@ -104,6 +105,8 @@ const casualtyLossCarryforwardRepository =
   createPrismaCasualtyLossCarryforwardRepository();
 const homeSaleLossCarryforwardRepository =
   createPrismaHomeSaleLossCarryforwardRepository();
+const homeReplacementLossCarryforwardRepository =
+  createPrismaHomeReplacementLossCarryforwardRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -233,10 +236,7 @@ export default async function ImportPage({
     ),
     casualtyLossCarryforwardRepository.findByTaxYearId(taxYear.id),
     homeSaleLossCarryforwardRepository.findByTaxYearId(taxYear.id),
-    prisma.homeReplacementLossCarryforward.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { originYear: "asc" },
-    }),
+    homeReplacementLossCarryforwardRepository.findByTaxYearId(taxYear.id),
     prisma.brokerAnnualReport.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: [{ broker: "asc" }, { accountType: "asc" }],
