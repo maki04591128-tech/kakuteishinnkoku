@@ -1024,16 +1024,25 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.xxx.findMany({ where, orderBy: {...} })`と同じ表示順を再現している。
   関数の戻り値・表示内容は変更していない。
 
-- [ ] 1-54以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
-      (`stockMarginTrade`・`futuresTrade`・`openingBalance`・
-      `openingBalanceByInstitution`・`investmentLossCarryforward`・
-      `futuresLossCarryforward`・`foreignTaxCreditCarryforward`・
-      `foreignTaxCreditSpareLimitCarryforward`・`casualtyLossCarryforward`・
-      `homeSaleLossCarryforward`・`homeReplacementLossCarryforward`・
-      `brokerAnnualReport`・`importBatch`・`assetSymbolMapping`・
-      `marketPrice`・`nisaLifetimeQuota`)を、既存の各リポジトリ
-      (`1-1`〜`1-51`で導入済み)経由に順次移行(進めるごとにこのリストに
-      追記)。1回のブラッシュアップで1〜2モデル分ずつ進める想定。
+- [x] 1-54. `src/app/import/page.tsx`の`prisma.stockMarginTrade.findMany`・
+      `prisma.futuresTrade.findMany`をリポジトリパターン導入
+
+  **実装内容(2026-09-30):** `1-30`・`1-31`で既に導入済みの
+  `stockMarginTradeRepository`/`futuresTradeRepository`(`findByTaxYearId`)を
+  `src/app/import/page.tsx`からも呼び出すように変更した。`1-52`・`1-53`と同様、
+  `findByTaxYearId`(orderBy無し)の戻り値を呼び出し側で`settledAt`の降順に
+  ソートすることで、既存の`prisma.xxx.findMany({ where, orderBy: { settledAt: "desc" } })`
+  と同じ表示順を再現している。関数の戻り値・表示内容は変更していない。
+
+- [ ] 1-55以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
+      (`openingBalance`・`openingBalanceByInstitution`・
+      `investmentLossCarryforward`・`futuresLossCarryforward`・
+      `foreignTaxCreditCarryforward`・`foreignTaxCreditSpareLimitCarryforward`・
+      `casualtyLossCarryforward`・`homeSaleLossCarryforward`・
+      `homeReplacementLossCarryforward`・`brokerAnnualReport`・`importBatch`・
+      `assetSymbolMapping`・`marketPrice`・`nisaLifetimeQuota`)を、既存の各
+      リポジトリ(`1-1`〜`1-51`で導入済み)経由に順次移行(進めるごとにこの
+      リストに追記)。1回のブラッシュアップで1〜2モデル分ずつ進める想定。
       優先度は他フェーズより下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
