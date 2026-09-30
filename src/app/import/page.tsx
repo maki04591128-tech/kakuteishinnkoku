@@ -71,6 +71,8 @@ import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryp
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
+import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
+import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/openingBalanceRepository";
 import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stockMarginTradeRepository";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
@@ -81,6 +83,9 @@ const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();
 const investmentTradeRepository = createPrismaInvestmentTradeRepository();
 const stockMarginTradeRepository = createPrismaStockMarginTradeRepository();
 const futuresTradeRepository = createPrismaFuturesTradeRepository();
+const openingBalanceRepository = createPrismaOpeningBalanceRepository();
+const openingBalanceByInstitutionRepository =
+  createPrismaOpeningBalanceByInstitutionRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -180,14 +185,24 @@ export default async function ImportPage({
       .then((trades) =>
         [...trades].sort((a, b) => b.settledAt.getTime() - a.settledAt.getTime()),
       ),
-    prisma.openingBalance.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
-    }),
-    prisma.openingBalanceByInstitution.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: [{ symbol: "asc" }, { institution: "asc" }],
-    }),
+    openingBalanceRepository
+      .findByTaxYearId(taxYear.id)
+      .then((balances) =>
+        [...balances].sort(
+          (a, b) =>
+            a.assetClass.localeCompare(b.assetClass) ||
+            a.symbol.localeCompare(b.symbol),
+        ),
+      ),
+    openingBalanceByInstitutionRepository
+      .findByTaxYearId(taxYear.id)
+      .then((balances) =>
+        [...balances].sort(
+          (a, b) =>
+            a.symbol.localeCompare(b.symbol) ||
+            a.institution.localeCompare(b.institution),
+        ),
+      ),
     prisma.investmentLossCarryforward.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: { originYear: "asc" },
