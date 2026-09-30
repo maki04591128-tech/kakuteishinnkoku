@@ -1132,11 +1132,24 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `findMany`呼び出し+呼び出し側での`symbol`昇順ソート(`1-52`〜`1-62`と
   同じパターン)に置き換えた。関数の戻り値・表示内容は変更していない。
 
-- [ ] 1-64以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
-      (`importBatch`)を、新規リポジトリ経由に移行(進めるごとにこのリストに
-      追記)。`assetBalanceSnapshots`のネストしたincludeを持つ
-      `findMany`相当のメソッド設計が必要。1回のブラッシュアップで
-      1モデル分ずつ進める想定。優先度は他フェーズより下げてよい。
+- [x] 1-64. `src/app/import/page.tsx`の`prisma.importBatch.findMany`
+      (`assetBalanceSnapshots`のネストしたincludeあり)をリポジトリパターン導入
+
+  **実装内容(2026-09-30):** `src/lib/repositories/assetBalanceSnapshotRepository.ts`
+  (既に`findByTaxYearId`/`importCsvBatch`/`deleteImportBatch`を実装済み)に
+  `findImportBatchesWithSnapshots({ taxYearId, sourceType })`を追加した。
+  既存の`prisma.importBatch.findMany({ where: { taxYearId, sourceType: "moneyforward_assets" },
+  orderBy: { importedAt: "desc" }, include: { assetBalanceSnapshots: { orderBy: [...] } } })`
+  呼び出しと同じクエリ(絞り込み条件・並び順とも)をそのままラップしただけで、
+  `import/page.tsx`側の直接呼び出しをこのメソッド経由に置き換えた。関数の
+  戻り値・表示内容は変更していない。
+
+  **フェーズ1完了(2026-09-30):** これにより、現状分析で洗い出した
+  「`prisma.`を直接呼んでいるファイル26個」の全ての直接呼び出しが
+  `src/lib/repositories/`配下のリポジトリ経由に置き換わった
+  (`src/lib/repositories/`・`src/lib/db.ts`以外に`prisma.`を直接呼ぶ
+  箇所が無いことをリポジトリ全体の`grep`で確認済み)。次のブラッシュアップは
+  フェーズ2(クライアントサイドDB実装)から着手する。
 
 #### フェーズ2: クライアントサイドDB実装
 

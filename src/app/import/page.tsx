@@ -59,13 +59,13 @@ import {
   EXCHANGE_CSV_PRESETS,
 } from "@/lib/crypto/exchangeCsv";
 import { COMMON_MARGIN_CSV_HEADER_NAMES } from "@/lib/crypto/marginCsv";
-import { prisma } from "@/lib/db";
 import { reconcileBrokerAnnualReports } from "@/lib/investment/annualReportReconciliation";
 import { investmentTradeQuantityDelta } from "@/lib/investment/calculator";
 import {
   reconcileAssetBalances,
   reconcileAssetSymbolBalances,
 } from "@/lib/moneyforward/assetBalanceReconciliation";
+import { createPrismaAssetBalanceSnapshotRepository } from "@/lib/repositories/assetBalanceSnapshotRepository";
 import { createPrismaAssetSymbolMappingRepository } from "@/lib/repositories/assetSymbolMappingRepository";
 import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
 import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositories/casualtyLossCarryforwardRepository";
@@ -112,6 +112,7 @@ const homeSaleLossCarryforwardRepository =
 const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
 const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
+const assetBalanceSnapshotRepository = createPrismaAssetBalanceSnapshotRepository();
 const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
 const marketPriceRepository = createPrismaMarketPriceRepository();
 const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
@@ -246,14 +247,9 @@ export default async function ImportPage({
     homeSaleLossCarryforwardRepository.findByTaxYearId(taxYear.id),
     homeReplacementLossCarryforwardRepository.findByTaxYearId(taxYear.id),
     brokerAnnualReportRepository.findByTaxYearId(taxYear.id),
-    prisma.importBatch.findMany({
-      where: { taxYearId: taxYear.id, sourceType: "moneyforward_assets" },
-      orderBy: { importedAt: "desc" },
-      include: {
-        assetBalanceSnapshots: {
-          orderBy: [{ institution: "asc" }, { assetName: "asc" }],
-        },
-      },
+    assetBalanceSnapshotRepository.findImportBatchesWithSnapshots({
+      taxYearId: taxYear.id,
+      sourceType: "moneyforward_assets",
     }),
     assetSymbolMappingRepository.findMany(),
     marketPriceRepository

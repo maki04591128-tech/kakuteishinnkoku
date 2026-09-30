@@ -3,7 +3,7 @@
  * 直接`prisma.assetBalanceSnapshot`を呼んでいた処理をこのインターフェース経由に
  * 置き換える。挙動は既存のPrisma実装と完全に一致させる。
  */
-import type { AssetBalanceSnapshot } from "@prisma/client";
+import type { AssetBalanceSnapshot, ImportBatch } from "@prisma/client";
 import { prisma } from "../db";
 
 export interface AssetBalanceSnapshotImportRow {
@@ -15,8 +15,16 @@ export interface AssetBalanceSnapshotImportRow {
   quantity: string | null;
 }
 
+export type ImportBatchWithSnapshots = ImportBatch & {
+  assetBalanceSnapshots: AssetBalanceSnapshot[];
+};
+
 export interface AssetBalanceSnapshotRepository {
   findByTaxYearId(taxYearId: number): Promise<AssetBalanceSnapshot[]>;
+  findImportBatchesWithSnapshots(input: {
+    taxYearId: number;
+    sourceType: string;
+  }): Promise<ImportBatchWithSnapshots[]>;
   importCsvBatch(input: {
     taxYearId: number;
     sourceType: string;
@@ -30,6 +38,21 @@ export function createPrismaAssetBalanceSnapshotRepository(): AssetBalanceSnapsh
   return {
     async findByTaxYearId(taxYearId: number): Promise<AssetBalanceSnapshot[]> {
       return prisma.assetBalanceSnapshot.findMany({ where: { taxYearId } });
+    },
+
+    async findImportBatchesWithSnapshots({
+      taxYearId,
+      sourceType,
+    }): Promise<ImportBatchWithSnapshots[]> {
+      return prisma.importBatch.findMany({
+        where: { taxYearId, sourceType },
+        orderBy: { importedAt: "desc" },
+        include: {
+          assetBalanceSnapshots: {
+            orderBy: [{ institution: "asc" }, { assetName: "asc" }],
+          },
+        },
+      });
     },
 
     async importCsvBatch({ taxYearId, sourceType, fileName, rows }): Promise<void> {
