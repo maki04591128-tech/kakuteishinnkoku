@@ -1081,13 +1081,22 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   呼び出し側での並び替えは不要)を`src/app/import/page.tsx`からも呼び出す
   ように変更した。関数の戻り値・表示内容は変更していない。
 
-- [ ] 1-59以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
-      (`homeReplacementLossCarryforward`・`brokerAnnualReport`・`importBatch`・
-      `assetSymbolMapping`・`marketPrice`・`nisaLifetimeQuota`)を、既存の各
-      リポジトリ(`1-1`〜`1-58`で導入済み。`brokerAnnualReport`は一覧取得
-      メソッドの追加が、`importBatch`はリポジトリ自体の新規作成が必要)経由に
-      順次移行(進めるごとにこのリストに追記)。1回のブラッシュアップで
-      1〜2モデル分ずつ進める想定。優先度は他フェーズより下げてよい。
+- [x] 1-59. `src/app/import/page.tsx`の`prisma.homeReplacementLossCarryforward.findMany`
+      をリポジトリパターン導入
+
+  **実装内容(2026-09-30):** `home-replacement-loss-deduction/page.tsx`側で
+  既に導入済みの`homeReplacementLossCarryforwardRepository`
+  (`findByTaxYearId`。`orderBy: { originYear: "asc" }`済みで、呼び出し側での
+  並び替えは不要)を`src/app/import/page.tsx`からも呼び出すように変更した。
+  関数の戻り値・表示内容は変更していない。
+
+- [ ] 1-60以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
+      (`brokerAnnualReport`・`importBatch`・`assetSymbolMapping`・
+      `marketPrice`・`nisaLifetimeQuota`)を、既存の各リポジトリ(`1-1`〜`1-59`で
+      導入済み。`brokerAnnualReport`は一覧取得メソッドの追加が、`importBatch`は
+      リポジトリ自体の新規作成が必要)経由に順次移行(進めるごとにこのリストに
+      追記)。1回のブラッシュアップで1〜2モデル分ずつ進める想定。優先度は
+      他フェーズより下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 
