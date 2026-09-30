@@ -1354,6 +1354,34 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `IncomeDeduction`等、Decimal複数列や関連テーブルを持つもの)から
   クライアントサイド実装を進める想定。
 
+- [x] 2-10. `CertifiedHousingConstructionCreditRecord`モデル用の
+      クライアントサイド実装を追加
+
+  **実装内容(2026-09-30):** `src/lib/clientDb/schema.ts`に
+  `certified_housing_construction_credit_record`テーブル(`id`/`tax_year_id`
+  (UNIQUE)/`credit_jpy`/`created_at`/`updated_at`)を追記した。
+  `src/lib/repositories/certifiedHousingConstructionCreditRecordRepository.ts`に
+  `createClientCertifiedHousingConstructionCreditRecordRepository(db)`を追加し、
+  `CertifiedHousingConstructionCreditRecordRepository`インターフェースの3メソッド
+  全て(`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)をwa-sqlite上のSQLで
+  実装した。Prismaスキーマの`CertifiedHousingConstructionCreditRecord`が
+  2-4〜2-9(`BarrierFreeRenovationDeductionRecord`等)と全く同じ形
+  (`id`/`taxYearId`(UNIQUE)/Decimal1列/`createdAt`/`updatedAt`)だったため、
+  同じパターン(`encodeDecimal`での`TEXT`化・`ON CONFLICT ... DO UPDATE`による
+  upsert・`new Prisma.Decimal(text)`での型復元)をそのまま適用できた。なお
+  このモデルには`CertifiedHousingConstructionCreditCarryforward`という関連
+  モデル(繰越額管理)が別途あるが、本項では`findByTaxYearId`/`upsert`/
+  `deleteByTaxYearId`の3メソッドのみを持つ`Record`側のみを対象とし、
+  `Carryforward`側は次項で扱う。
+  `certifiedHousingConstructionCreditRecordRepository.test.ts`にPrisma版と
+  同じ挙動(upsert相当の冪等性・削除・高精度小数値の往復)を検証するテストを
+  追加した(`npm run test`で全111ファイル1329件、`npm run lint`も成功する
+  ことを確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`
+  型エラーは引き続き無関係の既存問題)。次は
+  `CertifiedHousingConstructionCreditCarryforward`(繰越額。
+  `findByTaxYearId`/`upsert`/`deleteByTaxYearId`に加えて繰越消費用の
+  フィールドを持つ)のクライアントサイド実装に進む想定。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1384,7 +1412,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-7)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-11)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
