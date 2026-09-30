@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Decimal } from "decimal.js";
-import { prisma } from "@/lib/db";
 import { createPrismaTaxYearRepository } from "@/lib/repositories/taxYearRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
@@ -41,6 +40,7 @@ import { createPrismaMortgageDeductionRecordRepository } from "@/lib/repositorie
 import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/residentTaxAdjustmentDeductionRecordRepository";
 import { createPrismaEmploymentIncomeRecordRepository } from "@/lib/repositories/employmentIncomeRecordRepository";
 import { createPrismaCashflowEntryRepository } from "@/lib/repositories/cashflowEntryRepository";
+import { createPrismaAssetBalanceSnapshotRepository } from "@/lib/repositories/assetBalanceSnapshotRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -147,6 +147,7 @@ const residentTaxAdjustmentDeductionRecordRepository =
   createPrismaResidentTaxAdjustmentDeductionRecordRepository();
 const employmentIncomeRecordRepository = createPrismaEmploymentIncomeRecordRepository();
 const cashflowEntryRepository = createPrismaCashflowEntryRepository();
+const assetBalanceSnapshotRepository = createPrismaAssetBalanceSnapshotRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
@@ -561,31 +562,19 @@ export async function importFuturesCsv(formData: FormData): Promise<void> {
 
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.$transaction(async (tx) => {
-    const batch = await tx.importBatch.create({
-      data: {
-        taxYearId: taxYear.id,
-        sourceType: "futures_csv",
-        fileName: file.name,
-        rowCount: rows.length,
-      },
-    });
-
-    if (rows.length > 0) {
-      await tx.futuresTrade.createMany({
-        data: rows.map((row) => ({
-          taxYearId: taxYear.id,
-          settledAt: row.settledAt,
-          symbol: row.symbol,
-          realizedPnlJpy: row.realizedPnlJpy.toString(),
-          feeJpy: row.feeJpy.toString(),
-          swapJpy: row.swapJpy.toString(),
-          broker: brokerLabel,
-          source: "futures_csv:manual",
-          importBatchId: batch.id,
-        })),
-      });
-    }
+  await futuresTradeRepository.importCsvBatch({
+    taxYearId: taxYear.id,
+    sourceType: "futures_csv",
+    fileName: file.name,
+    rows: rows.map((row) => ({
+      settledAt: row.settledAt,
+      symbol: row.symbol,
+      realizedPnlJpy: row.realizedPnlJpy.toString(),
+      feeJpy: row.feeJpy.toString(),
+      swapJpy: row.swapJpy.toString(),
+      broker: brokerLabel,
+      source: "futures_csv:manual",
+    })),
   });
 
   revalidatePath("/import");
@@ -996,30 +985,18 @@ export async function importAssetBalanceCsv(formData: FormData): Promise<void> {
 
   const taxYear = await getOrCreateTaxYear(year);
 
-  await prisma.$transaction(async (tx) => {
-    const batch = await tx.importBatch.create({
-      data: {
-        taxYearId: taxYear.id,
-        sourceType: "moneyforward_assets",
-        fileName: file.name,
-        rowCount: rows.length,
-      },
-    });
-
-    if (rows.length > 0) {
-      await tx.assetBalanceSnapshot.createMany({
-        data: rows.map((row) => ({
-          taxYearId: taxYear.id,
-          ...(row.snapshotDate ? { snapshotDate: row.snapshotDate } : {}),
-          category: row.category,
-          institution: row.institution,
-          assetName: row.assetName,
-          balanceJpy: row.balanceJpy.toString(),
-          quantity: row.quantity ? row.quantity.toString() : null,
-          importBatchId: batch.id,
-        })),
-      });
-    }
+  await assetBalanceSnapshotRepository.importCsvBatch({
+    taxYearId: taxYear.id,
+    sourceType: "moneyforward_assets",
+    fileName: file.name,
+    rows: rows.map((row) => ({
+      snapshotDate: row.snapshotDate ?? null,
+      category: row.category,
+      institution: row.institution,
+      assetName: row.assetName,
+      balanceJpy: row.balanceJpy.toString(),
+      quantity: row.quantity ? row.quantity.toString() : null,
+    })),
   });
 
   revalidatePath("/import");
@@ -1035,10 +1012,7 @@ export async function importAssetBalanceCsv(formData: FormData): Promise<void> {
 export async function deleteAssetBalanceImportBatch(formData: FormData): Promise<void> {
   const importBatchId = Number(requireString(formData, "importBatchId"));
   const year = Number(requireString(formData, "year"));
-  await prisma.$transaction([
-    prisma.assetBalanceSnapshot.deleteMany({ where: { importBatchId } }),
-    prisma.importBatch.delete({ where: { id: importBatchId } }),
-  ]);
+  await assetBalanceSnapshotRepository.deleteImportBatch(importBatchId);
   revalidatePath("/import");
   redirect(`/import?year=${year}&tab=assetBalance`);
 }
