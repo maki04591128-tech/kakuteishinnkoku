@@ -80,6 +80,7 @@ import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/rep
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
+import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
 import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/openingBalanceRepository";
@@ -112,6 +113,7 @@ const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
 const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
 const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
+const marketPriceRepository = createPrismaMarketPriceRepository();
 const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -254,7 +256,11 @@ export default async function ImportPage({
       },
     }),
     assetSymbolMappingRepository.findMany(),
-    prisma.marketPrice.findMany({ orderBy: { symbol: "asc" } }),
+    marketPriceRepository
+      .findMany()
+      .then((prices) =>
+        [...prices].sort((a, b) => a.symbol.localeCompare(b.symbol)),
+      ),
     nisaLifetimeQuotaRepository
       .findByTaxYearId(taxYear.id)
       .then((quotas) =>
