@@ -69,7 +69,9 @@ import {
 import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
+import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
+import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stockMarginTradeRepository";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
@@ -77,6 +79,8 @@ const cryptoTradeRepository = createPrismaCryptoTradeRepository();
 const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();
 const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();
 const investmentTradeRepository = createPrismaInvestmentTradeRepository();
+const stockMarginTradeRepository = createPrismaStockMarginTradeRepository();
+const futuresTradeRepository = createPrismaFuturesTradeRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -166,14 +170,16 @@ export default async function ImportPage({
       .then((trades) =>
         [...trades].sort((a, b) => b.tradedAt.getTime() - a.tradedAt.getTime()),
       ),
-    prisma.stockMarginTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { settledAt: "desc" },
-    }),
-    prisma.futuresTrade.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { settledAt: "desc" },
-    }),
+    stockMarginTradeRepository
+      .findByTaxYearId(taxYear.id)
+      .then((trades) =>
+        [...trades].sort((a, b) => b.settledAt.getTime() - a.settledAt.getTime()),
+      ),
+    futuresTradeRepository
+      .findByTaxYearId(taxYear.id)
+      .then((trades) =>
+        [...trades].sort((a, b) => b.settledAt.getTime() - a.settledAt.getTime()),
+      ),
     prisma.openingBalance.findMany({
       where: { taxYearId: taxYear.id },
       orderBy: [{ assetClass: "asc" }, { symbol: "asc" }],
