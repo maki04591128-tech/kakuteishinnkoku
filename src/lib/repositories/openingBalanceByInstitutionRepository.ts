@@ -1,14 +1,19 @@
 /**
- * フェーズ1(リポジトリパターン導入): `src/app/actions.ts`が直接
- * `prisma.openingBalanceByInstitution`を呼んでいた処理をこのインターフェース
- * 経由に置き換える。挙動は既存のPrisma実装と完全に一致させる。
- * (`src/app/import/page.tsx`側の`prisma.openingBalanceByInstitution`呼び出しは
- * 移行時に別途このリポジトリへ委譲する)
+ * フェーズ1(リポジトリパターン導入): `src/app/actions.ts`・
+ * `src/app/import/page.tsx`が直接`prisma.openingBalanceByInstitution`を
+ * 呼んでいた処理をこのインターフェース経由に置き換える。挙動は既存の
+ * Prisma実装と完全に一致させる。
  */
-import type { OpeningBalanceAssetClass } from "@prisma/client";
+import type {
+  OpeningBalanceAssetClass,
+  OpeningBalanceByInstitution,
+} from "@prisma/client";
 import { prisma } from "../db";
 
 export interface OpeningBalanceByInstitutionRepository {
+  findByTaxYearId(
+    taxYearId: number,
+  ): Promise<OpeningBalanceByInstitution[]>;
   upsert(params: {
     taxYearId: number;
     assetClass: OpeningBalanceAssetClass;
@@ -21,6 +26,14 @@ export interface OpeningBalanceByInstitutionRepository {
 
 export function createPrismaOpeningBalanceByInstitutionRepository(): OpeningBalanceByInstitutionRepository {
   return {
+    async findByTaxYearId(
+      taxYearId: number,
+    ): Promise<OpeningBalanceByInstitution[]> {
+      return prisma.openingBalanceByInstitution.findMany({
+        where: { taxYearId },
+      });
+    },
+
     async upsert({
       taxYearId,
       assetClass,
