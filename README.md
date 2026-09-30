@@ -1061,12 +1061,21 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `prisma.xxx.findMany({ where, orderBy: { originYear: "asc" } })`と
   同じ表示順を再現している。関数の戻り値・表示内容は変更していない。
 
-- [ ] 1-57以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
-      (`foreignTaxCreditCarryforward`・`foreignTaxCreditSpareLimitCarryforward`・
-      `casualtyLossCarryforward`・`homeSaleLossCarryforward`・
+- [x] 1-57. `src/app/import/page.tsx`の`prisma.foreignTaxCreditCarryforward.findMany`・
+      `prisma.foreignTaxCreditSpareLimitCarryforward.findMany`をリポジトリパターン導入
+
+  **実装内容(2026-09-30):** `foreign-tax-credit/page.tsx`・`actions.ts`側で
+  既に導入済みの`foreignTaxCreditCarryforwardRepository`/
+  `foreignTaxCreditSpareLimitCarryforwardRepository`(`findByTaxYearId`。
+  いずれも`orderBy: { originYear: "asc" }`済みで、呼び出し側での並び替えは
+  不要)を`src/app/import/page.tsx`からも呼び出すように変更した。関数の
+  戻り値・表示内容は変更していない。
+
+- [ ] 1-58以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
+      (`casualtyLossCarryforward`・`homeSaleLossCarryforward`・
       `homeReplacementLossCarryforward`・`brokerAnnualReport`・`importBatch`・
       `assetSymbolMapping`・`marketPrice`・`nisaLifetimeQuota`)を、既存の各
-      リポジトリ(`1-1`〜`1-56`で導入済み。`brokerAnnualReport`は一覧取得
+      リポジトリ(`1-1`〜`1-57`で導入済み。`brokerAnnualReport`は一覧取得
       メソッドの追加が、`importBatch`はリポジトリ自体の新規作成が必要)経由に
       順次移行(進めるごとにこのリストに追記)。1回のブラッシュアップで
       1〜2モデル分ずつ進める想定。優先度は他フェーズより下げてよい。
