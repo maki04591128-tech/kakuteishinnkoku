@@ -978,15 +978,33 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   資産残高CSVの各インポート)も同じパターンのため、以後の移行でも同様の手順で
   進められる見込み。
 
-- [ ] 1-51以降. `src/app/actions.ts`の残り機能(先物取引CSV・マネーフォワード
-      資産残高CSVの各インポート処理内にある2箇所の`prisma.$transaction`
-      (取込明細の一括登録・`ImportBatch`の作成等)と、インポート削除処理の
+- [x] 1-51. `src/app/actions.ts`の`importFuturesCsv`(先物取引CSVインポート内の
+      `prisma.$transaction`(`ImportBatch`の作成・`FuturesTrade`一括登録))、
+      `importAssetBalanceCsv`(マネーフォワード資産残高CSVインポート内の
+      `prisma.$transaction`(`ImportBatch`の作成・`AssetBalanceSnapshot`一括登録))、
+      `deleteAssetBalanceImportBatch`(インポート削除処理の
       `prisma.$transaction([...])`(`AssetBalanceSnapshot`一括削除・
-      `ImportBatch`削除)を順次移行)と`src/app/import/page.tsx`
-      (Server Component)を順次移行(進めるごとにこのリストに追記)。
-      1回のブラッシュアップで1〜2機能分ずつ進める想定。`import/page.tsx`
-      (1モデルではなく多数のモデルを一括読み込みする2856行の大きなページ)は
-      優先度を下げてよい。
+      `ImportBatch`削除))をリポジトリパターン導入
+
+  **実装内容(2026-09-30):** `src/lib/repositories/futuresTradeRepository.ts`の
+  `FuturesTradeRepository`に`importCsvBatch`メソッド(`1-49`/`1-50`の
+  `cryptoTradeRepository`/`cryptoMarginTradeRepository`と同じ設計)を追加した。
+  `src/lib/repositories/assetBalanceSnapshotRepository.ts`の
+  `AssetBalanceSnapshotRepository`(これまで`findByTaxYearId`のみ既存だった)には
+  `importCsvBatch`と、`ImportBatch`削除+`AssetBalanceSnapshot`一括削除を1つの
+  `prisma.$transaction([...])`内で行う`deleteImportBatch(importBatchId)`を追加した。
+  `src/app/actions.ts`の該当3関数は`prisma.$transaction`の直接呼び出しをやめ、
+  それぞれのリポジトリに処理を委譲するように変更した(関数シグネチャ・挙動は
+  変更していない)。これにより`src/app/actions.ts`が`prisma`を直接呼ぶ箇所は
+  無くなった(`import { prisma } from "@/lib/db"`も不要になったため削除)ため、
+  フェーズ1のうち`actions.ts`側の移行対象は完了した。残るは
+  `src/app/import/page.tsx`(Server Component)のみ。
+
+- [ ] 1-52以降. `src/app/import/page.tsx`(Server Component。1モデルではなく
+      多数のモデルを一括読み込みする2856行の大きなページ)のPrisma直接呼び出しを、
+      既存の各リポジトリ(`1-1`〜`1-51`で導入済み)経由に順次移行(進めるごとに
+      このリストに追記)。1回のブラッシュアップで1〜2モデル分ずつ進める想定。
+      優先度は他フェーズより下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 

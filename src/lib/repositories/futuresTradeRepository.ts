@@ -8,10 +8,26 @@
 import type { FuturesTrade, Prisma } from "@prisma/client";
 import { prisma } from "../db";
 
+export interface FuturesTradeImportRow {
+  settledAt: Date;
+  symbol: string;
+  realizedPnlJpy: string;
+  feeJpy: string;
+  swapJpy: string;
+  broker: string | null;
+  source: string;
+}
+
 export interface FuturesTradeRepository {
   findByTaxYearId(taxYearId: number): Promise<FuturesTrade[]>;
   create(data: Prisma.FuturesTradeUncheckedCreateInput): Promise<FuturesTrade>;
   delete(id: number): Promise<void>;
+  importCsvBatch(input: {
+    taxYearId: number;
+    sourceType: string;
+    fileName: string;
+    rows: FuturesTradeImportRow[];
+  }): Promise<void>;
 }
 
 export function createPrismaFuturesTradeRepository(): FuturesTradeRepository {
@@ -28,6 +44,35 @@ export function createPrismaFuturesTradeRepository(): FuturesTradeRepository {
 
     async delete(id: number): Promise<void> {
       await prisma.futuresTrade.delete({ where: { id } });
+    },
+
+    async importCsvBatch({ taxYearId, sourceType, fileName, rows }): Promise<void> {
+      await prisma.$transaction(async (tx) => {
+        const batch = await tx.importBatch.create({
+          data: {
+            taxYearId,
+            sourceType,
+            fileName,
+            rowCount: rows.length,
+          },
+        });
+
+        if (rows.length > 0) {
+          await tx.futuresTrade.createMany({
+            data: rows.map((row) => ({
+              taxYearId,
+              settledAt: row.settledAt,
+              symbol: row.symbol,
+              realizedPnlJpy: row.realizedPnlJpy,
+              feeJpy: row.feeJpy,
+              swapJpy: row.swapJpy,
+              broker: row.broker,
+              source: row.source,
+              importBatchId: batch.id,
+            })),
+          });
+        }
+      });
     },
   };
 }
