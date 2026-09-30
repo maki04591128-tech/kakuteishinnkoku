@@ -1291,6 +1291,46 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `DurabilityImprovementRenovationDeductionRecord`・
   `ChildRearingRenovationDeductionRecord`も同様の手順で進められる見込み。
 
+- [x] 2-7. `MultiHouseholdRenovationDeductionRecord`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-09-30):** `src/lib/clientDb/schema.ts`に
+  `multi_household_renovation_deduction_record`テーブル(`id`/`tax_year_id`(UNIQUE)/
+  `credit_jpy`/`created_at`/`updated_at`)を追記した。
+  `src/lib/repositories/multiHouseholdRenovationDeductionRecordRepository.ts`に
+  `createClientMultiHouseholdRenovationDeductionRecordRepository(db)`を追加し、
+  `MultiHouseholdRenovationDeductionRecordRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)をwa-sqlite上のSQLで実装した。
+  Prismaスキーマの`MultiHouseholdRenovationDeductionRecord`が2-4〜2-6と全く同じ形
+  (`id`/`taxYearId`(UNIQUE)/Decimal1列/`createdAt`/`updatedAt`)だったため、
+  同じパターン(`encodeDecimal`での`TEXT`化・`ON CONFLICT ... DO UPDATE`による
+  upsert・`new Prisma.Decimal(text)`での型復元)をそのまま適用できた。
+  `multiHouseholdRenovationDeductionRecordRepository.test.ts`にPrisma版と同じ挙動
+  (upsert相当の冪等性・削除・高精度小数値の往復)を検証するテストを追加した
+  (`npm run test`で全108ファイル1311件、`npm run lint`も成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型エラーは引き続き
+  無関係の既存問題)。同じ形(Decimal1列のみ)の
+  `DurabilityImprovementRenovationDeductionRecord`・
+  `ChildRearingRenovationDeductionRecord`も同様の手順で進められる見込み。
+
+- [x] 2-8. `DurabilityImprovementRenovationDeductionRecord`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-09-30):** `src/lib/clientDb/schema.ts`に
+  `durability_improvement_renovation_deduction_record`テーブル(`id`/`tax_year_id`
+  (UNIQUE)/`credit_jpy`/`created_at`/`updated_at`)を追記した。
+  `src/lib/repositories/durabilityImprovementRenovationDeductionRecordRepository.ts`に
+  `createClientDurabilityImprovementRenovationDeductionRecordRepository(db)`を追加し、
+  `DurabilityImprovementRenovationDeductionRecordRepository`インターフェースの3メソッド
+  全て(`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)をwa-sqlite上のSQLで実装した。
+  Prismaスキーマの`DurabilityImprovementRenovationDeductionRecord`が2-4〜2-7と
+  全く同じ形(`id`/`taxYearId`(UNIQUE)/Decimal1列/`createdAt`/`updatedAt`)だった
+  ため、同じパターンをそのまま適用できた。
+  `durabilityImprovementRenovationDeductionRecordRepository.test.ts`にPrisma版と
+  同じ挙動(upsert相当の冪等性・削除・高精度小数値の往復)を検証するテストを
+  追加した(`npm run test`で全109ファイル1317件、`npm run lint`も成功することを
+  確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型エラーは
+  引き続き無関係の既存問題)。同じ形(Decimal1列のみ)の
+  `ChildRearingRenovationDeductionRecord`も同様の手順で進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
