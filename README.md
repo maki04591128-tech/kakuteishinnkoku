@@ -1110,14 +1110,23 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `import/page.tsx`側の直接呼び出しをこのメソッド経由に置き換えた。
   関数の戻り値・表示内容は変更していない。
 
-- [ ] 1-62以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
-      (`importBatch`・`marketPrice`・`nisaLifetimeQuota`)を、既存の各
-      リポジトリ経由に順次移行(進めるごとにこのリストに追記)。
-      `nisaLifetimeQuotaRepository.findByTaxYearId`は既存のまま
-      (`1-52`〜`1-59`と同様、呼び出し側で`nisaType`昇順にソートすれば
-      置き換え可能)、`marketPrice`は一覧取得メソッドの追加が、
-      `importBatch`はリポジトリ自体の新規作成が必要。1回のブラッシュアップで
-      1〜2モデル分ずつ進める想定。優先度は他フェーズより下げてよい。
+- [x] 1-62. `src/app/import/page.tsx`の`prisma.nisaLifetimeQuota.findMany`を
+      リポジトリパターン導入
+
+  **実装内容(2026-09-30):** `src/lib/reporting.ts`側で既に導入済みだった
+  `nisaLifetimeQuotaRepository`(`findByTaxYearId`は`orderBy`無しでそのまま
+  返す実装)を`import/page.tsx`でもインスタンス化し、既存の
+  `prisma.nisaLifetimeQuota.findMany({ where, orderBy: { nisaType: "asc" } })`
+  呼び出しを`findByTaxYearId`呼び出し+呼び出し側での
+  `nisaType`昇順ソート(`1-52`〜`1-59`と同じパターン)に置き換えた。
+  関数の戻り値・表示内容は変更していない。
+
+- [ ] 1-63以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
+      (`importBatch`・`marketPrice`)を、既存の各リポジトリ経由に順次移行
+      (進めるごとにこのリストに追記)。`marketPrice`は一覧取得メソッドの
+      追加が、`importBatch`はリポジトリ自体の新規作成が必要。
+      1回のブラッシュアップで1モデル分ずつ進める想定。
+      優先度は他フェーズより下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 

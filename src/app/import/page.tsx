@@ -80,6 +80,7 @@ import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/rep
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
+import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/openingBalanceRepository";
 import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stockMarginTradeRepository";
@@ -111,6 +112,7 @@ const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
 const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
 const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
+const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -253,10 +255,11 @@ export default async function ImportPage({
     }),
     assetSymbolMappingRepository.findMany(),
     prisma.marketPrice.findMany({ orderBy: { symbol: "asc" } }),
-    prisma.nisaLifetimeQuota.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: { nisaType: "asc" },
-    }),
+    nisaLifetimeQuotaRepository
+      .findByTaxYearId(taxYear.id)
+      .then((quotas) =>
+        [...quotas].sort((a, b) => a.nisaType.localeCompare(b.nisaType)),
+      ),
     buildYearReport(year),
   ]);
 
