@@ -1,11 +1,10 @@
 /**
- * フェーズ1(リポジトリパターン導入): `src/app/actions.ts`が直接
- * `prisma.brokerAnnualReport`を呼んでいた処理をこのインターフェース経由に
- * 置き換える。挙動は既存のPrisma実装と完全に一致させる。
- * (`src/app/import/page.tsx`側の`prisma.brokerAnnualReport.findMany`呼び出しは
- * 移行時に別途このリポジトリへ委譲する)
+ * フェーズ1(リポジトリパターン導入): `src/app/actions.ts`・
+ * `src/app/import/page.tsx`が直接`prisma.brokerAnnualReport`を呼んでいた
+ * 処理をこのインターフェース経由に置き換える。挙動は既存のPrisma実装と
+ * 完全に一致させる。
  */
-import type { InvestmentAccountType } from "@prisma/client";
+import type { BrokerAnnualReport, InvestmentAccountType } from "@prisma/client";
 import { prisma } from "../db";
 
 export interface BrokerAnnualReportUpsertInput {
@@ -18,6 +17,7 @@ export interface BrokerAnnualReportUpsertInput {
 }
 
 export interface BrokerAnnualReportRepository {
+  findByTaxYearId(taxYearId: number): Promise<BrokerAnnualReport[]>;
   upsert(input: BrokerAnnualReportUpsertInput): Promise<void>;
   delete(id: number): Promise<void>;
   upsertMany(inputs: BrokerAnnualReportUpsertInput[]): Promise<void>;
@@ -25,6 +25,13 @@ export interface BrokerAnnualReportRepository {
 
 export function createPrismaBrokerAnnualReportRepository(): BrokerAnnualReportRepository {
   return {
+    async findByTaxYearId(taxYearId: number): Promise<BrokerAnnualReport[]> {
+      return prisma.brokerAnnualReport.findMany({
+        where: { taxYearId },
+        orderBy: [{ broker: "asc" }, { accountType: "asc" }],
+      });
+    },
+
     async upsert({
       taxYearId,
       broker,

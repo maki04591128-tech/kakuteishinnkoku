@@ -1090,13 +1090,34 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   並び替えは不要)を`src/app/import/page.tsx`からも呼び出すように変更した。
   関数の戻り値・表示内容は変更していない。
 
-- [ ] 1-60以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
-      (`brokerAnnualReport`・`importBatch`・`assetSymbolMapping`・
-      `marketPrice`・`nisaLifetimeQuota`)を、既存の各リポジトリ(`1-1`〜`1-59`で
-      導入済み。`brokerAnnualReport`は一覧取得メソッドの追加が、`importBatch`は
-      リポジトリ自体の新規作成が必要)経由に順次移行(進めるごとにこのリストに
-      追記)。1回のブラッシュアップで1〜2モデル分ずつ進める想定。優先度は
-      他フェーズより下げてよい。
+- [x] 1-60. `src/app/import/page.tsx`の`prisma.brokerAnnualReport.findMany`を
+      リポジトリパターン導入
+
+  **実装内容(2026-09-30):** `src/app/actions.ts`側で既に導入済みだった
+  `brokerAnnualReportRepository`に、`src/app/import/page.tsx`が使う
+  `findByTaxYearId`(`orderBy: [{ broker: "asc" }, { accountType: "asc" }]`
+  付き。既存の`prisma.brokerAnnualReport.findMany`呼び出しと同じ並び順)を
+  追加し、`import/page.tsx`側の直接呼び出しをこのメソッド経由に置き換えた。
+  関数の戻り値・表示内容は変更していない。
+
+- [x] 1-61. `src/app/import/page.tsx`の`prisma.assetSymbolMapping.findMany`を
+      リポジトリパターン導入
+
+  **実装内容(2026-09-30):** `src/app/actions.ts`側で既に導入済みだった
+  `assetSymbolMappingRepository`(それまで`upsert`/`delete`のみ)に
+  `findMany`(`orderBy: { assetName: "asc" }`付き。既存の
+  `prisma.assetSymbolMapping.findMany`呼び出しと同じ並び順)を追加し、
+  `import/page.tsx`側の直接呼び出しをこのメソッド経由に置き換えた。
+  関数の戻り値・表示内容は変更していない。
+
+- [ ] 1-62以降. `src/app/import/page.tsx`の残りのPrisma直接呼び出し
+      (`importBatch`・`marketPrice`・`nisaLifetimeQuota`)を、既存の各
+      リポジトリ経由に順次移行(進めるごとにこのリストに追記)。
+      `nisaLifetimeQuotaRepository.findByTaxYearId`は既存のまま
+      (`1-52`〜`1-59`と同様、呼び出し側で`nisaType`昇順にソートすれば
+      置き換え可能)、`marketPrice`は一覧取得メソッドの追加が、
+      `importBatch`はリポジトリ自体の新規作成が必要。1回のブラッシュアップで
+      1〜2モデル分ずつ進める想定。優先度は他フェーズより下げてよい。
 
 #### フェーズ2: クライアントサイドDB実装
 
