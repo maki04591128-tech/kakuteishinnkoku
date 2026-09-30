@@ -15,6 +15,13 @@ const STATEMENTS = [
     crypto_cost_method TEXT NOT NULL DEFAULT 'AVERAGE',
     created_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS login_attempt (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS login_attempt_ip_address_created_at_idx
+    ON login_attempt (ip_address, created_at)`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */

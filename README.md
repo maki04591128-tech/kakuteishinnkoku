@@ -1179,6 +1179,25 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (アプリへの実際の組み込みはフェーズ3で行う)。次はフェーズ1の残り25モデルから
   1つずつ同じパターンで進める。
 
+- [x] 2-2. `LoginAttemptRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-09-30):** `src/lib/clientDb/schema.ts`に`login_attempt`
+  テーブル(`id`/`ip_address`/`created_at`。Prismaスキーマの
+  `@@index([ipAddress, createdAt])`に対応するインデックスも追加)を追記した。
+  `src/lib/repositories/loginAttemptRepository.ts`に
+  `createClientLoginAttemptRepository(db)`を追加し、
+  `LoginAttemptRepository`インターフェースの4メソッド全て
+  (`findRecentAttemptTimestamps`/`createAttempt`/`deleteOlderThan`/
+  `deleteByIpAddress`)をwa-sqlite上のSQLで実装した(`createdAt`はISO 8601
+  文字列で保存しており、桁数が揃うため`TEXT`列の文字列比較(`<`/`>`)がそのまま
+  日時比較として機能する)。`loginAttemptRepository.test.ts`にPrisma版と同じ挙動
+  (IPアドレス・期間での絞り込み、`deleteOlderThan`/`deleteByIpAddress`の
+  削除範囲)を検証するテストを追加した(`npm run test`で全103ファイル1281件、
+  `npx tsc --noEmit`・`npm run lint`も成功することを確認済み。既存の
+  `src/app/layout.tsx`の`LayoutProps`型エラーはこの変更前から存在する
+  Next.js生成型の問題で本変更とは無関係)。1-1(TaxYear)と全く同じパターンで
+  移行できたため、残り24モデルも同様の手順で進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1209,7 +1228,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-2)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-3)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
