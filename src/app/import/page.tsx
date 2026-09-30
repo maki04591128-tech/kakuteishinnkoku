@@ -66,6 +66,8 @@ import {
   reconcileAssetBalances,
   reconcileAssetSymbolBalances,
 } from "@/lib/moneyforward/assetBalanceReconciliation";
+import { createPrismaAssetSymbolMappingRepository } from "@/lib/repositories/assetSymbolMappingRepository";
+import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
 import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositories/casualtyLossCarryforwardRepository";
 import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
@@ -107,6 +109,8 @@ const homeSaleLossCarryforwardRepository =
   createPrismaHomeSaleLossCarryforwardRepository();
 const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
+const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
+const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -237,10 +241,7 @@ export default async function ImportPage({
     casualtyLossCarryforwardRepository.findByTaxYearId(taxYear.id),
     homeSaleLossCarryforwardRepository.findByTaxYearId(taxYear.id),
     homeReplacementLossCarryforwardRepository.findByTaxYearId(taxYear.id),
-    prisma.brokerAnnualReport.findMany({
-      where: { taxYearId: taxYear.id },
-      orderBy: [{ broker: "asc" }, { accountType: "asc" }],
-    }),
+    brokerAnnualReportRepository.findByTaxYearId(taxYear.id),
     prisma.importBatch.findMany({
       where: { taxYearId: taxYear.id, sourceType: "moneyforward_assets" },
       orderBy: { importedAt: "desc" },
@@ -250,7 +251,7 @@ export default async function ImportPage({
         },
       },
     }),
-    prisma.assetSymbolMapping.findMany({ orderBy: { assetName: "asc" } }),
+    assetSymbolMappingRepository.findMany(),
     prisma.marketPrice.findMany({ orderBy: { symbol: "asc" } }),
     prisma.nisaLifetimeQuota.findMany({
       where: { taxYearId: taxYear.id },
