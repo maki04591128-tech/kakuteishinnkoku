@@ -1695,6 +1695,28 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (`nationalTaxCreditJpy`/`residentTaxCreditJpy`の2 Decimal列。2-21の
   `MortgageDeductionRecord`と同じパターン)等から進められる見込み。
 
+- [x] 2-24. `ForeignTaxCreditRecord`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `foreign_tax_credit_record`テーブル(`id`/`tax_year_id`(UNIQUE)/
+  `total_tax_credit_jpy`/`national_tax_credit_jpy`/`resident_tax_credit_jpy`/
+  `created_at`/`updated_at`)を追記した。
+  `src/lib/repositories/foreignTaxCreditRecordRepository.ts`に
+  `createClientForeignTaxCreditRecordRepository(db)`を追加し、
+  `ForeignTaxCreditRecordRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)を、2-21
+  (`MortgageDeductionRecord`)と同じ「`taxYearId`1件につき複数のDecimal列」
+  パターンでwa-sqlite上のSQLで実装した(Prismaスキーマの
+  `nationalTaxCreditJpy`/`residentTaxCreditJpy`の`@default(0)`はこれまでの
+  実装と同様、クライアントDBのCREATE TABLE文には反映せず、`upsert`が常に
+  値を明示的に渡す既存の方針を踏襲した)。
+  `foreignTaxCreditRecordRepository.test.ts`を新規に追加し、Prisma版と
+  同じ挙動(upsert相当の冪等性・削除・3列とも高精度小数値の往復)を
+  検証した(`npm run test`で全125ファイル1427件、`npm run lint`も成功する
+  ことを確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`
+  型エラーは引き続き無関係の既存問題)。次は`NisaLifetimeQuota`
+  (`openingUsedJpy`/`soldCostBasisJpy`の2 Decimal列)等から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1725,7 +1747,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-22)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-25)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
