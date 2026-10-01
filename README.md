@@ -1582,6 +1582,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   無関係の既存問題)。次は同じ形の`HomeReplacementLossCarryforward`も同様の
   パターンで進められる見込み。
 
+- [x] 2-19. `HomeReplacementLossCarryforward`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `home_replacement_loss_carryforward`テーブル(`id`/`tax_year_id`/
+  `origin_year`/`remaining_amount_jpy`/`created_at`/`updated_at`。Prisma
+  スキーマの`@@unique([taxYearId, originYear])`に対応する
+  `UNIQUE(tax_year_id, origin_year)`制約付き)を追記した。
+  `src/lib/repositories/homeReplacementLossCarryforwardRepository.ts`に
+  `createClientHomeReplacementLossCarryforwardRepository(db)`を追加し、
+  `HomeReplacementLossCarryforwardRepository`インターフェースの4メソッド全て
+  (`findByTaxYearId`/`upsert`/`delete`/`createMany`)を、2-18
+  (`HomeSaleLossCarryforward`)と全く同じ形(フィールド構成・制約が完全に
+  一致)のため同じパターンでwa-sqlite上のSQLで実装した。
+  `homeReplacementLossCarryforwardRepository.test.ts`にPrisma版と同じ挙動
+  (未登録時は空配列・upsert相当の冪等性・`originYear`違いでの複数件保持と
+  昇順取得・`delete`での単一行削除・`createMany`での一括登録と空配列時の
+  無例外・高精度小数値の往復)を検証するテストを追加した(`npm run test`で
+  全121ファイル1397件、`npm run lint`も成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型エラーは引き続き
+  無関係の既存問題)。フェーズ1の26ファイルのうち、繰越控除系(originYearごとの
+  残高管理パターン)モデルは全て移行済みになった。次は`MarketPrice`・
+  `OpeningBalance`・各種取引(`CryptoTrade`等)・インポート関連
+  (`AssetSymbolMapping`等)の残りモデルから1つずつ同様のパターンで進める。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
