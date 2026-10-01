@@ -1653,6 +1653,26 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `DistributionAdjustedForeignTaxCreditRecord`・`ForeignTaxCreditRecord`等、
   同じパターンのモデルから1つずつ同様の手順で進められる見込み。
 
+- [x] 2-22. `ResidentTaxAdjustmentDeductionRecord`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `resident_tax_adjustment_deduction_record`テーブル(`id`/`tax_year_id`(UNIQUE)/
+  `adjustment_deduction_jpy`/`created_at`/`updated_at`)を追記した。
+  `src/lib/repositories/residentTaxAdjustmentDeductionRecordRepository.ts`に
+  `createClientResidentTaxAdjustmentDeductionRecordRepository(db)`を追加し、
+  `ResidentTaxAdjustmentDeductionRecordRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)を、2-4
+  (`BarrierFreeRenovationDeductionRecord`)と同じ「`taxYearId`1件につき
+  Decimal列1つ」パターンでwa-sqlite上のSQLで実装した(`adjustmentDeductionJpy`列を
+  `encodeDecimal`で`TEXT`化し、`new Prisma.Decimal(text)`で型復元する)。
+  `residentTaxAdjustmentDeductionRecordRepository.test.ts`にPrisma版と同じ挙動
+  (upsert相当の冪等性・削除・高精度小数値の往復)を検証するテストを追加した
+  (`npm run test`で全124ファイル1415件、`npm run lint`も成功することを
+  確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型エラーは
+  引き続き無関係の既存問題)。次は`DistributionAdjustedForeignTaxCreditRecord`・
+  `ForeignTaxCreditRecord`等、同じパターンまたは「taxYearId1件につき複数の
+  Decimal列」パターンのモデルから1つずつ同様の手順で進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
