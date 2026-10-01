@@ -1994,6 +1994,28 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (`CryptoCreditTrade`/`StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)
   から進められる見込み。
 
+- [x] 2-36. `CryptoCreditTradeRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `crypto_credit_trade`テーブル(Decimal相当の`realized_pnl_jpy`/`fee_jpy`/
+  `interest_adjustment_jpy`はTEXT型)を追記した。
+  `src/lib/repositories/cryptoCreditTradeRepository.ts`に
+  `createClientCryptoCreditTradeRepository(db)`を追加し、
+  `CryptoCreditTradeRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`create`/`delete`)を実装した。このモデルは
+  `2-34`・`2-35`(`CryptoTrade`/`CryptoMarginTrade`)と異なり
+  Prismaスキーマに`source`/`importBatchId`列が無く(CSV一括インポート非対応)、
+  インターフェースにも`importCsvBatch`が存在しないため、`create`後に
+  `SELECT last_insert_rowid()`で新規IDを取得して読み直す部分のみ同じ
+  パターンを適用し、CSV関連の実装は不要だった。
+  `cryptoCreditTradeRepository.test.ts`を新規に追加し、Prisma版と同じ挙動
+  (`create`での高精度小数値(負の値含む)の往復一致・`feeJpy`/
+  `interestAdjustmentJpy`省略時のデフォルト値0・`delete`での単一行削除)を
+  検証した(`npm run test`で全137ファイル1497件、`npx tsc --noEmit`・
+  `npm run lint`も成功することを確認済み。`src/app/layout.tsx`の
+  `LayoutProps`型エラーは引き続き無関係の既存問題)。次は残りの取引系
+  (`StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
