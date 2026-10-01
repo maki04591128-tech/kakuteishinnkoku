@@ -4,9 +4,12 @@
  * `prisma.cashflowEntry`を呼んでいた処理をこのインターフェース経由に
  * 置き換える。挙動は既存のPrisma実装と完全に一致させる(ImportBatchの作成と
  * CashflowEntryの一括登録を1つのトランザクションで行う点も含む)。
+ * フェーズ2-33でスタンドアロン(Android)版向けのクライアントサイド実装
+ * (`createClientCashflowEntryRepository`。wa-sqlite)を追加した。
  */
 import type { CashflowDirection } from "@prisma/client";
 import { prisma } from "../db";
+import type { ClientDb } from "../clientDb/sqlite";
 
 export interface CashflowEntryImportRow {
   date: Date;
@@ -58,6 +61,56 @@ export function createPrismaCashflowEntryRepository(): CashflowEntryRepository {
           });
         }
       });
+    },
+  };
+}
+
+/**
+ * スタンドアロン(Android)版向けのクライアントサイド実装(フェーズ2-33)。
+ * `db`は呼び出し側で`applyClientDbSchema`済みの`ClientDb`を渡すこと。
+ */
+export function createClientCashflowEntryRepository(
+  db: ClientDb,
+): CashflowEntryRepository {
+  return {
+    async importMoneyForwardCsv({
+      taxYearId,
+      fileName,
+      rows,
+    }): Promise<void> {
+      const now = new Date().toISOString();
+      await db.run(
+        `INSERT INTO import_batch (tax_year_id, source_type, file_name, imported_at, row_count)
+         VALUES (?, ?, ?, ?, ?)`,
+        [taxYearId, "moneyforward_cashflow", fileName, now, rows.length],
+      );
+      const [{ id: rawBatchId }] = await db.all(
+        `SELECT last_insert_rowid() AS id`,
+      );
+      const batchId = Number(rawBatchId);
+
+      for (const row of rows) {
+        await db.run(
+          `INSERT INTO cashflow_entry
+             (import_batch_id, date, content, amount_jpy, direction,
+              large_category, middle_category, institution, memo,
+              is_calculation_target, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            batchId,
+            row.date.toISOString(),
+            row.content,
+            row.amountJpy,
+            row.direction,
+            row.largeCategory,
+            row.middleCategory,
+            row.institution,
+            row.memo,
+            row.isCalculationTarget ? 1 : 0,
+            now,
+          ],
+        );
+      }
     },
   };
 }
