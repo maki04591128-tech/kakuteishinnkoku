@@ -1865,6 +1865,37 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   必要なため、`asset_symbol_mapping`より一段複雑になる見込み)から
   進められる見込み。
 
+- [x] 2-31. `BrokerAnnualReportRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `broker_annual_report`テーブル(`tax_year_id`/`broker`/`account_type`の
+  複合UNIQUE制約、Decimal相当の`proceeds_jpy`/`acquisition_cost_jpy`/
+  `dividend_jpy`はTEXT型、任意項目の`memo`はNULL許容TEXT型)を追記した。
+  `src/lib/repositories/brokerAnnualReportRepository.ts`に
+  `createClientBrokerAnnualReportRepository(db)`を追加し、
+  `BrokerAnnualReportRepository`インターフェースの4メソッド全て
+  (`findByTaxYearId`/`upsert`/`delete`/`upsertMany`)を実装した。
+  `upsert`は`opening_balance_by_institution`(2-28)と同様の
+  `ON CONFLICT(...) DO UPDATE`パターン、`upsertMany`は現状の
+  `ClientDb`(`src/lib/clientDb/sqlite.ts`)がトランザクションAPIを
+  持たないため、`upsert`を順次呼び出す実装とした(Prisma版の
+  `$transaction`と異なりアトミック性は無いが、呼び出し元
+  (`src/app/actions.ts`の`importMoneyForwardCsv`相当の処理は未移行で
+  現状Prisma版のみ使用)がクライアントDB版に切り替わるフェーズ3まで
+  実利用されないため、この粒度で問題ない)。なお`memo`列はPrisma版の
+  `upsert`/`upsertMany`の入力型(`BrokerAnnualReportUpsertInput`)に
+  含まれておらず(`src/app/actions.ts`でも設定箇所が無い)、作成時は
+  常に`NULL`になる(既存のPrisma実装と同じ挙動)。
+  `brokerAnnualReportRepository.test.ts`を新規に追加し、Prisma版と同じ挙動
+  (複合キー単位でのupsert相当の冪等性・broker/accountType違いでの別レコード
+  保持・高精度小数値の往復一致・削除・upsertManyでの複数件登録/更新)を
+  検証した(`npm run test`で全132ファイル1475件、`npx tsc --noEmit`・
+  `npm run lint`も成功することを確認済み。`src/app/layout.tsx`の
+  `LayoutProps`型エラーは引き続き無関係の既存問題)。
+  次は`AssetBalanceSnapshotRepository`・`CashflowEntryRepository`・
+  各種取引系(`CryptoTrade`/`CryptoMarginTrade`/`CryptoCreditTrade`/
+  `StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1895,8 +1926,8 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-27
-  の次、`OpeningBalanceByInstitution`のクライアントサイド実装)から1つずつ着手し、
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-31
+  の次、`AssetBalanceSnapshotRepository`のクライアントサイド実装)から1つずつ着手し、
   完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
