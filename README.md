@@ -1819,6 +1819,27 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `MarketPriceRepository`等、まだ`createClient*`実装が無い
   リポジトリから進められる見込み。
 
+- [x] 2-29. `MarketPriceRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に`market_price`
+  テーブル(`id`/`symbol`/`price_jpy`/`created_at`/`updated_at`。
+  `symbol`に`UNIQUE`制約)を追記した。`tax_year_id`を持たない全年共通の
+  テーブルで、真偽値列も無くDecimal相当の列(`price_jpy`)のみのため
+  これまでで最も単純な構成。`src/lib/repositories/marketPriceRepository.ts`に
+  `createClientMarketPriceRepository(db)`を追加し、`MarketPriceRepository`
+  インターフェースの3メソッド全て(`findMany`/`upsert`/`delete`)を、
+  `symbol`の一意制約に対する`ON CONFLICT(...) DO UPDATE`パターンで
+  wa-sqlite上のSQLで実装した。`marketPriceRepository.test.ts`を新規に
+  追加し、Prisma版と同じ挙動(`symbol`単位でのupsert相当の冪等性・
+  `symbol`違いでの別レコード保持・削除・高精度小数値の往復)を検証した
+  (`npm run test`で全130ファイル1463件、`npm run lint`も成功することを
+  確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型
+  エラーは引き続き無関係の既存問題)。次は`BrokerAnnualReportRepository`・
+  `AssetSymbolMappingRepository`・`AssetBalanceSnapshotRepository`・
+  `CashflowEntryRepository`・各種取引系(`CryptoTrade`/`CryptoMarginTrade`/
+  `CryptoCreditTrade`/`StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)
+  から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する

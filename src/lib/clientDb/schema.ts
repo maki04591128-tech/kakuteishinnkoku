@@ -241,6 +241,13 @@ const STATEMENTS = [
     updated_at TEXT NOT NULL,
     UNIQUE (tax_year_id, asset_class, symbol, institution)
   )`,
+  `CREATE TABLE IF NOT EXISTS market_price (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL UNIQUE,
+    price_jpy TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
