@@ -1462,6 +1462,33 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `HomeSaleLossCarryforward`・`HomeReplacementLossCarryforward`も同様の
   パターンで進められる見込み。
 
+- [x] 2-14. `AngelTaxLossCarryforward`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `angel_tax_loss_carryforward`テーブル(`id`/`tax_year_id`/`origin_year`/
+  `remaining_amount_jpy`/`created_at`/`updated_at`。Prismaスキーマの
+  `@@unique([taxYearId, originYear])`に対応する
+  `UNIQUE(tax_year_id, origin_year)`制約付き)を追記した。
+  `src/lib/repositories/angelTaxLossCarryforwardRepository.ts`に
+  `createClientAngelTaxLossCarryforwardRepository(db)`を追加し、
+  `AngelTaxLossCarryforwardRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`delete`)を、2-12・2-13
+  (`InvestmentLossCarryforward`・`FuturesLossCarryforward`)と全く同じ形
+  (`taxYearId`ごとに複数件、`originYear`で一意)のため同じパターンで
+  wa-sqlite上のSQLで実装した。本モデルには呼び出し元(`actions.ts`・
+  `angel-tax-loss-carryforward/page.tsx`)で`createMany`の利用が無いため、
+  `InvestmentLossCarryforward`・`FuturesLossCarryforward`と異なり
+  `createMany`は実装していない(インターフェース自体に無い)。
+  `angelTaxLossCarryforwardRepository.test.ts`にPrisma版と同じ挙動
+  (未登録時は空配列・upsert相当の冪等性・`originYear`違いでの複数件保持と
+  昇順取得・`delete`での単一行削除・高精度小数値の往復)を検証するテストを
+  追加した(`npm run test`で全116ファイル1357件、`npx tsc --noEmit`・
+  `npm run lint`も成功することを確認済み。`src/app/layout.tsx`の
+  `LayoutProps`型エラーは引き続き無関係の既存問題)。次は同じ形の
+  `ForeignTaxCreditCarryforward`・`ForeignTaxCreditSpareLimitCarryforward`・
+  `CasualtyLossCarryforward`・`HomeSaleLossCarryforward`・
+  `HomeReplacementLossCarryforward`も同様のパターンで進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
