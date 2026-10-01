@@ -2,9 +2,14 @@
  * フェーズ1(リポジトリパターン導入): `src/app/foreign-tax-credit/page.tsx`・
  * `src/app/actions.ts`が直接`prisma.foreignTaxCreditCarryforward`を呼んでいた
  * 処理をこのインターフェース経由に置き換える。挙動は既存のPrisma実装と完全に一致させる。
+ * フェーズ2-15でスタンドアロン(Android)版向けのクライアントサイド実装
+ * (`createClientForeignTaxCreditCarryforwardRepository`。wa-sqlite)を追加した。
  */
-import type { ForeignTaxCreditCarryforward } from "@prisma/client";
+import { Prisma, type ForeignTaxCreditCarryforward } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { prisma } from "../db";
+import { encodeDecimal } from "../clientDb/decimalCodec";
+import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface ForeignTaxCreditCarryforwardRepository {
   findByTaxYearId(taxYearId: number): Promise<ForeignTaxCreditCarryforward[]>;
@@ -45,6 +50,69 @@ export function createPrismaForeignTaxCreditCarryforwardRepository(): ForeignTax
     async createMany(data): Promise<void> {
       if (data.length === 0) return;
       await prisma.foreignTaxCreditCarryforward.createMany({ data });
+    },
+  };
+}
+
+function rowToForeignTaxCreditCarryforward(
+  row: Record<string, SqlValue>,
+): ForeignTaxCreditCarryforward {
+  return {
+    id: Number(row.id),
+    taxYearId: Number(row.tax_year_id),
+    originYear: Number(row.origin_year),
+    remainingAmountJpy: new Prisma.Decimal(String(row.remaining_amount_jpy)),
+    createdAt: new Date(String(row.created_at)),
+    updatedAt: new Date(String(row.updated_at)),
+  };
+}
+
+/**
+ * スタンドアロン(Android)版向けのクライアントサイド実装(フェーズ2-15)。
+ * `db`は呼び出し側で`applyClientDbSchema`済みの`ClientDb`を渡すこと。
+ */
+export function createClientForeignTaxCreditCarryforwardRepository(
+  db: ClientDb,
+): ForeignTaxCreditCarryforwardRepository {
+  return {
+    async findByTaxYearId(taxYearId: number): Promise<ForeignTaxCreditCarryforward[]> {
+      const rows = await db.all(
+        `SELECT id, tax_year_id, origin_year, remaining_amount_jpy, created_at, updated_at
+         FROM foreign_tax_credit_carryforward WHERE tax_year_id = ? ORDER BY origin_year`,
+        [taxYearId],
+      );
+      return rows.map(rowToForeignTaxCreditCarryforward);
+    },
+
+    async upsert({ taxYearId, originYear, remainingAmountJpy }): Promise<void> {
+      const now = new Date().toISOString();
+      const encoded = encodeDecimal(new Decimal(remainingAmountJpy));
+      await db.run(
+        `INSERT INTO foreign_tax_credit_carryforward
+           (tax_year_id, origin_year, remaining_amount_jpy, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(tax_year_id, origin_year) DO UPDATE SET
+           remaining_amount_jpy = excluded.remaining_amount_jpy,
+           updated_at = excluded.updated_at`,
+        [taxYearId, originYear, encoded, now, now],
+      );
+    },
+
+    async delete(id: number): Promise<void> {
+      await db.run(`DELETE FROM foreign_tax_credit_carryforward WHERE id = ?`, [id]);
+    },
+
+    async createMany(data): Promise<void> {
+      const now = new Date().toISOString();
+      for (const { taxYearId, originYear, remainingAmountJpy } of data) {
+        const encoded = encodeDecimal(new Decimal(remainingAmountJpy));
+        await db.run(
+          `INSERT INTO foreign_tax_credit_carryforward
+             (tax_year_id, origin_year, remaining_amount_jpy, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?)`,
+          [taxYearId, originYear, encoded, now, now],
+        );
+      }
     },
   };
 }
