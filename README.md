@@ -1744,6 +1744,28 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   配列を返す、1-12で導入済みの区分ごと複数件パターン)等から
   進められる見込み。
 
+- [x] 2-26. `IncomeDeductionRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `income_deduction`テーブル(`id`/`tax_year_id`/`type`/
+  `income_tax_amount_jpy`/`resident_tax_amount_jpy`/`created_at`/
+  `updated_at`。`UNIQUE (tax_year_id, type)`)を追記した。
+  `src/lib/repositories/incomeDeductionRepository.ts`に
+  `createClientIncomeDeductionRepository(db)`を追加し、
+  `IncomeDeductionRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`deleteByTaxYearIdAndType`)を、2-25
+  (`NisaLifetimeQuota`)と同様の「`taxYearId`+区分の複合ユニークキーで
+  複数件」パターンでwa-sqlite上のSQLで実装した(列挙型`IncomeDeductionType`
+  はTEXT列にそのまま文字列として保存・復元するだけで済んだ)。
+  `incomeDeductionRepository.test.ts`を新規に追加し、Prisma版と同じ挙動
+  (区分違いでの複数件保持・upsert相当の冪等性・`deleteByTaxYearIdAndType`
+  による削除・2列とも高精度小数値の往復)を検証した(`npm run test`で
+  全127ファイル1442件、`npm run lint`も成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型エラーは
+  引き続き無関係の既存問題)。次は`OpeningBalance`(`taxYearId`+
+  `assetClass`+`symbol`+`isNisa`+`isListed`の5列複合ユニークキー、
+  真偽値列のSQLite変換が初めて必要になるパターン)等から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1774,8 +1796,9 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-25)
-  から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-26
+  の次、`OpeningBalance`のクライアントサイド実装)から1つずつ着手し、
+  完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
