@@ -307,6 +307,26 @@ const STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS cashflow_entry_date_idx ON cashflow_entry (date)`,
   `CREATE INDEX IF NOT EXISTS cashflow_entry_large_category_middle_category_idx
     ON cashflow_entry (large_category, middle_category)`,
+  `CREATE TABLE IF NOT EXISTS crypto_trade (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    traded_at TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    type TEXT NOT NULL,
+    quantity TEXT NOT NULL,
+    unit_price_jpy TEXT NOT NULL,
+    market_value_unit_price_jpy TEXT,
+    fee_jpy TEXT NOT NULL DEFAULT '0',
+    exchange TEXT,
+    memo TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    import_batch_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS crypto_trade_tax_year_id_symbol_idx
+    ON crypto_trade (tax_year_id, symbol)`,
+  `CREATE INDEX IF NOT EXISTS crypto_trade_traded_at_idx ON crypto_trade (traded_at)`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
