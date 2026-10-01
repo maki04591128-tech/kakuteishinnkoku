@@ -1766,6 +1766,33 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `assetClass`+`symbol`+`isNisa`+`isListed`の5列複合ユニークキー、
   真偽値列のSQLite変換が初めて必要になるパターン)等から進められる見込み。
 
+- [x] 2-27. `OpeningBalanceRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `opening_balance`テーブル(`id`/`tax_year_id`/`asset_class`/`symbol`/
+  `is_nisa`/`is_listed`/`quantity`/`cost_basis_jpy`/`created_at`/
+  `updated_at`。`UNIQUE (tax_year_id, asset_class, symbol, is_nisa, is_listed)`)
+  を追記した。本モデルで初めて真偽値列(`isNisa`/`isListed`)の
+  クライアントDB変換が必要になったため、`src/lib/clientDb/booleanCodec.ts`
+  (`encodeBoolean`/`decodeBoolean`)を新規に追加した(SQLiteに`BOOLEAN`型の
+  実体が無い事情は`decimalCodec.ts`のDecimal列と同様のため、列は
+  INTEGERとして宣言し`true`を1、`false`を0で保存、wa-sqliteがINTEGER列を
+  number型で返すことを利用して`=== 1`で復元する)。
+  `src/lib/repositories/openingBalanceRepository.ts`に
+  `createClientOpeningBalanceRepository(db)`を追加し、
+  `OpeningBalanceRepository`インターフェースの4メソッド全て
+  (`findByTaxYearId`/`upsert`/`delete`/`createMany`)を、2-25
+  (`NisaLifetimeQuota`)と同様の複合ユニークキーパターンでwa-sqlite上の
+  SQLで実装した。`openingBalanceRepository.test.ts`を新規に追加し、
+  Prisma版と同じ挙動(真偽値列の往復・複合ユニークキーでのupsert相当の
+  冪等性・削除・`createMany`・2列とも高精度小数値の往復)を検証した
+  (`npm run test`で全128ファイル1451件、`npm run lint`も成功することを
+  確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`
+  型エラーは引き続き無関係の既存問題)。次は
+  `OpeningBalanceByInstitutionRepository`(`taxYearId`+`assetClass`+
+  `symbol`+`institution`の4列複合ユニークキー、真偽値列は無し)等から
+  進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1796,8 +1823,8 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-26
-  の次、`OpeningBalance`のクライアントサイド実装)から1つずつ着手し、
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-27
+  の次、`OpeningBalanceByInstitution`のクライアントサイド実装)から1つずつ着手し、
   完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。

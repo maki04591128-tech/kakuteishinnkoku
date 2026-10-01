@@ -217,6 +217,19 @@ const STATEMENTS = [
     updated_at TEXT NOT NULL,
     UNIQUE (tax_year_id, type)
   )`,
+  `CREATE TABLE IF NOT EXISTS opening_balance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    asset_class TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    is_nisa INTEGER NOT NULL,
+    is_listed INTEGER NOT NULL,
+    quantity TEXT NOT NULL,
+    cost_basis_jpy TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (tax_year_id, asset_class, symbol, is_nisa, is_listed)
+  )`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
