@@ -207,6 +207,16 @@ const STATEMENTS = [
     updated_at TEXT NOT NULL,
     UNIQUE (tax_year_id, nisa_type)
   )`,
+  `CREATE TABLE IF NOT EXISTS income_deduction (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    income_tax_amount_jpy TEXT NOT NULL,
+    resident_tax_amount_jpy TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (tax_year_id, type)
+  )`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
