@@ -1793,6 +1793,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `symbol`+`institution`の4列複合ユニークキー、真偽値列は無し)等から
   進められる見込み。
 
+- [x] 2-28. `OpeningBalanceByInstitutionRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `opening_balance_by_institution`テーブル(`id`/`tax_year_id`/
+  `asset_class`/`symbol`/`institution`/`quantity`/`created_at`/
+  `updated_at`。`UNIQUE (tax_year_id, asset_class, symbol, institution)`)
+  を追記した。真偽値列は無く、Decimal相当の列(`quantity`)のみのため
+  `2-27`の`OpeningBalanceRepository`より単純な構成。
+  `src/lib/repositories/openingBalanceByInstitutionRepository.ts`に
+  `createClientOpeningBalanceByInstitutionRepository(db)`を追加し、
+  `OpeningBalanceByInstitutionRepository`インターフェースの3メソッド
+  全て(`findByTaxYearId`/`upsert`/`delete`)を、既存の複合ユニークキー
+  パターン(`ON CONFLICT(...) DO UPDATE`)でwa-sqlite上のSQLで実装した。
+  `openingBalanceByInstitutionRepository.test.ts`を新規に追加し、
+  Prisma版と同じ挙動(複合ユニークキーでのupsert相当の冪等性・
+  `institution`違いでの別レコード保持・削除・高精度小数値の往復)を
+  検証した(`npm run test`で全129ファイル1457件、`npm run lint`も
+  成功することを確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の
+  `LayoutProps`型エラーは引き続き無関係の既存問題)。次は
+  `BrokerAnnualReportRepository`・`AssetSymbolMappingRepository`・
+  `AssetBalanceSnapshotRepository`・`CashflowEntryRepository`・
+  各種取引系(`CryptoTrade`/`CryptoMarginTrade`/`CryptoCreditTrade`/
+  `StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)・
+  `MarketPriceRepository`等、まだ`createClient*`実装が無い
+  リポジトリから進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する

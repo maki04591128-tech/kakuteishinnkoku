@@ -230,6 +230,17 @@ const STATEMENTS = [
     updated_at TEXT NOT NULL,
     UNIQUE (tax_year_id, asset_class, symbol, is_nisa, is_listed)
   )`,
+  `CREATE TABLE IF NOT EXISTS opening_balance_by_institution (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    asset_class TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    institution TEXT NOT NULL,
+    quantity TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (tax_year_id, asset_class, symbol, institution)
+  )`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
