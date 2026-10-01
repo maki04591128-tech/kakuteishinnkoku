@@ -1924,6 +1924,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `CryptoMarginTrade`/`CryptoCreditTrade`/`StockMarginTrade`/`FuturesTrade`/
   `InvestmentTrade`)から進められる見込み。
 
+- [x] 2-33. `CashflowEntryRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に`cashflow_entry`
+  テーブル(`import_batch_id`/`date`/`content`/`amount_jpy`(Decimal相当のためTEXT型)/
+  `direction`/`large_category`/`middle_category`/`institution`/`memo`/
+  `is_calculation_target`(BooleanをINTEGERの0/1で表現)/`created_at`)を追記した。
+  `src/lib/repositories/cashflowEntryRepository.ts`に
+  `createClientCashflowEntryRepository(db)`を追加し、
+  `CashflowEntryRepository`インターフェースの唯一のメソッド
+  `importMoneyForwardCsv`をPrisma版の`$transaction`(ImportBatch作成→
+  CashflowEntryの`createMany`)と同じ挙動(`import_batch`へINSERT後に
+  `SELECT last_insert_rowid()`で新規IDを取得し、各行を`import_batch_id`付きで
+  順次INSERT)で実装した。このインターフェースは書き込み専用(読み出し用の
+  メソッドが無い)ため、`cashflowEntryRepository.test.ts`では登録結果を
+  `cashflow_entry`/`import_batch`テーブルへの直接SELECTで検証する形とし、
+  ImportBatchの`source_type`/`row_count`・各列(NULL許容列・真偽値の0/1変換・
+  日時のISO文字列往復)・`rows`が空配列の場合にImportBatchのみ登録される
+  ことを確認するテストを追加した(`npm run test`で全134ファイル1481件、
+  `npx tsc --noEmit`・`npm run lint`も成功することを確認済み。
+  `src/app/layout.tsx`の`LayoutProps`型エラーは引き続き無関係の既存問題)。
+  次は各種取引系(`CryptoTrade`/`CryptoMarginTrade`/`CryptoCreditTrade`/
+  `StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する

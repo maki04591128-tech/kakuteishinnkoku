@@ -290,6 +290,23 @@ const STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS asset_balance_snapshot_tax_year_id_institution_idx
     ON asset_balance_snapshot (tax_year_id, institution)`,
+  `CREATE TABLE IF NOT EXISTS cashflow_entry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_batch_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    content TEXT NOT NULL,
+    amount_jpy TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    large_category TEXT,
+    middle_category TEXT,
+    institution TEXT,
+    memo TEXT,
+    is_calculation_target INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS cashflow_entry_date_idx ON cashflow_entry (date)`,
+  `CREATE INDEX IF NOT EXISTS cashflow_entry_large_category_middle_category_idx
+    ON cashflow_entry (large_category, middle_category)`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
