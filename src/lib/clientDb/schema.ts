@@ -268,6 +268,28 @@ const STATEMENTS = [
     updated_at TEXT NOT NULL,
     UNIQUE (tax_year_id, broker, account_type)
   )`,
+  `CREATE TABLE IF NOT EXISTS import_batch (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    source_type TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    imported_at TEXT NOT NULL,
+    row_count INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE TABLE IF NOT EXISTS asset_balance_snapshot (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    snapshot_date TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '',
+    institution TEXT NOT NULL,
+    asset_name TEXT NOT NULL,
+    balance_jpy TEXT NOT NULL,
+    quantity TEXT,
+    import_batch_id INTEGER,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS asset_balance_snapshot_tax_year_id_institution_idx
+    ON asset_balance_snapshot (tax_year_id, institution)`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */

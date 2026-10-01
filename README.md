@@ -1896,6 +1896,34 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   各種取引系(`CryptoTrade`/`CryptoMarginTrade`/`CryptoCreditTrade`/
   `StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)から進められる見込み。
 
+- [x] 2-32. `AssetBalanceSnapshotRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に`import_batch`
+  テーブル(`ImportBatch`モデル相当)・`asset_balance_snapshot`テーブル
+  (`AssetBalanceSnapshot`モデル相当。Decimal相当の`balance_jpy`はTEXT型、
+  NULL許容の`quantity`もTEXT型)を追記した。
+  `src/lib/repositories/assetBalanceSnapshotRepository.ts`に
+  `createClientAssetBalanceSnapshotRepository(db)`を追加し、
+  `AssetBalanceSnapshotRepository`インターフェースの4メソッド全て
+  (`findByTaxYearId`/`findImportBatchesWithSnapshots`/`importCsvBatch`/
+  `deleteImportBatch`)を実装した。`importCsvBatch`はPrisma版の
+  `$transaction`(ImportBatch作成→AssetBalanceSnapshotの`createMany`)に対し、
+  `import_batch`へINSERT後に`SELECT last_insert_rowid()`で新規IDを取得し、
+  各行を`import_batch_id`付きで順次INSERTする実装とした(`2-31`の
+  `upsertMany`と同様、現状の`ClientDb`にトランザクションAPIが無いための
+  単純化。呼び出し元(`src/app/actions.ts`のマネーフォワード資産残高CSV
+  インポート処理)は未移行でフェーズ3まで実利用されないため、この粒度で
+  問題ない)。`assetBalanceSnapshotRepository.test.ts`を新規に追加し、
+  Prisma版と同じ挙動(CSVインポートでの複数行一括登録・高精度小数値と
+  NULL許容`quantity`の往復一致・`sourceType`/`taxYearId`での絞り込みと
+  `importedAt`降順ソート・インポートバッチ削除時の紐づくスナップショットの
+  連動削除)を検証した(`npm run test`で全133ファイル1479件、
+  `npx tsc --noEmit`・`npm run lint`も成功することを確認済み。
+  `src/app/layout.tsx`の`LayoutProps`型エラーは引き続き無関係の既存問題)。
+  次は`CashflowEntryRepository`・各種取引系(`CryptoTrade`/
+  `CryptoMarginTrade`/`CryptoCreditTrade`/`StockMarginTrade`/`FuturesTrade`/
+  `InvestmentTrade`)から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1926,8 +1954,8 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-31
-  の次、`AssetBalanceSnapshotRepository`のクライアントサイド実装)から1つずつ着手し、
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-32
+  の次、`CashflowEntryRepository`のクライアントサイド実装)から1つずつ着手し、
   完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
