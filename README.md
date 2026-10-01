@@ -1840,6 +1840,31 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `CryptoCreditTrade`/`StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)
   から進められる見込み。
 
+- [x] 2-30. `AssetSymbolMappingRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `asset_symbol_mapping`テーブル(`id`/`asset_name`(UNIQUE)/`symbol`/
+  `created_at`/`updated_at`)を追記した。`market_price`(2-29)と同様に
+  `tax_year_id`を持たない全年共通のテーブルだが、Decimal相当の列が無い
+  (文字列列のみの)点がこれまでで最も単純な構成。
+  `src/lib/repositories/assetSymbolMappingRepository.ts`に
+  `createClientAssetSymbolMappingRepository(db)`を追加し、
+  `AssetSymbolMappingRepository`インターフェースの3メソッド全て
+  (`findMany`/`upsert`/`delete`)を、`asset_name`の一意制約に対する
+  `ON CONFLICT(...) DO UPDATE`パターンでwa-sqlite上のSQLで実装した
+  (`findMany`はPrisma版と同じ`assetName`昇順)。
+  `assetSymbolMappingRepository.test.ts`を新規に追加し、Prisma版と同じ挙動
+  (`assetName`単位でのupsert相当の冪等性・`assetName`違いでの別レコード
+  保持と昇順ソート・削除)を検証した(`npm run test`で全131ファイル1468件、
+  `npx tsc --noEmit`・`npm run lint`も成功することを確認済み。
+  `src/app/layout.tsx`の`LayoutProps`型エラーは引き続き無関係の既存問題)。
+  次は`BrokerAnnualReportRepository`・`AssetBalanceSnapshotRepository`・
+  `CashflowEntryRepository`・各種取引系(`CryptoTrade`/`CryptoMarginTrade`/
+  `CryptoCreditTrade`/`StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`。
+  いずれも`importCsvBatch`での`ImportBatch`作成を伴うトランザクション処理が
+  必要なため、`asset_symbol_mapping`より一段複雑になる見込み)から
+  進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
