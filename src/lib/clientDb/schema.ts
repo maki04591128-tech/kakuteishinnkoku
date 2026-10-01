@@ -327,6 +327,25 @@ const STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS crypto_trade_tax_year_id_symbol_idx
     ON crypto_trade (tax_year_id, symbol)`,
   `CREATE INDEX IF NOT EXISTS crypto_trade_traded_at_idx ON crypto_trade (traded_at)`,
+  `CREATE TABLE IF NOT EXISTS crypto_margin_trade (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    settled_at TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    realized_pnl_jpy TEXT NOT NULL,
+    fee_jpy TEXT NOT NULL DEFAULT '0',
+    swap_jpy TEXT NOT NULL DEFAULT '0',
+    exchange TEXT,
+    memo TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    import_batch_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS crypto_margin_trade_tax_year_id_symbol_idx
+    ON crypto_margin_trade (tax_year_id, symbol)`,
+  `CREATE INDEX IF NOT EXISTS crypto_margin_trade_settled_at_idx
+    ON crypto_margin_trade (settled_at)`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
