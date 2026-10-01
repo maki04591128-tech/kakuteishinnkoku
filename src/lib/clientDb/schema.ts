@@ -248,6 +248,13 @@ const STATEMENTS = [
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS asset_symbol_mapping (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_name TEXT NOT NULL UNIQUE,
+    symbol TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
