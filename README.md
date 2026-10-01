@@ -1717,6 +1717,33 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   型エラーは引き続き無関係の既存問題)。次は`NisaLifetimeQuota`
   (`openingUsedJpy`/`soldCostBasisJpy`の2 Decimal列)等から進められる見込み。
 
+- [x] 2-25. `NisaLifetimeQuotaRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `nisa_lifetime_quota`テーブル(`id`/`tax_year_id`/`nisa_type`/
+  `opening_used_jpy`/`sold_cost_basis_jpy`/`created_at`/`updated_at`。
+  `UNIQUE (tax_year_id, nisa_type)`)を追記した。
+  `src/lib/repositories/nisaLifetimeQuotaRepository.ts`に
+  `createClientNisaLifetimeQuotaRepository(db)`を追加し、
+  `NisaLifetimeQuotaRepository`インターフェースの4メソッド全て
+  (`findByTaxYearId`/`upsert`/`delete`/`createMany`)を、2-12
+  (`InvestmentLossCarryforward`)と同じ「`taxYearId`1件につき複合ユニーク
+  キーで複数件」パターンでwa-sqlite上のSQLで実装した(本モデルは
+  `originYear`の代わりに列挙型`nisaType`(`TSUMITATE`/`GROWTH`)が複合
+  ユニークキーの一部になっているが、`nisaType`の値はTEXT列にそのまま
+  文字列として保存・復元するだけで済み、追加の変換は不要だった。
+  `soldCostBasisJpy`の`@default(0)`は`upsert`では常に値を明示的に渡す
+  既存方針通りだが、`createMany`はPrisma版同様`soldCostBasisJpy`を
+  引数に取らないため、クライアント版も明示的に`"0"`を書き込むようにした)。
+  `nisaLifetimeQuotaRepository.test.ts`を新規に追加し、Prisma版と同じ挙動
+  (`nisaType`違いでの複数件保持・upsert相当の冪等性・削除・`createMany`
+  の既定値・2列とも高精度小数値の往復)を検証した(`npm run test`で
+  全126ファイル1435件、`npm run lint`も成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型エラーは
+  引き続き無関係の既存問題)。次は`IncomeDeduction`(`findByTaxYearId`が
+  配列を返す、1-12で導入済みの区分ごと複数件パターン)等から
+  進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
