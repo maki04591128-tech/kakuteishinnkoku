@@ -255,6 +255,19 @@ const STATEMENTS = [
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS broker_annual_report (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    broker TEXT NOT NULL,
+    account_type TEXT NOT NULL,
+    proceeds_jpy TEXT NOT NULL,
+    acquisition_cost_jpy TEXT NOT NULL,
+    dividend_jpy TEXT NOT NULL,
+    memo TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (tax_year_id, broker, account_type)
+  )`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
