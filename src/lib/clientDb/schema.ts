@@ -174,6 +174,13 @@ const STATEMENTS = [
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS resident_tax_adjustment_deduction_record (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL UNIQUE,
+    adjustment_deduction_jpy TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
