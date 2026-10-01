@@ -1630,6 +1630,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `ForeignTaxCreditRecord`等、同じ「`taxYearId`1件につき複数のDecimal列を持つ」
   パターンのモデルから1つずつ同様の手順で進められる見込み。
 
+- [x] 2-21. `MortgageDeductionRecord`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `mortgage_deduction_record`テーブル(`id`/`tax_year_id`(UNIQUE)/
+  `national_tax_credit_jpy`/`resident_tax_credit_jpy`/`created_at`/
+  `updated_at`)を追記した。
+  `src/lib/repositories/mortgageDeductionRecordRepository.ts`に
+  `createClientMortgageDeductionRecordRepository(db)`を追加し、
+  `MortgageDeductionRecordRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)を、2-20
+  (`DonationTaxCreditRecord`)と同じ「`taxYearId`1件につき複数のDecimal列」
+  パターンでwa-sqlite上のSQLで実装した(`nationalTaxCreditJpy`/
+  `residentTaxCreditJpy`の2列とも`encodeDecimal`で`TEXT`化し、
+  `new Prisma.Decimal(text)`で個別に型復元する)。
+  `mortgageDeductionRecordRepository.test.ts`にPrisma版と同じ挙動
+  (upsert相当の冪等性・削除・2列それぞれの高精度小数値の往復)を検証する
+  テストを追加した(`npm run test`で全123ファイル1409件、`npm run lint`も
+  成功することを確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の
+  `LayoutProps`型エラーは引き続き無関係の既存問題)。次は
+  `ResidentTaxAdjustmentDeductionRecord`・
+  `DistributionAdjustedForeignTaxCreditRecord`・`ForeignTaxCreditRecord`等、
+  同じパターンのモデルから1つずつ同様の手順で進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1660,7 +1683,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-19)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-22)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
