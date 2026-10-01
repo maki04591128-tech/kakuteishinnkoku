@@ -1606,6 +1606,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `OpeningBalance`・各種取引(`CryptoTrade`等)・インポート関連
   (`AssetSymbolMapping`等)の残りモデルから1つずつ同様のパターンで進める。
 
+- [x] 2-20. `DonationTaxCreditRecord`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `donation_tax_credit_record`テーブル(`id`/`tax_year_id`(UNIQUE)/
+  `total_tax_credit_jpy`/`resident_tax_basic_deduction_jpy`/`created_at`/
+  `updated_at`)を追記した。
+  `src/lib/repositories/donationTaxCreditRecordRepository.ts`に
+  `createClientDonationTaxCreditRecordRepository(db)`を追加し、
+  `DonationTaxCreditRecordRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`upsert`/`deleteByTaxYearId`)を、2-4
+  (`BarrierFreeRenovationDeductionRecord`)と同じ形(`id`/`taxYearId`(UNIQUE)/
+  `createdAt`/`updatedAt`)だが、Decimal列が`creditJpy`1つではなく
+  `totalTaxCreditJpy`/`residentTaxBasicDeductionJpy`の2つある点のみ異なる
+  パターンでwa-sqlite上のSQLで実装した(両列とも`encodeDecimal`で`TEXT`化し、
+  `new Prisma.Decimal(text)`で個別に型復元する)。
+  `donationTaxCreditRecordRepository.test.ts`にPrisma版と同じ挙動
+  (upsert相当の冪等性・削除・2列それぞれの高精度小数値の往復)を検証する
+  テストを追加した(`npm run test`で全122ファイル1403件、`npm run lint`も
+  成功することを確認済み。`npx tsc --noEmit`の`src/app/layout.tsx`の
+  `LayoutProps`型エラーは引き続き無関係の既存問題)。次は`MortgageDeductionRecord`・
+  `ResidentTaxAdjustmentDeductionRecord`・`DistributionAdjustedForeignTaxCreditRecord`・
+  `ForeignTaxCreditRecord`等、同じ「`taxYearId`1件につき複数のDecimal列を持つ」
+  パターンのモデルから1つずつ同様の手順で進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
