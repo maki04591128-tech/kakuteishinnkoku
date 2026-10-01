@@ -1536,6 +1536,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `HomeSaleLossCarryforward`・`HomeReplacementLossCarryforward`も同様の
   パターンで進められる見込み。
 
+- [x] 2-17. `CasualtyLossCarryforward`モデル用のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `casualty_loss_carryforward`テーブル(`id`/`tax_year_id`/`origin_year`/
+  `remaining_amount_jpy`/`created_at`/`updated_at`。Prismaスキーマの
+  `@@unique([taxYearId, originYear])`に対応する
+  `UNIQUE(tax_year_id, origin_year)`制約付き)を追記した。
+  `src/lib/repositories/casualtyLossCarryforwardRepository.ts`に
+  `createClientCasualtyLossCarryforwardRepository(db)`を追加し、
+  `CasualtyLossCarryforwardRepository`インターフェースの4メソッド全て
+  (`findByTaxYearId`/`upsert`/`delete`/`createMany`)を、2-15/2-16
+  (`ForeignTaxCreditCarryforward`/`ForeignTaxCreditSpareLimitCarryforward`)と
+  全く同じ形(`taxYearId`ごとに複数件、`originYear`で一意、`createMany`あり)の
+  ため同じパターンでwa-sqlite上のSQLで実装した。
+  `casualtyLossCarryforwardRepository.test.ts`にPrisma版と同じ挙動
+  (未登録時は空配列・upsert相当の冪等性・`originYear`違いでの複数件保持と
+  昇順取得・`delete`での単一行削除・`createMany`での一括登録と空配列時の
+  無例外・高精度小数値の往復)を検証するテストを追加した(`npm run test`で
+  全119ファイル1381件、`npm run lint`も成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`型エラーは引き続き
+  無関係の既存問題)。次は同じ形の`HomeSaleLossCarryforward`・
+  `HomeReplacementLossCarryforward`も同様のパターンで進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -1566,7 +1589,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-17)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-18)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
