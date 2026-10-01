@@ -4,9 +4,14 @@
  * このインターフェース経由に置き換える。挙動は既存のPrisma実装と完全に一致させる。
  * (`findByTaxYearId`はorderByを持たないため、表示順が必要な呼び出し元
  * (`src/app/import/page.tsx`)は取得後に呼び出し側でソートする)
+ * フェーズ2-35でスタンドアロン(Android)版向けのクライアントサイド実装
+ * (`createClientCryptoMarginTradeRepository`。wa-sqlite)を追加した。
  */
-import type { CryptoMarginTrade, Prisma } from "@prisma/client";
+import { Prisma, type CryptoMarginTrade } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { prisma } from "../db";
+import { encodeDecimal } from "../clientDb/decimalCodec";
+import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface CryptoMarginTradeImportRow {
   settledAt: Date;
@@ -75,6 +80,136 @@ export function createPrismaCryptoMarginTradeRepository(): CryptoMarginTradeRepo
           });
         }
       });
+    },
+  };
+}
+
+function rowToCryptoMarginTrade(
+  row: Record<string, SqlValue>,
+): CryptoMarginTrade {
+  return {
+    id: Number(row.id),
+    taxYearId: Number(row.tax_year_id),
+    settledAt: new Date(String(row.settled_at)),
+    symbol: String(row.symbol),
+    realizedPnlJpy: new Prisma.Decimal(String(row.realized_pnl_jpy)),
+    feeJpy: new Prisma.Decimal(String(row.fee_jpy)),
+    swapJpy: new Prisma.Decimal(String(row.swap_jpy)),
+    exchange: row.exchange === null ? null : String(row.exchange),
+    memo: row.memo === null ? null : String(row.memo),
+    source: String(row.source),
+    importBatchId:
+      row.import_batch_id === null ? null : Number(row.import_batch_id),
+    createdAt: new Date(String(row.created_at)),
+    updatedAt: new Date(String(row.updated_at)),
+  };
+}
+
+const SELECT_COLUMNS = `id, tax_year_id, settled_at, symbol, realized_pnl_jpy,
+                fee_jpy, swap_jpy, exchange, memo, source, import_batch_id,
+                created_at, updated_at`;
+
+/**
+ * スタンドアロン(Android)版向けのクライアントサイド実装(フェーズ2-35)。
+ * `db`は呼び出し側で`applyClientDbSchema`済みの`ClientDb`を渡すこと。
+ */
+export function createClientCryptoMarginTradeRepository(
+  db: ClientDb,
+): CryptoMarginTradeRepository {
+  return {
+    async findByTaxYearId(taxYearId: number): Promise<CryptoMarginTrade[]> {
+      const rows = await db.all(
+        `SELECT ${SELECT_COLUMNS}
+         FROM crypto_margin_trade
+         WHERE tax_year_id = ?`,
+        [taxYearId],
+      );
+      return rows.map(rowToCryptoMarginTrade);
+    },
+
+    async create(
+      data: Prisma.CryptoMarginTradeUncheckedCreateInput,
+    ): Promise<CryptoMarginTrade> {
+      const now = new Date().toISOString();
+      await db.run(
+        `INSERT INTO crypto_margin_trade
+           (tax_year_id, settled_at, symbol, realized_pnl_jpy, fee_jpy,
+            swap_jpy, exchange, memo, source, import_batch_id, created_at,
+            updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          Number(data.taxYearId),
+          new Date(data.settledAt as string | Date).toISOString(),
+          String(data.symbol),
+          encodeDecimal(new Decimal(String(data.realizedPnlJpy))),
+          encodeDecimal(new Decimal(String(data.feeJpy ?? "0"))),
+          encodeDecimal(new Decimal(String(data.swapJpy ?? "0"))),
+          data.exchange === null || data.exchange === undefined
+            ? null
+            : String(data.exchange),
+          data.memo === null || data.memo === undefined
+            ? null
+            : String(data.memo),
+          data.source === undefined ? "manual" : String(data.source),
+          data.importBatchId === null || data.importBatchId === undefined
+            ? null
+            : Number(data.importBatchId),
+          now,
+          now,
+        ],
+      );
+      const [{ id: rawId }] = await db.all(`SELECT last_insert_rowid() AS id`);
+      const [row] = await db.all(
+        `SELECT ${SELECT_COLUMNS}
+         FROM crypto_margin_trade WHERE id = ?`,
+        [Number(rawId)],
+      );
+      return rowToCryptoMarginTrade(row);
+    },
+
+    async delete(id: number): Promise<void> {
+      await db.run(`DELETE FROM crypto_margin_trade WHERE id = ?`, [id]);
+    },
+
+    async importCsvBatch({
+      taxYearId,
+      sourceType,
+      fileName,
+      rows,
+    }): Promise<void> {
+      const now = new Date().toISOString();
+      await db.run(
+        `INSERT INTO import_batch (tax_year_id, source_type, file_name, imported_at, row_count)
+         VALUES (?, ?, ?, ?, ?)`,
+        [taxYearId, sourceType, fileName, now, rows.length],
+      );
+      const [{ id: rawBatchId }] = await db.all(
+        `SELECT last_insert_rowid() AS id`,
+      );
+      const batchId = Number(rawBatchId);
+
+      for (const row of rows) {
+        await db.run(
+          `INSERT INTO crypto_margin_trade
+             (tax_year_id, settled_at, symbol, realized_pnl_jpy, fee_jpy,
+              swap_jpy, exchange, source, import_batch_id, created_at,
+              updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            taxYearId,
+            row.settledAt.toISOString(),
+            row.symbol,
+            encodeDecimal(new Decimal(row.realizedPnlJpy)),
+            encodeDecimal(new Decimal(row.feeJpy)),
+            encodeDecimal(new Decimal(row.swapJpy)),
+            row.exchange,
+            row.source,
+            batchId,
+            now,
+            now,
+          ],
+        );
+      }
     },
   };
 }

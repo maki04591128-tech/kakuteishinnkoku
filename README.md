@@ -1971,6 +1971,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   次は`CryptoMarginTradeRepository`・残りの取引系(`CryptoCreditTrade`/
   `StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)から進められる見込み。
 
+- [x] 2-35. `CryptoMarginTradeRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-01):** `src/lib/clientDb/schema.ts`に
+  `crypto_margin_trade`テーブル(Decimal相当の`realized_pnl_jpy`/`fee_jpy`/
+  `swap_jpy`はTEXT型)を追記した。
+  `src/lib/repositories/cryptoMarginTradeRepository.ts`に
+  `createClientCryptoMarginTradeRepository(db)`を追加し、
+  `CryptoMarginTradeRepository`インターフェースの4メソッド全て
+  (`findByTaxYearId`/`create`/`delete`/`importCsvBatch`)を実装した。
+  `2-34`の`CryptoTradeRepository`と形が近い(Decimal列が複数・`create`単体での
+  作成・CSV一括インポート)ため、同じパターン(`create`後に
+  `SELECT last_insert_rowid()`で新規IDを取得して読み直す・`importCsvBatch`は
+  `import_batch`へINSERT後に各行を`import_batch_id`付きで順次INSERT)を
+  そのまま適用できた。`cryptoMarginTradeRepository.test.ts`を新規に追加し、
+  Prisma版と同じ挙動(`create`での高精度小数値(負の値含む)の往復一致・
+  `feeJpy`/`swapJpy`省略時のデフォルト値0・`delete`での単一行削除・
+  CSV一括インポートでの複数行登録・空配列時はImportBatchのみ登録)を
+  検証した(`npm run test`で全136ファイル1493件、`npx tsc --noEmit`・
+  `npm run lint`も成功することを確認済み。`src/app/layout.tsx`の
+  `LayoutProps`型エラーは引き続き無関係の既存問題)。次は残りの取引系
+  (`CryptoCreditTrade`/`StockMarginTrade`/`FuturesTrade`/`InvestmentTrade`)
+  から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -2001,9 +2024,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-34
-  の次、`CryptoMarginTradeRepository`のクライアントサイド実装)から1つずつ着手し、
-  完了したらチェックを付けて次回に引き継ぐ。
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-35
+  の次、残りの取引系(`CryptoCreditTrade`/`StockMarginTrade`/`FuturesTrade`/
+  `InvestmentTrade`)のいずれか)から1つずつ着手し、完了したらチェックを付けて
+  次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
