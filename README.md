@@ -2057,6 +2057,33 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   確認済み。`src/app/layout.tsx`の`LayoutProps`型エラーは引き続き無関係の
   既存問題)。次は残りの取引系(`InvestmentTrade`)から進められる見込み。
 
+- [x] 2-39. `InvestmentTradeRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-02):** `src/lib/clientDb/schema.ts`に`investment_trade`
+  テーブルを追記した。このモデルは他の取引系モデルと異なり、REIT判定・
+  NISA区分・外国税額控除関連等の多数の列を持つため、Decimal相当の
+  `quantity`/`unit_price_jpy`/`fee_jpy`/`foreign_tax_withheld_jpy`/
+  `distribution_adjusted_foreign_tax_jpy`はTEXT型、`is_reit`等のBoolean
+  相当の列は既存の`booleanCodec.ts`(フェーズ2-27で導入)でINTEGER型
+  (0/1)として保存した。`src/lib/repositories/investmentTradeRepository.ts`に
+  `createClientInvestmentTradeRepository(db)`を追加し、
+  `InvestmentTradeRepository`インターフェースの3メソッド全て
+  (`findByTaxYearId`/`create`/`delete`)を実装した(このモデルはCSV一括
+  インポートに対応しておらず`importCsvBatch`は無いため、他の取引系
+  (`CryptoTrade`等)より実装は単純)。`investmentTradeRepository.test.ts`を
+  新規に追加し、Prisma版と同じ挙動(`create`での高精度小数値の往復一致・
+  各種Boolean/省略可能項目のデフォルト値・`nisaType`の指定時の挙動・
+  `delete`での単一行削除)を検証した(`npm run test`で全140ファイル1512件、
+  `npx tsc --noEmit`・`npm run lint`も成功することを確認済み。
+  `src/app/layout.tsx`の`LayoutProps`型エラーは引き続き無関係の既存問題)。
+
+  **フェーズ2完了(2026-10-02):** これにより、フェーズ1で導入した
+  `src/lib/repositories/`配下の全39リポジトリに`createClientXxxRepository`
+  (クライアントサイド(wa-sqlite)実装)が出揃った
+  (`grep`で`createClient`を持たないリポジトリが無いことを確認済み)。
+  次のブラッシュアップはフェーズ3(Server Actions/Server Componentsの
+  置き換え)から着手する。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -2087,9 +2114,9 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-38
-  の次、残りの取引系(`InvestmentTrade`)から)から1つずつ
-  着手し、完了したらチェックを付けて次回に引き継ぐ。
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2が
+  完了したため、フェーズ3(Server Actions/Server Componentsの置き換え)から)
+  から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
