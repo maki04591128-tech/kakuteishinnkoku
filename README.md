@@ -2311,6 +2311,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   確認済み)。残る`getOrCreateTaxYear`+個別リポジトリの2依存構成のアクション
   (`setHomeReplacementLossCarryforward`等)に次回以降同様に適用していく。
 
+- [x] 3-9. `setHomeReplacementLossCarryforward`/
+      `deleteHomeReplacementLossCarryforward`のコア関数を抽出
+
+  **実装内容(2026-10-02):** `src/lib/actions/homeReplacementLossCarryforward.ts`に
+  `setHomeReplacementLossCarryforwardCore`/
+  `deleteHomeReplacementLossCarryforwardCore`を追加した。3-5〜3-8
+  (`setAngelTaxLossCarryforward`・`setFuturesLossCarryforward`・
+  `setCasualtyLossCarryforward`・`setHomeSaleLossCarryforward`)に続き、
+  `getOrCreateTaxYear`(`TaxYearRepository`)と個別の繰越控除リポジトリ
+  (`HomeReplacementLossCarryforwardRepository`)の2つに依存する構成の5例目
+  (ロジックは3-8と同一パターン)。`src/app/actions.ts`の
+  `setHomeReplacementLossCarryforward`/`deleteHomeReplacementLossCarryforward`は
+  FormDataの解釈とコア関数の呼び出し、`revalidatePath`(`/import`・
+  `/home-replacement-loss-deduction`の2つ。従来と同一)/`redirect`の実行のみを
+  行う薄いラッパーに書き換えた(挙動は従来と完全に同一)。なお同ファイルの
+  `carryForwardHomeReplacementLossExcess`系(前年分の試算結果からの一括登録)は
+  `buildYearReport`等他の依存を持つ別のアクションのため、本ステップの対象外と
+  した。`homeReplacementLossCarryforward.test.ts`を新規に追加し、発生年の
+  バリデーションエラー・`upsert`引数・削除時の`id`指定、両ケースの
+  `redirectTo`算出を検証した(`npm run test`・`npm run lint`・
+  `npx tsc --noEmit`(3-3と同様の環境起因エラーを除く)が成功することを
+  確認済み)。`src/app/actions.ts`には同様の`getOrCreateTaxYear`+個別
+  リポジトリ構成、またはそれに類する構成の未移行アクション
+  (`setForeignTaxCreditCarryforward`・`saveEarthquakeRenovationDeductionRecord`
+  等)がまだ多数残っているため、次回以降も同じ要領で1〜2件ずつ進める。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証

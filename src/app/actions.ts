@@ -84,6 +84,10 @@ import {
   setHomeSaleLossCarryforwardCore,
   deleteHomeSaleLossCarryforwardCore,
 } from "@/lib/actions/homeSaleLossCarryforward";
+import {
+  setHomeReplacementLossCarryforwardCore,
+  deleteHomeReplacementLossCarryforwardCore,
+} from "@/lib/actions/homeReplacementLossCarryforward";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -2043,29 +2047,30 @@ export async function setHomeReplacementLossCarryforward(formData: FormData): Pr
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
   const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
-  if (!Number.isInteger(originYear) || originYear > year) {
-    throw new Error("譲渡損失の発生年は対象年分以前の年である必要があります");
-  }
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await homeReplacementLossCarryforwardRepository.upsert({
-    taxYearId: taxYear.id,
-    originYear,
-    remainingAmountJpy,
-  });
+  const { redirectTo } = await setHomeReplacementLossCarryforwardCore(
+    taxYearRepository,
+    homeReplacementLossCarryforwardRepository,
+    { year, originYear, remainingAmountJpy },
+  );
 
   revalidatePath("/import");
   revalidatePath("/home-replacement-loss-deduction");
-  redirect(`/import?year=${year}&tab=homeReplacementLossCarryforward`);
+  redirect(redirectTo);
 }
 
 export async function deleteHomeReplacementLossCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await homeReplacementLossCarryforwardRepository.delete(id);
+
+  const { redirectTo } = await deleteHomeReplacementLossCarryforwardCore(
+    homeReplacementLossCarryforwardRepository,
+    { id, year },
+  );
+
   revalidatePath("/import");
   revalidatePath("/home-replacement-loss-deduction");
-  redirect(`/import?year=${year}&tab=homeReplacementLossCarryforward`);
+  redirect(redirectTo);
 }
 
 /**
