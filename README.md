@@ -2449,6 +2449,31 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (`saveBarrierFreeRenovationDeductionRecord`・
   `saveMultiHouseholdRenovationDeductionRecord`等)に次回以降同様に適用していく。
 
+- [x] 3-14. `saveBarrierFreeRenovationDeductionRecord`/
+      `deleteBarrierFreeRenovationDeductionRecord`のコア関数を抽出
+
+  **実装内容(2026-10-02):**
+  `src/lib/actions/barrierFreeRenovationDeductionRecord.ts`に
+  `saveBarrierFreeRenovationDeductionRecordCore`/
+  `deleteBarrierFreeRenovationDeductionRecordCore`を追加した。3-12・3-13の
+  `EarthquakeRenovationDeductionRecord`/`EnergySavingRenovationDeductionRecord`と
+  全く同じ構成(`getOrCreateTaxYear`+個別リポジトリの2依存、削除時は`findByYear`で
+  対象年のTaxYearを取得した上で存在する場合のみ`deleteByTaxYearId`を呼ぶ)のため、
+  同ファイルをそのままひな型にして移植した。`src/app/actions.ts`の
+  `saveBarrierFreeRenovationDeductionRecord`/
+  `deleteBarrierFreeRenovationDeductionRecord`は、FormDataの解釈とコア関数の
+  呼び出し、`revalidatePath`/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。
+  `barrierFreeRenovationDeductionRecord.test.ts`を新規に追加し、3-12・3-13と同様
+  `upsert`引数・削除時に対象年のTaxYearが存在する/しないそれぞれのケースでの
+  `deleteByTaxYearId`呼び出しの有無、両ケースの`redirectTo`算出を検証した
+  (`npm run test`・`npm run lint`・`npx tsc --noEmit`が成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`エラーは3-3以降と同様、
+  本変更と無関係な環境起因の既存エラー)。同パターンの他の控除記録系アクション
+  (`saveMultiHouseholdRenovationDeductionRecord`・
+  `saveDurabilityImprovementRenovationDeductionRecord`等)に次回以降同様に
+  適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
