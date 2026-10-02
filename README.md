@@ -2198,6 +2198,38 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   3-3参照)を除き成功を確認した)。残る依存リポジトリ1つの単純なアクションに
   次回以降同様に適用していく。
 
+- [x] 3-5. `setAngelTaxLossCarryforward`/`deleteAngelTaxLossCarryforward`の
+      コア関数を抽出(依存リポジトリ2つのパターンへ拡張)
+
+  **実装内容(2026-10-02):** `src/lib/actions/angelTaxLossCarryforward.ts`に
+  `setAngelTaxLossCarryforwardCore`/`deleteAngelTaxLossCarryforwardCore`を
+  追加した。3-2〜3-4は依存リポジトリが1つだけの単純なアクションだったが、
+  本アクションは年のレコードを取得・作成する`getOrCreateTaxYear`
+  (`TaxYearRepository`)と、繰越損失の登録・削除を行う
+  `AngelTaxLossCarryforwardRepository`の**2つ**のリポジトリに依存する
+  最初の例。`src/app/actions.ts`では`taxYearRepository`がモジュール
+  トップレベルで既に`createPrismaTaxYearRepository()`によりインスタンス化
+  済みだったため、`getOrCreateTaxYear`(`src/lib/taxYear.ts`のPrisma固定実装
+  経由のヘルパー関数)の呼び出しをやめ、この`taxYearRepository`インスタンスを
+  コア関数に直接DIする形に変更した(`src/app/actions.ts`の他の関数は従来どおり
+  `getOrCreateTaxYear`ヘルパーを使い続けており、本ステップでの変更範囲外)。
+  `setAngelTaxLossCarryforwardCore`は発生年が対象年分より後でないかの検証・
+  `taxYearRepository.getOrCreateTaxYear`呼び出し・
+  `angelTaxLossCarryforwardRepository.upsert`呼び出し・次の遷移先の算出を行う。
+  `deleteAngelTaxLossCarryforwardCore`は`delete`呼び出しと遷移先の算出のみ。
+  `src/app/actions.ts`の`setAngelTaxLossCarryforward`/
+  `deleteAngelTaxLossCarryforward`はFormDataの解釈とコア関数の呼び出し、
+  `revalidatePath`/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。`angelTaxLossCarryforward.test.ts`を新規に
+  追加し、フェイクの`TaxYearRepository`/`AngelTaxLossCarryforwardRepository`を
+  使って発生年のバリデーションエラー・`upsert`引数・削除時の`id`指定、
+  両ケースの`redirectTo`算出を検証した(`npm run test`・`npm run lint`が
+  成功することを確認済み。`npx tsc --noEmit`は3-3・3-4と同様、本変更と
+  無関係な既存エラー`src/app/layout.tsx`の`Cannot find name 'LayoutProps'`
+  (環境起因。詳細は3-3参照)を除き成功を確認した)。他の多くのアクションは
+  `setFuturesLossCarryforward`等、同じく`getOrCreateTaxYear`+個別リポジトリの
+  2依存構成であり、次回以降この2つめの例を参考に同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
