@@ -108,6 +108,10 @@ import {
   saveBarrierFreeRenovationDeductionRecordCore,
   deleteBarrierFreeRenovationDeductionRecordCore,
 } from "@/lib/actions/barrierFreeRenovationDeductionRecord";
+import {
+  saveMultiHouseholdRenovationDeductionRecordCore,
+  deleteMultiHouseholdRenovationDeductionRecordCore,
+} from "@/lib/actions/multiHouseholdRenovationDeductionRecord";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1534,15 +1538,15 @@ export async function saveMultiHouseholdRenovationDeductionRecord(
   const year = Number(requireString(formData, "year"));
   const creditJpy = requireString(formData, "creditJpy");
 
-  const taxYear = await getOrCreateTaxYear(year);
-  await multiHouseholdRenovationDeductionRecordRepository.upsert({
-    taxYearId: taxYear.id,
-    creditJpy,
-  });
+  const { redirectTo } = await saveMultiHouseholdRenovationDeductionRecordCore(
+    taxYearRepository,
+    multiHouseholdRenovationDeductionRecordRepository,
+    { year, creditJpy },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/multi-household-renovation-deduction");
-  redirect(`/multi-household-renovation-deduction?year=${year}&saved=1`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1554,14 +1558,16 @@ export async function deleteMultiHouseholdRenovationDeductionRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await multiHouseholdRenovationDeductionRecordRepository.deleteByTaxYearId(taxYear.id);
-  }
+
+  const { redirectTo } = await deleteMultiHouseholdRenovationDeductionRecordCore(
+    taxYearRepository,
+    multiHouseholdRenovationDeductionRecordRepository,
+    { year },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/multi-household-renovation-deduction");
-  redirect(`/multi-household-renovation-deduction?year=${year}&deleted=1`);
+  redirect(redirectTo);
 }
 
 /**
