@@ -2547,6 +2547,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   本変更と無関係な環境起因の既存エラー)。同パターンの他の控除記録系アクション
   (`saveCertifiedHousingConstructionCreditRecord`等)に次回以降同様に適用していく。
 
+- [x] 3-18. `saveCertifiedHousingConstructionCreditRecord`/
+      `deleteCertifiedHousingConstructionCreditRecord`のコア関数を抽出
+
+  **実装内容(2026-10-02):**
+  `src/lib/actions/certifiedHousingConstructionCreditRecord.ts`に
+  `saveCertifiedHousingConstructionCreditRecordCore`/
+  `deleteCertifiedHousingConstructionCreditRecordCore`を追加した。3-17の
+  `ChildRearingRenovationDeductionRecord`と全く同じ構成(`getOrCreateTaxYear`+
+  個別リポジトリの2依存、削除時は`findByYear`で対象年のTaxYearを取得した上で
+  存在する場合のみ`deleteByTaxYearId`を呼ぶ)のため、同ファイルをそのまま
+  ひな型にして移植した。`src/app/actions.ts`の
+  `saveCertifiedHousingConstructionCreditRecord`/
+  `deleteCertifiedHousingConstructionCreditRecord`は、FormDataの解釈と
+  コア関数の呼び出し、`revalidatePath`/`redirect`の実行のみを行う薄いラッパーに
+  書き換えた(挙動は従来と完全に同一)。
+  `certifiedHousingConstructionCreditRecord.test.ts`を新規に追加し、3-17と同様
+  `upsert`引数・削除時に対象年のTaxYearが存在する/しないそれぞれのケースでの
+  `deleteByTaxYearId`呼び出しの有無、両ケースの`redirectTo`算出を検証した
+  (`npm run test`・`npm run lint`・`npx tsc --noEmit`が成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`エラーは3-3以降と同様、
+  本変更と無関係な環境起因の既存エラー)。これで「控除額を登録する単純な
+  年単位レコード」系の`save*Record`/`delete*Record`アクション(3-12〜3-18)は
+  一通り同じパターンで移行済みとなった。残るServer Actions
+  (`src/app/actions.ts`、発生年の繰越処理・取引記録のCRUD等)は次回以降
+  同様に1〜2関数ずつ切り出していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
@@ -2570,9 +2596,9 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2が
-  完了したため、フェーズ3(Server Actions/Server Componentsの置き換え)から)
-  から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
+  (Server Actions/Server Componentsの置き換え)を3-18まで進行中)から1つずつ
+  着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
