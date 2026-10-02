@@ -2396,6 +2396,35 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   リポジトリの2依存構成、またはそれに類する構成の未移行アクション
   (`saveEarthquakeRenovationDeductionRecord`等)に次回以降同様に適用していく。
 
+- [x] 3-12. `saveEarthquakeRenovationDeductionRecord`/
+      `deleteEarthquakeRenovationDeductionRecord`のコア関数を抽出
+
+  **実装内容(2026-10-02):**
+  `src/lib/actions/earthquakeRenovationDeductionRecord.ts`に
+  `saveEarthquakeRenovationDeductionRecordCore`/
+  `deleteEarthquakeRenovationDeductionRecordCore`を追加した。3-5〜3-11の
+  繰越控除系アクションと同じく`getOrCreateTaxYear`(`TaxYearRepository`)と
+  個別リポジトリ(`EarthquakeRenovationDeductionRecordRepository`)の2つに
+  依存する構成だが、本アクションには「発生年」の入力・バリデーションが無く、
+  削除時はリポジトリの`delete(id)`ではなく`taxYearRepository.findByYear`で
+  対象年のTaxYearを取得した上で(存在する場合のみ)`deleteByTaxYearId`を呼ぶ
+  点が3-5〜3-11と異なる(従来の`actions.ts`実装と同一の挙動)。
+  `src/app/actions.ts`の`saveEarthquakeRenovationDeductionRecord`では、
+  これまで`src/lib/taxYear.ts`のヘルパー関数`getOrCreateTaxYear`を使っていた
+  箇所を、モジュールトップレベルで既にインスタンス化済みの`taxYearRepository`を
+  コア関数にDIする形に変更した(3-5で`setAngelTaxLossCarryforward`に対して
+  行った変更と同様)。両アクションはFormDataの解釈とコア関数の呼び出し、
+  `revalidatePath`/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。`earthquakeRenovationDeductionRecord.test.ts`を
+  新規に追加し、`upsert`引数・削除時に対象年のTaxYearが存在する/しない
+  それぞれのケースでの`deleteByTaxYearId`呼び出しの有無、両ケースの
+  `redirectTo`算出を検証した(`npm run test`・`npm run lint`・
+  `npx tsc --noEmit`が成功することを確認済み。`npx tsc --noEmit`の
+  `src/app/layout.tsx`の`LayoutProps`エラーは3-3以降と同様、本変更と無関係な
+  環境起因の既存エラー)。同パターンの他の控除記録系アクション
+  (`saveEnergySavingRenovationDeductionRecord`・
+  `saveBarrierFreeRenovationDeductionRecord`等)に次回以降同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
