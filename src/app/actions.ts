@@ -124,6 +124,10 @@ import {
   saveCertifiedHousingConstructionCreditRecordCore,
   deleteCertifiedHousingConstructionCreditRecordCore,
 } from "@/lib/actions/certifiedHousingConstructionCreditRecord";
+import {
+  saveForeignTaxCreditRecordCore,
+  deleteForeignTaxCreditRecordCore,
+} from "@/lib/actions/foreignTaxCreditRecord";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1290,16 +1294,14 @@ export async function saveForeignTaxCreditRecord(formData: FormData): Promise<vo
   const nationalTaxCreditJpy = requireString(formData, "nationalTaxCreditJpy");
   const residentTaxCreditJpy = requireString(formData, "residentTaxCreditJpy");
 
-  const taxYear = await getOrCreateTaxYear(year);
-  await foreignTaxCreditRecordRepository.upsert({
-    taxYearId: taxYear.id,
-    totalCreditJpy,
-    nationalTaxCreditJpy,
-    residentTaxCreditJpy,
-  });
+  const { redirectTo } = await saveForeignTaxCreditRecordCore(
+    taxYearRepository,
+    foreignTaxCreditRecordRepository,
+    { year, totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
+  );
 
   revalidatePath("/foreign-tax-credit");
-  redirect(`/foreign-tax-credit?year=${year}&foreignTaxCreditSaved=1`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1308,14 +1310,16 @@ export async function saveForeignTaxCreditRecord(formData: FormData): Promise<vo
  */
 export async function deleteForeignTaxCreditRecord(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await foreignTaxCreditRecordRepository.deleteByTaxYearId(taxYear.id);
-  }
+
+  const { redirectTo } = await deleteForeignTaxCreditRecordCore(
+    taxYearRepository,
+    foreignTaxCreditRecordRepository,
+    { year },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/foreign-tax-credit");
-  redirect(`/foreign-tax-credit?year=${year}&foreignTaxCreditDeleted=1`);
+  redirect(redirectTo);
 }
 
 /**
