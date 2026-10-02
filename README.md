@@ -2038,6 +2038,25 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   既存問題)。次は残りの取引系(`FuturesTrade`/`InvestmentTrade`)から
   進められる見込み。
 
+- [x] 2-38. `FuturesTradeRepository`のクライアントサイド実装を追加
+
+  **実装内容(2026-10-02):** `src/lib/clientDb/schema.ts`に`futures_trade`
+  テーブル(Decimal相当の`realized_pnl_jpy`/`fee_jpy`/`swap_jpy`はTEXT型)を
+  追記した。`src/lib/repositories/futuresTradeRepository.ts`に
+  `createClientFuturesTradeRepository(db)`を追加し、
+  `FuturesTradeRepository`インターフェースの4メソッド全て
+  (`findByTaxYearId`/`create`/`delete`/`importCsvBatch`)を実装した。
+  このモデルは`2-35`の`CryptoMarginTrade`と列構成がほぼ同一(`exchange`列が
+  `broker`列になっている点のみ異なる)で、CSV一括インポート対応
+  (`importCsvBatch`あり)な点も同じため、同じパターンをそのまま適用できた。
+  `futuresTradeRepository.test.ts`を新規に追加し、Prisma版と同じ挙動
+  (`create`での高精度小数値(負の値含む)の往復一致・`feeJpy`/`swapJpy`
+  省略時のデフォルト値0・`delete`での単一行削除・`importCsvBatch`での
+  複数行一括登録と空配列時の挙動)を検証した(`npm run test`で全139
+  ファイル1507件、`npx tsc --noEmit`・`npm run lint`も成功することを
+  確認済み。`src/app/layout.tsx`の`LayoutProps`型エラーは引き続き無関係の
+  既存問題)。次は残りの取引系(`InvestmentTrade`)から進められる見込み。
+
 #### フェーズ3: Server Actions/Server Componentsの置き換え
 
 - `src/app/actions.ts`の各アクションをクライアント側関数に分解し、対応する
@@ -2068,8 +2087,8 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-37
-  の次、残りの取引系(`FuturesTrade`/`InvestmentTrade`)のいずれか)から1つずつ
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ2-38
+  の次、残りの取引系(`InvestmentTrade`)から)から1つずつ
   着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。

@@ -363,6 +363,25 @@ const STATEMENTS = [
     ON crypto_credit_trade (tax_year_id, symbol)`,
   `CREATE INDEX IF NOT EXISTS crypto_credit_trade_settled_at_idx
     ON crypto_credit_trade (settled_at)`,
+  `CREATE TABLE IF NOT EXISTS futures_trade (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    settled_at TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    realized_pnl_jpy TEXT NOT NULL,
+    fee_jpy TEXT NOT NULL DEFAULT '0',
+    swap_jpy TEXT NOT NULL DEFAULT '0',
+    broker TEXT,
+    memo TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    import_batch_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS futures_trade_tax_year_id_symbol_idx
+    ON futures_trade (tax_year_id, symbol)`,
+  `CREATE INDEX IF NOT EXISTS futures_trade_settled_at_idx
+    ON futures_trade (settled_at)`,
   `CREATE TABLE IF NOT EXISTS stock_margin_trade (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tax_year_id INTEGER NOT NULL,
