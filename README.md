@@ -2175,6 +2175,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   1つの単純なアクション(`setMarketPrice`/`deleteMarketPrice`等)に次回以降
   同様に適用していく。
 
+- [x] 3-4. `setMarketPrice`/`deleteMarketPrice`のコア関数を抽出
+
+  **実装内容(2026-10-02):** `src/lib/actions/marketPrice.ts`に
+  `setMarketPriceCore`/`deleteMarketPriceCore`
+  (いずれも`MarketPriceRepository`のみに依存)を追加した。3-2の
+  `setCryptoCostMethod`・3-3の`setAssetSymbolMapping`に続き「依存リポジトリが
+  1つだけの単純なアクション」への適用3例目。`setMarketPriceCore`は
+  銘柄シンボルの前後空白除去・大文字化(従来`actions.ts`側で行っていた
+  `.trim()`/`.toUpperCase()`)をコア関数側に移し、`upsert`呼び出しと
+  次の遷移先(`/import?year=...&tab=assetBalance`)の算出を行う。
+  `deleteMarketPriceCore`は`delete`呼び出しと同じ遷移先の算出のみ。
+  `src/app/actions.ts`の`setMarketPrice`/`deleteMarketPrice`は
+  FormDataの解釈とコア関数の呼び出し、`revalidatePath`(`/import`・
+  `/unrealized-gain`の2つ。従来と同一)/`redirect`の実行のみを行う薄い
+  ラッパーに書き換えた(挙動は従来と完全に同一)。`marketPrice.test.ts`を
+  新規に追加し、フェイクの`MarketPriceRepository`を使って空白除去・
+  大文字化を含む`upsert`引数と削除時の`id`指定、両ケースの`redirectTo`算出を
+  検証した(`npm run test`・`npm run lint`が成功することを確認済み。
+  `npx tsc --noEmit`は3-3と同様、本変更と無関係な既存エラー
+  `src/app/layout.tsx`の`Cannot find name 'LayoutProps'`(環境起因。詳細は
+  3-3参照)を除き成功を確認した)。残る依存リポジトリ1つの単純なアクションに
+  次回以降同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証

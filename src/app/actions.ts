@@ -67,6 +67,7 @@ import {
   setAssetSymbolMappingCore,
   deleteAssetSymbolMappingCore,
 } from "@/lib/actions/assetSymbolMapping";
+import { setMarketPriceCore, deleteMarketPriceCore } from "@/lib/actions/marketPrice";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1058,23 +1059,29 @@ export async function deleteAssetSymbolMapping(formData: FormData): Promise<void
  */
 export async function setMarketPrice(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const symbol = requireString(formData, "symbol").trim().toUpperCase();
-  const priceJpy = requireString(formData, "priceJpy").trim();
+  const symbol = requireString(formData, "symbol");
+  const priceJpy = requireString(formData, "priceJpy");
 
-  await marketPriceRepository.upsert({ symbol, priceJpy });
+  const { redirectTo } = await setMarketPriceCore(marketPriceRepository, {
+    year,
+    symbol,
+    priceJpy,
+  });
 
   revalidatePath("/import");
   revalidatePath("/unrealized-gain");
-  redirect(`/import?year=${year}&tab=assetBalance`);
+  redirect(redirectTo);
 }
 
 export async function deleteMarketPrice(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await marketPriceRepository.delete(id);
+
+  const { redirectTo } = await deleteMarketPriceCore(marketPriceRepository, { id, year });
+
   revalidatePath("/import");
   revalidatePath("/unrealized-gain");
-  redirect(`/import?year=${year}&tab=assetBalance`);
+  redirect(redirectTo);
 }
 
 export async function setForeignTaxCreditCarryforward(formData: FormData): Promise<void> {
