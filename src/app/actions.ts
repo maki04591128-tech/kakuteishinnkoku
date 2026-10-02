@@ -97,6 +97,10 @@ import {
   deleteForeignTaxCreditSpareLimitCarryforwardCore,
 } from "@/lib/actions/foreignTaxCreditSpareLimitCarryforward";
 import {
+  saveDistributionAdjustedForeignTaxCreditRecordCore,
+  deleteDistributionAdjustedForeignTaxCreditRecordCore,
+} from "@/lib/actions/distributionAdjustedForeignTaxCreditRecord";
+import {
   saveEarthquakeRenovationDeductionRecordCore,
   deleteEarthquakeRenovationDeductionRecordCore,
 } from "@/lib/actions/earthquakeRenovationDeductionRecord";
@@ -1380,15 +1384,15 @@ export async function saveDistributionAdjustedForeignTaxCreditRecord(
   const year = Number(requireString(formData, "year"));
   const creditJpy = requireString(formData, "creditJpy");
 
-  const taxYear = await getOrCreateTaxYear(year);
-  await distributionAdjustedForeignTaxCreditRecordRepository.upsert({
-    taxYearId: taxYear.id,
-    creditJpy,
-  });
+  const { redirectTo } = await saveDistributionAdjustedForeignTaxCreditRecordCore(
+    taxYearRepository,
+    distributionAdjustedForeignTaxCreditRecordRepository,
+    { year, creditJpy },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/distribution-adjusted-foreign-tax-credit");
-  redirect(`/distribution-adjusted-foreign-tax-credit?year=${year}&saved=1`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1400,14 +1404,16 @@ export async function deleteDistributionAdjustedForeignTaxCreditRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await distributionAdjustedForeignTaxCreditRecordRepository.deleteByTaxYearId(taxYear.id);
-  }
+
+  const { redirectTo } = await deleteDistributionAdjustedForeignTaxCreditRecordCore(
+    taxYearRepository,
+    distributionAdjustedForeignTaxCreditRecordRepository,
+    { year },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/distribution-adjusted-foreign-tax-credit");
-  redirect(`/distribution-adjusted-foreign-tax-credit?year=${year}&deleted=1`);
+  redirect(redirectTo);
 }
 
 /**
