@@ -112,6 +112,10 @@ import {
   saveMultiHouseholdRenovationDeductionRecordCore,
   deleteMultiHouseholdRenovationDeductionRecordCore,
 } from "@/lib/actions/multiHouseholdRenovationDeductionRecord";
+import {
+  saveDurabilityImprovementRenovationDeductionRecordCore,
+  deleteDurabilityImprovementRenovationDeductionRecordCore,
+} from "@/lib/actions/durabilityImprovementRenovationDeductionRecord";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1584,15 +1588,15 @@ export async function saveDurabilityImprovementRenovationDeductionRecord(
   const year = Number(requireString(formData, "year"));
   const creditJpy = requireString(formData, "creditJpy");
 
-  const taxYear = await getOrCreateTaxYear(year);
-  await durabilityImprovementRenovationDeductionRecordRepository.upsert({
-    taxYearId: taxYear.id,
-    creditJpy,
-  });
+  const { redirectTo } = await saveDurabilityImprovementRenovationDeductionRecordCore(
+    taxYearRepository,
+    durabilityImprovementRenovationDeductionRecordRepository,
+    { year, creditJpy },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/durability-improvement-renovation-deduction");
-  redirect(`/durability-improvement-renovation-deduction?year=${year}&saved=1`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1604,14 +1608,16 @@ export async function deleteDurabilityImprovementRenovationDeductionRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await durabilityImprovementRenovationDeductionRecordRepository.deleteByTaxYearId(taxYear.id);
-  }
+
+  const { redirectTo } = await deleteDurabilityImprovementRenovationDeductionRecordCore(
+    taxYearRepository,
+    durabilityImprovementRenovationDeductionRecordRepository,
+    { year },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/durability-improvement-renovation-deduction");
-  redirect(`/durability-improvement-renovation-deduction?year=${year}&deleted=1`);
+  redirect(redirectTo);
 }
 
 /**
