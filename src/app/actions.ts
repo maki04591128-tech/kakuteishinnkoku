@@ -68,6 +68,10 @@ import {
   deleteAssetSymbolMappingCore,
 } from "@/lib/actions/assetSymbolMapping";
 import { setMarketPriceCore, deleteMarketPriceCore } from "@/lib/actions/marketPrice";
+import {
+  setAngelTaxLossCarryforwardCore,
+  deleteAngelTaxLossCarryforwardCore,
+} from "@/lib/actions/angelTaxLossCarryforward";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -2094,25 +2098,26 @@ export async function setAngelTaxLossCarryforward(formData: FormData): Promise<v
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
   const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
-  if (!Number.isInteger(originYear) || originYear > year) {
-    throw new Error("損失の発生年は対象年分以前の年である必要があります");
-  }
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await angelTaxLossCarryforwardRepository.upsert({
-    taxYearId: taxYear.id,
-    originYear,
-    remainingAmountJpy,
-  });
+  const { redirectTo } = await setAngelTaxLossCarryforwardCore(
+    taxYearRepository,
+    angelTaxLossCarryforwardRepository,
+    { year, originYear, remainingAmountJpy },
+  );
 
   revalidatePath("/angel-tax-loss-carryforward");
-  redirect(`/angel-tax-loss-carryforward?year=${year}`);
+  redirect(redirectTo);
 }
 
 export async function deleteAngelTaxLossCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await angelTaxLossCarryforwardRepository.delete(id);
+
+  const { redirectTo } = await deleteAngelTaxLossCarryforwardCore(
+    angelTaxLossCarryforwardRepository,
+    { id, year },
+  );
+
   revalidatePath("/angel-tax-loss-carryforward");
-  redirect(`/angel-tax-loss-carryforward?year=${year}`);
+  redirect(redirectTo);
 }
