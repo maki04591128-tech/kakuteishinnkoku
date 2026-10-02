@@ -92,6 +92,10 @@ import {
   setForeignTaxCreditCarryforwardCore,
   deleteForeignTaxCreditCarryforwardCore,
 } from "@/lib/actions/foreignTaxCreditCarryforward";
+import {
+  setForeignTaxCreditSpareLimitCarryforwardCore,
+  deleteForeignTaxCreditSpareLimitCarryforwardCore,
+} from "@/lib/actions/foreignTaxCreditSpareLimitCarryforward";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1182,19 +1186,15 @@ export async function setForeignTaxCreditSpareLimitCarryforward(
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
   const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
-  if (!Number.isInteger(originYear) || originYear > year) {
-    throw new Error("控除余裕額の発生年は対象年分以前の年である必要があります");
-  }
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await foreignTaxCreditSpareLimitCarryforwardRepository.upsert({
-    taxYearId: taxYear.id,
-    originYear,
-    remainingAmountJpy,
-  });
+  const { redirectTo } = await setForeignTaxCreditSpareLimitCarryforwardCore(
+    taxYearRepository,
+    foreignTaxCreditSpareLimitCarryforwardRepository,
+    { year, originYear, remainingAmountJpy },
+  );
 
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=foreignTaxCredit`);
+  redirect(redirectTo);
 }
 
 export async function deleteForeignTaxCreditSpareLimitCarryforward(
@@ -1202,9 +1202,14 @@ export async function deleteForeignTaxCreditSpareLimitCarryforward(
 ): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await foreignTaxCreditSpareLimitCarryforwardRepository.delete(id);
+
+  const { redirectTo } = await deleteForeignTaxCreditSpareLimitCarryforwardCore(
+    foreignTaxCreditSpareLimitCarryforwardRepository,
+    { id, year },
+  );
+
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=foreignTaxCredit`);
+  redirect(redirectTo);
 }
 
 /**

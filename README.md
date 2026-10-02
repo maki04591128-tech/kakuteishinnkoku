@@ -2365,6 +2365,37 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   未移行アクション(`setForeignTaxCreditSpareLimitCarryforward`・
   `saveEarthquakeRenovationDeductionRecord`等)に次回以降同様に適用していく。
 
+- [x] 3-11. `setForeignTaxCreditSpareLimitCarryforward`/
+      `deleteForeignTaxCreditSpareLimitCarryforward`のコア関数を抽出
+
+  **実装内容(2026-10-02):**
+  `src/lib/actions/foreignTaxCreditSpareLimitCarryforward.ts`に
+  `setForeignTaxCreditSpareLimitCarryforwardCore`/
+  `deleteForeignTaxCreditSpareLimitCarryforwardCore`を追加した。3-10
+  (`setForeignTaxCreditCarryforward`)と同じく`getOrCreateTaxYear`
+  (`TaxYearRepository`)と個別の繰越控除リポジトリ
+  (`ForeignTaxCreditSpareLimitCarryforwardRepository`)の2つに依存する構成の
+  7例目(ロジックは3-5〜3-10と同一パターン)。発生年が対象年分より後でないかの
+  検証・`taxYearRepository.getOrCreateTaxYear`呼び出し・
+  `foreignTaxCreditSpareLimitCarryforwardRepository.upsert`呼び出し・次の
+  遷移先の算出を行う`setForeignTaxCreditSpareLimitCarryforwardCore`と、
+  `delete`呼び出しと遷移先の算出のみを行う
+  `deleteForeignTaxCreditSpareLimitCarryforwardCore`を実装した。
+  `src/app/actions.ts`の`setForeignTaxCreditSpareLimitCarryforward`/
+  `deleteForeignTaxCreditSpareLimitCarryforward`はFormDataの解釈とコア関数の
+  呼び出し、`revalidatePath`/`redirect`の実行のみを行う薄いラッパーに
+  書き換えた(挙動は従来と完全に同一)。なお同ファイルの
+  `carryForwardForeignTaxCreditSpareLimit`は`findByTaxYearId`/`createMany`も
+  使う別のアクションのため、本ステップの対象外とした。
+  `foreignTaxCreditSpareLimitCarryforward.test.ts`を新規に追加し、発生年の
+  バリデーションエラー・`upsert`引数・削除時の`id`指定、両ケースの
+  `redirectTo`算出を検証した(`npm run test`・`npm run lint`・
+  `npx tsc --noEmit`が成功することを確認済み。なお`npx tsc --noEmit`には
+  本ステップと無関係な既存エラー(`src/app/layout.tsx`の`LayoutProps`)が
+  変更前から存在することを確認済み)。残る`getOrCreateTaxYear`+個別
+  リポジトリの2依存構成、またはそれに類する構成の未移行アクション
+  (`saveEarthquakeRenovationDeductionRecord`等)に次回以降同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
