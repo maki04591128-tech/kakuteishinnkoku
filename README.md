@@ -2596,6 +2596,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   環境起因の既存エラー)。同パターンの他のアクション
   (`saveDonationTaxCreditRecord`等)に次回以降同様に適用していく。
 
+- [x] 3-20. `saveDonationTaxCreditRecord`/`deleteDonationTaxCreditRecord`の
+      コア関数を抽出
+
+  **実装内容(2026-10-02):** `src/lib/actions/donationTaxCreditRecord.ts`に
+  `saveDonationTaxCreditRecordCore`/`deleteDonationTaxCreditRecordCore`を
+  追加した。3-12〜3-19の「控除額を登録する単純な年単位レコード」系
+  (`getOrCreateTaxYear`+個別リポジトリの2依存、削除時は`findByYear`で対象年の
+  TaxYearを取得した上で存在する場合のみ`deleteByTaxYearId`を呼ぶ)と同じ構成
+  (フィールドが`totalTaxCreditJpy`/`residentTaxBasicDeductionJpy`の2つになる点
+  のみ異なる)のため、同パターンをそのまま適用した。`src/app/actions.ts`の
+  `saveDonationTaxCreditRecord`/`deleteDonationTaxCreditRecord`は、FormDataの
+  解釈とコア関数の呼び出し、`revalidatePath`(`/tax-estimate`・
+  `/donation-tax-credit`の2つ。従来と同一)/`redirect`の実行のみを行う薄い
+  ラッパーに書き換えた(挙動は従来と完全に同一)。
+  `donationTaxCreditRecord.test.ts`を新規に追加し、3-19と同様`upsert`引数・
+  削除時に対象年のTaxYearが存在する/しないそれぞれのケースでの
+  `deleteByTaxYearId`呼び出しの有無、両ケースの`redirectTo`算出を検証した
+  (`npm run test`・`npm run lint`・`npx tsc --noEmit`が成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`エラーは3-3以降と同様、
+  本変更と無関係な環境起因の既存エラー)。同パターンの他のアクション
+  (`saveDistributionAdjustedForeignTaxCreditRecord`等)に次回以降同様に
+  適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
