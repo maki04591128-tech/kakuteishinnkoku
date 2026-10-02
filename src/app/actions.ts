@@ -100,6 +100,10 @@ import {
   saveEarthquakeRenovationDeductionRecordCore,
   deleteEarthquakeRenovationDeductionRecordCore,
 } from "@/lib/actions/earthquakeRenovationDeductionRecord";
+import {
+  saveEnergySavingRenovationDeductionRecordCore,
+  deleteEnergySavingRenovationDeductionRecordCore,
+} from "@/lib/actions/energySavingRenovationDeductionRecord";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1434,15 +1438,15 @@ export async function saveEnergySavingRenovationDeductionRecord(
   const year = Number(requireString(formData, "year"));
   const creditJpy = requireString(formData, "creditJpy");
 
-  const taxYear = await getOrCreateTaxYear(year);
-  await energySavingRenovationDeductionRecordRepository.upsert({
-    taxYearId: taxYear.id,
-    creditJpy,
-  });
+  const { redirectTo } = await saveEnergySavingRenovationDeductionRecordCore(
+    taxYearRepository,
+    energySavingRenovationDeductionRecordRepository,
+    { year, creditJpy },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/energy-saving-renovation-deduction");
-  redirect(`/energy-saving-renovation-deduction?year=${year}&saved=1`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1454,14 +1458,16 @@ export async function deleteEnergySavingRenovationDeductionRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await energySavingRenovationDeductionRecordRepository.deleteByTaxYearId(taxYear.id);
-  }
+
+  const { redirectTo } = await deleteEnergySavingRenovationDeductionRecordCore(
+    taxYearRepository,
+    energySavingRenovationDeductionRecordRepository,
+    { year },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/energy-saving-renovation-deduction");
-  redirect(`/energy-saving-renovation-deduction?year=${year}&deleted=1`);
+  redirect(redirectTo);
 }
 
 /**
