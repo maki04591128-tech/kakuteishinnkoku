@@ -2230,6 +2230,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `setFuturesLossCarryforward`等、同じく`getOrCreateTaxYear`+個別リポジトリの
   2依存構成であり、次回以降この2つめの例を参考に同様に適用していく。
 
+- [x] 3-6. `setFuturesLossCarryforward`/`deleteFuturesLossCarryforward`の
+      コア関数を抽出
+
+  **実装内容(2026-10-02):** `src/lib/actions/futuresLossCarryforward.ts`に
+  `setFuturesLossCarryforwardCore`/`deleteFuturesLossCarryforwardCore`を
+  追加した。3-5の`setAngelTaxLossCarryforward`に続き、`getOrCreateTaxYear`
+  (`TaxYearRepository`)と個別の繰越控除リポジトリ
+  (`FuturesLossCarryforwardRepository`)の2つに依存する構成の2例目。
+  発生年が対象年分より後でないかの検証・`taxYearRepository.getOrCreateTaxYear`
+  呼び出し・`futuresLossCarryforwardRepository.upsert`呼び出し・次の遷移先の
+  算出を行う`setFuturesLossCarryforwardCore`と、`delete`呼び出しと遷移先の
+  算出のみを行う`deleteFuturesLossCarryforwardCore`を実装した(ロジックは
+  3-5の`setAngelTaxLossCarryforwardCore`/`deleteAngelTaxLossCarryforwardCore`
+  と同一パターン)。`src/app/actions.ts`の`setFuturesLossCarryforward`/
+  `deleteFuturesLossCarryforward`はFormDataの解釈とコア関数の呼び出し、
+  `revalidatePath`/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。なお同ファイルの`carryForwardFuturesLoss`は
+  `buildYearReport`にも依存する別のアクションのため、本ステップの対象外とした
+  (今後の別ステップで対応)。`futuresLossCarryforward.test.ts`を新規に追加し、
+  発生年のバリデーションエラー・`upsert`引数・削除時の`id`指定、両ケースの
+  `redirectTo`算出を検証した(`npm run test`・`npm run lint`・`npx tsc --noEmit`
+  (3-3と同様の環境起因エラーを除く)が成功することを確認済み)。残る
+  `getOrCreateTaxYear`+個別リポジトリの2依存構成のアクション
+  (`setCasualtyLossCarryforward`/`setHomeSaleLossCarryforward`/
+  `setHomeReplacementLossCarryforward`等)に次回以降同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
