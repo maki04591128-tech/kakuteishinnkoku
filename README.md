@@ -2150,6 +2150,31 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `setCryptoCostMethod`と同様に依存リポジトリが1つだけの単純なアクション)
   へ順次適用していく。
 
+- [x] 3-3. `setAssetSymbolMapping`/`deleteAssetSymbolMapping`のコア関数を抽出
+
+  **実装内容(2026-10-02):** `src/lib/actions/assetSymbolMapping.ts`に
+  `setAssetSymbolMappingCore`/`deleteAssetSymbolMappingCore`
+  (いずれも`AssetSymbolMappingRepository`のみに依存)を追加した。3-2の
+  `setCryptoCostMethod`に続き「依存リポジトリが1つだけの単純なアクション」
+  への適用2例目。`setAssetSymbolMappingCore`は銘柄名・ティッカーの
+  前後空白除去・ティッカーの大文字化(従来`actions.ts`側で行っていた
+  `.trim()`/`.toUpperCase()`)をコア関数側に移し、`upsert`呼び出しと
+  次の遷移先(`/import?year=...&tab=assetBalance`)の算出を行う。
+  `deleteAssetSymbolMappingCore`は`delete`呼び出しと同じ遷移先の算出のみ。
+  `src/app/actions.ts`の`setAssetSymbolMapping`/`deleteAssetSymbolMapping`は
+  FormDataの解釈とコア関数の呼び出し、`revalidatePath`/`redirect`の実行のみを
+  行う薄いラッパーに書き換えた(挙動は従来と完全に同一)。
+  `assetSymbolMapping.test.ts`を新規に追加し、フェイクの
+  `AssetSymbolMappingRepository`を使って空白除去・大文字化を含む`upsert`
+  引数と削除時の`id`指定、両ケースの`redirectTo`算出を検証した
+  (`npm run test`・`npm run lint`が成功することを確認済み。`npx tsc --noEmit`は
+  本変更と無関係な既存エラー`src/app/layout.tsx`の`Cannot find name
+  'LayoutProps'`(このセッションでの変更前から発生。Next.jsの型生成
+  (`next dev`/`next build`時に`.next/types/`へ生成される`LayoutProps`)が
+  未実行の環境起因と見られる)を除き成功を確認した)。残る依存リポジトリ
+  1つの単純なアクション(`setMarketPrice`/`deleteMarketPrice`等)に次回以降
+  同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証

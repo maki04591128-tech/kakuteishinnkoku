@@ -63,6 +63,10 @@ import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 import { isIncomeDeductionType } from "@/lib/incomeDeduction";
 import { deriveNisaLifetimeCarryForwardCandidates } from "@/lib/investment/nisaQuota";
 import { setCryptoCostMethodCore } from "@/lib/actions/setCryptoCostMethod";
+import {
+  setAssetSymbolMappingCore,
+  deleteAssetSymbolMappingCore,
+} from "@/lib/actions/assetSymbolMapping";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1021,21 +1025,30 @@ export async function deleteAssetBalanceImportBatch(formData: FormData): Promise
  */
 export async function setAssetSymbolMapping(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const assetName = requireString(formData, "assetName").trim();
-  const symbol = requireString(formData, "symbol").trim().toUpperCase();
+  const assetName = requireString(formData, "assetName");
+  const symbol = requireString(formData, "symbol");
 
-  await assetSymbolMappingRepository.upsert({ assetName, symbol });
+  const { redirectTo } = await setAssetSymbolMappingCore(assetSymbolMappingRepository, {
+    year,
+    assetName,
+    symbol,
+  });
 
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=assetBalance`);
+  redirect(redirectTo);
 }
 
 export async function deleteAssetSymbolMapping(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await assetSymbolMappingRepository.delete(id);
+
+  const { redirectTo } = await deleteAssetSymbolMappingCore(assetSymbolMappingRepository, {
+    id,
+    year,
+  });
+
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=assetBalance`);
+  redirect(redirectTo);
 }
 
 /**
