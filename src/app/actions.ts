@@ -88,6 +88,10 @@ import {
   setHomeReplacementLossCarryforwardCore,
   deleteHomeReplacementLossCarryforwardCore,
 } from "@/lib/actions/homeReplacementLossCarryforward";
+import {
+  setForeignTaxCreditCarryforwardCore,
+  deleteForeignTaxCreditCarryforwardCore,
+} from "@/lib/actions/foreignTaxCreditCarryforward";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1109,27 +1113,28 @@ export async function setForeignTaxCreditCarryforward(formData: FormData): Promi
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
   const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
-  if (!Number.isInteger(originYear) || originYear > year) {
-    throw new Error("控除限度超過額の発生年は対象年分以前の年である必要があります");
-  }
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await foreignTaxCreditCarryforwardRepository.upsert({
-    taxYearId: taxYear.id,
-    originYear,
-    remainingAmountJpy,
-  });
+  const { redirectTo } = await setForeignTaxCreditCarryforwardCore(
+    taxYearRepository,
+    foreignTaxCreditCarryforwardRepository,
+    { year, originYear, remainingAmountJpy },
+  );
 
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=foreignTaxCredit`);
+  redirect(redirectTo);
 }
 
 export async function deleteForeignTaxCreditCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await foreignTaxCreditCarryforwardRepository.delete(id);
+
+  const { redirectTo } = await deleteForeignTaxCreditCarryforwardCore(
+    foreignTaxCreditCarryforwardRepository,
+    { id, year },
+  );
+
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=foreignTaxCredit`);
+  redirect(redirectTo);
 }
 
 /**
