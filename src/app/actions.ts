@@ -62,6 +62,7 @@ import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 import { isIncomeDeductionType } from "@/lib/incomeDeduction";
 import { deriveNisaLifetimeCarryForwardCandidates } from "@/lib/investment/nisaQuota";
+import { setCryptoCostMethodCore } from "@/lib/actions/setCryptoCostMethod";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -151,21 +152,18 @@ const assetBalanceSnapshotRepository = createPrismaAssetBalanceSnapshotRepositor
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const method = requireString(formData, "cryptoCostMethod");
+  const cryptoCostMethod = requireString(formData, "cryptoCostMethod");
   const tab = optionalString(formData, "tab");
-  if (method !== "AVERAGE" && method !== "MOVING_AVERAGE") {
-    throw new Error(`未対応の評価方法です: ${method}`);
-  }
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await taxYearRepository.updateCryptoCostMethod(taxYear.id, method);
+  const { redirectTo } = await setCryptoCostMethodCore(taxYearRepository, {
+    year,
+    cryptoCostMethod,
+    tab,
+  });
 
   revalidatePath("/import");
   revalidatePath("/");
-  if (tab) {
-    redirect(`/import?year=${year}&tab=${tab}`);
-  }
-  redirect(`/?year=${year}`);
+  redirect(redirectTo);
 }
 
 export async function importMoneyForwardCsv(formData: FormData): Promise<void> {

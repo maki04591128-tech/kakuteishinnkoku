@@ -2091,6 +2091,65 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
 - 38個の非同期Server Component(`page.tsx`)をClient Component化し、
   リポジトリから直接データ取得する形に変更する。
 
+- [x] 3-1. アーキテクチャ方針の検討・決定(自宅サーバー版との共存方式)
+
+  **検討・決定内容(2026-10-02):** 上記2つの方針には矛盾がある。
+  `createPrismaXxxRepository`は`@prisma/client`(Node専用、DB接続必須)に
+  依存しており、ブラウザで実行されるClient Componentから直接呼び出すことは
+  原理的に不可能。一方で「既存の自宅サーバー版を壊さない」ことが最優先
+  事項であり、自宅サーバー版はPrisma(PostgreSQL等サーバー側DB)でのデータ
+  永続化を今後も必要とする(スタンドアロン版のようにブラウザのOPFS内
+  wa-sqliteだけで完結させると、自宅サーバー版が持つ「複数端末から同じ
+  データにアクセスできる」という既存の価値を失ってしまうため)。
+
+  したがって、「1つのファイルが条件分岐でPrisma/Clientを切り替える」
+  のではなく、**各アクション・各ページの本質的なロジック(入力検証・
+  リポジトリ呼び出し・次の画面遷移先の決定)を、Next.js固有のAPI
+  (`revalidatePath`/`redirect`/Server Componentでのawaitデータ取得等)から
+  切り離した「コア関数」として`src/lib/actions/`配下に抽出し、
+  リポジトリ実装(`TaxYearRepository`等のインターフェース)を引数で
+  受け取るDI(依存性注入)形式にする**方針を採る。これにより:
+
+  - **自宅サーバー版:** `src/app/actions.ts`の各exportされた関数は
+    「FormDataを解釈してコア関数を呼び、結果に応じて`revalidatePath`・
+    `redirect`を実行する」薄いラッパーのみになる(コア関数には
+    引き続き`createPrismaXxxRepository()`を渡すため、挙動・使用DBは
+    一切変わらない)。`page.tsx`も当面はServer Componentのまま
+    (Prismaリポジトリを直接呼ぶ)で維持する。
+  - **スタンドアロン版:** 同じコア関数に`createClientXxxRepository(db)`
+    (wa-sqlite)を渡すClient Componentから直接呼び出す版を、今後の
+    ステップで追加する(Next.jsの`redirect`/`revalidatePath`が使えない
+    ぶん、コア関数が返す「次の遷移先」情報を元に`useRouter().push()`等で
+    置き換える)。
+
+  自宅サーバー版の`page.tsx`・`actions.ts`を実際にClient Component/
+  クライアント関数へ完全に置き換える(=両ビルドで同じコンポーネントを
+  使う)か、スタンドアロン版専用のファイルを別途追加する(=ビルド時に
+  ファイルを出し分ける)かは、フェーズ5(静的ビルド・Capacitor導入、
+  `next.config.ts`のビルド分岐)で両ビルドの実現方式を検証したうえで
+  確定する。本フェーズではまず「コア関数抽出+DI」のパターンを
+  1アクションずつ確立し、どちらの選択肢を採っても使い回せる土台を作る
+  ことを優先する。
+
+- [x] 3-2. パイロットとして`setCryptoCostMethod`のコア関数を抽出
+
+  **実装内容(2026-10-02):** `src/lib/actions/setCryptoCostMethod.ts`に
+  `setCryptoCostMethodCore(taxYearRepository, input)`を追加した。
+  評価方法(`cryptoCostMethod`)のバリデーション・
+  `taxYearRepository.getOrCreateTaxYear`/`updateCryptoCostMethod`の呼び出し・
+  次の遷移先(`redirectTo`)の算出を行う純粋な非同期関数で、
+  `TaxYearRepository`インターフェース経由でリポジトリを受け取るため
+  Prisma/Clientどちらの実装にも依存しない。`src/app/actions.ts`の
+  `setCryptoCostMethod`はFormDataの解釈とこのコア関数の呼び出し、
+  `revalidatePath`/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。`setCryptoCostMethod.test.ts`を新規に追加し、
+  フェイクの`TaxYearRepository`を使って不正な評価方法でのエラー・
+  `tab`指定有無それぞれでの`redirectTo`算出・`updateCryptoCostMethod`への
+  引数を検証した(`npm run test`・`npx tsc --noEmit`・`npm run lint`が
+  成功することを確認済み)。次はこのパターンを他のアクション(まずは
+  `setCryptoCostMethod`と同様に依存リポジトリが1つだけの単純なアクション)
+  へ順次適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
