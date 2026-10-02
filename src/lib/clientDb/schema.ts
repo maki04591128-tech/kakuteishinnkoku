@@ -399,6 +399,38 @@ const STATEMENTS = [
     ON stock_margin_trade (tax_year_id, symbol)`,
   `CREATE INDEX IF NOT EXISTS stock_margin_trade_settled_at_idx
     ON stock_margin_trade (settled_at)`,
+  `CREATE TABLE IF NOT EXISTS investment_trade (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tax_year_id INTEGER NOT NULL,
+    traded_at TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    name TEXT,
+    asset_type TEXT NOT NULL,
+    is_reit INTEGER NOT NULL DEFAULT 0,
+    mutual_fund_high_foreign_ratio INTEGER NOT NULL DEFAULT 0,
+    mutual_fund_very_high_foreign_ratio INTEGER NOT NULL DEFAULT 0,
+    is_listed INTEGER NOT NULL DEFAULT 1,
+    type TEXT NOT NULL,
+    quantity TEXT NOT NULL,
+    unit_price_jpy TEXT NOT NULL,
+    fee_jpy TEXT NOT NULL DEFAULT '0',
+    account_type TEXT NOT NULL DEFAULT 'SPECIFIC_WITHHOLDING',
+    is_nisa INTEGER NOT NULL DEFAULT 0,
+    nisa_type TEXT,
+    is_foreign INTEGER NOT NULL DEFAULT 0,
+    foreign_tax_withheld_jpy TEXT NOT NULL DEFAULT '0',
+    distribution_adjusted_foreign_tax_jpy TEXT NOT NULL DEFAULT '0',
+    broker TEXT,
+    memo TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    import_batch_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS investment_trade_tax_year_id_symbol_idx
+    ON investment_trade (tax_year_id, symbol)`,
+  `CREATE INDEX IF NOT EXISTS investment_trade_traded_at_idx
+    ON investment_trade (traded_at)`,
 ];
 
 /** 未作成のテーブルを作成する(既存テーブルには影響しない)。 */
