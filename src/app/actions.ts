@@ -152,6 +152,10 @@ import {
   deleteEmploymentIncomeRecordCore,
 } from "@/lib/actions/employmentIncomeRecord";
 import { addCryptoTradeCore, deleteCryptoTradeCore } from "@/lib/actions/cryptoTrade";
+import {
+  addCryptoMarginTradeCore,
+  deleteCryptoMarginTradeCore,
+} from "@/lib/actions/cryptoMarginTrade";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -460,32 +464,39 @@ export async function deleteCryptoTrade(formData: FormData): Promise<void> {
 
 export async function addCryptoMarginTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await cryptoMarginTradeRepository.create({
-    taxYearId: taxYear.id,
-    settledAt: new Date(requireString(formData, "settledAt")),
-    symbol: requireString(formData, "symbol").toUpperCase(),
-    realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
-    feeJpy: optionalString(formData, "feeJpy") ?? "0",
-    swapJpy: optionalString(formData, "swapJpy") ?? "0",
-    exchange: optionalString(formData, "exchange"),
-    memo: optionalString(formData, "memo"),
-    source: "manual",
-  });
+  const { redirectTo } = await addCryptoMarginTradeCore(
+    taxYearRepository,
+    cryptoMarginTradeRepository,
+    {
+      year,
+      settledAt: requireString(formData, "settledAt"),
+      symbol: requireString(formData, "symbol"),
+      realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
+      feeJpy: optionalString(formData, "feeJpy"),
+      swapJpy: optionalString(formData, "swapJpy"),
+      exchange: optionalString(formData, "exchange"),
+      memo: optionalString(formData, "memo"),
+    },
+  );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=cryptoMargin`);
+  redirect(redirectTo);
 }
 
 export async function deleteCryptoMarginTrade(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await cryptoMarginTradeRepository.delete(id);
+
+  const { redirectTo } = await deleteCryptoMarginTradeCore(cryptoMarginTradeRepository, {
+    id,
+    year,
+  });
+
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=cryptoMargin`);
+  redirect(redirectTo);
 }
 
 export async function addCryptoCreditTrade(formData: FormData): Promise<void> {

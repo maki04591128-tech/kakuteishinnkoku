@@ -2765,6 +2765,27 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   を伴う)・`addCryptoMarginTrade`等(先物・証拠金取引)で、次のステップ以降で
   個別にパターンを検討する。
 
+- [x] 3-27. `addCryptoMarginTrade`/`deleteCryptoMarginTrade`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/cryptoMarginTrade.ts`に
+  `addCryptoMarginTradeCore`/`deleteCryptoMarginTradeCore`を追加した。3-26の
+  `addCryptoTrade`/`deleteCryptoTrade`と同じ「取引記録(1年に複数件登録できる
+  レコード)1件ごとの追加・削除」パターンの2例目。暗号資産の先物・証拠金取引
+  (`CryptoMarginTrade`)も`addInvestmentTrade`のNISA判定のような追加
+  バリデーションが無く、symbolの大文字化・`feeJpy`/`swapJpy`省略時の`"0"`補完
+  のみのため、3-26に続く対象として選んだ。`src/app/actions.ts`の
+  `addCryptoMarginTrade`/`deleteCryptoMarginTrade`は、FormDataの解釈とコア関数の
+  呼び出し、`revalidatePath`(`/import`・`/`の2つ。従来と同一)/`redirect`の
+  実行のみを行う薄いラッパーに書き換えた(挙動は従来と完全に同一)。
+  `cryptoMarginTrade.test.ts`を新規に追加し、`create`への引数(symbol大文字化・
+  feeJpy/swapJpy補完を含む)・`delete`呼び出し・両ケースの`redirectTo`算出を
+  検証した(`npm run test`・`npm run lint`・`npx tsc --noEmit`が成功することを
+  確認済み)。残る取引記録の追加・削除は`addInvestmentTrade`/
+  `deleteInvestmentTrade`(NISA・REIT等の追加バリデーションを伴う)・
+  `addCryptoCreditTrade`/`addStockMarginTrade`/`addFuturesTrade`等
+  (いずれも本ステップと同様、追加バリデーション無しの単純な取引記録と見られる)で、
+  次のステップ以降でまずバリデーション無しの残りに適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
