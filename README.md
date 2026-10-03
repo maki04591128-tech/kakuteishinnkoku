@@ -2667,6 +2667,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   可変・所得控除区分`type`のバリデーションがある点が従来の個別パターンと異なる)に
   同様に適用していく。
 
+- [x] 3-23. `saveIncomeDeduction`/`deleteIncomeDeduction`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/incomeDeductionRecord.ts`に
+  `saveIncomeDeductionCore`/`deleteIncomeDeductionCore`を追加した。これまでの
+  `save*Record`/`delete*Record`群と異なり、(1)所得控除区分`type`のバリデーション
+  (`isIncomeDeductionType`、`src/lib/incomeDeduction.ts`)がコア関数側にある、
+  (2)削除時のキーが`taxYearId`のみでなく`taxYearId`+`type`
+  (`deleteByTaxYearIdAndType`)である、(3)遷移先のパス(`redirectPath`)が
+  呼び出し元のFormData入力で可変(医療費控除・生命保険料控除・小規模企業共済等
+  掛金控除(iDeCo等)・社会保険料控除など、複数の試算画面から同じアクションが
+  呼ばれるため)、という3点が異なる。`src/app/actions.ts`の
+  `saveIncomeDeduction`/`deleteIncomeDeduction`は、FormDataの解釈とコア関数の
+  呼び出し、`revalidatePath`(`/tax-estimate`・可変の`redirectPath`の2つ。従来と
+  同一)/`redirect`の実行のみを行う薄いラッパーに書き換えた(挙動は従来と完全に
+  同一。区分バリデーションのエラーメッセージもコア関数側で同一の文言を維持)。
+  `incomeDeductionRecord.test.ts`を新規に追加し、`upsert`/`deleteByTaxYearIdAndType`
+  引数・不正な区分指定時のエラー・対象年のTaxYearが存在する/しないそれぞれの
+  ケースでの削除呼び出しの有無、両ケースの`redirectTo`算出を検証した
+  (`npm run test`・`npm run lint`・`npx tsc --noEmit`が成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`エラーは3-3以降と同様、
+  本変更と無関係な環境起因の既存エラー)。残る未移行のアクションのうち次は
+  `saveResidentTaxAdjustmentDeductionRecord`/
+  `deleteResidentTaxAdjustmentDeductionRecord`(3-12〜3-22と同じ「発生年の入力・
+  バリデーションが無い単純な年単位レコードの登録/削除」パターン、フィールドは
+  `adjustmentDeductionJpy`1つ)に同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
@@ -2691,7 +2717,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
-  (Server Actions/Server Componentsの置き換え)を3-22まで進行中)から1つずつ
+  (Server Actions/Server Componentsの置き換え)を3-23まで進行中)から1つずつ
   着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
