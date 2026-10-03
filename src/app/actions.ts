@@ -73,6 +73,10 @@ import {
   deleteAngelTaxLossCarryforwardCore,
 } from "@/lib/actions/angelTaxLossCarryforward";
 import {
+  setInvestmentLossCarryforwardCore,
+  deleteInvestmentLossCarryforwardCore,
+} from "@/lib/actions/investmentLossCarryforward";
+import {
   setFuturesLossCarryforwardCore,
   deleteFuturesLossCarryforwardCore,
 } from "@/lib/actions/futuresLossCarryforward";
@@ -970,29 +974,30 @@ export async function setLossCarryforward(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const originYear = Number(requireString(formData, "originYear"));
   const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
-  if (!Number.isInteger(originYear) || originYear > year) {
-    throw new Error("損失の発生年は対象年分以前の年である必要があります");
-  }
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await investmentLossCarryforwardRepository.upsert({
-    taxYearId: taxYear.id,
-    originYear,
-    remainingAmountJpy,
-  });
+  const { redirectTo } = await setInvestmentLossCarryforwardCore(
+    taxYearRepository,
+    investmentLossCarryforwardRepository,
+    { year, originYear, remainingAmountJpy },
+  );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=lossCarryforward`);
+  redirect(redirectTo);
 }
 
 export async function deleteLossCarryforward(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await investmentLossCarryforwardRepository.delete(id);
+
+  const { redirectTo } = await deleteInvestmentLossCarryforwardCore(
+    investmentLossCarryforwardRepository,
+    { id, year },
+  );
+
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=lossCarryforward`);
+  redirect(redirectTo);
 }
 
 /**
