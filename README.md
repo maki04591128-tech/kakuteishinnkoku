@@ -3156,83 +3156,78 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
       ごとaliasで差し替えるだけでは、スタンドアロン版バンドルにPrisma
       (Node専用、WebViewで動作不可)が引き込まれてしまう。そのため
       Prisma依存部分を別ファイルに分離する作業が各リポジトリに必要になる。
-      まず`TaxYearRepository`で1つ試してパターンを確立する。
+      まず`TaxYearRepository`で1つ試してパターンを確立し、以後
+      `src/lib/*.ts`側で`createPrismaXxxRepository()`を直接呼んでいる残り
+      14ファイル(`src/lib/reporting.ts`・`src/app/actions.ts`含む。
+      `grep -rln "createPrisma.*Repository()" src/lib/*.ts src/app/*.ts`で
+      確認可能)に同じパターンを適用していく。また、クライアント実装側が
+      依存する`src/lib/clientDb/sqlite.ts`は現状`node:fs`/`node:module`
+      (`require.resolve`)を使うNode専用コードで、永続化もwa-sqlite付属の
+      `MemoryVFS`(プロセス内メモリのみ、フェーズ0で決定した本来の方式である
+      OPFSベースVFSではない)のままであり、実際のブラウザ(Capacitor WebView)
+      では動作しない。この切り替え機構を実際に使うには、OPFSベースの
+      ブラウザ向け`openClientDb`実装も別途必要になる。
 
-  **実装内容(2026-10-03):** `src/lib/repositories/taxYearRepository.ts`から
-  `createPrismaTaxYearRepository`(`../db`経由で`@prisma/client`に依存する部分)
-  を`taxYearRepository.prisma.ts`に分離した。残った`taxYearRepository.ts`は
-  インターフェース定義と`createClientTaxYearRepository`(wa-sqlite実装)のみで、
-  `@prisma/client`への実行時依存が無くなった(`TaxYear`/`CryptoCostMethod`型は
-  型のみのimportのままで、型消去されるため問題ない)。
+  **実装内容(2026-10-03):** `TaxYearRepository`で切り替え機構のパターンを
+  確立した。`src/lib/repositories/taxYearRepository.ts`から`@prisma/client`
+  (`../db`)に依存する`createPrismaTaxYearRepository`を
+  `taxYearRepository.prisma.ts`に分離し(クライアント実装
+  `createClientTaxYearRepository`・インターフェース定義は元のファイルに残す。
+  `@prisma/client`からの型だけのimportは`import type`なので残しても問題ない)、
+  新設した`src/lib/repositories/defaultTaxYearRepository.ts`
+  (自宅サーバー版の既定実装。`createPrismaTaxYearRepository()`をラップ)と
+  `defaultTaxYearRepository.standalone.ts`(スタンドアロン版向け差し替え実装)を
+  `next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`
+  (`@/lib/authUi`と同じキー形式で`@/lib/repositories/defaultTaxYearRepository`を
+  追加)・`tsconfig.standalone.json`の`paths`で切り替える。これまで
+  `taxYearRepository`を個別に`createPrismaTaxYearRepository()`で生成していた
+  17ファイル(`src/lib/taxYear.ts`・`src/lib/reporting.ts`・
+  `src/app/actions.ts`・各種控除計算モジュール等)を、全て
+  `import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";`
+  に統一した(**相対パスimportではresolveAliasが効かないため、全消費側を
+  `@/...`形式の絶対パスimportに揃える必要があった**。`authUi`は消費側が
+  `src/app/page.tsx`の1箇所のみで元から`@/lib/authUi`形式だったため、この点は
+  5-1では問題にならなかった)。
 
-  その上で、`authUi.tsx`/`authUi.standalone.tsx`と同じ「ビルドターゲットに
-  応じてファイルごと差し替える」パターンで、`defaultTaxYearRepository.ts`
-  (自宅サーバー版の既定。`createPrismaTaxYearRepository()`を呼ぶ)と
-  `defaultTaxYearRepository.standalone.ts`(スタンドアロン版の既定)の
-  2ファイルを新設した。`next.config.ts`の`turbopack.resolveAlias`/
-  `webpack.resolve.alias`は、認証UI用のaliasに加え
-  `@/lib/repositories/defaultTaxYearRepository`→
-  `defaultTaxYearRepository.standalone.ts`というエントリも持つマップ
-  (`STANDALONE_MODULE_ALIASES`)に一般化した(今後リポジトリを追加するたびに
-  このマップへ1行足すだけで済む)。`tsconfig.standalone.json`の`paths`にも
-  同様のエントリを追加した。`src/lib/taxYear.ts`はこの
-  `@/lib/repositories/defaultTaxYearRepository`を(`@/`alias importでないと
-  resolveAliasが一致しないため絶対パスで)importするように変更した。
+  **スタンドアロン版実装の方針転換とその理由(重要な追加調査):** 当初は
+  `defaultTaxYearRepository.standalone.ts`で`createClientTaxYearRepository`に
+  `../clientDb/sqlite.ts`の`openClientDb`で開いた`ClientDb`を渡す実装(モジュール
+  読み込み時に非同期でDBを開き、各メソッド呼び出し時に待ち合わせる遅延初期化)を
+  実装し、`defaultTaxYearRepository.standalone.test.ts`でCRUD一式が動作することを
+  Vitest(Node環境)で確認した。しかし実際に`BUILD_TARGET=standalone`で
+  `npx next build`(`scripts/build-standalone.mjs`と同じ退避処理を伴う)に通すと、
+  **`openClientDb`が内部で使う`node:fs`の`readFileSync`/`createRequire`
+  (フェーズ0-2のPoCがVitest(Node)環境向けに書いたもの)がブラウザ向けバンドルに
+  含められず、`wa-sqlite/dist/wa-sqlite.wasm_.loader.mjs`の静的解析で
+  `Module not found: Can't resolve 'a'`というビルドエラーになり、しかもこのエラーは
+  従来からの既知の制約(`Server Actions are not supported with static export`。
+  5-1-3a参照)より早い段階(TypeScriptチェック前のコンパイル段階)で発生するため、
+  ビルドの失敗点が後退する(新たなregressionになる)**ことを確認した
+  (`defaultTaxYearRepository`経由でこのファイルを参照する17ファイルの存在に
+  より、`openClientDb`がVitestでの直接呼び出しだけでなく初めてNext.jsの実際の
+  ビルドグラフに引き込まれたために表面化した。他のリポジトリファイルは
+  `import type { ClientDb }`のみで型だけの参照のため影響がない)。
 
-  `defaultTaxYearRepository.standalone.ts`は、`openClientDb`
-  (`src/lib/clientDb/sqlite.ts`)を初回アクセス時に一度だけ開き
-  `applyClientDbSchema`を適用した上で`createClientTaxYearRepository`を
-  返す(以後はそのインスタンスを使い回す)実装にした。ただし`openClientDb`は
-  現状`node:fs`/`node:module`(`require.resolve`)を使うNode専用コードで、
-  永続化もwa-sqlite付属の`MemoryVFS`(プロセス内メモリのみ、フェーズ0で
-  決定した本来の方式であるOPFSベースVFSではない)のままであり、実際の
-  ブラウザ(Capacitor WebView)では動作しない。本ステップは切り替え機構
-  自体の確立が目的のため、実機で実際に使うにはOPFSベースのブラウザ向け
-  `openClientDb`実装が別途必要になる点は変わっていない。
+  そのため、ブラウザ向け(OPFSベース)の`openClientDb`実装が別途用意されるまでの
+  間、`defaultTaxYearRepository.standalone.ts`は`createClientTaxYearRepository`を
+  実際には呼ばず、各メソッド呼び出し時に「未結線」であることを示すエラーを
+  投げるだけのプレースホルダーに変更した(型は`TaxYearRepository`を正しく
+  満たす)。本ステップの目的はビルドターゲットに応じて実装を切り替える
+  「機構」自体の確立であり、クライアントDBの実動作確認はブラウザ向け
+  `openClientDb`が用意された後のステップで行う(5-1-3bの新たな残課題として
+  記録)。`defaultTaxYearRepository.standalone.test.ts`もこのプレースホルダーの
+  挙動(各メソッドが「未結線」を含むエラーを投げること)を検証する内容に変更した。
 
-  `src/lib/taxYear.ts`以外にも、`createPrismaTaxYearRepository`を直接呼んで
-  いるファイルが15個あった(`src/app/actions.ts`、`src/lib/reporting.ts`、
-  各種控除計算モジュール、`src/lib/investment/*.ts`)。これらは
-  `createPrismaTaxYearRepository`のimport元を`./repositories/taxYearRepository`
-  から`./repositories/taxYearRepository.prisma`に変更するだけに留め(関数の
-  呼び出し方自体は変更していない)、新しい`defaultTaxYearRepository`への
-  切り替えはまだ適用していない。これら15ファイル+`src/app/actions.ts`を
-  含む、`src/lib/*.ts`側で`createPrismaXxxRepository()`を直接呼んでいる
-  残り14ファイル(`grep -rln "createPrisma.*Repository()" src/lib/*.ts
-  src/app/*.ts`で確認可能、`TaxYearRepository`以外のモデルのリポジトリも
-  含む)への同じパターンの適用は、今後1〜2ファイルずつ進める。
-
-  **副次的に発見した不具合の修正:** 動作確認のため実際に
-  `npm run build:standalone`をシェルの`timeout`コマンドで中断したところ、
-  `scripts/build-standalone.mjs`が退避したファイル(`src/proxy.ts`等)を
-  元に戻せないまま終了する不具合を発見した。`spawnSync`は同期的に
-  イベントループをブロックするため、ブロック中に届いた`SIGTERM`をNode側の
-  シグナルハンドラで拾えず(デフォルト動作でそのまま終了し`finally`が
-  実行されない)、退避済みファイルがリポジトリから消えたままになる
-  (このセッションでも実際に発生し、手動で復元した)。`spawnSync`を
-  非同期の`spawn`に変更しイベントループを塞がないようにした上で、
-  `SIGINT`/`SIGTERM`のハンドラで`restore()`を呼ぶようにして修正した
-  (`timeout --signal=TERM`での中断後もファイルが正しく復元されることを
-  確認済み)。
-
-  **動作確認(2026-10-03時点):** `npm run test`(全175ファイル1619件)・
-  `npm run lint`・`npx tsc --noEmit`(デフォルトの`tsconfig.json`・
-  `tsconfig.standalone.json`の両方で実行)が成功することを確認済み。加えて
-  `DATABASE_URL`を設定し実際に`npx prisma db push`でDBを作成した上で、
-  `npm run build`(自宅サーバー版)が本変更後も従来通り成功することを確認した。
-  `npm run build:standalone`は、このクラウド開発環境では`next build`自体の
-  実行が非常に遅く(最適化ビルド開始後、15分以上待っても`Compiled`等の
-  次段階まで進まない)、今回のセッション内の時間制約では5-1-3aまでに判明した
-  制約(`src/app/actions.ts`のServer Actions)による既知のエラーまで到達するのを
-  待ち切れなかった。ただし本ステップの変更はalias解決(`resolveAlias`/
-  `tsconfig.standalone.json`)の追加のみで、`next build`自体の挙動や速度には
-  影響しないはずであり、上記の`tsconfig.standalone.json`経由の型チェックが
-  問題なく通っていることから、alias設定自体に誤りは無いと判断した。なお、
-  このビルド待機の過程で`scripts/build-standalone.mjs`の中断時ファイル復元
-  (本ステップで修正した`restore()`のシグナルハンドラ)は、シェルの
-  `timeout --signal=TERM`・手動`kill`・バックグラウンドタスクのハーネスに
-  よる強制終了の3パターンいずれでも正しく動作し、退避済みファイルが
-  リポジトリに残らないことを確認できた。
+  **動作確認(2026-10-03時点):** `npm run test`(全176ファイル1623件)・
+  `npm run lint`・`npx tsc --noEmit`(標準の`tsconfig.json`・
+  `tsconfig.standalone.json`の両方。既存の`src/app/layout.tsx`の
+  `LayoutProps`エラーのみで本変更と無関係)が成功することを確認した。加えて
+  `DATABASE_URL`を設定し`npx prisma db push`でDBを作成した上で、
+  (1)`npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、
+  (2)`BUILD_TARGET=standalone`での`next build`(`scripts/build-standalone.mjs`と
+  同じ退避処理を手動で再現して実行)が、上記のプレースホルダー化により
+  5-1-3a時点と同じ`Server Actions are not supported with static export`
+  エラーで失敗すること(新たなリグレッションが無いこと)を確認した。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。
@@ -3257,14 +3252,19 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3・
   フェーズ4・5-1・5-1-2・5-1-3a・5-1-3b(`TaxYearRepository`のみ)が完了し、
-  5-1-3c(クライアント側CSV生成への置き換え)・5-1-3d(`src/app/actions.ts`の
-  ビルド対象除外と32ファイルの書き換え。5-1-3aの調査で新たに判明した項目)
-  から着手可能)から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
-  5-1-3bで確立した「既定のリポジトリ実装の切り替え機構」パターンを残り14
-  ファイル分(`TaxYearRepository`以外のモデルのリポジトリ+それらを直接
-  呼んでいる`src/lib/*.ts`・`src/app/actions.ts`)に適用する作業も、
-  5-1-3c/5-1-3dと並行して1〜2ファイルずつ進められる。5-1-3dはフェーズ1・2と
-  同程度の規模が見込まれるため、急がず1ファイルずつ進める。
+  5-1-3bの残り(他リポジトリへの同パターン適用。`grep -rln
+  "createPrisma.*Repository()" src/lib/*.ts src/app/*.ts`で対象ファイルを
+  確認可能)・5-1-3c(クライアント側CSV生成への置き換え)・5-1-3d
+  (`src/app/actions.ts`のビルド対象除外と32ファイルの書き換え。5-1-3aの調査で
+  新たに判明した項目)から着手可能)から1つずつ着手し、完了したらチェックを
+  付けて次回に引き継ぐ。5-1-3dはフェーズ1・2と同程度の規模が見込まれるため、
+  急がず1ファイルずつ進める。5-1-3bで判明した通り、クライアント実装
+  (`createClientXxxRepository`)を実際にスタンドアロン版ビルドへ結線する
+  (`defaultXxxRepository.standalone.ts`で本物の`openClientDb`を呼ぶ)のは、
+  ブラウザ向け(OPFSベース)の`openClientDb`実装ができるまで保留し、当面は
+  「未結線」エラーを投げるプレースホルダーのままにする(安易に結線すると
+  `wa-sqlite`のNode専用コードがブラウザ向けバンドルに引き込まれてビルドが
+  壊れるため)。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では

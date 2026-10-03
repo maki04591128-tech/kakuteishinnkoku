@@ -1,51 +1,50 @@
-/**
- * スタンドアロン版ビルド用の`@/lib/repositories/defaultTaxYearRepository`
- * 差し替え実装(`next.config.ts`のresolveAlias経由。フェーズ5-1-3b)。
- *
- * クライアントサイドDB(`src/lib/clientDb/`)を初回アクセス時に一度だけ開いて
- * スキーマを適用し、以後はそのインスタンスを使い回す。
- *
- * 注意: 現状`openClientDb`(`src/lib/clientDb/sqlite.ts`)は
- * `node:fs`/`node:module`を使うNode専用実装で、永続化もwa-sqlite付属の
- * `MemoryVFS`(プロセス内メモリのみ)のままであり、実際のブラウザ
- * (Capacitor WebView)では動作しない。本ファイルはビルドターゲットに応じて
- * 既定のリポジトリ実装を切り替える「機構」自体を確立するためのもので、
- * 実機で実際に使うにはOPFSベースのブラウザ向け`openClientDb`実装が別途
- * 必要(README「現在の最優先事項」フェーズ5-1-3b参照)。
- */
-import { applyClientDbSchema } from "../clientDb/schema";
-import { openClientDb } from "../clientDb/sqlite";
-import { createClientTaxYearRepository, type TaxYearRepository } from "./taxYearRepository";
+// スタンドアロン版ビルド用の`@/lib/repositories/defaultTaxYearRepository`差し替え実装
+// (next.config.tsのresolveAlias経由。フェーズ5-1-3b)。
+//
+// 当初は`createClientTaxYearRepository`(wa-sqlite実装。`./taxYearRepository.ts`)に
+// `../clientDb/sqlite.ts`の`openClientDb`で開いた`ClientDb`を渡す実装を試みたが、
+// `openClientDb`は`node:fs`の`readFileSync`で読み込んだバイト列を
+// `createRequire(import.meta.url)`経由でwa-sqliteのWASMローダーに渡すNode専用実装
+// (フェーズ0-2のPoCがVitest(Node)環境で動かす前提で書いたもの)で、実際に
+// `npm run build:standalone`(`BUILD_TARGET=standalone`でのTurbopackビルド)に
+// 通したところ`wa-sqlite/dist/wa-sqlite.wasm_.loader.mjs`の静的解析に失敗し
+// (`Module not found: Can't resolve 'a'`。Node専用コードをブラウザ向けバンドルに
+// 含めようとして生じるエラー)、ビルドが壊れることが判明した。これはこのファイル
+// (`defaultTaxYearRepository`経由で17ファイルから参照される)が、`openClientDb`を
+// 実際にNext.jsのビルド(Vitestでの直接呼び出しだけでなく)に初めて引き込む
+// モジュールだったために表面化した。
+//
+// そのため、ブラウザ向け(OPFSベース)の`openClientDb`実装が別途用意されるまでの間
+// (README「現在の最優先事項」フェーズ5-1-3bの残課題)、このファイルは
+// `createClientTaxYearRepository`を実際には呼ばず、各メソッド呼び出し時に
+// 分かりやすいエラーを投げるだけのプレースホルダーとする。本ステップの目的は
+// ビルドターゲットに応じて実装を切り替える「機構」(resolveAlias +
+// tsconfig.standalone.jsonのpaths)自体を確立することであり、クライアントDBの
+// 実動作確認はブラウザ向け`openClientDb`が用意された後のステップで行う。
+import type { TaxYearRepository } from "./taxYearRepository";
 
-const CLIENT_DB_NAME = "kakuteishinnkoku.db";
-
-let repositoryPromise: Promise<TaxYearRepository> | undefined;
-
-function getRepository(): Promise<TaxYearRepository> {
-  if (!repositoryPromise) {
-    repositoryPromise = (async () => {
-      const db = await openClientDb(CLIENT_DB_NAME);
-      await applyClientDbSchema(db);
-      return createClientTaxYearRepository(db);
-    })();
-  }
-  return repositoryPromise;
+function notImplemented(): never {
+  throw new Error(
+    "スタンドアロン版のTaxYearRepositoryクライアント実装は未結線です" +
+      "(ブラウザ向けOPFSベースのopenClientDb実装待ち。README「現在の最優先事項」" +
+      "フェーズ5-1-3bの残課題を参照)。",
+  );
 }
 
-export const defaultTaxYearRepository: TaxYearRepository = {
-  async getOrCreateTaxYear(year) {
-    return (await getRepository()).getOrCreateTaxYear(year);
+export const taxYearRepository: TaxYearRepository = {
+  async getOrCreateTaxYear() {
+    notImplemented();
   },
 
-  async findByYear(year) {
-    return (await getRepository()).findByYear(year);
+  async findByYear() {
+    notImplemented();
   },
 
   async listTaxYears() {
-    return (await getRepository()).listTaxYears();
+    notImplemented();
   },
 
-  async updateCryptoCostMethod(id, cryptoCostMethod) {
-    return (await getRepository()).updateCryptoCostMethod(id, cryptoCostMethod);
+  async updateCryptoCostMethod() {
+    notImplemented();
   },
 };

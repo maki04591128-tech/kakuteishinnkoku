@@ -2,14 +2,13 @@
  * フェーズ1(リポジトリパターン導入): `src/lib/taxYear.ts`が直接
  * `prisma.taxYear`を呼んでいた処理をこのインターフェース経由に置き換える。
  * 自宅サーバー版は`createPrismaTaxYearRepository`(フェーズ5-1-3bで
- * `taxYearRepository.prisma.ts`に分離)を使い続け、スタンドアロン(Android)版は
- * フェーズ2で追加したこの`createClientTaxYearRepository`(wa-sqlite実装)を使う。
- * 挙動は既存のPrisma実装と完全に一致させる。
- *
- * このファイル自体は(型のみの`@prisma/client`参照を除き)`@prisma/client`/
- * `../db`に依存しない。スタンドアロン版バンドルにPrisma(Node専用、WebViewで
- * 動作不可)が引き込まれないようにするため、Prisma実装は
- * `taxYearRepository.prisma.ts`に分離してある(このファイルからはimportしない)。
+ * `taxYearRepository.prisma.ts`に分離。`@prisma/client`(Node専用)に依存するため、
+ * このファイルからは分離しスタンドアロン版バンドルに引き込まれないようにする)を
+ * 使い続け、スタンドアロン(Android)版はフェーズ2で追加した
+ * `createClientTaxYearRepository`(wa-sqlite実装)を使う。挙動は既存のPrisma
+ * 実装と完全に一致させる。ビルドターゲットに応じたどちらを使うかの既定の
+ * 切り替えは`defaultTaxYearRepository.ts`/`defaultTaxYearRepository.standalone.ts`
+ * (`next.config.ts`のresolveAlias経由)が担う。
  */
 import type { CryptoCostMethod, TaxYear } from "@prisma/client";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";

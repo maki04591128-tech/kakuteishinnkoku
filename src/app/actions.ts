@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Decimal } from "decimal.js";
 import type { InvestmentAccountType } from "@prisma/client";
-import { createPrismaTaxYearRepository } from "@/lib/repositories/taxYearRepository.prisma";
+import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
@@ -220,7 +220,6 @@ function isKnownExchangeCsvPreset(
   return preset in EXCHANGE_LABELS;
 }
 
-const taxYearRepository = createPrismaTaxYearRepository();
 const cryptoTradeRepository = createPrismaCryptoTradeRepository();
 const investmentTradeRepository = createPrismaInvestmentTradeRepository();
 const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();

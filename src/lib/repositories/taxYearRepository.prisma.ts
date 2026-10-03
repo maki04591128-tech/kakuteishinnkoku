@@ -1,14 +1,14 @@
 /**
- * フェーズ5-1-3b: `TaxYearRepository`のPrisma実装(`../db`経由で`@prisma/client`に
- * 依存する部分)を`taxYearRepository.ts`から分離したファイル。スタンドアロン版の
- * デフォルト実装(`defaultTaxYearRepository.standalone.ts`)は`taxYearRepository.ts`
- * (クライアント実装のみ)だけを参照し、このファイルは一切importしないため、
- * スタンドアロン版バンドルにPrisma(Node専用、WebViewで動作不可)が
- * 引き込まれない。
+ * フェーズ5-1-3b: `TaxYearRepository`のPrisma実装(自宅サーバー版が使う)。
+ * `../db`経由で`@prisma/client`(Node専用)に依存するため、クライアント実装
+ * (`createClientTaxYearRepository`。`taxYearRepository.ts`)とは別ファイルにする。
+ * これにより、スタンドアロン版ビルドで`@/lib/repositories/defaultTaxYearRepository`を
+ * `defaultTaxYearRepository.standalone.ts`に差し替えた際、このファイル(と
+ * `@prisma/client`本体)がバンドルに引き込まれない。
  */
-import type { CryptoCostMethod, TaxYear } from "@prisma/client";
 import { prisma } from "../db";
 import type { TaxYearRepository } from "./taxYearRepository";
+import type { CryptoCostMethod, TaxYear } from "@prisma/client";
 
 export function createPrismaTaxYearRepository(): TaxYearRepository {
   return {

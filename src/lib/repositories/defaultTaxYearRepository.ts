@@ -1,15 +1,14 @@
-/**
- * フェーズ5-1-3b: `TaxYearRepository`の既定実装をビルドターゲットで切り替える
- * 機構。自宅サーバー版(このファイル)はPrisma実装を使う。スタンドアロン版
- * ビルド(`BUILD_TARGET=standalone`)では、`next.config.ts`のresolveAlias設定
- * (`src/lib/authUi.tsx`/`authUi.standalone.tsx`と同じパターン)により
- * `defaultTaxYearRepository.standalone.ts`に差し替えられる。
- *
- * 呼び出し側(`src/lib/taxYear.ts`)は`@/lib/repositories/defaultTaxYearRepository`
- * という絶対パス(`@/`alias)でimportすること。相対パスでimportすると
- * resolveAliasが一致せず差し替えが効かない。
- */
+// 自宅サーバー版の既定実装。スタンドアロン版ビルド(`BUILD_TARGET=standalone`)では
+// next.config.tsのresolveAlias設定により`defaultTaxYearRepository.standalone.ts`に
+// 差し替えられ、このファイル(と依存先の`taxYearRepository.prisma.ts`・`@prisma/client`)
+// はビルド対象に含まれない(フェーズ5-1-3b。`@/lib/authUi`と同種のパターン)。
+//
+// 各モジュールはこれまで個別に`createPrismaTaxYearRepository()`を呼び出していたが、
+// ビルドターゲットで切り替えられるようにするため、この`taxYearRepository`
+// シングルトンを`@/lib/repositories/defaultTaxYearRepository`経由で参照する形に
+// 統一する(importはresolveAliasが拾える絶対パス表記にすること。相対パスでは
+// 差し替えが効かない)。
 import { createPrismaTaxYearRepository } from "./taxYearRepository.prisma";
 import type { TaxYearRepository } from "./taxYearRepository";
 
-export const defaultTaxYearRepository: TaxYearRepository = createPrismaTaxYearRepository();
+export const taxYearRepository: TaxYearRepository = createPrismaTaxYearRepository();

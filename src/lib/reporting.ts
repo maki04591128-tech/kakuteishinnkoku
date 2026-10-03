@@ -1,5 +1,5 @@
 import { Decimal } from "decimal.js";
-import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository.prisma";
+import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { createPrismaCryptoTradeRepository } from "./repositories/cryptoTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "./repositories/cryptoMarginTradeRepository";
 import { createPrismaCryptoCreditTradeRepository } from "./repositories/cryptoCreditTradeRepository";
@@ -55,7 +55,6 @@ import {
   type AssetBalanceReconciliationResult,
 } from "./moneyforward/assetBalanceReconciliation";
 
-const taxYearRepository = createPrismaTaxYearRepository();
 const cryptoTradeRepository = createPrismaCryptoTradeRepository();
 const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();
 const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();

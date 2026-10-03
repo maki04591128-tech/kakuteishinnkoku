@@ -1,9 +1,8 @@
 import { Decimal } from "decimal.js";
 import { createPrismaCertifiedHousingConstructionCreditCarryforwardRepository } from "./repositories/certifiedHousingConstructionCreditCarryforwardRepository";
 import { createPrismaCertifiedHousingConstructionCreditRecordRepository } from "./repositories/certifiedHousingConstructionCreditRecordRepository";
-import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository.prisma";
+import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 
-const taxYearRepository = createPrismaTaxYearRepository();
 const certifiedHousingConstructionCreditRecordRepository =
   createPrismaCertifiedHousingConstructionCreditRecordRepository();
 const certifiedHousingConstructionCreditCarryforwardRepository =

@@ -1,8 +1,7 @@
 import { Decimal } from "decimal.js";
 import { createPrismaMortgageDeductionRecordRepository } from "./repositories/mortgageDeductionRecordRepository";
-import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository.prisma";
+import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 
-const taxYearRepository = createPrismaTaxYearRepository();
 const mortgageDeductionRecordRepository = createPrismaMortgageDeductionRecordRepository();
 
 /**
