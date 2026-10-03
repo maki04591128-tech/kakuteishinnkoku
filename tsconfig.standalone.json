@@ -9,6 +9,9 @@
       ],
       "@/lib/repositories/defaultEmploymentIncomeRecordRepository": [
         "./src/lib/repositories/defaultEmploymentIncomeRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository": [
+        "./src/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository.standalone.ts"
       ]
     }
   }

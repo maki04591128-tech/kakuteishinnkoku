@@ -2,8 +2,12 @@
  * フェーズ2-4: `createClientBarrierFreeRenovationDeductionRecordRepository`(wa-sqlite実装)が
  * `BarrierFreeRenovationDeductionRecordRepository`インターフェースを、Prisma実装
  * (`createPrismaBarrierFreeRenovationDeductionRecordRepository`)と同じ挙動で満たすことを検証する。
+ *
+ * フェーズ5-1-3bで`creditJpy`の復元に使うDecimal実装を`@prisma/client`の`Prisma.Decimal`ではなく
+ * `decimal.js`の`Decimal`に変更したため(クライアント実装が実行時に`@prisma/client`へ依存しない
+ * ようにするため)、instanceofの確認も`decimal.js`側のクラスで行う。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -36,7 +40,7 @@ describe("createClientBarrierFreeRenovationDeductionRecordRepository", () => {
     const record = await repo.findByTaxYearId(1);
     expect(record).not.toBeNull();
     expect(record?.taxYearId).toBe(1);
-    expect(record?.creditJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.creditJpy).toBeInstanceOf(Decimal);
     expect(record?.creditJpy.toString()).toBe("150000");
     expect(record?.id).toBeTypeOf("number");
     expect(record?.createdAt).toBeInstanceOf(Date);
