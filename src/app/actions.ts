@@ -176,6 +176,10 @@ import {
 import { addFuturesTradeCore, deleteFuturesTradeCore } from "@/lib/actions/futuresTrade";
 import { setOpeningBalanceCore, deleteOpeningBalanceCore } from "@/lib/actions/openingBalance";
 import {
+  setNisaLifetimeQuotaCore,
+  deleteNisaLifetimeQuotaCore,
+} from "@/lib/actions/nisaLifetimeQuota";
+import {
   setOpeningBalanceByInstitutionCore,
   deleteOpeningBalanceByInstitutionCore,
 } from "@/lib/actions/openingBalanceByInstitution";
@@ -1027,30 +1031,30 @@ export async function setNisaLifetimeQuota(formData: FormData): Promise<void> {
   const nisaType = requireString(formData, "nisaType");
   const openingUsedJpy = requireString(formData, "openingUsedJpy");
   const soldCostBasisJpy = optionalString(formData, "soldCostBasisJpy") ?? "0";
-  if (nisaType !== "TSUMITATE" && nisaType !== "GROWTH") {
-    throw new Error("NISA枠区分が不正です");
-  }
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await nisaLifetimeQuotaRepository.upsert({
-    taxYearId: taxYear.id,
-    nisaType,
-    openingUsedJpy,
-    soldCostBasisJpy,
-  });
+  const { redirectTo } = await setNisaLifetimeQuotaCore(
+    taxYearRepository,
+    nisaLifetimeQuotaRepository,
+    { year, nisaType, openingUsedJpy, soldCostBasisJpy },
+  );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=nisaLifetime`);
+  redirect(redirectTo);
 }
 
 export async function deleteNisaLifetimeQuota(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await nisaLifetimeQuotaRepository.delete(id);
+
+  const { redirectTo } = await deleteNisaLifetimeQuotaCore(
+    nisaLifetimeQuotaRepository,
+    { id, year },
+  );
+
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=nisaLifetime`);
+  redirect(redirectTo);
 }
 
 /**

@@ -2958,6 +2958,28 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   繰越・引継ぎ系(`carryForwardFuturesLoss`等)・`NisaLifetimeQuota`系で、
   次のステップ以降で適用していく。
 
+- [x] 3-36. `setNisaLifetimeQuota`/`deleteNisaLifetimeQuota`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/nisaLifetimeQuota.ts`に
+  `setNisaLifetimeQuotaCore`/`deleteNisaLifetimeQuotaCore`を追加した。
+  3-31の`setOpeningBalance`と同じ「`TaxYearRepository`と個別リポジトリの
+  2つに依存し、固有のバリデーションを1件持つ」パターンで、こちらは
+  NISA枠区分(`nisaType`)が`TSUMITATE`/`GROWTH`のいずれかであることの
+  検証を含む(内容は元の実装から変更していない)。`src/app/actions.ts`の
+  `setNisaLifetimeQuota`/`deleteNisaLifetimeQuota`は、FormDataの解釈と
+  コア関数の呼び出し、`revalidatePath`(`/import`・`/`の2つ。従来と同一)/
+  `redirect`の実行のみを行う薄いラッパーに書き換えた(挙動は従来と完全に
+  同一)。`nisaLifetimeQuota.test.ts`を新規に追加し、正常系のupsert・
+  バリデーションエラー・`delete`呼び出しと`redirectTo`算出を検証した
+  (`npm run test`・`npm run lint`・`npx tsc --noEmit`が成功することを
+  確認済み。`npx tsc --noEmit`は3-3以降と同様、本変更と無関係の既存
+  エラー(`src/app/layout.tsx`の`LayoutProps`)のみ)。同ファイルの
+  `carryForwardNisaLifetimeQuota`は`buildYearReport`にも依存する別の
+  アクションのため、本ステップの対象外(繰越・引継ぎ系と合わせて次の
+  ステップ以降で対応)。残る未着手の`actions.ts`エクスポート関数は
+  CSVインポート系(`importMoneyForwardCsv`等)と繰越・引継ぎ系
+  (`carryForwardFuturesLoss`等)のみとなった。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
