@@ -64,6 +64,10 @@ import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
 import { deriveNisaLifetimeCarryForwardCandidates } from "@/lib/investment/nisaQuota";
 import { setCryptoCostMethodCore } from "@/lib/actions/setCryptoCostMethod";
 import {
+  addInvestmentTradeCore,
+  deleteInvestmentTradeCore,
+} from "@/lib/actions/investmentTrade";
+import {
   setAssetSymbolMappingCore,
   deleteAssetSymbolMappingCore,
 } from "@/lib/actions/assetSymbolMapping";
@@ -413,65 +417,44 @@ export async function addCryptoTrade(formData: FormData): Promise<void> {
 
 export async function addInvestmentTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
 
-  const isNisa = formData.get("isNisa") === "on";
-  // チェックボックスは既定でオン(上場株式等)。外すと一般株式等(非上場株式)
-  // として登録する。NISA口座は上場株式等等のみが対象のため、非上場株式との
-  // 組み合わせは拒否する。
-  const isListed = formData.get("isListed") === "on";
-  if (isNisa && !isListed) {
-    throw new Error("一般株式等(非上場株式)はNISA口座の対象外です");
-  }
-
-  const assetType = requireString(formData, "assetType");
-  const isReit = formData.get("isReit") === "on";
-  if (isReit && assetType !== "ETF") {
-    throw new Error("J-REITは資産種別「ETF」の場合のみ指定できます");
-  }
-  const mutualFundHighForeignRatio = formData.get("mutualFundHighForeignRatio") === "on";
-  if (mutualFundHighForeignRatio && assetType !== "MUTUAL_FUND") {
-    throw new Error(
-      "外貨建資産等の組入割合50%超75%以下は資産種別「投資信託」の場合のみ指定できます",
-    );
-  }
-  const mutualFundVeryHighForeignRatio =
-    formData.get("mutualFundVeryHighForeignRatio") === "on";
-  if (mutualFundVeryHighForeignRatio && assetType !== "MUTUAL_FUND") {
-    throw new Error(
-      "外貨建資産等の組入割合75%超は資産種別「投資信託」の場合のみ指定できます",
-    );
-  }
-
-  await investmentTradeRepository.create({
-    taxYearId: taxYear.id,
-    tradedAt: new Date(requireString(formData, "tradedAt")),
-    symbol: requireString(formData, "symbol"),
-    name: optionalString(formData, "name"),
-    assetType: assetType as never,
-    isReit,
-    mutualFundHighForeignRatio,
-    mutualFundVeryHighForeignRatio,
-    isListed,
-    type: requireString(formData, "type") as never,
-    quantity: requireString(formData, "quantity"),
-    unitPriceJpy: requireString(formData, "unitPriceJpy"),
-    feeJpy: optionalString(formData, "feeJpy") ?? "0",
-    accountType: requireString(formData, "accountType") as never,
-    isNisa,
-    nisaType: optionalString(formData, "nisaType") as never,
-    isForeign: formData.get("isForeign") === "on",
-    foreignTaxWithheldJpy: optionalString(formData, "foreignTaxWithheldJpy") ?? "0",
-    distributionAdjustedForeignTaxJpy:
-      optionalString(formData, "distributionAdjustedForeignTaxJpy") ?? "0",
-    broker: optionalString(formData, "broker"),
-    memo: optionalString(formData, "memo"),
-    source: "manual",
-  });
+  const { redirectTo } = await addInvestmentTradeCore(
+    taxYearRepository,
+    investmentTradeRepository,
+    {
+      year,
+      // チェックボックスは既定でオン(上場株式等)。外すと一般株式等(非上場株式)
+      // として登録する。
+      isNisa: formData.get("isNisa") === "on",
+      isListed: formData.get("isListed") === "on",
+      assetType: requireString(formData, "assetType"),
+      isReit: formData.get("isReit") === "on",
+      mutualFundHighForeignRatio: formData.get("mutualFundHighForeignRatio") === "on",
+      mutualFundVeryHighForeignRatio:
+        formData.get("mutualFundVeryHighForeignRatio") === "on",
+      tradedAt: requireString(formData, "tradedAt"),
+      symbol: requireString(formData, "symbol"),
+      name: optionalString(formData, "name"),
+      type: requireString(formData, "type"),
+      quantity: requireString(formData, "quantity"),
+      unitPriceJpy: requireString(formData, "unitPriceJpy"),
+      feeJpy: optionalString(formData, "feeJpy"),
+      accountType: requireString(formData, "accountType"),
+      nisaType: optionalString(formData, "nisaType"),
+      isForeign: formData.get("isForeign") === "on",
+      foreignTaxWithheldJpy: optionalString(formData, "foreignTaxWithheldJpy"),
+      distributionAdjustedForeignTaxJpy: optionalString(
+        formData,
+        "distributionAdjustedForeignTaxJpy",
+      ),
+      broker: optionalString(formData, "broker"),
+      memo: optionalString(formData, "memo"),
+    },
+  );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=investment`);
+  redirect(redirectTo);
 }
 
 export async function deleteCryptoTrade(formData: FormData): Promise<void> {
@@ -640,10 +623,15 @@ export async function importCryptoMarginCsv(formData: FormData): Promise<void> {
 export async function deleteInvestmentTrade(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await investmentTradeRepository.delete(id);
+
+  const { redirectTo } = await deleteInvestmentTradeCore(investmentTradeRepository, {
+    id,
+    year,
+  });
+
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=investment`);
+  redirect(redirectTo);
 }
 
 export async function addFuturesTrade(formData: FormData): Promise<void> {
