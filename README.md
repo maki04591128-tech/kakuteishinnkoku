@@ -2786,6 +2786,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (いずれも本ステップと同様、追加バリデーション無しの単純な取引記録と見られる)で、
   次のステップ以降でまずバリデーション無しの残りに適用していく。
 
+- [x] 3-28. `addCryptoCreditTrade`/`deleteCryptoCreditTrade`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/cryptoCreditTrade.ts`に
+  `addCryptoCreditTradeCore`/`deleteCryptoCreditTradeCore`を追加した。3-26の
+  `addCryptoTrade`/`deleteCryptoTrade`・3-27の`addCryptoMarginTrade`/
+  `deleteCryptoMarginTrade`と同じ「取引記録(1年に複数件登録できるレコード)
+  1件ごとの追加・削除」パターンの3例目。暗号資産のクレジット取引
+  (`CryptoCreditTrade`)も`addInvestmentTrade`のNISA判定のような追加
+  バリデーションが無く、symbolの大文字化・`feeJpy`/`interestAdjustmentJpy`
+  省略時の`"0"`補完のみのため、3-27に続く対象として選んだ(`CryptoMarginTrade`と
+  異なり`source`カラムが無いため、`create`の引数にも含めていない)。
+  `src/app/actions.ts`の`addCryptoCreditTrade`/`deleteCryptoCreditTrade`は、
+  FormDataの解釈とコア関数の呼び出し、`revalidatePath`(`/import`・`/`の2つ。
+  従来と同一)/`redirect`の実行のみを行う薄いラッパーに書き換えた(挙動は従来と
+  完全に同一)。`cryptoCreditTrade.test.ts`を新規に追加し、`create`への引数
+  (symbol大文字化・feeJpy/interestAdjustmentJpy補完を含む)・`delete`呼び出し・
+  両ケースの`redirectTo`算出を検証した(`npm run test`・`npm run lint`・
+  `npx tsc --noEmit`が成功することを確認済み)。残る取引記録の追加・削除は
+  `addInvestmentTrade`/`deleteInvestmentTrade`(NISA・REIT等の追加バリデーション
+  を伴う)・`addStockMarginTrade`/`addFuturesTrade`(いずれも本ステップと同様、
+  追加バリデーション無しの単純な取引記録と見られる)で、次のステップ以降で
+  まずバリデーション無しの残りに適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
@@ -2810,7 +2833,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
-  (Server Actions/Server Componentsの置き換え)を3-26まで進行中)から1つずつ
+  (Server Actions/Server Componentsの置き換え)を3-28まで進行中)から1つずつ
   着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
