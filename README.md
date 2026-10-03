@@ -3287,15 +3287,38 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (切り替え機構を導入する必要がない)。**この移行対象からは除外する。**
   `src/app/actions.ts`は他の多数のモデルを集約的に消費するため5-1-3d
   (`actions.ts`自体の分割)と合わせて扱う。残る移行対象は`src/lib/reporting.ts`・
-  各種控除計算モジュール(`barrierFreeRenovationDeduction.ts`・
-  `certifiedHousingConstructionCredit.ts`・`childRearingRenovationDeduction.ts`・
+  各種控除計算モジュール(`certifiedHousingConstructionCredit.ts`・
+  `childRearingRenovationDeduction.ts`・
   `donationTaxCredit.ts`・`durabilityImprovementRenovationDeduction.ts`・
   `earthquakeRenovationDeduction.ts`・`energySavingRenovationDeduction.ts`・
   `incomeDeduction.ts`・`investment/distributionAdjustedForeignTaxCredit.ts`・
   `investment/foreignTaxCredit.ts`・`mortgageDeduction.ts`・
   `multiHouseholdRenovationDeduction.ts`・`openingBalance.ts`・
   `residentTaxAdjustmentDeduction.ts`)。いずれもDecimal列を持つため、上記の
-  `decodeDecimal`方式を適用すること。
+  `decodeDecimal`方式を適用すること(`barrierFreeRenovationDeduction.ts`は
+  下記2026-10-03追記の通り完了済みのため、このリストから除外した)。
+
+  **追記(2026-10-03、`BarrierFreeRenovationDeductionRecordRepository`への適用):**
+  `EmploymentIncomeRecordRepository`と同じパターンを
+  `BarrierFreeRenovationDeductionRecordRepository`
+  (`src/lib/barrierFreeRenovationDeduction.ts`・`src/app/actions.ts`が消費)にも
+  適用した。`src/lib/repositories/barrierFreeRenovationDeductionRecordRepository.ts`
+  から`@prisma/client`(`../db`)に依存する
+  `createPrismaBarrierFreeRenovationDeductionRecordRepository`を
+  `barrierFreeRenovationDeductionRecordRepository.prisma.ts`に分離し、
+  `defaultBarrierFreeRenovationDeductionRecordRepository.ts`(自宅サーバー版の
+  既定実装)と`defaultBarrierFreeRenovationDeductionRecordRepository.standalone.ts`
+  (未結線プレースホルダー)を`next.config.ts`/`tsconfig.standalone.json`に追加した。
+  両消費先を`@/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository`
+  経由の参照に統一した(`src/app/actions.ts`の直接呼び出しも、
+  `EmploymentIncomeRecordRepository`の前例と同様この時点で解消した)。
+  このモデルも`EmploymentIncomeRecordRepository`の`grossSalaryJpy`と同様
+  `creditJpy`(Decimal型)の復元処理が`new Prisma.Decimal(...)`(`@prisma/client`からの
+  値import)を使っていたため、同じく`decimalCodec.ts`の`decodeDecimal`に置き換えた
+  (既存テストの`instanceof`検証も`Prisma.Decimal`から`decimal.js`の`Decimal`に変更)。
+  `npm run test`(全178ファイル1629件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで無関係)が
+  成功することを確認した。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。
@@ -3320,7 +3343,8 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3・
   フェーズ4・5-1・5-1-2・5-1-3a・5-1-3b(`TaxYearRepository`・
-  `EmploymentIncomeRecordRepository`の2つ)が完了し、5-1-3bの残り(他リポジトリへの
+  `EmploymentIncomeRecordRepository`・`BarrierFreeRenovationDeductionRecordRepository`の
+  3つ)が完了し、5-1-3bの残り(他リポジトリへの
   同パターン適用。`src/lib/auth/loginRateLimit.ts`は`src/lib/auth`ディレクトリ自体が
   スタンドアロン版ビルドから丸ごと除外されるため対象外。`src/app/actions.ts`は
   5-1-3dと合わせて扱う。残る対象ファイルは`grep -rln "createPrisma.*Repository()"

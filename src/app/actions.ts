@@ -6,6 +6,7 @@ import { Decimal } from "decimal.js";
 import type { InvestmentAccountType } from "@prisma/client";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { employmentIncomeRecordRepository } from "@/lib/repositories/defaultEmploymentIncomeRecordRepository";
+import { barrierFreeRenovationDeductionRecordRepository } from "@/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
@@ -31,7 +32,6 @@ import { createPrismaDonationTaxCreditRecordRepository } from "@/lib/repositorie
 import { createPrismaDistributionAdjustedForeignTaxCreditRecordRepository } from "@/lib/repositories/distributionAdjustedForeignTaxCreditRecordRepository";
 import { createPrismaEarthquakeRenovationDeductionRecordRepository } from "@/lib/repositories/earthquakeRenovationDeductionRecordRepository";
 import { createPrismaEnergySavingRenovationDeductionRecordRepository } from "@/lib/repositories/energySavingRenovationDeductionRecordRepository";
-import { createPrismaBarrierFreeRenovationDeductionRecordRepository } from "@/lib/repositories/barrierFreeRenovationDeductionRecordRepository";
 import { createPrismaMultiHouseholdRenovationDeductionRecordRepository } from "@/lib/repositories/multiHouseholdRenovationDeductionRecordRepository";
 import { createPrismaDurabilityImprovementRenovationDeductionRecordRepository } from "@/lib/repositories/durabilityImprovementRenovationDeductionRecordRepository";
 import { createPrismaChildRearingRenovationDeductionRecordRepository } from "@/lib/repositories/childRearingRenovationDeductionRecordRepository";
@@ -253,8 +253,6 @@ const earthquakeRenovationDeductionRecordRepository =
   createPrismaEarthquakeRenovationDeductionRecordRepository();
 const energySavingRenovationDeductionRecordRepository =
   createPrismaEnergySavingRenovationDeductionRecordRepository();
-const barrierFreeRenovationDeductionRecordRepository =
-  createPrismaBarrierFreeRenovationDeductionRecordRepository();
 const multiHouseholdRenovationDeductionRecordRepository =
   createPrismaMultiHouseholdRenovationDeductionRecordRepository();
 const durabilityImprovementRenovationDeductionRecordRepository =
