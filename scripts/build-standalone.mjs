@@ -11,13 +11,28 @@ import path from "node:path";
 
 const root = process.cwd();
 
-// 退避対象(README「現状分析」フェーズ4の決定に基づく3箇所)。
-// `src/lib/authUi.tsx`は上記3箇所に依存する自宅サーバー版向け実装で、
+// 退避対象(README「現状分析」フェーズ4の決定に基づく認証関連3箇所+
+// フェーズ5-1-2で判明した`/api/export`)。
+// `src/lib/authUi.tsx`は認証関連3箇所に依存する自宅サーバー版向け実装で、
 // スタンドアロン版ではnext.config.tsのresolveAlias設定により
 // `authUi.standalone.tsx`に差し替えられ参照されなくなるが、`next build`の
 // 型チェックはバンドラのalias設定を認識せず`src/lib/authUi.tsx`自体を直接
 // 型チェックしてしまうため、他の3箇所と同様に退避する。
-const EXCLUDED_PATHS = ["src/proxy.ts", "src/app/login", "src/lib/auth", "src/lib/authUi.tsx"];
+//
+// `src/app/api/export`(CSV下書き出力用のRoute Handler)は、Requestに応じて
+// 動的にレスポンスを生成する以上`output: "export"`とは併用できない
+// (`force-static`/`revalidate`未設定のRoute Handlerは静的書き出し非対応。
+// README フェーズ5-1-2で確認済み)。スタンドアロン版では、このルートが行って
+// いたCSV生成(`buildDraftCsvExport`)をブラウザ上で直接実行しBlobダウンロード
+// させる形に置き換える想定(フェーズ5-1-3の残課題)のため、ルート自体を
+// ビルド対象から除外する。
+const EXCLUDED_PATHS = [
+  "src/proxy.ts",
+  "src/app/login",
+  "src/lib/auth",
+  "src/lib/authUi.tsx",
+  "src/app/api/export",
+];
 
 // Next.jsのApp Routerは`src/app/`配下のディレクトリ名に関わらず`page.tsx`等を
 // 走査するため、`src/app/login`を単にリネームするだけでは別ルートとして
