@@ -6,7 +6,7 @@
 // (README「現在の最優先事項」フェーズ4の決定)。自宅サーバー版(`npm run build`)
 // はこのスクリプトを経由しないため一切影響を受けない。
 import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
@@ -73,14 +73,42 @@ function restore() {
   }
 }
 
+// `SIGINT`/`SIGTERM`で中断された場合(Ctrl-Cやシェルの`timeout`コマンド等)にも
+// 退避したファイルを必ず元に戻す。`spawnSync`は同期的にイベントループを
+// ブロックするため、ブロック中に届いたシグナルをNode側のハンドラで拾えず
+// (デフォルト動作でそのまま終了し、下の`finally`が実行されない)退避済みの
+// ファイルが残ってしまう不具合が実際に発生したため、イベントループを
+// ブロックしない非同期の`spawn`に変更し、シグナルハンドラで`restore()`を
+// 呼べるようにした。
+function runNextBuild() {
+  return new Promise((resolve, reject) => {
+    const child = spawn("npx", ["next", "build"], {
+      cwd: root,
+      stdio: "inherit",
+      env: { ...process.env, BUILD_TARGET: "standalone" },
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => resolve(code ?? 1));
+  });
+}
+
+let restored = false;
+function restoreOnce() {
+  if (restored) return;
+  restored = true;
+  restore();
+}
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    restoreOnce();
+    process.exit(1);
+  });
+}
+
 moveAway();
 try {
-  const result = spawnSync("npx", ["next", "build"], {
-    cwd: root,
-    stdio: "inherit",
-    env: { ...process.env, BUILD_TARGET: "standalone" },
-  });
-  process.exitCode = result.status ?? 1;
+  process.exitCode = await runNextBuild();
 } finally {
-  restore();
+  restoreOnce();
 }
