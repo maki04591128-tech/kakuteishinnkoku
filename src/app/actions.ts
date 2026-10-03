@@ -143,6 +143,10 @@ import {
   saveIncomeDeductionCore,
   deleteIncomeDeductionCore,
 } from "@/lib/actions/incomeDeductionRecord";
+import {
+  saveResidentTaxAdjustmentDeductionRecordCore,
+  deleteResidentTaxAdjustmentDeductionRecordCore,
+} from "@/lib/actions/residentTaxAdjustmentDeductionRecord";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1920,17 +1924,15 @@ export async function saveResidentTaxAdjustmentDeductionRecord(
   const year = Number(requireString(formData, "year"));
   const adjustmentDeductionJpy = requireString(formData, "adjustmentDeductionJpy");
 
-  const taxYear = await getOrCreateTaxYear(year);
-  await residentTaxAdjustmentDeductionRecordRepository.upsert({
-    taxYearId: taxYear.id,
-    adjustmentDeductionJpy,
-  });
+  const { redirectTo } = await saveResidentTaxAdjustmentDeductionRecordCore(
+    taxYearRepository,
+    residentTaxAdjustmentDeductionRecordRepository,
+    { year, adjustmentDeductionJpy },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/resident-tax-adjustment-deduction");
-  redirect(
-    `/resident-tax-adjustment-deduction?year=${year}&residentTaxAdjustmentDeductionSaved=1`,
-  );
+  redirect(redirectTo);
 }
 
 /**
@@ -1942,16 +1944,16 @@ export async function deleteResidentTaxAdjustmentDeductionRecord(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await residentTaxAdjustmentDeductionRecordRepository.deleteByTaxYearId(taxYear.id);
-  }
+
+  const { redirectTo } = await deleteResidentTaxAdjustmentDeductionRecordCore(
+    taxYearRepository,
+    residentTaxAdjustmentDeductionRecordRepository,
+    { year },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/resident-tax-adjustment-deduction");
-  redirect(
-    `/resident-tax-adjustment-deduction?year=${year}&residentTaxAdjustmentDeductionDeleted=1`,
-  );
+  redirect(redirectTo);
 }
 
 /**
