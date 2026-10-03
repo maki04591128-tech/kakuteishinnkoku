@@ -2719,6 +2719,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   同じ「発生年の入力・バリデーションが無い単純な年単位レコードの登録/削除」
   パターン、フィールドは`grossSalaryJpy`1つ)に同様に適用していく。
 
+- [x] 3-25. `saveEmploymentIncomeRecord`/`deleteEmploymentIncomeRecord`の
+      コア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/employmentIncomeRecord.ts`に
+  `saveEmploymentIncomeRecordCore`/`deleteEmploymentIncomeRecordCore`を追加した。
+  3-12〜3-24と同じ「発生年の入力・バリデーションが無い単純な年単位レコードの
+  登録/削除」パターン(フィールドは`grossSalaryJpy`1つ)のため、同パターンを
+  そのまま適用した。`src/app/actions.ts`の`saveEmploymentIncomeRecord`/
+  `deleteEmploymentIncomeRecord`は、FormDataの解釈とコア関数の呼び出し、
+  `revalidatePath`(`/tax-estimate`・`/employment-income`の2つ。従来と同一)/
+  `redirect`の実行のみを行う薄いラッパーに書き換えた(挙動は従来と完全に同一)。
+  `employmentIncomeRecord.test.ts`を新規に追加し、`upsert`引数・削除時に対象年の
+  TaxYearが存在する/しないそれぞれのケースでの`deleteByTaxYearId`呼び出しの
+  有無、両ケースの`redirectTo`算出を検証した(`npm run test`・`npm run lint`・
+  `npx tsc --noEmit`が成功することを確認済み。`npx tsc --noEmit`実行前に
+  `npx next typegen`でNext.js 16の型生成(`LayoutProps`等のルート型)を
+  実行する必要があった。このクラウド開発環境では`node_modules`・
+  `.next/types`が初期状態に存在せず、`npm ci`→`npx prisma generate`→
+  `npx next typegen`の順で用意した)。これで3-12〜3-25の「発生年の入力・
+  バリデーションが無い単純な年単位レコードの登録/削除」パターンに該当する
+  アクションは全て移行完了した。残る未移行のアクションは、取引記録の追加・
+  削除(`addCryptoTrade`等)・繰越計算(`carryForwardFuturesLoss`等、
+  `buildYearReport`を使う前年レポート参照を伴う)・CSVインポート
+  (`importMoneyForwardCsv`等)など、単純な年単位レコードの登録/削除より
+  複雑な処理のため、次のステップ以降で個別にパターンを検討する。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証

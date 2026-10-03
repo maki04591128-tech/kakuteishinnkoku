@@ -147,6 +147,10 @@ import {
   saveResidentTaxAdjustmentDeductionRecordCore,
   deleteResidentTaxAdjustmentDeductionRecordCore,
 } from "@/lib/actions/residentTaxAdjustmentDeductionRecord";
+import {
+  saveEmploymentIncomeRecordCore,
+  deleteEmploymentIncomeRecordCore,
+} from "@/lib/actions/employmentIncomeRecord";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1966,15 +1970,15 @@ export async function saveEmploymentIncomeRecord(formData: FormData): Promise<vo
   const year = Number(requireString(formData, "year"));
   const grossSalaryJpy = requireString(formData, "grossSalaryJpy");
 
-  const taxYear = await getOrCreateTaxYear(year);
-  await employmentIncomeRecordRepository.upsert({
-    taxYearId: taxYear.id,
-    grossSalaryJpy,
-  });
+  const { redirectTo } = await saveEmploymentIncomeRecordCore(
+    taxYearRepository,
+    employmentIncomeRecordRepository,
+    { year, grossSalaryJpy },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/employment-income");
-  redirect(`/employment-income?year=${year}&employmentIncomeSaved=1`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1983,14 +1987,16 @@ export async function saveEmploymentIncomeRecord(formData: FormData): Promise<vo
  */
 export async function deleteEmploymentIncomeRecord(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await employmentIncomeRecordRepository.deleteByTaxYearId(taxYear.id);
-  }
+
+  const { redirectTo } = await deleteEmploymentIncomeRecordCore(
+    taxYearRepository,
+    employmentIncomeRecordRepository,
+    { year },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/employment-income");
-  redirect(`/employment-income?year=${year}&employmentIncomeDeleted=1`);
+  redirect(redirectTo);
 }
 
 export async function setCasualtyLossCarryforward(formData: FormData): Promise<void> {
