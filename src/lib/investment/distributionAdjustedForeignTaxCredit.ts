@@ -1,8 +1,7 @@
 import { Decimal } from "decimal.js";
 import { createPrismaDistributionAdjustedForeignTaxCreditRecordRepository } from "../repositories/distributionAdjustedForeignTaxCreditRecordRepository";
-import { createPrismaTaxYearRepository } from "../repositories/taxYearRepository";
+import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 
-const taxYearRepository = createPrismaTaxYearRepository();
 const distributionAdjustedForeignTaxCreditRecordRepository =
   createPrismaDistributionAdjustedForeignTaxCreditRecordRepository();
 

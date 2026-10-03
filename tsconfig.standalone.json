@@ -3,7 +3,10 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"],
-      "@/lib/authUi": ["./src/lib/authUi.standalone.tsx"]
+      "@/lib/authUi": ["./src/lib/authUi.standalone.tsx"],
+      "@/lib/repositories/defaultTaxYearRepository": [
+        "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
+      ]
     }
   }
 }
