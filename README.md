@@ -2693,6 +2693,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   バリデーションが無い単純な年単位レコードの登録/削除」パターン、フィールドは
   `adjustmentDeductionJpy`1つ)に同様に適用していく。
 
+- [x] 3-24. `saveResidentTaxAdjustmentDeductionRecord`/
+      `deleteResidentTaxAdjustmentDeductionRecord`のコア関数を抽出
+
+  **実装内容(2026-10-03):**
+  `src/lib/actions/residentTaxAdjustmentDeductionRecord.ts`に
+  `saveResidentTaxAdjustmentDeductionRecordCore`/
+  `deleteResidentTaxAdjustmentDeductionRecordCore`を追加した。3-12〜3-22と同じ
+  「発生年の入力・バリデーションが無い単純な年単位レコードの登録/削除」パターン
+  (フィールドは`adjustmentDeductionJpy`1つ)のため、同パターンをそのまま適用した
+  (遷移先のクエリパラメータ名のみ`saved`/`deleted`ではなく既存実装通り
+  `residentTaxAdjustmentDeductionSaved`/`residentTaxAdjustmentDeductionDeleted`を
+  維持)。`src/app/actions.ts`の`saveResidentTaxAdjustmentDeductionRecord`/
+  `deleteResidentTaxAdjustmentDeductionRecord`は、FormDataの解釈とコア関数の
+  呼び出し、`revalidatePath`(`/tax-estimate`・`/resident-tax-adjustment-deduction`
+  の2つ。従来と同一)/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。
+  `residentTaxAdjustmentDeductionRecord.test.ts`を新規に追加し、`upsert`引数・
+  削除時に対象年のTaxYearが存在する/しないそれぞれのケースでの
+  `deleteByTaxYearId`呼び出しの有無、両ケースの`redirectTo`算出を検証した
+  (`npm run test`・`npm run lint`・`npx tsc --noEmit`が成功することを確認済み。
+  `npx tsc --noEmit`の`src/app/layout.tsx`の`LayoutProps`エラーは3-3以降と同様、
+  本変更と無関係な環境起因の既存エラー)。残る未移行のアクションのうち次は
+  `saveEmploymentIncomeRecord`/`deleteEmploymentIncomeRecord`(3-12〜3-22・3-24と
+  同じ「発生年の入力・バリデーションが無い単純な年単位レコードの登録/削除」
+  パターン、フィールドは`grossSalaryJpy`1つ)に同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
@@ -2717,7 +2743,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
-  (Server Actions/Server Componentsの置き換え)を3-23まで進行中)から1つずつ
+  (Server Actions/Server Componentsの置き換え)を3-24まで進行中)から1つずつ
   着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
