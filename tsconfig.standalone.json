@@ -6,6 +6,9 @@
       "@/lib/authUi": ["./src/lib/authUi.standalone.tsx"],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultEmploymentIncomeRecordRepository": [
+        "./src/lib/repositories/defaultEmploymentIncomeRecordRepository.standalone.ts"
       ]
     }
   }

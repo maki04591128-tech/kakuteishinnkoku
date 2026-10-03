@@ -1,9 +1,7 @@
 import { Decimal } from "decimal.js";
-import { createPrismaEmploymentIncomeRecordRepository } from "./repositories/employmentIncomeRecordRepository";
+import { employmentIncomeRecordRepository } from "@/lib/repositories/defaultEmploymentIncomeRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { employmentIncomeDeductionJpy } from "./specificExpenseDeduction";
-
-const employmentIncomeRecordRepository = createPrismaEmploymentIncomeRecordRepository();
 
 /**
  * 給与所得の試算(`/employment-income`)。給与収入金額(源泉徴収票の「支払金額」)から、

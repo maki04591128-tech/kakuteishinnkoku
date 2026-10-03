@@ -3244,6 +3244,58 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (シェルの`timeout --signal=TERM`・手動`kill`・バックグラウンドタスクの
   ハーネスによる強制終了の3パターンいずれでも、退避済みファイルが正しく
   復元されることを確認済み)。
+
+  **追記(2026-10-03、`EmploymentIncomeRecordRepository`への適用・残課題の精査):**
+  5-1-3bで確立したパターンを`EmploymentIncomeRecordRepository`
+  (`src/lib/employmentIncome.ts`・`src/app/actions.ts`が消費)にも適用した。
+  `src/lib/repositories/employmentIncomeRecordRepository.ts`から`@prisma/client`
+  (`../db`)に依存する`createPrismaEmploymentIncomeRecordRepository`を
+  `employmentIncomeRecordRepository.prisma.ts`に分離し、
+  `defaultEmploymentIncomeRecordRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultEmploymentIncomeRecordRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。両消費先を
+  `@/lib/repositories/defaultEmploymentIncomeRecordRepository`経由の参照に統一した。
+
+  **新たに判明した問題と修正:** `EmploymentIncomeRecord.grossSalaryJpy`
+  (Decimal型)の復元処理(`rowToEmploymentIncomeRecord`、クライアント実装側に
+  残る関数)が`new Prisma.Decimal(...)`(`@prisma/client`からの値import)を
+  使っていたため、このファイル自体がスタンドアロン版バンドルに`@prisma/client`
+  本体を引き込んでしまう状態だった(`TaxYearRepository`にはDecimal列が無く
+  表面化しなかった問題。Decimal列を持つ他の残り全リポジトリでも同様に発生する
+  見込み)。`@prisma/client`の`Prisma.Decimal`と`decimal.js`の`Decimal`は別クラス
+  だが、公開プロパティ(`d`/`e`/`s`)・メソッド群が同一のため構造的に型互換である
+  ことを`npx tsc --noEmit`で確認し、`new Prisma.Decimal(...)`を既存の
+  `decimalCodec.ts`の`decodeDecimal`(`decimal.js`実装、Node専用コードに依存しない)
+  に置き換えた。これにより、クライアント実装ファイルが実行時に`@prisma/client`へ
+  依存しなくなる(`import type`のみ残り、型チェックのみで実行時には影響しない)。
+  **この修正方式は、Decimal列を持つ残り全てのリポジトリ移行でも同様に適用する
+  必要がある。**
+
+  **動作確認(2026-10-03時点):** `npm run test`(全177ファイル1626件)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、
+  既存の`LayoutProps`エラーのみで無関係)が成功することを確認した。また
+  `npm run build`(自宅サーバー版)が従来通り成功し、`npm run build:standalone`が
+  5-1-3b時点と同じ`Server Actions are not supported with static export`
+  エラーで失敗すること(新たなリグレッションが無いこと。特に`@prisma/client`の
+  バンドル引き込みによる早期失敗が再発していないこと)を確認した。
+
+  **残課題の精査(対象ファイルの見直し):** 当初「残り14ファイル」としていた
+  リストに含まれる`src/lib/auth/loginRateLimit.ts`
+  (`LoginAttemptRepository`消費)は、`scripts/build-standalone.mjs`の
+  `EXCLUDED_PATHS`で`src/lib/auth`ディレクトリ自体がビルド実行中は丸ごと退避
+  されるため、このファイルはそもそもスタンドアロン版バンドルに含まれない
+  (切り替え機構を導入する必要がない)。**この移行対象からは除外する。**
+  `src/app/actions.ts`は他の多数のモデルを集約的に消費するため5-1-3d
+  (`actions.ts`自体の分割)と合わせて扱う。残る移行対象は`src/lib/reporting.ts`・
+  各種控除計算モジュール(`barrierFreeRenovationDeduction.ts`・
+  `certifiedHousingConstructionCredit.ts`・`childRearingRenovationDeduction.ts`・
+  `donationTaxCredit.ts`・`durabilityImprovementRenovationDeduction.ts`・
+  `earthquakeRenovationDeduction.ts`・`energySavingRenovationDeduction.ts`・
+  `incomeDeduction.ts`・`investment/distributionAdjustedForeignTaxCredit.ts`・
+  `investment/foreignTaxCredit.ts`・`mortgageDeduction.ts`・
+  `multiHouseholdRenovationDeduction.ts`・`openingBalance.ts`・
+  `residentTaxAdjustmentDeduction.ts`)。いずれもDecimal列を持つため、上記の
+  `decodeDecimal`方式を適用すること。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。
@@ -3267,18 +3319,21 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3・
-  フェーズ4・5-1・5-1-2・5-1-3a・5-1-3b(`TaxYearRepository`のみ)が完了し、
-  5-1-3bの残り(他リポジトリへの同パターン適用。`grep -rln
-  "createPrisma.*Repository()" src/lib/*.ts src/app/*.ts`で対象ファイルを
-  確認可能)・5-1-3c(クライアント側CSV生成への置き換え)・5-1-3d
-  (`src/app/actions.ts`のビルド対象除外と32ファイルの書き換え。5-1-3aの調査で
-  新たに判明した項目)から着手可能)から1つずつ着手し、完了したらチェックを
-  付けて次回に引き継ぐ。5-1-3dはフェーズ1・2と同程度の規模が見込まれるため、
-  急がず1ファイルずつ進める。5-1-3bで判明した通り、クライアント実装
-  (`createClientXxxRepository`)を実際にスタンドアロン版ビルドへ結線する
-  (`defaultXxxRepository.standalone.ts`で本物の`openClientDb`を呼ぶ)のは、
-  ブラウザ向け(OPFSベース)の`openClientDb`実装ができるまで保留し、当面は
-  「未結線」エラーを投げるプレースホルダーのままにする(安易に結線すると
+  フェーズ4・5-1・5-1-2・5-1-3a・5-1-3b(`TaxYearRepository`・
+  `EmploymentIncomeRecordRepository`の2つ)が完了し、5-1-3bの残り(他リポジトリへの
+  同パターン適用。`src/lib/auth/loginRateLimit.ts`は`src/lib/auth`ディレクトリ自体が
+  スタンドアロン版ビルドから丸ごと除外されるため対象外。`src/app/actions.ts`は
+  5-1-3dと合わせて扱う。残る対象ファイルは`grep -rln "createPrisma.*Repository()"
+  src/lib/*.ts src/lib/investment/*.ts`で確認可能で、上記5-1-3bの追記で判明した
+  Decimal列の`decodeDecimal`方式を各ファイルで適用すること)・5-1-3c
+  (クライアント側CSV生成への置き換え)・5-1-3d(`src/app/actions.ts`のビルド対象
+  除外と32ファイルの書き換え。5-1-3aの調査で新たに判明した項目)から着手可能)
+  から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。5-1-3dはフェーズ
+  1・2と同程度の規模が見込まれるため、急がず1ファイルずつ進める。5-1-3bで判明
+  した通り、クライアント実装(`createClientXxxRepository`)を実際にスタンドアロン版
+  ビルドへ結線する(`defaultXxxRepository.standalone.ts`で本物の`openClientDb`を
+  呼ぶ)のは、ブラウザ向け(OPFSベース)の`openClientDb`実装ができるまで保留し、
+  当面は「未結線」エラーを投げるプレースホルダーのままにする(安易に結線すると
   `wa-sqlite`のNode専用コードがブラウザ向けバンドルに引き込まれてビルドが
   壊れるため)。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト

@@ -1,9 +1,13 @@
 /**
  * フェーズ2-3: `createClientEmploymentIncomeRecordRepository`(wa-sqlite実装)が
  * `EmploymentIncomeRecordRepository`インターフェースを、Prisma実装
- * (`createPrismaEmploymentIncomeRecordRepository`)と同じ挙動で満たすことを検証する。
+ * (`createPrismaEmploymentIncomeRecordRepository`。`employmentIncomeRecordRepository.prisma.ts`)
+ * と同じ挙動で満たすことを検証する。フェーズ5-1-3bで`grossSalaryJpy`の実体を
+ * `@prisma/client`の`Prisma.Decimal`ではなく`decimal.js`の`Decimal`に変更したため
+ * (スタンドアロン版バンドルに`@prisma/client`本体を引き込まないため)、
+ * instanceofの確認も`decimal.js`側のクラスで行う。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -36,7 +40,7 @@ describe("createClientEmploymentIncomeRecordRepository", () => {
     const record = await repo.findByTaxYearId(1);
     expect(record).not.toBeNull();
     expect(record?.taxYearId).toBe(1);
-    expect(record?.grossSalaryJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.grossSalaryJpy).toBeInstanceOf(Decimal);
     expect(record?.grossSalaryJpy.toString()).toBe("5000000");
     expect(record?.id).toBeTypeOf("number");
     expect(record?.createdAt).toBeInstanceOf(Date);

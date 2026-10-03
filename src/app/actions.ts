@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Decimal } from "decimal.js";
 import type { InvestmentAccountType } from "@prisma/client";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
+import { employmentIncomeRecordRepository } from "@/lib/repositories/defaultEmploymentIncomeRecordRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
@@ -39,7 +40,6 @@ import { createPrismaCertifiedHousingConstructionCreditCarryforwardRepository } 
 import { createPrismaIncomeDeductionRepository } from "@/lib/repositories/incomeDeductionRepository";
 import { createPrismaMortgageDeductionRecordRepository } from "@/lib/repositories/mortgageDeductionRecordRepository";
 import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/residentTaxAdjustmentDeductionRecordRepository";
-import { createPrismaEmploymentIncomeRecordRepository } from "@/lib/repositories/employmentIncomeRecordRepository";
 import { createPrismaCashflowEntryRepository } from "@/lib/repositories/cashflowEntryRepository";
 import { createPrismaAssetBalanceSnapshotRepository } from "@/lib/repositories/assetBalanceSnapshotRepository";
 import { decodeCsvFile } from "@/lib/csv";
@@ -269,7 +269,6 @@ const incomeDeductionRepository = createPrismaIncomeDeductionRepository();
 const mortgageDeductionRecordRepository = createPrismaMortgageDeductionRecordRepository();
 const residentTaxAdjustmentDeductionRecordRepository =
   createPrismaResidentTaxAdjustmentDeductionRecordRepository();
-const employmentIncomeRecordRepository = createPrismaEmploymentIncomeRecordRepository();
 const cashflowEntryRepository = createPrismaCashflowEntryRepository();
 const assetBalanceSnapshotRepository = createPrismaAssetBalanceSnapshotRepository();
 

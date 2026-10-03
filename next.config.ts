@@ -30,6 +30,15 @@ const defaultTaxYearRepositoryStandaloneAliasForWebpack = path.resolve(
   "src/lib/repositories/defaultTaxYearRepository.standalone.ts",
 );
 
+// `EmploymentIncomeRecordRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、`TaxYearRepository`に続く2つ目)。
+const defaultEmploymentIncomeRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultEmploymentIncomeRecordRepository.standalone.ts";
+const defaultEmploymentIncomeRecordRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultEmploymentIncomeRecordRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -44,6 +53,8 @@ const nextConfig: NextConfig = {
           "@/lib/authUi": authUiStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
+            defaultEmploymentIncomeRecordRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -54,6 +65,8 @@ const nextConfig: NextConfig = {
         "@/lib/authUi": authUiStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
+          defaultEmploymentIncomeRecordRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;
