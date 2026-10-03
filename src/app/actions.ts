@@ -156,6 +156,10 @@ import {
   addCryptoMarginTradeCore,
   deleteCryptoMarginTradeCore,
 } from "@/lib/actions/cryptoMarginTrade";
+import {
+  addCryptoCreditTradeCore,
+  deleteCryptoCreditTradeCore,
+} from "@/lib/actions/cryptoCreditTrade";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -501,31 +505,35 @@ export async function deleteCryptoMarginTrade(formData: FormData): Promise<void>
 
 export async function addCryptoCreditTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await cryptoCreditTradeRepository.create({
-    taxYearId: taxYear.id,
-    settledAt: new Date(requireString(formData, "settledAt")),
-    symbol: requireString(formData, "symbol").toUpperCase(),
+  const { redirectTo } = await addCryptoCreditTradeCore(taxYearRepository, cryptoCreditTradeRepository, {
+    year,
+    settledAt: requireString(formData, "settledAt"),
+    symbol: requireString(formData, "symbol"),
     realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
-    feeJpy: optionalString(formData, "feeJpy") ?? "0",
-    interestAdjustmentJpy: optionalString(formData, "interestAdjustmentJpy") ?? "0",
+    feeJpy: optionalString(formData, "feeJpy"),
+    interestAdjustmentJpy: optionalString(formData, "interestAdjustmentJpy"),
     exchange: optionalString(formData, "exchange"),
     memo: optionalString(formData, "memo"),
   });
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=cryptoCredit`);
+  redirect(redirectTo);
 }
 
 export async function deleteCryptoCreditTrade(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await cryptoCreditTradeRepository.delete(id);
+
+  const { redirectTo } = await deleteCryptoCreditTradeCore(cryptoCreditTradeRepository, {
+    id,
+    year,
+  });
+
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=cryptoCredit`);
+  redirect(redirectTo);
 }
 
 export async function addStockMarginTrade(formData: FormData): Promise<void> {
