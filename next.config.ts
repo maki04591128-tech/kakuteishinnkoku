@@ -19,6 +19,17 @@ const authUiStandaloneAliasForTurbopack = "./src/lib/authUi.standalone.tsx";
 // resolve.aliasは絶対パスを要求する。
 const authUiStandaloneAliasForWebpack = path.resolve(process.cwd(), "src/lib/authUi.standalone.tsx");
 
+// スタンドアロン版では`@/lib/repositories/defaultTaxYearRepository`の実装を、
+// Prisma(Node専用、`../db`経由で`@prisma/client`の実体に依存)を使わないスタブに
+// 差し替える(README「現在の最優先事項」フェーズ5-1-3bで確立したパターン。
+// `@/lib/authUi`と同種)。他のリポジトリへの展開は以後のステップで行う。
+const defaultTaxYearRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultTaxYearRepository.standalone.ts";
+const defaultTaxYearRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultTaxYearRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -31,6 +42,8 @@ const nextConfig: NextConfig = {
     ? {
         resolveAlias: {
           "@/lib/authUi": authUiStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultTaxYearRepository":
+            defaultTaxYearRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -39,6 +52,7 @@ const nextConfig: NextConfig = {
       config.resolve.alias = {
         ...config.resolve.alias,
         "@/lib/authUi": authUiStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultTaxYearRepository": defaultTaxYearRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

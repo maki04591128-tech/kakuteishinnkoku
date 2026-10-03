@@ -1,12 +1,18 @@
 /**
  * フェーズ1(リポジトリパターン導入): `src/lib/taxYear.ts`が直接
  * `prisma.taxYear`を呼んでいた処理をこのインターフェース経由に置き換える。
- * 自宅サーバー版は`createPrismaTaxYearRepository`を使い続け、スタンドアロン
- * (Android)版はフェーズ2で追加した`createClientTaxYearRepository`
- * (wa-sqlite実装)を使う。挙動は既存のPrisma実装と完全に一致させる。
+ * 自宅サーバー版は`createPrismaTaxYearRepository`(`./taxYearRepository.prisma`)
+ * を使い続け、スタンドアロン(Android)版はフェーズ2で追加した
+ * `createClientTaxYearRepository`(wa-sqlite実装、このファイル内)を使う。
+ * 挙動は既存のPrisma実装と完全に一致させる。
+ *
+ * フェーズ5-1-3b: Prisma実装(Node専用、`@prisma/client`の実体に依存)は
+ * スタンドアロン版バンドルに引き込まれないよう`./taxYearRepository.prisma.ts`
+ * に分離した。このファイルは型定義(`import type`。TypeScriptの型のみで
+ * ランタイムの実体を持たないため、ビルド後のバンドルには残らない)と
+ * クライアント実装のみを持つ。
  */
 import type { CryptoCostMethod, TaxYear } from "@prisma/client";
-import { prisma } from "../db";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface TaxYearRepository {
@@ -14,37 +20,6 @@ export interface TaxYearRepository {
   findByYear(year: number): Promise<TaxYear | null>;
   listTaxYears(): Promise<number[]>;
   updateCryptoCostMethod(id: number, cryptoCostMethod: CryptoCostMethod): Promise<void>;
-}
-
-export function createPrismaTaxYearRepository(): TaxYearRepository {
-  return {
-    async getOrCreateTaxYear(year: number): Promise<TaxYear> {
-      return prisma.taxYear.upsert({
-        where: { year },
-        create: { year },
-        update: {},
-      });
-    },
-
-    async findByYear(year: number): Promise<TaxYear | null> {
-      return prisma.taxYear.findUnique({ where: { year } });
-    },
-
-    async listTaxYears(): Promise<number[]> {
-      const years = await prisma.taxYear.findMany({
-        orderBy: { year: "desc" },
-        select: { year: true },
-      });
-      return years.map((y) => y.year);
-    },
-
-    async updateCryptoCostMethod(id: number, cryptoCostMethod: CryptoCostMethod): Promise<void> {
-      await prisma.taxYear.update({
-        where: { id },
-        data: { cryptoCostMethod },
-      });
-    },
-  };
 }
 
 function rowToTaxYear(row: Record<string, SqlValue>): TaxYear {

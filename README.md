@@ -3147,7 +3147,7 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   フェーズ分けには存在しない新しい作業項目**のため、5-1-3dとして切り出した
   (下記)。
 
-- [ ] 5-1-3b. 既定のリポジトリ実装をビルドターゲットで切り替える機構を用意する
+- [x] 5-1-3b. 既定のリポジトリ実装をビルドターゲットで切り替える機構を用意する
       (5-1の`authUi`/`authUi.standalone.tsx`差し替えと同種のパターンを想定)。
       ただし各`src/lib/repositories/*.ts`は現状、Prisma実装
       (`createPrismaXxxRepository`。`../db`経由で`@prisma/client`に依存)と
@@ -3167,6 +3167,58 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
       OPFSベースVFSではない)のままであり、実際のブラウザ(Capacitor WebView)
       では動作しない。この切り替え機構を実際に使うには、OPFSベースの
       ブラウザ向け`openClientDb`実装も別途必要になる。
+
+  **実装内容(2026-10-03):** `TaxYearRepository`を対象にパターンを確立した。
+  `src/lib/repositories/taxYearRepository.ts`からPrisma実装
+  (`createPrismaTaxYearRepository`。`../db`経由で`@prisma/client`の実体に依存)
+  を`src/lib/repositories/taxYearRepository.prisma.ts`に切り出し、元のファイルは
+  インターフェース定義とクライアント実装(`createClientTaxYearRepository`)のみに
+  した(`import type`の型のみの参照はランタイムの実体を持たないため残している)。
+
+  さらに`authUi.tsx`/`authUi.standalone.tsx`と同種の切り替え機構として
+  `src/lib/repositories/defaultTaxYearRepository.ts`
+  (自宅サーバー版。内部で`createPrismaTaxYearRepository()`を呼ぶ)と
+  `defaultTaxYearRepository.standalone.ts`(スタンドアロン版。OPFSベースの
+  `ClientDb`共有の仕組みがまだ無いため、呼び出すと明示的にエラーを投げる
+  スタブ)を追加し、`next.config.ts`の`turbopack.resolveAlias`/
+  `webpack.resolve.alias`と`tsconfig.standalone.json`の`paths`に
+  `@/lib/repositories/defaultTaxYearRepository`のエントリを追加した。
+  唯一の利用元である`src/lib/taxYear.ts`はこの`createDefaultTaxYearRepository`
+  経由に変更した(alias差し替えを機能させるため、相対パスではなく`@/`
+  エイリアス経由でimportする必要がある)。
+
+  `authUi.tsx`と異なり、`defaultTaxYearRepository.ts`(と`taxYearRepository.prisma.ts`)
+  が依存する`../db`・`@prisma/client`はスタンドアロン版ビルドでも
+  `scripts/build-standalone.mjs`の退避対象(ファイルが物理的に存在しなくなる)
+  には含まれないため、これらのファイル自体をビルド対象から除外する必要はない
+  (bundler側のalias差し替えにより、スタンドアロン版バンドルの依存グラフには
+  そもそも含まれない。`next build`内蔵の型チェックも`tsconfig.standalone.json`の
+  `paths`経由で`defaultTaxYearRepository.standalone.ts`側を見るため問題ない)。
+
+  `TaxYearRepository`型(インターフェース)は26モデルの多くが依存している
+  ため、既存の17ファイル(`src/app/actions.ts`・`src/lib/reporting.ts`等。
+  いずれも`createPrismaTaxYearRepository()`を直接呼ぶ、まだこの切り替え機構に
+  移行していないファイル)は、シンボルの移動先に合わせて`import`文のパスを
+  `./repositories/taxYearRepository`から`./repositories/taxYearRepository.prisma`
+  に変更するだけの機械的な修正を行った(ロジックは一切変更していない)。
+
+  **動作確認(2026-10-03時点):** `npm run test`(全175ファイル1619件)・
+  `npm run lint`・`npx tsc --noEmit`(既存の`src/app/layout.tsx`の
+  `LayoutProps`エラーのみで本変更と無関係)が成功することを確認済み。加えて
+  `DATABASE_URL`を設定し実際に`npx prisma db push`でDBを作成した上で、
+  (1)`npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、
+  (2)`npm run build:standalone`が、TypeScriptの型チェックまでは成功し
+  (`defaultTaxYearRepository.standalone.ts`側への差し替えが正しく機能している
+  ことを確認済み)、5-1-3aで判明していた既知の制約(`Server Actions are not
+  supported with static export`。5-1-3dで対応予定)でその後失敗することを
+  確認した。これは本ステップによる新規のリグレッションではない。
+
+  **残課題(次のステップ以降で対応):** (1)この切り替え機構を`TaxYear`以外の
+  残り16モデル(26モデル中、フェーズ2でクライアント実装を追加済みのもの)にも
+  同じパターンで適用する、(2)ブラウザ向けOPFSベース`openClientDb`実装と
+  アプリ全体で`ClientDb`インスタンスを共有する仕組みを用意し、
+  `defaultTaxYearRepository.standalone.ts`の`notImplemented`スタブを実際の
+  `createClientTaxYearRepository(db)`呼び出しに置き換える、の2点。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。
@@ -3190,12 +3242,13 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3・
-  フェーズ4・5-1・5-1-2・5-1-3aが完了し、5-1-3b(既定のリポジトリ実装の
-  切り替え機構)・5-1-3c(クライアント側CSV生成への置き換え)・5-1-3d
-  (`src/app/actions.ts`のビルド対象除外と32ファイルの書き換え。5-1-3aの調査で
-  新たに判明した項目)から着手可能)から1つずつ着手し、完了したらチェックを
-  付けて次回に引き継ぐ。5-1-3dはフェーズ1・2と同程度の規模が見込まれるため、
-  急がず1ファイルずつ進める。
+  フェーズ4・5-1・5-1-2・5-1-3a・5-1-3b(`TaxYearRepository`でパターン確立
+  済み。残り16モデルへの展開とOPFS実装は残課題)が完了し、5-1-3c
+  (クライアント側CSV生成への置き換え)・5-1-3d(`src/app/actions.ts`の
+  ビルド対象除外と32ファイルの書き換え。5-1-3aの調査で新たに判明した項目)
+  から着手可能)から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
+  5-1-3dはフェーズ1・2と同程度の規模が見込まれるため、急がず1ファイルずつ
+  進める。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
