@@ -2899,6 +2899,23 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   確認済み)。残る複数リポジトリ依存アクションは`setBrokerAnnualReport`/
   `deleteBrokerAnnualReport`等で、次のステップ以降で適用していく。
 
+- [x] 3-33. `setBrokerAnnualReport`/`deleteBrokerAnnualReport`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/brokerAnnualReport.ts`に
+  `setBrokerAnnualReportCore`/`deleteBrokerAnnualReportCore`を追加した。
+  3-31・3-32と同じ`TaxYearRepository`と`BrokerAnnualReportRepository`の
+  2つに依存するパターンで、追加の整合性検証も無い。`src/app/actions.ts`の
+  `setBrokerAnnualReport`/`deleteBrokerAnnualReport`は、FormDataの解釈
+  (accountTypeの型アサーションを`as never`から`InvestmentAccountType`に
+  修正)とコア関数の呼び出し、`revalidatePath`/`redirect`の実行のみを行う
+  薄いラッパーに書き換えた(挙動は従来と完全に同一)。
+  `brokerAnnualReport.test.ts`を新規に追加し、`upsert`への引数・`delete`
+  呼び出し・両ケースの`redirectTo`算出を検証した(`npm run test`・
+  `npm run lint`・`npx tsc --noEmit`が成功することを確認済み)。これで
+  フェーズ3の対象だった複数リポジトリ依存アクションは一通り完了。
+  残る`actions.ts`内の単純な単一リポジトリ依存アクション・CSV取り込み系の
+  関数は、次のステップ以降で同様に適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
@@ -2923,7 +2940,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
-  (Server Actions/Server Componentsの置き換え)を3-29まで進行中)から1つずつ
+  (Server Actions/Server Componentsの置き換え)を3-33まで進行中)から1つずつ
   着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。

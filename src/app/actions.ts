@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Decimal } from "decimal.js";
+import type { InvestmentAccountType } from "@prisma/client";
 import { createPrismaTaxYearRepository } from "@/lib/repositories/taxYearRepository";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
@@ -170,6 +171,10 @@ import {
   setOpeningBalanceByInstitutionCore,
   deleteOpeningBalanceByInstitutionCore,
 } from "@/lib/actions/openingBalanceByInstitution";
+import {
+  setBrokerAnnualReportCore,
+  deleteBrokerAnnualReportCore,
+} from "@/lib/actions/brokerAnnualReport";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -776,31 +781,32 @@ export async function carryForwardFuturesLoss(formData: FormData): Promise<void>
 export async function setBrokerAnnualReport(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const broker = requireString(formData, "broker");
-  const accountType = requireString(formData, "accountType");
+  const accountType = requireString(formData, "accountType") as InvestmentAccountType;
   const proceedsJpy = requireString(formData, "proceedsJpy");
   const acquisitionCostJpy = requireString(formData, "acquisitionCostJpy");
   const dividendJpy = optionalString(formData, "dividendJpy") ?? "0";
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await brokerAnnualReportRepository.upsert({
-    taxYearId: taxYear.id,
-    broker,
-    accountType: accountType as never,
-    proceedsJpy,
-    acquisitionCostJpy,
-    dividendJpy,
-  });
+  const { redirectTo } = await setBrokerAnnualReportCore(
+    taxYearRepository,
+    brokerAnnualReportRepository,
+    { year, broker, accountType, proceedsJpy, acquisitionCostJpy, dividendJpy },
+  );
 
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=brokerReport`);
+  redirect(redirectTo);
 }
 
 export async function deleteBrokerAnnualReport(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await brokerAnnualReportRepository.delete(id);
+
+  const { redirectTo } = await deleteBrokerAnnualReportCore(brokerAnnualReportRepository, {
+    id,
+    year,
+  });
+
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=brokerReport`);
+  redirect(redirectTo);
 }
 
 export async function importBrokerAnnualReportCsv(formData: FormData): Promise<void> {
