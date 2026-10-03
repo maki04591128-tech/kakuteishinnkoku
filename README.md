@@ -3115,12 +3115,68 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   ターゲットに応じて既定のリポジトリ実装を切り替える仕組み。5-1の
   `authUi`差し替えと同種のパターンが流用できる見込み)を別ステップで
   用意する必要がある。
-- [ ] 5-1-3. 既定のリポジトリ実装をビルドターゲットで切り替える機構を用意し
-      (5-1の`authUi`差し替えと同種のパターンを想定)、`/api/export`を
-      `scripts/build-standalone.mjs`の退避対象に追加した上で、
-      `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
+- [x] 5-1-3a. `/api/export`を`scripts/build-standalone.mjs`の退避対象に追加する
+      (5-1-2の残課題(a))。
+
+  **実装内容(2026-10-03):** `scripts/build-standalone.mjs`の`EXCLUDED_PATHS`に
+  `src/app/api/export`を追加した(他の退避対象と同様、ビルド実行中のみ
+  一時退避し`try/finally`で必ず復元する。既存の退避ロジック自体は変更していない)。
+
+  **動作確認・新たに判明した重大な制約(2026-10-03時点):** `DATABASE_URL`を
+  設定し`npx prisma db push`でDBを作成した上で、(1)`npm run build`
+  (自宅サーバー版)が本変更後も従来通り成功すること、(2)`npm run test`
+  (全175ファイル1619件)・`npm run lint`・`npx tsc --noEmit`が成功することを
+  確認した。一方(3)`npm run build:standalone`は、本変更により5-1-2時点の
+  `/api/export`起因のエラーは解消したが、**`Server Actions are not supported
+  with static export`という別のエラーで失敗するようになった**(5-1-2までは
+  `/api/export`のエラーに隠れて気付いていなかった、より根本的な制約)。
+
+  調査の結果、`"use server"`ディレクティブを持つファイルは
+  `src/app/actions.ts`(全155機能の登録・削除処理)と`src/app/login/actions.ts`
+  (退避済み)の2つのみであることを確認した(`grep -rl '"use server"' src/`)。
+  つまり**`src/app/actions.ts`自体を退避対象に加えない限り、スタンドアロン版の
+  `output: "export"`ビルドは原理的に成功しない**。ただし`src/app/actions.ts`は
+  `src/app/`配下の32ファイル(`page.tsx`・クライアントコンポーネント)から
+  `@/app/actions`として直接importされており(`grep -rl '@/app/actions"'
+  src/app --include=*.tsx`で32件)、単純に退避するとこれら全てが
+  ビルドエラーになる。フェーズ3で`src/lib/actions/*.ts`に抽出済みのコア関数は
+  `"use server"`を持たないため、スタンドアロン版ではこれら32ファイルが
+  `src/app/actions.ts`経由ではなく`src/lib/actions/*.ts`のコア関数を
+  直接呼ぶように書き換える必要がある。**これはフェーズ1・2(1ファイルずつ
+  26モデル分)と同程度か、それ以上の規模の作業になる見込みであり、現在の
+  フェーズ分けには存在しない新しい作業項目**のため、5-1-3dとして切り出した
+  (下記)。
+
+- [ ] 5-1-3b. 既定のリポジトリ実装をビルドターゲットで切り替える機構を用意する
+      (5-1の`authUi`/`authUi.standalone.tsx`差し替えと同種のパターンを想定)。
+      ただし各`src/lib/repositories/*.ts`は現状、Prisma実装
+      (`createPrismaXxxRepository`。`../db`経由で`@prisma/client`に依存)と
+      クライアント実装(`createClientXxxRepository`)を同一ファイルに同居させて
+      いるため、`authUi.tsx`/`authUi.standalone.tsx`のように単純にファイル
+      ごとaliasで差し替えるだけでは、スタンドアロン版バンドルにPrisma
+      (Node専用、WebViewで動作不可)が引き込まれてしまう。そのため
+      Prisma依存部分を別ファイルに分離する作業が各リポジトリに必要になる。
+      まず`TaxYearRepository`で1つ試してパターンを確立し、以後
+      `src/lib/*.ts`側で`createPrismaXxxRepository()`を直接呼んでいる残り
+      14ファイル(`src/lib/reporting.ts`・`src/app/actions.ts`含む。
+      `grep -rln "createPrisma.*Repository()" src/lib/*.ts src/app/*.ts`で
+      確認可能)に同じパターンを適用していく。また、クライアント実装側が
+      依存する`src/lib/clientDb/sqlite.ts`は現状`node:fs`/`node:module`
+      (`require.resolve`)を使うNode専用コードで、永続化もwa-sqlite付属の
+      `MemoryVFS`(プロセス内メモリのみ、フェーズ0で決定した本来の方式である
+      OPFSベースVFSではない)のままであり、実際のブラウザ(Capacitor WebView)
+      では動作しない。この切り替え機構を実際に使うには、OPFSベースの
+      ブラウザ向け`openClientDb`実装も別途必要になる。
+- [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
-      させる形に置き換える(5-1-2の残課題)。
+      させる形に置き換える(5-1-3bの切り替え機構に依存)。
+- [ ] 5-1-3d. `src/app/actions.ts`(`"use server"`)をスタンドアロン版のビルド
+      対象から除外し(`scripts/build-standalone.mjs`の退避対象に追加)、
+      これを直接importしている32ファイル(`page.tsx`・クライアント
+      コンポーネント)を、フェーズ3で`src/lib/actions/*.ts`に抽出済みの
+      コア関数を直接呼ぶ形に書き換える(5-1-3aの調査で判明。詳細は
+      上記5-1-3aの実装内容を参照)。フェーズ1・2と同様、1回のブラッシュ
+      アップで1〜数ファイルずつ進める想定。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
@@ -3133,12 +3189,13 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
-  (Server Actions/Server Componentsの置き換え)・フェーズ4(認証方式の見直し)・
-  5-1(`next.config.ts`のビルド分岐・認証関連の除外)・5-1-2
-  (`/api/export`のコア関数抽出)が完了し、5-1-3(既定のリポジトリ実装の
-  切り替え機構・`/api/export`の除外・クライアント側CSV生成への置き換え)
-  から着手可能)から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3・
+  フェーズ4・5-1・5-1-2・5-1-3aが完了し、5-1-3b(既定のリポジトリ実装の
+  切り替え機構)・5-1-3c(クライアント側CSV生成への置き換え)・5-1-3d
+  (`src/app/actions.ts`のビルド対象除外と32ファイルの書き換え。5-1-3aの調査で
+  新たに判明した項目)から着手可能)から1つずつ着手し、完了したらチェックを
+  付けて次回に引き継ぐ。5-1-3dはフェーズ1・2と同程度の規模が見込まれるため、
+  急がず1ファイルずつ進める。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
