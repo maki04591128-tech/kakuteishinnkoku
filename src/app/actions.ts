@@ -166,6 +166,10 @@ import {
 } from "@/lib/actions/stockMarginTrade";
 import { addFuturesTradeCore, deleteFuturesTradeCore } from "@/lib/actions/futuresTrade";
 import { setOpeningBalanceCore, deleteOpeningBalanceCore } from "@/lib/actions/openingBalance";
+import {
+  setOpeningBalanceByInstitutionCore,
+  deleteOpeningBalanceByInstitutionCore,
+} from "@/lib/actions/openingBalanceByInstitution";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -887,7 +891,6 @@ export async function setOpeningBalanceByInstitution(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
   const assetClass = requireString(formData, "assetClass") as
     | "CRYPTO"
     | "INVESTMENT";
@@ -895,16 +898,14 @@ export async function setOpeningBalanceByInstitution(
   const institution = requireString(formData, "institution").trim();
   const quantity = requireString(formData, "quantity");
 
-  await openingBalanceByInstitutionRepository.upsert({
-    taxYearId: taxYear.id,
-    assetClass,
-    symbol,
-    institution,
-    quantity,
-  });
+  const { redirectTo } = await setOpeningBalanceByInstitutionCore(
+    taxYearRepository,
+    openingBalanceByInstitutionRepository,
+    { year, assetClass, symbol, institution, quantity },
+  );
 
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=assetBalance`);
+  redirect(redirectTo);
 }
 
 export async function deleteOpeningBalanceByInstitution(
@@ -912,9 +913,14 @@ export async function deleteOpeningBalanceByInstitution(
 ): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await openingBalanceByInstitutionRepository.delete(id);
+
+  const { redirectTo } = await deleteOpeningBalanceByInstitutionCore(
+    openingBalanceByInstitutionRepository,
+    { id, year },
+  );
+
   revalidatePath("/import");
-  redirect(`/import?year=${year}&tab=assetBalance`);
+  redirect(redirectTo);
 }
 
 /**

@@ -2877,6 +2877,28 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `setOpeningBalanceByInstitution`/`setBrokerAnnualReport`等、残りの
   複数リポジトリ依存アクションへの適用を検討する。
 
+- [x] 3-32. `setOpeningBalanceByInstitution`/
+      `deleteOpeningBalanceByInstitution`のコア関数を抽出
+
+  **実装内容(2026-10-03):**
+  `src/lib/actions/openingBalanceByInstitution.ts`に
+  `setOpeningBalanceByInstitutionCore`/
+  `deleteOpeningBalanceByInstitutionCore`を追加した。3-31の
+  `setOpeningBalance`と同じ`TaxYearRepository`と
+  `OpeningBalanceByInstitutionRepository`(期首残高の金融機関別内訳)の
+  2つに依存するパターンだが、本アクションの対象(金融機関別内訳)には
+  NISA/非上場の整合性検証が無いため、`upsert`呼び出しと次の遷移先
+  (`/import?year=...&tab=assetBalance`)の算出のみを行う。
+  `src/app/actions.ts`の`setOpeningBalanceByInstitution`/
+  `deleteOpeningBalanceByInstitution`は、FormDataの解釈(symbol/institutionの
+  前後空白除去・symbolの大文字化を含む)とコア関数の呼び出し、
+  `revalidatePath`/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。`openingBalanceByInstitution.test.ts`を新規に
+  追加し、`upsert`への引数・`delete`呼び出し・両ケースの`redirectTo`算出を
+  検証した(`npm run test`・`npm run lint`・`npx tsc --noEmit`が成功することを
+  確認済み)。残る複数リポジトリ依存アクションは`setBrokerAnnualReport`/
+  `deleteBrokerAnnualReport`等で、次のステップ以降で適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
