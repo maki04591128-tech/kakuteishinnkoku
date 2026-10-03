@@ -165,6 +165,7 @@ import {
   deleteStockMarginTradeCore,
 } from "@/lib/actions/stockMarginTrade";
 import { addFuturesTradeCore, deleteFuturesTradeCore } from "@/lib/actions/futuresTrade";
+import { setOpeningBalanceCore, deleteOpeningBalanceCore } from "@/lib/actions/openingBalance";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -841,7 +842,6 @@ export async function importBrokerAnnualReportCsv(formData: FormData): Promise<v
 
 export async function setOpeningBalance(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
   const assetClass = requireString(formData, "assetClass") as
     | "CRYPTO"
     | "INVESTMENT";
@@ -850,34 +850,32 @@ export async function setOpeningBalance(formData: FormData): Promise<void> {
   // isNisa=false・isListed=trueとして扱う。
   const isNisa = assetClass === "INVESTMENT" && formData.get("isNisa") === "on";
   const isListed = assetClass !== "INVESTMENT" || formData.get("isListed") === "on";
-  if (isNisa && !isListed) {
-    throw new Error("一般株式等(非上場株式)はNISA口座の対象外です");
-  }
   const quantity = requireString(formData, "quantity");
   const costBasisJpy = requireString(formData, "costBasisJpy");
 
-  await openingBalanceRepository.upsert({
-    taxYearId: taxYear.id,
-    assetClass,
-    symbol,
-    isNisa,
-    isListed,
-    quantity,
-    costBasisJpy,
-  });
+  const { redirectTo } = await setOpeningBalanceCore(
+    taxYearRepository,
+    openingBalanceRepository,
+    { year, assetClass, symbol, isNisa, isListed, quantity, costBasisJpy },
+  );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=opening`);
+  redirect(redirectTo);
 }
 
 export async function deleteOpeningBalance(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await openingBalanceRepository.delete(id);
+
+  const { redirectTo } = await deleteOpeningBalanceCore(openingBalanceRepository, {
+    id,
+    year,
+  });
+
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=opening`);
+  redirect(redirectTo);
 }
 
 /**
