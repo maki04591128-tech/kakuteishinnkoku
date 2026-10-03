@@ -3009,11 +3009,71 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
 
 #### フェーズ5: 静的ビルド・Capacitor導入
 
-- [ ] 5-1. `next.config.ts`にスタンドアロン版専用のビルド設定
+- [x] 5-1. `next.config.ts`にスタンドアロン版専用のビルド設定
       (`output: "export"`)を追加する(自宅サーバー版のビルド(Server
       Actions使用)とは別スクリプトに分ける)。フェーズ4の決定により、
       `src/proxy.ts`・`src/app/login/`・`src/lib/auth/`配下はスタンドアロン
       版のビルド対象から除外する。
+
+  **実装内容(2026-10-03):** `next.config.ts`で環境変数`BUILD_TARGET`を見て
+  `BUILD_TARGET=standalone`の場合のみ`output: "export"`を有効化するようにした
+  (自宅サーバー版の`npm run build`は未設定のままなので一切変わらない)。
+  スタンドアロン版専用のビルドは新規追加した`npm run build:standalone`
+  (`scripts/build-standalone.mjs`)から実行する。
+
+  `src/proxy.ts`(Proxy)・`src/app/login/`(Server Actions)は、ファイルが
+  存在するだけで`output: "export"`と併用できない(Unsupported Features。
+  4-1で確認した`static-exports.md`の記載通り)。Next.jsのApp Routerは
+  `src/app/`配下のディレクトリ名に関わらず`page.tsx`等を走査するため、単に
+  リネームするだけでは別ルートとしてビルド対象に残ってしまうことが実際に
+  試して判明した。そのため`scripts/build-standalone.mjs`は`next build`実行の
+  前後で`src/proxy.ts`・`src/app/login/`・`src/lib/auth/`を`src/`の外
+  (リポジトリ直下の`.standalone-build-backup/`、`.gitignore`に追加済み)に
+  一時的に退避し、ビルドの成功・失敗にかかわらず(`try/finally`)必ず元に戻す
+  (退避先が既に存在する場合はビルドを異常終了させず、前回ビルドの
+  後始末が未完了である旨のエラーで停止する)。
+
+  `src/app/page.tsx`はログアウトボタン表示のため`@/lib/auth/session`
+  (`isAuthEnabled`)と`@/app/login/actions`(`logout`)を直接importしており、
+  これは3-1で「スタンドアロン版でも自宅サーバー版の`page.tsx`を当面共用する」
+  とした前提と矛盾していた(除外対象を直接参照しているため、そのままでは
+  スタンドアロン版のビルドが壊れる)。この依存を`src/lib/authUi.tsx`
+  (自宅サーバー版のデフォルト実装。`LogoutButton`が内部で`isAuthEnabled`/
+  `logout`を使う)に切り出し、`page.tsx`は`@/lib/authUi`の`LogoutButton`を
+  無条件にレンダーするだけに変更した(挙動は従来と完全に同一)。スタンドアロン
+  版では`next.config.ts`の`turbopack.resolveAlias`(Next.js 16のデフォルト
+  バンドラ)/`webpack.resolve.alias`(`next build --webpack`実行時の
+  フォールバック)設定で、`@/lib/authUi`を常に`null`を返す
+  `src/lib/authUi.standalone.tsx`に差し替える。`next build`内蔵の型チェックは
+  このバンドラのalias設定を認識しないため、別途`tsconfig.standalone.json`
+  (`@/lib/authUi`の`paths`だけ上書き)を作り、スタンドアロン版ビルド時は
+  `next.config.ts`の`typescript.tsconfigPath`でこちらを使うようにした
+  (`src/lib/authUi.tsx`自体も、退避対象の3箇所に依存するため同様に
+  `scripts/build-standalone.mjs`の退避対象に加えた)。
+
+  **動作確認(2026-10-03時点):** `npm run test`・`npm run lint`・
+  `npx tsc --noEmit`が成功することを確認済み(`npx tsc --noEmit`は
+  3-3以降と同様、本変更と無関係の既存エラー(`src/app/layout.tsx`の
+  `LayoutProps`。`.next/types`未生成時のみ発生)を除き成功)。加えて
+  `DATABASE_URL`を設定して実際に`npx prisma db push`でDBを作成し、
+  (1)`npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、
+  (2)`npm run build:standalone`実行時に`src/proxy.ts`・`src/app/login/`・
+  `src/lib/auth/`・`src/lib/authUi.tsx`が一時退避されビルド後に復元される
+  ことを確認した。(2)のビルド自体は、`src/app/api/export/route.ts`
+  (CSV下書き出力用のRoute Handler。`year`クエリパラメータとDBアクセスに
+  依存する動的処理で`force-static`指定が無い)が`output: "export"`
+  未対応のため最終的には失敗するが、これは本ステップの対象
+  (認証関連の除外)とは無関係な別の既知の制約であり、認証関連の除外
+  機構自体は想定通り機能していることを確認できた。次のステップでは
+  この`/api/export`をフェーズ3と同様の「コア関数抽出」パターンでAPI
+  Route Handlerに依存しない形に変更するか、スタンドアロン版では
+  クライアント側で直接CSVを生成する形に置き換える対応が必要になる。
+
+- [ ] 5-1-2. `src/app/api/export/route.ts`(CSV下書き出力)を
+      スタンドアロン版でも動作する形に置き換える(5-1で判明した課題。
+      `output: "export"`はRoute Handlerの動的処理(Requestへの依存)を
+      サポートしないため、クライアント側で直接CSVを生成する関数に
+      置き換える等の対応を検討する)。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
@@ -3027,9 +3087,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
-  (Server Actions/Server Componentsの置き換え)・フェーズ4(認証方式の見直し)
-  が完了し、フェーズ5(静的ビルド・Capacitor導入)の5-1から着手可能)から
-  1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
+  (Server Actions/Server Componentsの置き換え)・フェーズ4(認証方式の見直し)・
+  5-1(`next.config.ts`のビルド分岐・認証関連の除外)が完了し、5-1-2
+  (`/api/export`のスタンドアロン対応)から着手可能)から1つずつ着手し、
+  完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
