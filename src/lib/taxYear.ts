@@ -1,6 +1,4 @@
-import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
-
-const taxYearRepository = createPrismaTaxYearRepository();
+import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 
 export async function getOrCreateTaxYear(year: number) {
   return taxYearRepository.getOrCreateTaxYear(year);
