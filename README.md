@@ -2916,6 +2916,24 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   残る`actions.ts`内の単純な単一リポジトリ依存アクション・CSV取り込み系の
   関数は、次のステップ以降で同様に適用していく。
 
+- [x] 3-34. `setLossCarryforward`/`deleteLossCarryforward`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/investmentLossCarryforward.ts`に
+  `setInvestmentLossCarryforwardCore`/`deleteInvestmentLossCarryforwardCore`を
+  追加した。3-5の`setAngelTaxLossCarryforward`と同じ`TaxYearRepository`と
+  `InvestmentLossCarryforwardRepository`の2つに依存するパターンで、
+  追加の整合性検証も無い(発生年が対象年分より後だとエラーになる検証のみ)。
+  `src/app/actions.ts`の`setLossCarryforward`/`deleteLossCarryforward`は、
+  FormDataの解釈とコア関数の呼び出し、`revalidatePath`(`/import`・`/`の
+  2つ。従来と同一)/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。`investmentLossCarryforward.test.ts`を新規に
+  追加し、発生年の整合性エラー・`upsert`への引数・`delete`呼び出し・両ケースの
+  `redirectTo`算出を検証した(`npm run test`・`npm run lint`・
+  `npx tsc --noEmit`が成功することを確認済み。`npx tsc --noEmit`は3-3以降と
+  同様、本変更と無関係の既存エラー(`src/app/layout.tsx`の`LayoutProps`)を
+  除き成功)。残る単純な単一リポジトリ依存アクションは`setNisaLifetimeQuota`/
+  `deleteNisaLifetimeQuota`等で、次のステップ以降で適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
