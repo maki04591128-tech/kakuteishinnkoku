@@ -1,7 +1,7 @@
 import { Decimal } from "decimal.js";
 import { RECONSTRUCTION_SURTAX_RATE } from "./incomeTax";
 import { createPrismaDonationTaxCreditRecordRepository } from "./repositories/donationTaxCreditRecordRepository";
-import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository.prisma";
 
 const taxYearRepository = createPrismaTaxYearRepository();
 const donationTaxCreditRecordRepository = createPrismaDonationTaxCreditRecordRepository();

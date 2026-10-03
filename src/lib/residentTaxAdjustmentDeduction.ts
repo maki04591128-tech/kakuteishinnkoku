@@ -1,6 +1,6 @@
 import { Decimal } from "decimal.js";
 import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "./repositories/residentTaxAdjustmentDeductionRecordRepository";
-import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository.prisma";
 
 const taxYearRepository = createPrismaTaxYearRepository();
 const residentTaxAdjustmentDeductionRecordRepository = createPrismaResidentTaxAdjustmentDeductionRecordRepository();

@@ -1,6 +1,6 @@
 import { Decimal } from "decimal.js";
 import { createPrismaEmploymentIncomeRecordRepository } from "./repositories/employmentIncomeRecordRepository";
-import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
+import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository.prisma";
 import { employmentIncomeDeductionJpy } from "./specificExpenseDeduction";
 
 const taxYearRepository = createPrismaTaxYearRepository();

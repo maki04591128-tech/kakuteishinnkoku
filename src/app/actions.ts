@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Decimal } from "decimal.js";
 import type { InvestmentAccountType } from "@prisma/client";
-import { createPrismaTaxYearRepository } from "@/lib/repositories/taxYearRepository";
+import { createPrismaTaxYearRepository } from "@/lib/repositories/taxYearRepository.prisma";
 import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";

@@ -1,11 +1,12 @@
-import { createPrismaTaxYearRepository } from "./repositories/taxYearRepository";
-
-const taxYearRepository = createPrismaTaxYearRepository();
+// フェーズ5-1-3b: ビルドターゲット(自宅サーバー版/スタンドアロン版)に応じて
+// `defaultTaxYearRepository`の実体が切り替わる(`@/`alias importが前提。
+// `defaultTaxYearRepository.ts`のコメント参照)。
+import { defaultTaxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 
 export async function getOrCreateTaxYear(year: number) {
-  return taxYearRepository.getOrCreateTaxYear(year);
+  return defaultTaxYearRepository.getOrCreateTaxYear(year);
 }
 
 export async function listTaxYears(): Promise<number[]> {
-  return taxYearRepository.listTaxYears();
+  return defaultTaxYearRepository.listTaxYears();
 }
