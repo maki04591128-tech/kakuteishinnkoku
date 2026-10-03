@@ -2809,6 +2809,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   追加バリデーション無しの単純な取引記録と見られる)で、次のステップ以降で
   まずバリデーション無しの残りに適用していく。
 
+- [x] 3-29. `addStockMarginTrade`/`deleteStockMarginTrade`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/stockMarginTrade.ts`に
+  `addStockMarginTradeCore`/`deleteStockMarginTradeCore`を追加した。3-26〜3-28の
+  `addCryptoTrade`/`addCryptoMarginTrade`/`addCryptoCreditTrade`と同じ「取引記録
+  (1年に複数件登録できるレコード)1件ごとの追加・削除」パターンの4例目(株式の
+  信用取引)。株式の信用取引(`StockMarginTrade`)も`addInvestmentTrade`のNISA
+  判定のような追加バリデーションが無く、symbolの大文字化・`feeJpy`/
+  `interestAdjustmentJpy`省略時の`"0"`補完のみのため、3-28に続く対象として選んだ。
+  `src/app/actions.ts`の`addStockMarginTrade`/`deleteStockMarginTrade`は、FormDataの
+  解釈とコア関数の呼び出し、`revalidatePath`(`/import`・`/`の2つ。従来と同一)/
+  `redirect`の実行のみを行う薄いラッパーに書き換えた(挙動は従来と完全に同一)。
+  `stockMarginTrade.test.ts`を新規に追加し、`create`への引数(symbol大文字化・
+  feeJpy/interestAdjustmentJpy補完を含む)・`delete`呼び出し・両ケースの
+  `redirectTo`算出を検証した(`npm run test`・`npm run lint`・`npx tsc --noEmit`が
+  成功することを確認済み。`npx tsc --noEmit`は本変更と無関係の既存エラー
+  (`src/app/layout.tsx`の`LayoutProps`。`next build`等で生成される`.next/types`が
+  このクリーンな環境に無いために発生し、変更前のベースブランチでも同様に発生する
+  ことを確認済み)を除き成功)。残る取引記録の追加・削除は
+  `addInvestmentTrade`/`deleteInvestmentTrade`(NISA・REIT等の追加バリデーションを
+  伴う)・`addFuturesTrade`/`deleteFuturesTrade`(本ステップと同様、追加バリデーション
+  無しの単純な取引記録と見られる)で、次のステップでは先に`addFuturesTrade`/
+  `deleteFuturesTrade`に適用していく想定。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
@@ -2833,7 +2857,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
-  (Server Actions/Server Componentsの置き換え)を3-28まで進行中)から1つずつ
+  (Server Actions/Server Componentsの置き換え)を3-29まで進行中)から1つずつ
   着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
