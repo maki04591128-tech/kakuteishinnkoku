@@ -160,6 +160,10 @@ import {
   addCryptoCreditTradeCore,
   deleteCryptoCreditTradeCore,
 } from "@/lib/actions/cryptoCreditTrade";
+import {
+  addStockMarginTradeCore,
+  deleteStockMarginTradeCore,
+} from "@/lib/actions/stockMarginTrade";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -538,31 +542,39 @@ export async function deleteCryptoCreditTrade(formData: FormData): Promise<void>
 
 export async function addStockMarginTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await stockMarginTradeRepository.create({
-    taxYearId: taxYear.id,
-    settledAt: new Date(requireString(formData, "settledAt")),
-    symbol: requireString(formData, "symbol").toUpperCase(),
-    realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
-    feeJpy: optionalString(formData, "feeJpy") ?? "0",
-    interestAdjustmentJpy: optionalString(formData, "interestAdjustmentJpy") ?? "0",
-    broker: optionalString(formData, "broker"),
-    memo: optionalString(formData, "memo"),
-  });
+  const { redirectTo } = await addStockMarginTradeCore(
+    taxYearRepository,
+    stockMarginTradeRepository,
+    {
+      year,
+      settledAt: requireString(formData, "settledAt"),
+      symbol: requireString(formData, "symbol"),
+      realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
+      feeJpy: optionalString(formData, "feeJpy"),
+      interestAdjustmentJpy: optionalString(formData, "interestAdjustmentJpy"),
+      broker: optionalString(formData, "broker"),
+      memo: optionalString(formData, "memo"),
+    },
+  );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=stockMargin`);
+  redirect(redirectTo);
 }
 
 export async function deleteStockMarginTrade(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await stockMarginTradeRepository.delete(id);
+
+  const { redirectTo } = await deleteStockMarginTradeCore(stockMarginTradeRepository, {
+    id,
+    year,
+  });
+
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=stockMargin`);
+  redirect(redirectTo);
 }
 
 export async function importCryptoMarginCsv(formData: FormData): Promise<void> {
