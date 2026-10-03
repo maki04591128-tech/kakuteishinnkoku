@@ -2856,6 +2856,27 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   依存リポジトリが複数ある他の未対応アクション(`setOpeningBalance`/
   `setBrokerAnnualReport`等)への適用を検討する。
 
+- [x] 3-31. `setOpeningBalance`/`deleteOpeningBalance`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/openingBalance.ts`に
+  `setOpeningBalanceCore`/`deleteOpeningBalanceCore`を追加した。3-5以降と
+  同様`TaxYearRepository`と`OpeningBalanceRepository`の2つに依存する
+  パターンだが、本アクションはNISA口座・一般株式等(非上場株式)区分の
+  整合性検証(`isNisa && !isListed`はエラー)を伴う点が3-30までの
+  取引記録の追加・削除(`addXxxTrade`)とは異なる(`actions.ts`に
+  元からあった検証をそのままコア関数側に移した)。`src/app/actions.ts`の
+  `setOpeningBalance`/`deleteOpeningBalance`は、FormDataの解釈(NISA/上場
+  区分の`"on"`判定を含む)とコア関数の呼び出し、`revalidatePath`
+  (`/import`・`/`の2つ。従来と同一)/`redirect`の実行のみを行う薄い
+  ラッパーに書き換えた(挙動は従来と完全に同一)。`openingBalance.test.ts`を
+  新規に追加し、NISA/非上場の整合性エラー・`upsert`への引数・`delete`
+  呼び出し・両ケースの`redirectTo`算出を検証した(`npm run test`・
+  `npm run lint`・`npx tsc --noEmit`が成功することを確認済み。
+  `npx tsc --noEmit`は3-30までと同様、本変更と無関係の既存エラー
+  (`src/app/layout.tsx`の`LayoutProps`)を除き成功)。次のステップでは
+  `setOpeningBalanceByInstitution`/`setBrokerAnnualReport`等、残りの
+  複数リポジトリ依存アクションへの適用を検討する。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
