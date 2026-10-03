@@ -44,6 +44,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# スタンドアロン版ビルド(scripts/build-standalone.mjs)が異常終了した場合に
+# 残ることがある退避ディレクトリ
+/.standalone-build-backup
+
 # prisma
 # DATABASE_URL="file:./dev.db" は実行時のカレントディレクトリ(リポジトリ直下)を
 # 基準に解決されるため、prisma/配下ではなくリポジトリ直下にファイルが作成される。
