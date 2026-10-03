@@ -2934,6 +2934,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   除き成功)。残る単純な単一リポジトリ依存アクションは`setNisaLifetimeQuota`/
   `deleteNisaLifetimeQuota`等で、次のステップ以降で適用していく。
 
+- [x] 3-35. `addInvestmentTrade`/`deleteInvestmentTrade`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/investmentTrade.ts`に
+  `addInvestmentTradeCore`/`deleteInvestmentTradeCore`を追加した。3-26の
+  `addCryptoTrade`/`deleteCryptoTrade`と同じ「取引記録1件ごとの追加・削除」
+  パターンだが、こちらはNISA口座と非上場株式の組み合わせ禁止・J-REITは
+  資産種別「ETF」の場合のみ・外貨建資産等の組入割合(50%超75%以下/75%超)は
+  資産種別「投資信託」の場合のみ、という`addInvestmentTrade`固有の
+  バリデーションを4件含む(内容は元の実装から変更していない)。
+  `src/app/actions.ts`の`addInvestmentTrade`/`deleteInvestmentTrade`は、
+  FormDataの解釈とコア関数の呼び出し、`revalidatePath`(`/import`・`/`の
+  2つ。従来と同一)/`redirect`の実行のみを行う薄いラッパーに書き換えた
+  (挙動は従来と完全に同一)。`investmentTrade.test.ts`を新規に追加し、
+  正常系の登録(デフォルト値補完含む)・4つのバリデーションエラー・
+  `delete`呼び出しと`redirectTo`算出を検証した(`npm run test`・
+  `npm run lint`・`npx tsc --noEmit`が成功することを確認済み。
+  `npx tsc --noEmit`は3-3以降と同様、本変更と無関係の既存エラーのみ)。
+  これでフェーズ3の「取引記録1件ごとの追加・削除」パターンの対象
+  (CryptoTrade/CryptoMarginTrade/CryptoCreditTrade/StockMarginTrade/
+  FuturesTrade/InvestmentTrade)が全て完了した。残る未着手の`actions.ts`
+  エクスポート関数はCSVインポート系(`importMoneyForwardCsv`等)と
+  繰越・引継ぎ系(`carryForwardFuturesLoss`等)・`NisaLifetimeQuota`系で、
+  次のステップ以降で適用していく。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
