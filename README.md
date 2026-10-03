@@ -2745,6 +2745,26 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (`importMoneyForwardCsv`等)など、単純な年単位レコードの登録/削除より
   複雑な処理のため、次のステップ以降で個別にパターンを検討する。
 
+- [x] 3-26. `addCryptoTrade`/`deleteCryptoTrade`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/cryptoTrade.ts`に
+  `addCryptoTradeCore`/`deleteCryptoTradeCore`を追加した。3-12〜3-25の
+  「発生年の入力のみの単純な年単位レコード(1年に1件)の登録/削除」パターンとは
+  異なり、これは「取引記録(1年に複数件登録できるレコード)1件ごとの追加・削除」
+  という新しいパターン。暗号資産取引(`CryptoTrade`)は`addInvestmentTrade`の
+  NISA判定のような追加バリデーションが無い最も単純な取引記録のため、この
+  パターンの最初の対象に選んだ。`src/app/actions.ts`の`addCryptoTrade`/
+  `deleteCryptoTrade`は、FormDataの解釈とコア関数の呼び出し、`revalidatePath`
+  (`/import`・`/`の2つ。従来と同一)/`redirect`の実行のみを行う薄いラッパーに
+  書き換えた(挙動は従来と完全に同一。`symbol`の大文字化・`feeJpy`省略時の
+  `"0"`補完もコア関数側に移した)。`cryptoTrade.test.ts`を新規に追加し、
+  `create`への引数(symbol大文字化・feeJpy補完を含む)・`delete`呼び出し・
+  両ケースの`redirectTo`算出を検証した(`npm run test`・`npm run lint`・
+  `npx tsc --noEmit`が成功することを確認済み)。残る取引記録の追加・削除は
+  `addInvestmentTrade`/`deleteInvestmentTrade`(NISA・REIT等の追加バリデーション
+  を伴う)・`addCryptoMarginTrade`等(先物・証拠金取引)で、次のステップ以降で
+  個別にパターンを検討する。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
@@ -2769,7 +2789,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
-  (Server Actions/Server Componentsの置き換え)を3-24まで進行中)から1つずつ
+  (Server Actions/Server Componentsの置き換え)を3-26まで進行中)から1つずつ
   着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
