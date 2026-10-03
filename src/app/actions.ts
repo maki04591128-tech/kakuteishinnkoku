@@ -164,6 +164,7 @@ import {
   addStockMarginTradeCore,
   deleteStockMarginTradeCore,
 } from "@/lib/actions/stockMarginTrade";
+import { addFuturesTradeCore, deleteFuturesTradeCore } from "@/lib/actions/futuresTrade";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -633,32 +634,32 @@ export async function deleteInvestmentTrade(formData: FormData): Promise<void> {
 
 export async function addFuturesTrade(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
 
-  await futuresTradeRepository.create({
-    taxYearId: taxYear.id,
-    settledAt: new Date(requireString(formData, "settledAt")),
+  const { redirectTo } = await addFuturesTradeCore(taxYearRepository, futuresTradeRepository, {
+    year,
+    settledAt: requireString(formData, "settledAt"),
     symbol: requireString(formData, "symbol"),
     realizedPnlJpy: requireString(formData, "realizedPnlJpy"),
-    feeJpy: optionalString(formData, "feeJpy") ?? "0",
-    swapJpy: optionalString(formData, "swapJpy") ?? "0",
+    feeJpy: optionalString(formData, "feeJpy"),
+    swapJpy: optionalString(formData, "swapJpy"),
     broker: optionalString(formData, "broker"),
     memo: optionalString(formData, "memo"),
-    source: "manual",
   });
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=futures`);
+  redirect(redirectTo);
 }
 
 export async function deleteFuturesTrade(formData: FormData): Promise<void> {
   const id = Number(requireString(formData, "id"));
   const year = Number(requireString(formData, "year"));
-  await futuresTradeRepository.delete(id);
+
+  const { redirectTo } = await deleteFuturesTradeCore(futuresTradeRepository, { id, year });
+
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=futures`);
+  redirect(redirectTo);
 }
 
 export async function importFuturesCsv(formData: FormData): Promise<void> {

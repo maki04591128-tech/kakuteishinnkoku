@@ -2833,6 +2833,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   無しの単純な取引記録と見られる)で、次のステップでは先に`addFuturesTrade`/
   `deleteFuturesTrade`に適用していく想定。
 
+- [x] 3-30. `addFuturesTrade`/`deleteFuturesTrade`のコア関数を抽出
+
+  **実装内容(2026-10-03):** `src/lib/actions/futuresTrade.ts`に
+  `addFuturesTradeCore`/`deleteFuturesTradeCore`を追加した。3-26〜3-29の
+  `addCryptoTrade`/`addCryptoMarginTrade`/`addCryptoCreditTrade`/
+  `addStockMarginTrade`と同じ「取引記録(1年に複数件登録できるレコード)1件
+  ごとの追加・削除」パターンの5例目(先物取引)。3-29で見込んだとおり追加
+  バリデーションは無く、`feeJpy`/`swapJpy`省略時の`"0"`補完と`source: "manual"`
+  固定のみ(symbolの大文字化は元の`actions.ts`側にも無かったため、コア関数側でも
+  行わない)。`src/app/actions.ts`の`addFuturesTrade`/`deleteFuturesTrade`は、
+  FormDataの解釈とコア関数の呼び出し、`revalidatePath`(`/import`・`/`の2つ。
+  従来と同一)/`redirect`の実行のみを行う薄いラッパーに書き換えた(挙動は従来と
+  完全に同一)。`futuresTrade.test.ts`を新規に追加し、`create`への引数
+  (feeJpy/swapJpy補完・`source: "manual"`固定を含む)・`delete`呼び出し・
+  両ケースの`redirectTo`算出を検証した(`npm run test`・`npm run lint`・
+  `npx tsc --noEmit`が成功することを確認済み。`npx tsc --noEmit`は3-29までと
+  同様、本変更と無関係の既存エラー(`src/app/layout.tsx`の`LayoutProps`)を除き
+  成功)。残る単純な取引記録の追加・削除は`addInvestmentTrade`/
+  `deleteInvestmentTrade`(NISA・REIT等の追加バリデーションを伴うため、他の
+  アクションの後に取り組む想定)のみとなった。次のステップでは
+  依存リポジトリが複数ある他の未対応アクション(`setOpeningBalance`/
+  `setBrokerAnnualReport`等)への適用を検討する。
+
 #### フェーズ4: 認証方式の見直し
 
 スタンドアロン版はインターネットに公開しない前提のため、パスワード認証
