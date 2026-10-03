@@ -60,7 +60,6 @@ import {
 } from "@/lib/investment/annualReportCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
-import { isIncomeDeductionType } from "@/lib/incomeDeduction";
 import { deriveNisaLifetimeCarryForwardCandidates } from "@/lib/investment/nisaQuota";
 import { setCryptoCostMethodCore } from "@/lib/actions/setCryptoCostMethod";
 import {
@@ -140,6 +139,10 @@ import {
   saveMortgageDeductionRecordCore,
   deleteMortgageDeductionRecordCore,
 } from "@/lib/actions/mortgageDeductionRecord";
+import {
+  saveIncomeDeductionCore,
+  deleteIncomeDeductionCore,
+} from "@/lib/actions/incomeDeductionRecord";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1830,24 +1833,21 @@ export async function deleteCertifiedHousingConstructionCreditCarryforward(
 export async function saveIncomeDeduction(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const type = requireString(formData, "type");
-  if (!isIncomeDeductionType(type)) {
-    throw new Error(`不正な所得控除区分です: ${type}`);
-  }
   const incomeTaxAmountJpy = requireString(formData, "incomeTaxAmountJpy");
   const residentTaxAmountJpy = requireString(formData, "residentTaxAmountJpy");
   const redirectPath = requireString(formData, "redirectPath");
 
-  const taxYear = await getOrCreateTaxYear(year);
-  await incomeDeductionRepository.upsert({
-    taxYearId: taxYear.id,
+  const { redirectTo } = await saveIncomeDeductionCore(taxYearRepository, incomeDeductionRepository, {
+    year,
     type,
     incomeTaxAmountJpy,
     residentTaxAmountJpy,
+    redirectPath,
   });
 
   revalidatePath("/tax-estimate");
   revalidatePath(redirectPath);
-  redirect(`${redirectPath}?year=${year}&deductionSaved=${type}`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1859,19 +1859,17 @@ export async function saveIncomeDeduction(formData: FormData): Promise<void> {
 export async function deleteIncomeDeduction(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
   const type = requireString(formData, "type");
-  if (!isIncomeDeductionType(type)) {
-    throw new Error(`不正な所得控除区分です: ${type}`);
-  }
   const redirectPath = requireString(formData, "redirectPath");
 
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await incomeDeductionRepository.deleteByTaxYearIdAndType(taxYear.id, type);
-  }
+  const { redirectTo } = await deleteIncomeDeductionCore(taxYearRepository, incomeDeductionRepository, {
+    year,
+    type,
+    redirectPath,
+  });
 
   revalidatePath("/tax-estimate");
   revalidatePath(redirectPath);
-  redirect(`${redirectPath}?year=${year}&deductionDeleted=${type}`);
+  redirect(redirectTo);
 }
 
 export async function saveMortgageDeductionRecord(formData: FormData): Promise<void> {
