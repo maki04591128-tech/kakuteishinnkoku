@@ -3069,11 +3069,58 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   Route Handlerに依存しない形に変更するか、スタンドアロン版では
   クライアント側で直接CSVを生成する形に置き換える対応が必要になる。
 
-- [ ] 5-1-2. `src/app/api/export/route.ts`(CSV下書き出力)を
-      スタンドアロン版でも動作する形に置き換える(5-1で判明した課題。
-      `output: "export"`はRoute Handlerの動的処理(Requestへの依存)を
-      サポートしないため、クライアント側で直接CSVを生成する関数に
-      置き換える等の対応を検討する)。
+- [x] 5-1-2. `src/app/api/export/route.ts`(CSV下書き出力)のコア関数を
+      Route Handler固有API(`NextRequest`/`NextResponse`)から切り離す
+
+  **実装内容(2026-10-03):** `src/lib/etax/exportDraftCsv.ts`に
+  `buildDraftCsvExport(year)`を新設し、`route.ts`が行っていた年ごとの
+  データ集計(`buildYearReport`・各種`getXxxDeductionRecord`の並列取得)・
+  CSV生成(`buildTaxFilingSummary`/`buildTaxFilingDraftCsv`)のロジックを
+  丸ごと移した(ロジックは一切変更していない。戻り値を`{ filename, content }`
+  (`content`はBOM付きCSV文字列)にまとめ、対象年分のデータが無い場合は
+  `null`を返す)。`route.ts`はクエリパラメータの解釈と、この関数の戻り値から
+  `NextResponse`を組み立てるだけの薄いラッパーに書き換えた(レスポンスの
+  ヘッダー・ステータスコードは従来と完全に同一)。
+
+  フェーズ3の「コア関数抽出」と異なり、本関数はテスト容易化のための
+  リポジトリ注入は行っていない。`buildYearReport`自体が多数のリポジトリを
+  内部で直接呼び出す大きな関数(フェーズ1で導入したリポジトリ群は
+  `getXxxDeductionRecord`のような個別のlib関数内に閉じている)であり、
+  本コードベースには`vi.mock`でモジュールをモックする既存の慣習も無いため、
+  この抽出単体に対する新規ユニットテストは追加していない(元の`route.ts`
+  自体も同じ理由でテストが無かった)。
+
+  **動作確認(2026-10-03時点):** `npm run test`(全175ファイル1619件)・
+  `npm run lint`・`npx tsc --noEmit`(既存の`src/app/layout.tsx`の
+  `LayoutProps`エラーのみで本変更と無関係)が成功することを確認済み。加えて
+  `DATABASE_URL`を設定し実際に`npx prisma db push`でDBを作成した上で、
+  (1)`npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、
+  (2)`npm run build:standalone`が、5-1の認証関連の除外は正しく機能した上で
+  今回切り出した`/api/export`ルート自体で
+  `export const dynamic = "force-static"/export const revalidate not
+  configured on route "/api/export" with "output: export"`という
+  (ロジックの抽出とは無関係な、Route Handlerの存在自体がRequestに依存する
+  ために生じる)既知のエラーで失敗することを確認した。これは今回の変更による
+  リグレッションではなく、5-1-2着手前から判明していた制約そのものである。
+
+  **残課題(次のステップ以降で対応):** 本ステップは「コア関数抽出」のみで、
+  スタンドアロン版のビルドはまだ成功しない。残るのは(a)`/api/export`
+  ルート自体を`scripts/build-standalone.mjs`の退避対象に追加して
+  ビルド対象から除外すること、(b)`src/app/page.tsx`のダウンロードリンクを
+  スタンドアロン版では「`buildDraftCsvExport`相当の処理をブラウザ上で実行し
+  Blobとしてダウンロードさせる」形に置き換えること、の2点。ただし(b)は
+  `buildDraftCsvExport`が内部で呼ぶ`buildYearReport`等が現時点では既定で
+  Prisma実装(Node.js専用)に固定されており、フェーズ2で用意したクライアント
+  DB実装への切り替え機構がまだ無いため、まずその切り替え機構(ビルド
+  ターゲットに応じて既定のリポジトリ実装を切り替える仕組み。5-1の
+  `authUi`差し替えと同種のパターンが流用できる見込み)を別ステップで
+  用意する必要がある。
+- [ ] 5-1-3. 既定のリポジトリ実装をビルドターゲットで切り替える機構を用意し
+      (5-1の`authUi`差し替えと同種のパターンを想定)、`/api/export`を
+      `scripts/build-standalone.mjs`の退避対象に追加した上で、
+      `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
+      `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
+      させる形に置き換える(5-1-2の残課題)。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
@@ -3088,9 +3135,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3
   (Server Actions/Server Componentsの置き換え)・フェーズ4(認証方式の見直し)・
-  5-1(`next.config.ts`のビルド分岐・認証関連の除外)が完了し、5-1-2
-  (`/api/export`のスタンドアロン対応)から着手可能)から1つずつ着手し、
-  完了したらチェックを付けて次回に引き継ぐ。
+  5-1(`next.config.ts`のビルド分岐・認証関連の除外)・5-1-2
+  (`/api/export`のコア関数抽出)が完了し、5-1-3(既定のリポジトリ実装の
+  切り替え機構・`/api/export`の除外・クライアント側CSV生成への置き換え)
+  から着手可能)から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
