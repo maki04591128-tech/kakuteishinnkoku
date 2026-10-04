@@ -42,6 +42,9 @@
       ],
       "@/lib/repositories/defaultOpeningBalanceRepository": [
         "./src/lib/repositories/defaultOpeningBalanceRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultMortgageDeductionRecordRepository": [
+        "./src/lib/repositories/defaultMortgageDeductionRecordRepository.standalone.ts"
       ]
     }
   }

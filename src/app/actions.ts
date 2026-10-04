@@ -38,7 +38,7 @@ import { childRearingRenovationDeductionRecordRepository } from "@/lib/repositor
 import { certifiedHousingConstructionCreditRecordRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository";
 import { certifiedHousingConstructionCreditCarryforwardRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository";
 import { incomeDeductionRepository } from "@/lib/repositories/defaultIncomeDeductionRepository";
-import { createPrismaMortgageDeductionRecordRepository } from "@/lib/repositories/mortgageDeductionRecordRepository";
+import { mortgageDeductionRecordRepository } from "@/lib/repositories/defaultMortgageDeductionRecordRepository";
 import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/residentTaxAdjustmentDeductionRecordRepository";
 import { createPrismaCashflowEntryRepository } from "@/lib/repositories/cashflowEntryRepository";
 import { createPrismaAssetBalanceSnapshotRepository } from "@/lib/repositories/assetBalanceSnapshotRepository";
@@ -247,7 +247,6 @@ const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardR
 const foreignTaxCreditRecordRepository = createPrismaForeignTaxCreditRecordRepository();
 const distributionAdjustedForeignTaxCreditRecordRepository =
   createPrismaDistributionAdjustedForeignTaxCreditRecordRepository();
-const mortgageDeductionRecordRepository = createPrismaMortgageDeductionRecordRepository();
 const residentTaxAdjustmentDeductionRecordRepository =
   createPrismaResidentTaxAdjustmentDeductionRecordRepository();
 const cashflowEntryRepository = createPrismaCashflowEntryRepository();

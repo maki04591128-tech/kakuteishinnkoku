@@ -1,8 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaMortgageDeductionRecordRepository } from "./repositories/mortgageDeductionRecordRepository";
+import { mortgageDeductionRecordRepository } from "@/lib/repositories/defaultMortgageDeductionRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const mortgageDeductionRecordRepository = createPrismaMortgageDeductionRecordRepository();
 
 /**
  * 住宅借入金等特別控除(住宅ローン控除)を試算する(租税特別措置法41条)。

@@ -3,7 +3,7 @@
  * `MortgageDeductionRecordRepository`インターフェースを、Prisma実装
  * (`createPrismaMortgageDeductionRecordRepository`)と同じ挙動で満たすことを検証する。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -40,9 +40,9 @@ describe("createClientMortgageDeductionRecordRepository", () => {
     const record = await repo.findByTaxYearId(1);
     expect(record).not.toBeNull();
     expect(record?.taxYearId).toBe(1);
-    expect(record?.nationalTaxCreditJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.nationalTaxCreditJpy).toBeInstanceOf(Decimal);
     expect(record?.nationalTaxCreditJpy.toString()).toBe("150000");
-    expect(record?.residentTaxCreditJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.residentTaxCreditJpy).toBeInstanceOf(Decimal);
     expect(record?.residentTaxCreditJpy.toString()).toBe("30000");
     expect(record?.id).toBeTypeOf("number");
     expect(record?.createdAt).toBeInstanceOf(Date);
