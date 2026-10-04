@@ -103,6 +103,15 @@ const defaultEarthquakeRenovationDeductionRecordRepositoryStandaloneAliasForWebp
   "src/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository.standalone.ts",
 );
 
+// `EnergySavingRenovationDeductionRecordRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、10つ目)。
+const defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository.standalone.ts";
+const defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -133,6 +142,8 @@ const nextConfig: NextConfig = {
             defaultDurabilityImprovementRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository":
             defaultEarthquakeRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository":
+            defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -159,6 +170,8 @@ const nextConfig: NextConfig = {
           defaultDurabilityImprovementRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository":
           defaultEarthquakeRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository":
+          defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;
