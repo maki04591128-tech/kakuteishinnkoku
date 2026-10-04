@@ -57,6 +57,9 @@
       ],
       "@/lib/repositories/defaultCryptoTradeRepository": [
         "./src/lib/repositories/defaultCryptoTradeRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultCryptoMarginTradeRepository": [
+        "./src/lib/repositories/defaultCryptoMarginTradeRepository.standalone.ts"
       ]
     }
   }

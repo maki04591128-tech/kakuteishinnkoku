@@ -4,7 +4,7 @@
  * Prisma実装(`createPrismaCryptoMarginTradeRepository`)と
  * 同じ挙動で満たすことを検証する。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -45,7 +45,7 @@ describe("createClientCryptoMarginTradeRepository", () => {
       source: "manual",
     });
     expect(created.id).toBeTypeOf("number");
-    expect(created.realizedPnlJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(created.realizedPnlJpy).toBeInstanceOf(Decimal);
     expect(created.realizedPnlJpy.toString()).toBe("-0.123456789012345678");
 
     const records = await repo.findByTaxYearId(1);
