@@ -83,7 +83,7 @@ import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/invest
 import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
 import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
-import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/openingBalanceRepository";
+import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalanceRepository";
 import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stockMarginTradeRepository";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
@@ -94,7 +94,6 @@ const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();
 const investmentTradeRepository = createPrismaInvestmentTradeRepository();
 const stockMarginTradeRepository = createPrismaStockMarginTradeRepository();
 const futuresTradeRepository = createPrismaFuturesTradeRepository();
-const openingBalanceRepository = createPrismaOpeningBalanceRepository();
 const openingBalanceByInstitutionRepository =
   createPrismaOpeningBalanceByInstitutionRepository();
 const investmentLossCarryforwardRepository =

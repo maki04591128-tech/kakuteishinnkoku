@@ -6,12 +6,23 @@
  * 呼び出しは移行時に別途このリポジトリへ委譲する)
  * フェーズ2-27でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientOpeningBalanceRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaOpeningBalanceRepository`
+ * (フェーズ5-1-3bで`openingBalanceRepository.prisma.ts`に分離。
+ * `@prisma/client`(Node専用)に依存するため、このファイルからは分離しスタンドアロン版
+ * バンドルに引き込まれないようにする)を使う。ビルドターゲットに応じたどちらを使うかの
+ * 既定の切り替えは`defaultOpeningBalanceRepository.ts`/
+ * `defaultOpeningBalanceRepository.standalone.ts`が担う。
+ *
+ * `quantity`/`costBasisJpy`の型(`OpeningBalance`の`Decimal`)は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`(`decimalCodec.ts`)で
+ * 生成する(`@prisma/client`の`Prisma.Decimal`は構造的に同一の別クラスだが、値としての
+ * importはスタンドアロン版バンドルに`@prisma/client`本体を引き込んでしまうため
+ * 使わない。`decimal.js`の`Decimal`は型として互換なので代入可能)。
  */
-import { Prisma, type OpeningBalance, type OpeningBalanceAssetClass } from "@prisma/client";
+import type { OpeningBalance, OpeningBalanceAssetClass } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
 import { decodeBoolean, encodeBoolean } from "../clientDb/booleanCodec";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface OpeningBalanceRepository {
@@ -39,55 +50,6 @@ export interface OpeningBalanceRepository {
   ): Promise<void>;
 }
 
-export function createPrismaOpeningBalanceRepository(): OpeningBalanceRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<OpeningBalance[]> {
-      return prisma.openingBalance.findMany({ where: { taxYearId } });
-    },
-
-    async upsert({
-      taxYearId,
-      assetClass,
-      symbol,
-      isNisa,
-      isListed,
-      quantity,
-      costBasisJpy,
-    }): Promise<void> {
-      await prisma.openingBalance.upsert({
-        where: {
-          taxYearId_assetClass_symbol_isNisa_isListed: {
-            taxYearId,
-            assetClass,
-            symbol,
-            isNisa,
-            isListed,
-          },
-        },
-        create: {
-          taxYearId,
-          assetClass,
-          symbol,
-          isNisa,
-          isListed,
-          quantity,
-          costBasisJpy,
-        },
-        update: { quantity, costBasisJpy },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.openingBalance.delete({ where: { id } });
-    },
-
-    async createMany(data): Promise<void> {
-      if (data.length === 0) return;
-      await prisma.openingBalance.createMany({ data });
-    },
-  };
-}
-
 function rowToOpeningBalance(row: Record<string, SqlValue>): OpeningBalance {
   return {
     id: Number(row.id),
@@ -96,8 +58,8 @@ function rowToOpeningBalance(row: Record<string, SqlValue>): OpeningBalance {
     symbol: String(row.symbol),
     isNisa: decodeBoolean(Number(row.is_nisa)),
     isListed: decodeBoolean(Number(row.is_listed)),
-    quantity: new Prisma.Decimal(String(row.quantity)),
-    costBasisJpy: new Prisma.Decimal(String(row.cost_basis_jpy)),
+    quantity: decodeDecimal(String(row.quantity)),
+    costBasisJpy: decodeDecimal(String(row.cost_basis_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

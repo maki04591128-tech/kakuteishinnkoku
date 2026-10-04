@@ -39,6 +39,9 @@
       ],
       "@/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository": [
         "./src/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultOpeningBalanceRepository": [
+        "./src/lib/repositories/defaultOpeningBalanceRepository.standalone.ts"
       ]
     }
   }

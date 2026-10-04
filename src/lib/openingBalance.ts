@@ -6,9 +6,7 @@ import type {
   InvestmentOpeningBalance,
   InvestmentPortfolioYearResult,
 } from "./investment/calculator";
-import { createPrismaOpeningBalanceRepository } from "./repositories/openingBalanceRepository";
-
-const openingBalanceRepository = createPrismaOpeningBalanceRepository();
+import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalanceRepository";
 
 export interface OpeningBalancesByYear {
   crypto: Record<string, CryptoOpeningBalance>;
