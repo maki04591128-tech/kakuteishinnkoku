@@ -3,7 +3,7 @@
  * `ResidentTaxAdjustmentDeductionRecordRepository`インターフェースを、Prisma実装
  * (`createPrismaResidentTaxAdjustmentDeductionRecordRepository`)と同じ挙動で満たすことを検証する。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -36,7 +36,7 @@ describe("createClientResidentTaxAdjustmentDeductionRecordRepository", () => {
     const record = await repo.findByTaxYearId(1);
     expect(record).not.toBeNull();
     expect(record?.taxYearId).toBe(1);
-    expect(record?.adjustmentDeductionJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.adjustmentDeductionJpy).toBeInstanceOf(Decimal);
     expect(record?.adjustmentDeductionJpy.toString()).toBe("25000");
     expect(record?.id).toBeTypeOf("number");
     expect(record?.createdAt).toBeInstanceOf(Date);

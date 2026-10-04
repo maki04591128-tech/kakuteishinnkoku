@@ -4,11 +4,17 @@
  * インターフェース経由に置き換える。挙動は既存のPrisma実装と完全に一致させる。
  * フェーズ2-22でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientResidentTaxAdjustmentDeductionRecordRepository`。wa-sqlite)を追加した。
+ * フェーズ5-1-3bで`createPrismaResidentTaxAdjustmentDeductionRecordRepository`
+ * (`@prisma/client`(Node専用)に依存)を
+ * `residentTaxAdjustmentDeductionRecordRepository.prisma.ts`に分離し、スタンドアロン版
+ * バンドルに引き込まれないようにした。`adjustmentDeductionJpy`の型(`Decimal`)は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`(`decimalCodec.ts`)で
+ * 生成する(`@prisma/client`の`Prisma.Decimal`は構造的に同一の別クラスだが、値としての
+ * importはスタンドアロン版バンドルに`@prisma/client`本体を引き込んでしまうため使わない)。
  */
-import { Prisma, type ResidentTaxAdjustmentDeductionRecord } from "@prisma/client";
+import type { ResidentTaxAdjustmentDeductionRecord } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface ResidentTaxAdjustmentDeductionRecordRepository {
@@ -17,35 +23,13 @@ export interface ResidentTaxAdjustmentDeductionRecordRepository {
   deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
-export function createPrismaResidentTaxAdjustmentDeductionRecordRepository(): ResidentTaxAdjustmentDeductionRecordRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<ResidentTaxAdjustmentDeductionRecord | null> {
-      return prisma.residentTaxAdjustmentDeductionRecord.findUnique({
-        where: { taxYearId },
-      });
-    },
-
-    async upsert({ taxYearId, adjustmentDeductionJpy }): Promise<void> {
-      await prisma.residentTaxAdjustmentDeductionRecord.upsert({
-        where: { taxYearId },
-        create: { taxYearId, adjustmentDeductionJpy },
-        update: { adjustmentDeductionJpy },
-      });
-    },
-
-    async deleteByTaxYearId(taxYearId: number): Promise<void> {
-      await prisma.residentTaxAdjustmentDeductionRecord.deleteMany({ where: { taxYearId } });
-    },
-  };
-}
-
 function rowToResidentTaxAdjustmentDeductionRecord(
   row: Record<string, SqlValue>,
 ): ResidentTaxAdjustmentDeductionRecord {
   return {
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
-    adjustmentDeductionJpy: new Prisma.Decimal(String(row.adjustment_deduction_jpy)),
+    adjustmentDeductionJpy: decodeDecimal(String(row.adjustment_deduction_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

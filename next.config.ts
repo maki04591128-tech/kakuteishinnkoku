@@ -149,6 +149,24 @@ const defaultMortgageDeductionRecordRepositoryStandaloneAliasForWebpack = path.r
   "src/lib/repositories/defaultMortgageDeductionRecordRepository.standalone.ts",
 );
 
+// `ForeignTaxCreditRecordRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、15つ目)。
+const defaultForeignTaxCreditRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultForeignTaxCreditRecordRepository.standalone.ts";
+const defaultForeignTaxCreditRecordRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultForeignTaxCreditRecordRepository.standalone.ts",
+);
+
+// `ResidentTaxAdjustmentDeductionRecordRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、16つ目)。
+const defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository.standalone.ts";
+const defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -189,6 +207,10 @@ const nextConfig: NextConfig = {
             defaultOpeningBalanceRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultMortgageDeductionRecordRepository":
             defaultMortgageDeductionRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultForeignTaxCreditRecordRepository":
+            defaultForeignTaxCreditRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository":
+            defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -225,6 +247,10 @@ const nextConfig: NextConfig = {
           defaultOpeningBalanceRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultMortgageDeductionRecordRepository":
           defaultMortgageDeductionRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultForeignTaxCreditRecordRepository":
+          defaultForeignTaxCreditRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository":
+          defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

@@ -1,8 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "./repositories/residentTaxAdjustmentDeductionRecordRepository";
+import { residentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const residentTaxAdjustmentDeductionRecordRepository = createPrismaResidentTaxAdjustmentDeductionRecordRepository();
 
 /**
  * 個人住民税の調整控除(地方税法附則3条の3等)を試算する。他の所得控除試算画面と
