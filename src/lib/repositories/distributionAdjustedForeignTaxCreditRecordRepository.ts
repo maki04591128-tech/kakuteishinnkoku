@@ -4,11 +4,22 @@
  * インターフェース経由に置き換える。挙動は既存のPrisma実装と完全に一致させる。
  * フェーズ2-23でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientDistributionAdjustedForeignTaxCreditRecordRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaDistributionAdjustedForeignTaxCreditRecordRepository`
+ * (フェーズ5-1-3bで`distributionAdjustedForeignTaxCreditRecordRepository.prisma.ts`に分離。
+ * `@prisma/client`(Node専用)に依存するため、このファイルからは分離しスタンドアロン版
+ * バンドルに引き込まれないようにする)を使う。ビルドターゲットに応じたどちらを使うかの
+ * 既定の切り替えは`defaultDistributionAdjustedForeignTaxCreditRecordRepository.ts`/
+ * `defaultDistributionAdjustedForeignTaxCreditRecordRepository.standalone.ts`が担う。
+ *
+ * `creditJpy`の型(`Decimal`)は`@prisma/client`の値のみ`import type`で参照し、
+ * 実体は`decimal.js`(`decimalCodec.ts`)で生成する(`@prisma/client`の`Prisma.Decimal`は
+ * 構造的に同一の別クラスだが、値としてのimportはスタンドアロン版バンドルに
+ * `@prisma/client`本体を引き込んでしまうため使わない。`decimal.js`の`Decimal`は型として
+ * 互換なので代入可能)。
  */
-import { Prisma, type DistributionAdjustedForeignTaxCreditRecord } from "@prisma/client";
+import type { DistributionAdjustedForeignTaxCreditRecord } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface DistributionAdjustedForeignTaxCreditRecordRepository {
@@ -17,37 +28,13 @@ export interface DistributionAdjustedForeignTaxCreditRecordRepository {
   deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
-export function createPrismaDistributionAdjustedForeignTaxCreditRecordRepository(): DistributionAdjustedForeignTaxCreditRecordRepository {
-  return {
-    async findByTaxYearId(
-      taxYearId: number,
-    ): Promise<DistributionAdjustedForeignTaxCreditRecord | null> {
-      return prisma.distributionAdjustedForeignTaxCreditRecord.findUnique({
-        where: { taxYearId },
-      });
-    },
-
-    async upsert({ taxYearId, creditJpy }): Promise<void> {
-      await prisma.distributionAdjustedForeignTaxCreditRecord.upsert({
-        where: { taxYearId },
-        create: { taxYearId, creditJpy },
-        update: { creditJpy },
-      });
-    },
-
-    async deleteByTaxYearId(taxYearId: number): Promise<void> {
-      await prisma.distributionAdjustedForeignTaxCreditRecord.deleteMany({ where: { taxYearId } });
-    },
-  };
-}
-
 function rowToDistributionAdjustedForeignTaxCreditRecord(
   row: Record<string, SqlValue>,
 ): DistributionAdjustedForeignTaxCreditRecord {
   return {
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
-    creditJpy: new Prisma.Decimal(String(row.credit_jpy)),
+    creditJpy: decodeDecimal(String(row.credit_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

@@ -167,6 +167,16 @@ const defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForWeb
   "src/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository.standalone.ts",
 );
 
+// `DistributionAdjustedForeignTaxCreditRecordRepository`にも同じ切り替えパターンを
+// 適用する(フェーズ5-1-3b、17つ目)。
+const defaultDistributionAdjustedForeignTaxCreditRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository.standalone.ts";
+const defaultDistributionAdjustedForeignTaxCreditRecordRepositoryStandaloneAliasForWebpack =
+  path.resolve(
+    process.cwd(),
+    "src/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository.standalone.ts",
+  );
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -211,6 +221,8 @@ const nextConfig: NextConfig = {
             defaultForeignTaxCreditRecordRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository":
             defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository":
+            defaultDistributionAdjustedForeignTaxCreditRecordRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -251,6 +263,8 @@ const nextConfig: NextConfig = {
           defaultForeignTaxCreditRecordRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository":
           defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository":
+          defaultDistributionAdjustedForeignTaxCreditRecordRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

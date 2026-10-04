@@ -51,6 +51,9 @@
       ],
       "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository": [
         "./src/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository": [
+        "./src/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository.standalone.ts"
       ]
     }
   }
