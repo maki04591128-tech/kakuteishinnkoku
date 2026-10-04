@@ -3476,6 +3476,35 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `investment/foreignTaxCredit.ts`・`mortgageDeduction.ts`・
   `multiHouseholdRenovationDeduction.ts`・`openingBalance.ts`・
   `residentTaxAdjustmentDeduction.ts`。
+
+  **追記(2026-10-04、`IncomeDeductionRepository`への適用):**
+  同じパターンを`IncomeDeductionRepository`(`src/lib/incomeDeduction.ts`・
+  `src/app/actions.ts`が消費)にも適用した。このモデルは1ファイルがPrisma実装・
+  クライアント実装の両方を1つの`incomeDeductionRepository.ts`に同居させる構成だった
+  (`DonationTaxCreditRecordRepository`と同様、フェーズ1-12時点の構成)ため、まず
+  `@prisma/client`(`../db`)に依存する`createPrismaIncomeDeductionRepository`を
+  `incomeDeductionRepository.prisma.ts`に分離した上で、
+  `defaultIncomeDeductionRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultIncomeDeductionRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。両消費先を
+  `@/lib/repositories/defaultIncomeDeductionRepository`経由の参照に統一した
+  (`src/app/actions.ts`の直接呼び出しも前例と同様この時点で解消した)。このモデルは
+  `incomeTaxAmountJpy`・`residentTaxAmountJpy`の2つのDecimal列を持つが、いずれも
+  `rowToIncomeDeduction`の復元処理が`new Prisma.Decimal(...)`(`@prisma/client`からの
+  値import)を使っていたため、同じく`decimalCodec.ts`の`decodeDecimal`に置き換えた
+  (既存テストの`instanceof`検証も`Prisma.Decimal`から`decimal.js`の`Decimal`に変更)。
+  `npm run test`(全185ファイル1650件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで無関係)が
+  成功することを確認した。また`DATABASE_URL`を設定し`npx prisma db push`でDBを作成した
+  上で、`npm run build`(自宅サーバー版)が従来通り成功し、`npm run build:standalone`が
+  従来と同じ`Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残る5-1-3bの対象ファイル(更新):** `src/lib/reporting.ts`・
+  `investment/distributionAdjustedForeignTaxCredit.ts`・
+  `investment/foreignTaxCredit.ts`・`mortgageDeduction.ts`・
+  `multiHouseholdRenovationDeduction.ts`・`openingBalance.ts`・
+  `residentTaxAdjustmentDeduction.ts`。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。

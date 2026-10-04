@@ -4,11 +4,20 @@
  * 置き換える。挙動は既存のPrisma実装と完全に一致させる。
  * フェーズ2-26でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientIncomeDeductionRepository`。wa-sqlite)を追加した。
+ * Prisma実装(`createPrismaIncomeDeductionRepository`)はフェーズ5-1-3bで
+ * `incomeDeductionRepository.prisma.ts`に分離した(`@prisma/client`
+ * (Node専用)に依存するため、このファイルからは分離しスタンドアロン版
+ * バンドルに引き込まれないようにする)。
+ *
+ * `incomeTaxAmountJpy`/`residentTaxAmountJpy`の型(`IncomeDeduction`の`Decimal`)は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`(`decimalCodec.ts`)で
+ * 生成する(`@prisma/client`の`Prisma.Decimal`は構造的に同一の別クラスだが、値としての
+ * importはスタンドアロン版バンドルに`@prisma/client`本体を引き込んでしまうため使わない。
+ * `decimal.js`の`Decimal`は型として互換なので代入可能)。
  */
-import { Prisma, type IncomeDeduction, type IncomeDeductionType } from "@prisma/client";
+import type { IncomeDeduction, IncomeDeductionType } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface IncomeDeductionRepository {
@@ -22,35 +31,13 @@ export interface IncomeDeductionRepository {
   deleteByTaxYearIdAndType(taxYearId: number, type: IncomeDeductionType): Promise<void>;
 }
 
-export function createPrismaIncomeDeductionRepository(): IncomeDeductionRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<IncomeDeduction[]> {
-      return prisma.incomeDeduction.findMany({
-        where: { taxYearId },
-      });
-    },
-
-    async upsert({ taxYearId, type, incomeTaxAmountJpy, residentTaxAmountJpy }): Promise<void> {
-      await prisma.incomeDeduction.upsert({
-        where: { taxYearId_type: { taxYearId, type } },
-        create: { taxYearId, type, incomeTaxAmountJpy, residentTaxAmountJpy },
-        update: { incomeTaxAmountJpy, residentTaxAmountJpy },
-      });
-    },
-
-    async deleteByTaxYearIdAndType(taxYearId: number, type: IncomeDeductionType): Promise<void> {
-      await prisma.incomeDeduction.deleteMany({ where: { taxYearId, type } });
-    },
-  };
-}
-
 function rowToIncomeDeduction(row: Record<string, SqlValue>): IncomeDeduction {
   return {
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
     type: String(row.type) as IncomeDeductionType,
-    incomeTaxAmountJpy: new Prisma.Decimal(String(row.income_tax_amount_jpy)),
-    residentTaxAmountJpy: new Prisma.Decimal(String(row.resident_tax_amount_jpy)),
+    incomeTaxAmountJpy: decodeDecimal(String(row.income_tax_amount_jpy)),
+    residentTaxAmountJpy: decodeDecimal(String(row.resident_tax_amount_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

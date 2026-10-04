@@ -1,8 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaIncomeDeductionRepository } from "./repositories/incomeDeductionRepository";
+import { incomeDeductionRepository } from "@/lib/repositories/defaultIncomeDeductionRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const incomeDeductionRepository = createPrismaIncomeDeductionRepository();
 
 /**
  * 所得控除試算画面(医療費控除・生命保険料控除・小規模企業共済等掛金控除
