@@ -6,11 +6,23 @@
  * 移行時に別途このリポジトリへ委譲する)
  * フェーズ2-13でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientFuturesLossCarryforwardRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaFuturesLossCarryforwardRepository`
+ * (フェーズ5-1-3bで`futuresLossCarryforwardRepository.prisma.ts`に分離。
+ * `@prisma/client`(Node専用)に依存するため、このファイルからは分離しスタンドアロン版
+ * バンドルに引き込まれないようにする)を使う。ビルドターゲットに応じたどちらを使うかの
+ * 既定の切り替えは
+ * `defaultFuturesLossCarryforwardRepository.ts`/
+ * `defaultFuturesLossCarryforwardRepository.standalone.ts`が担う。
+ *
+ * `remainingAmountJpy`の型(`Decimal`)は`@prisma/client`の値のみ`import type`で
+ * 参照し、実体は`decimal.js`(`decimalCodec.ts`)で生成する(`@prisma/client`の
+ * `Prisma.Decimal`は構造的に同一の別クラスだが、値としてのimportはスタンドアロン版
+ * バンドルに`@prisma/client`本体を引き込んでしまうため使わない。`decimal.js`の
+ * `Decimal`は型として互換なので代入可能)。
  */
-import { Prisma, type FuturesLossCarryforward } from "@prisma/client";
+import type { FuturesLossCarryforward } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface FuturesLossCarryforwardRepository {
@@ -26,41 +38,12 @@ export interface FuturesLossCarryforwardRepository {
   ): Promise<void>;
 }
 
-export function createPrismaFuturesLossCarryforwardRepository(): FuturesLossCarryforwardRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<FuturesLossCarryforward[]> {
-      return prisma.futuresLossCarryforward.findMany({
-        where: { taxYearId },
-      });
-    },
-
-    async upsert({ taxYearId, originYear, remainingAmountJpy }): Promise<void> {
-      await prisma.futuresLossCarryforward.upsert({
-        where: {
-          taxYearId_originYear: { taxYearId, originYear },
-        },
-        create: { taxYearId, originYear, remainingAmountJpy },
-        update: { remainingAmountJpy },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.futuresLossCarryforward.delete({ where: { id } });
-    },
-
-    async createMany(data): Promise<void> {
-      if (data.length === 0) return;
-      await prisma.futuresLossCarryforward.createMany({ data });
-    },
-  };
-}
-
 function rowToFuturesLossCarryforward(row: Record<string, SqlValue>): FuturesLossCarryforward {
   return {
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
     originYear: Number(row.origin_year),
-    remainingAmountJpy: new Prisma.Decimal(String(row.remaining_amount_jpy)),
+    remainingAmountJpy: decodeDecimal(String(row.remaining_amount_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };
