@@ -18,6 +18,9 @@
       ],
       "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository": [
         "./src/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultChildRearingRenovationDeductionRecordRepository": [
+        "./src/lib/repositories/defaultChildRearingRenovationDeductionRecordRepository.standalone.ts"
       ]
     }
   }
