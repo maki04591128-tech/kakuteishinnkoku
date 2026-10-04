@@ -33,7 +33,7 @@ import { createPrismaDistributionAdjustedForeignTaxCreditRecordRepository } from
 import { createPrismaEarthquakeRenovationDeductionRecordRepository } from "@/lib/repositories/earthquakeRenovationDeductionRecordRepository";
 import { createPrismaEnergySavingRenovationDeductionRecordRepository } from "@/lib/repositories/energySavingRenovationDeductionRecordRepository";
 import { createPrismaMultiHouseholdRenovationDeductionRecordRepository } from "@/lib/repositories/multiHouseholdRenovationDeductionRecordRepository";
-import { createPrismaDurabilityImprovementRenovationDeductionRecordRepository } from "@/lib/repositories/durabilityImprovementRenovationDeductionRecordRepository";
+import { durabilityImprovementRenovationDeductionRecordRepository } from "@/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository";
 import { childRearingRenovationDeductionRecordRepository } from "@/lib/repositories/defaultChildRearingRenovationDeductionRecordRepository";
 import { certifiedHousingConstructionCreditRecordRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository";
 import { certifiedHousingConstructionCreditCarryforwardRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository";
@@ -254,8 +254,6 @@ const energySavingRenovationDeductionRecordRepository =
   createPrismaEnergySavingRenovationDeductionRecordRepository();
 const multiHouseholdRenovationDeductionRecordRepository =
   createPrismaMultiHouseholdRenovationDeductionRecordRepository();
-const durabilityImprovementRenovationDeductionRecordRepository =
-  createPrismaDurabilityImprovementRenovationDeductionRecordRepository();
 const incomeDeductionRepository = createPrismaIncomeDeductionRepository();
 const mortgageDeductionRecordRepository = createPrismaMortgageDeductionRecordRepository();
 const residentTaxAdjustmentDeductionRecordRepository =

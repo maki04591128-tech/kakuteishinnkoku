@@ -1,9 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaDurabilityImprovementRenovationDeductionRecordRepository } from "./repositories/durabilityImprovementRenovationDeductionRecordRepository";
+import { durabilityImprovementRenovationDeductionRecordRepository } from "@/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const durabilityImprovementRenovationDeductionRecordRepository =
-  createPrismaDurabilityImprovementRenovationDeductionRecordRepository();
 
 /**
  * 耐久性向上改修工事をした場合の住宅特定改修特別税額控除(税額控除。租税特別措置法

@@ -84,6 +84,16 @@ const defaultDonationTaxCreditRecordRepositoryStandaloneAliasForWebpack = path.r
   "src/lib/repositories/defaultDonationTaxCreditRecordRepository.standalone.ts",
 );
 
+// `DurabilityImprovementRenovationDeductionRecordRepository`にも同じ切り替えパターンを
+// 適用する(フェーズ5-1-3b、8つ目)。
+const defaultDurabilityImprovementRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository.standalone.ts";
+const defaultDurabilityImprovementRenovationDeductionRecordRepositoryStandaloneAliasForWebpack =
+  path.resolve(
+    process.cwd(),
+    "src/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository.standalone.ts",
+  );
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -110,6 +120,8 @@ const nextConfig: NextConfig = {
             defaultChildRearingRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultDonationTaxCreditRecordRepository":
             defaultDonationTaxCreditRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository":
+            defaultDurabilityImprovementRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -132,6 +144,8 @@ const nextConfig: NextConfig = {
           defaultChildRearingRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultDonationTaxCreditRecordRepository":
           defaultDonationTaxCreditRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository":
+          defaultDurabilityImprovementRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

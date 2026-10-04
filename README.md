@@ -3395,8 +3395,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   従来と同じ`Server Actions are not supported with static export`エラーで
   失敗すること(新たなリグレッションが無いこと)を確認した。
 
+  **追記(2026-10-04、`DurabilityImprovementRenovationDeductionRecordRepository`への適用):**
+  同じパターンを`DurabilityImprovementRenovationDeductionRecordRepository`
+  (`src/lib/durabilityImprovementRenovationDeduction.ts`・`src/app/actions.ts`が消費)にも
+  適用した。`src/lib/repositories/durabilityImprovementRenovationDeductionRecordRepository.ts`から
+  `@prisma/client`(`../db`)に依存する
+  `createPrismaDurabilityImprovementRenovationDeductionRecordRepository`を
+  `durabilityImprovementRenovationDeductionRecordRepository.prisma.ts`に分離し、
+  `defaultDurabilityImprovementRenovationDeductionRecordRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultDurabilityImprovementRenovationDeductionRecordRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。両消費先を
+  `@/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository`経由の参照に統一した
+  (`src/app/actions.ts`の直接呼び出しも前例と同様この時点で解消した)。このモデルも
+  `creditJpy`(Decimal型)の復元処理が`new Prisma.Decimal(...)`(`@prisma/client`からの
+  値import)を使っていたため、同じく`decimalCodec.ts`の`decodeDecimal`に置き換えた
+  (既存テストの`instanceof`検証も`Prisma.Decimal`から`decimal.js`の`Decimal`に変更)。
+  `npm run test`(全183ファイル1644件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで無関係)が
+  成功することを確認した。また`npm run build`(自宅サーバー版)が従来通り成功し、
+  `npm run build:standalone`が従来と同じ
+  `Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
   **残る5-1-3bの対象ファイル:** `src/lib/reporting.ts`・
-  `durabilityImprovementRenovationDeduction.ts`・`earthquakeRenovationDeduction.ts`・
+  `earthquakeRenovationDeduction.ts`・
   `energySavingRenovationDeduction.ts`・`incomeDeduction.ts`・
   `investment/distributionAdjustedForeignTaxCredit.ts`・
   `investment/foreignTaxCredit.ts`・`mortgageDeduction.ts`・
