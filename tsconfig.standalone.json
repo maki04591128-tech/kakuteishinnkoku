@@ -60,6 +60,9 @@
       ],
       "@/lib/repositories/defaultCryptoMarginTradeRepository": [
         "./src/lib/repositories/defaultCryptoMarginTradeRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultCryptoCreditTradeRepository": [
+        "./src/lib/repositories/defaultCryptoCreditTradeRepository.standalone.ts"
       ]
     }
   }

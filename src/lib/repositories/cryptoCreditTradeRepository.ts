@@ -6,11 +6,24 @@
  * 移行時に別途このリポジトリへ委譲する)
  * フェーズ2-36でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientCryptoCreditTradeRepository`。wa-sqlite)を追加した。
+ * フェーズ5-1-3bで`createPrismaCryptoCreditTradeRepository`を
+ * `cryptoCreditTradeRepository.prisma.ts`に分離した(`@prisma/client`
+ * (Node専用)に依存するため、このファイルからは分離しスタンドアロン版バンドルに
+ * 引き込まれないようにする)。自宅サーバー版・スタンドアロン版どちらを使うかの
+ * 既定の切り替えは
+ * `defaultCryptoCreditTradeRepository.ts`/`defaultCryptoCreditTradeRepository.standalone.ts`
+ * が担う。
+ *
+ * `realizedPnlJpy`/`feeJpy`/`interestAdjustmentJpy`の型(`Decimal`)は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`
+ * (`decimalCodec.ts`)で生成する(`@prisma/client`の`Prisma.Decimal`は構造的に
+ * 同一の別クラスだが、値としてのimportはスタンドアロン版バンドルに
+ * `@prisma/client`本体を引き込んでしまうため使わない。`decimal.js`の`Decimal`は
+ * 型として互換なので代入可能)。
  */
-import { Prisma, type CryptoCreditTrade } from "@prisma/client";
+import type { Prisma, CryptoCreditTrade } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface CryptoCreditTradeRepository {
@@ -21,24 +34,6 @@ export interface CryptoCreditTradeRepository {
   delete(id: number): Promise<void>;
 }
 
-export function createPrismaCryptoCreditTradeRepository(): CryptoCreditTradeRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<CryptoCreditTrade[]> {
-      return prisma.cryptoCreditTrade.findMany({ where: { taxYearId } });
-    },
-
-    async create(
-      data: Prisma.CryptoCreditTradeUncheckedCreateInput,
-    ): Promise<CryptoCreditTrade> {
-      return prisma.cryptoCreditTrade.create({ data });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.cryptoCreditTrade.delete({ where: { id } });
-    },
-  };
-}
-
 function rowToCryptoCreditTrade(
   row: Record<string, SqlValue>,
 ): CryptoCreditTrade {
@@ -47,11 +42,9 @@ function rowToCryptoCreditTrade(
     taxYearId: Number(row.tax_year_id),
     settledAt: new Date(String(row.settled_at)),
     symbol: String(row.symbol),
-    realizedPnlJpy: new Prisma.Decimal(String(row.realized_pnl_jpy)),
-    feeJpy: new Prisma.Decimal(String(row.fee_jpy)),
-    interestAdjustmentJpy: new Prisma.Decimal(
-      String(row.interest_adjustment_jpy),
-    ),
+    realizedPnlJpy: decodeDecimal(String(row.realized_pnl_jpy)),
+    feeJpy: decodeDecimal(String(row.fee_jpy)),
+    interestAdjustmentJpy: decodeDecimal(String(row.interest_adjustment_jpy)),
     exchange: row.exchange === null ? null : String(row.exchange),
     memo: row.memo === null ? null : String(row.memo),
     createdAt: new Date(String(row.created_at)),
