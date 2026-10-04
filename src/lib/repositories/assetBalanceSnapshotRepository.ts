@@ -4,11 +4,28 @@
  * 置き換える。挙動は既存のPrisma実装と完全に一致させる。
  * フェーズ2-32でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientAssetBalanceSnapshotRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaAssetBalanceSnapshotRepository`
+ * (フェーズ5-1-3bで`assetBalanceSnapshotRepository.prisma.ts`に分離。
+ * `@prisma/client`(Node専用)に依存するため、このファイルからは分離しスタンドアロン版
+ * バンドルに引き込まれないようにする)を使う。ビルドターゲットに応じたどちらを使うかの
+ * 既定の切り替えは
+ * `defaultAssetBalanceSnapshotRepository.ts`/
+ * `defaultAssetBalanceSnapshotRepository.standalone.ts`が担う。
+ *
+ * `balanceJpy`/`quantity`の型(`Decimal`)は`@prisma/client`の値のみ
+ * `import type`で参照し、実体は`decimal.js`(`decimalCodec.ts`)で生成する
+ * (`@prisma/client`の`Prisma.Decimal`は構造的に同一の別クラスだが、値としての
+ * importはスタンドアロン版バンドルに`@prisma/client`本体を引き込んでしまうため
+ * 使わない。`decimal.js`の`Decimal`は型として互換なので代入可能)。
  */
-import { Prisma, type AssetBalanceSnapshot, type ImportBatch } from "@prisma/client";
+import type { AssetBalanceSnapshot, ImportBatch } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal, encodeNullableDecimal } from "../clientDb/decimalCodec";
+import {
+  decodeDecimal,
+  decodeNullableDecimal,
+  encodeDecimal,
+  encodeNullableDecimal,
+} from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface AssetBalanceSnapshotImportRow {
@@ -39,64 +56,6 @@ export interface AssetBalanceSnapshotRepository {
   deleteImportBatch(importBatchId: number): Promise<void>;
 }
 
-export function createPrismaAssetBalanceSnapshotRepository(): AssetBalanceSnapshotRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<AssetBalanceSnapshot[]> {
-      return prisma.assetBalanceSnapshot.findMany({ where: { taxYearId } });
-    },
-
-    async findImportBatchesWithSnapshots({
-      taxYearId,
-      sourceType,
-    }): Promise<ImportBatchWithSnapshots[]> {
-      return prisma.importBatch.findMany({
-        where: { taxYearId, sourceType },
-        orderBy: { importedAt: "desc" },
-        include: {
-          assetBalanceSnapshots: {
-            orderBy: [{ institution: "asc" }, { assetName: "asc" }],
-          },
-        },
-      });
-    },
-
-    async importCsvBatch({ taxYearId, sourceType, fileName, rows }): Promise<void> {
-      await prisma.$transaction(async (tx) => {
-        const batch = await tx.importBatch.create({
-          data: {
-            taxYearId,
-            sourceType,
-            fileName,
-            rowCount: rows.length,
-          },
-        });
-
-        if (rows.length > 0) {
-          await tx.assetBalanceSnapshot.createMany({
-            data: rows.map((row) => ({
-              taxYearId,
-              ...(row.snapshotDate ? { snapshotDate: row.snapshotDate } : {}),
-              category: row.category,
-              institution: row.institution,
-              assetName: row.assetName,
-              balanceJpy: row.balanceJpy,
-              quantity: row.quantity,
-              importBatchId: batch.id,
-            })),
-          });
-        }
-      });
-    },
-
-    async deleteImportBatch(importBatchId: number): Promise<void> {
-      await prisma.$transaction([
-        prisma.assetBalanceSnapshot.deleteMany({ where: { importBatchId } }),
-        prisma.importBatch.delete({ where: { id: importBatchId } }),
-      ]);
-    },
-  };
-}
-
 function rowToImportBatch(row: Record<string, SqlValue>): ImportBatch {
   return {
     id: Number(row.id),
@@ -118,11 +77,10 @@ function rowToAssetBalanceSnapshot(
     category: String(row.category),
     institution: String(row.institution),
     assetName: String(row.asset_name),
-    balanceJpy: new Prisma.Decimal(String(row.balance_jpy)),
-    quantity:
-      row.quantity === null
-        ? null
-        : new Prisma.Decimal(String(row.quantity)),
+    balanceJpy: decodeDecimal(String(row.balance_jpy)),
+    quantity: decodeNullableDecimal(
+      row.quantity === null ? null : String(row.quantity),
+    ),
     importBatchId:
       row.import_batch_id === null ? null : Number(row.import_batch_id),
     createdAt: new Date(String(row.created_at)),

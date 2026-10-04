@@ -9,7 +9,7 @@ import { futuresTradeRepository } from "@/lib/repositories/defaultFuturesTradeRe
 import { investmentLossCarryforwardRepository } from "@/lib/repositories/defaultInvestmentLossCarryforwardRepository";
 import { futuresLossCarryforwardRepository } from "@/lib/repositories/defaultFuturesLossCarryforwardRepository";
 import { nisaLifetimeQuotaRepository } from "@/lib/repositories/defaultNisaLifetimeQuotaRepository";
-import { createPrismaAssetBalanceSnapshotRepository } from "./repositories/assetBalanceSnapshotRepository";
+import { assetBalanceSnapshotRepository } from "@/lib/repositories/defaultAssetBalanceSnapshotRepository";
 import {
   calculateCryptoPortfolioYearByMethod,
   type CryptoCostMethod,
@@ -54,9 +54,6 @@ import {
   reconcileAssetBalances,
   type AssetBalanceReconciliationResult,
 } from "./moneyforward/assetBalanceReconciliation";
-
-const assetBalanceSnapshotRepository =
-  createPrismaAssetBalanceSnapshotRepository();
 
 /**
  * 指定した課税年度のDB上の取引をすべて読み出し、計算エンジンに渡して

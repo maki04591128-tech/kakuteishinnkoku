@@ -3915,6 +3915,53 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
 
   **残る5-1-3bの対象(`src/lib/reporting.ts`内の残り1リポジトリ、更新):**
   `AssetBalanceSnapshotRepository`。
+
+  **追記(2026-10-04、`AssetBalanceSnapshotRepository`への適用。
+  `src/lib/reporting.ts`内の対象として最後の1つ):** 同じパターンを
+  `AssetBalanceSnapshotRepository`(`src/lib/reporting.ts`・`src/app/actions.ts`・
+  `src/app/import/page.tsx`が消費)にも適用した。
+  `src/lib/repositories/assetBalanceSnapshotRepository.ts`から`@prisma/client`
+  (`../db`)に依存する`createPrismaAssetBalanceSnapshotRepository`を
+  `assetBalanceSnapshotRepository.prisma.ts`に分離し、
+  `defaultAssetBalanceSnapshotRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultAssetBalanceSnapshotRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。3消費先を
+  `@/lib/repositories/defaultAssetBalanceSnapshotRepository`経由の参照に統一した。
+  このモデルも`balanceJpy`・`quantity`(いずれもDecimal型、`quantity`はNULL許容)の
+  復元処理が`new Prisma.Decimal(...)`(`@prisma/client`からの値import)を
+  使っていたため、同じく`decimalCodec.ts`の`decodeDecimal`/`decodeNullableDecimal`に
+  置き換えた(既存テストの`instanceof`検証も`Prisma.Decimal`から`decimal.js`の
+  `Decimal`に変更)。他モデルと異なり`findImportBatchesWithSnapshots`
+  (インポートバッチ一覧+紐づくスナップショット取得)・`deleteImportBatch`も
+  持つため、未結線プレースホルダーにも同メソッドを追加した。`npm run test`
+  (全187ファイル1657件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで無関係)が
+  成功することを確認した。また`DATABASE_URL`を設定し`npx prisma db push`で
+  DBを作成した上で、`npm run build`(自宅サーバー版)が従来通り成功し、
+  `npm run build:standalone`が従来と同じ
+  `Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **5-1-3bのこれまでの進捗について:** これで`src/lib/reporting.ts`が
+  消費する全リポジトリ(`TaxYearRepository`を皮切りに27個)への適用が完了した。
+  ただし`grep -rln "createPrisma.*Repository()" src/lib/*.ts src/app/*.ts`で
+  確認すると、`src/app/actions.ts`内にはまだ`reporting.ts`が消費しない
+  (actions.tsからのみ呼ばれる)11個のリポジトリ(`BrokerAnnualReportRepository`・
+  `OpeningBalanceByInstitutionRepository`・`AssetSymbolMappingRepository`・
+  `MarketPriceRepository`・`ForeignTaxCreditCarryforwardRepository`・
+  `ForeignTaxCreditSpareLimitCarryforwardRepository`・
+  `CasualtyLossCarryforwardRepository`・`HomeSaleLossCarryforwardRepository`・
+  `HomeReplacementLossCarryforwardRepository`・
+  `AngelTaxLossCarryforwardRepository`・`CashflowEntryRepository`)が
+  `createPrismaXxxRepository()`を直接呼んだままで残っており、これらも
+  同じパターンで切り替え機構を適用する必要がある(5-1-3bの新たな残課題として
+  記録。次回以降のブラッシュアップで1〜2個ずつ進める)。また冒頭の設計メモの
+  通り、この切り替え機構自体は「Prisma実装とクライアント実装を差し替え可能に
+  する配線」であり、クライアント実装(wa-sqlite)が実際にブラウザ(Capacitor
+  WebView)で動作する状態(ブラウザ向けOPFSベースの`openClientDb`実装)はまだ
+  無いため、適用済みの各`defaultXxxRepository.standalone.ts`も未結線
+  プレースホルダーのまま(この課題はフェーズ2-0の残課題として別途フェーズで
+  対応する)。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。

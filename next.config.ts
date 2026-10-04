@@ -260,6 +260,15 @@ const defaultNisaLifetimeQuotaRepositoryStandaloneAliasForWebpack = path.resolve
   "src/lib/repositories/defaultNisaLifetimeQuotaRepository.standalone.ts",
 );
 
+// `AssetBalanceSnapshotRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、27つ目。`src/lib/reporting.ts`の残り対象の最後)。
+const defaultAssetBalanceSnapshotRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultAssetBalanceSnapshotRepository.standalone.ts";
+const defaultAssetBalanceSnapshotRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultAssetBalanceSnapshotRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -324,6 +333,8 @@ const nextConfig: NextConfig = {
             defaultFuturesLossCarryforwardRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultNisaLifetimeQuotaRepository":
             defaultNisaLifetimeQuotaRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultAssetBalanceSnapshotRepository":
+            defaultAssetBalanceSnapshotRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -384,6 +395,8 @@ const nextConfig: NextConfig = {
           defaultFuturesLossCarryforwardRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultNisaLifetimeQuotaRepository":
           defaultNisaLifetimeQuotaRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultAssetBalanceSnapshotRepository":
+          defaultAssetBalanceSnapshotRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;
