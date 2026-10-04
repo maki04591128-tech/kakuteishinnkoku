@@ -3806,6 +3806,35 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `FuturesTradeRepository`・`InvestmentLossCarryforwardRepository`・
   `FuturesLossCarryforwardRepository`・`NisaLifetimeQuotaRepository`・
   `AssetBalanceSnapshotRepository`。
+
+  **追記(2026-10-04、`FuturesTradeRepository`への適用):** 同じパターンを
+  `FuturesTradeRepository`(`src/lib/reporting.ts`・`src/app/actions.ts`・
+  `src/app/import/page.tsx`が消費)にも適用した。
+  `src/lib/repositories/futuresTradeRepository.ts`から`@prisma/client`
+  (`../db`)に依存する`createPrismaFuturesTradeRepository`を
+  `futuresTradeRepository.prisma.ts`に分離し、
+  `defaultFuturesTradeRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultFuturesTradeRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。3消費先を
+  `@/lib/repositories/defaultFuturesTradeRepository`経由の参照に統一した。
+  このモデルも`realizedPnlJpy`・`feeJpy`・`swapJpy`(いずれもDecimal型)の
+  復元処理が`new Prisma.Decimal(...)`(`@prisma/client`からの値import)を
+  使っていたため、同じく`decimalCodec.ts`の`decodeDecimal`に置き換えた
+  (既存テストの`instanceof`検証も`Prisma.Decimal`から`decimal.js`の
+  `Decimal`に変更)。他モデルと異なり`importCsvBatch`
+  (CSV一括登録・`ImportBatch`作成を1トランザクションで行う)も持つため、
+  未結線プレースホルダー(`defaultFuturesTradeRepository.standalone.ts`)にも
+  同メソッドを追加した。`npm run test`(全187ファイル1657件)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の
+  両方、既存の`LayoutProps`エラーのみで無関係)が成功することを確認した。また
+  `DATABASE_URL`を設定し`npx prisma db push`でDBを作成した上で、`npm run build`
+  (自宅サーバー版)が従来通り成功し、`npm run build:standalone`が従来と同じ
+  `Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残る5-1-3bの対象(`src/lib/reporting.ts`内の残り4リポジトリ、更新):**
+  `InvestmentLossCarryforwardRepository`・`FuturesLossCarryforwardRepository`・
+  `NisaLifetimeQuotaRepository`・`AssetBalanceSnapshotRepository`。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。

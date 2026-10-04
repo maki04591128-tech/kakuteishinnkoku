@@ -6,11 +6,19 @@
  * 移行時に別途このリポジトリへ委譲する)
  * フェーズ2-38でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientFuturesTradeRepository`。wa-sqlite)を追加した。
+ * フェーズ5-1-3bでPrisma実装(`createPrismaFuturesTradeRepository`)を
+ * `futuresTradeRepository.prisma.ts`に分離し、ビルドターゲットに応じた
+ * 既定実装の切り替えは`defaultFuturesTradeRepository.ts`/
+ * `defaultFuturesTradeRepository.standalone.ts`が担う。
+ *
+ * `realizedPnlJpy`/`feeJpy`/`swapJpy`の型(`Decimal`)は`@prisma/client`の値のみ
+ * `import type`で参照し、実体は`decimal.js`(`decimalCodec.ts`)で生成する
+ * (`@prisma/client`の値importはスタンドアロン版バンドルに`@prisma/client`本体を
+ * 引き込んでしまうため使わない)。
  */
-import { Prisma, type FuturesTrade } from "@prisma/client";
+import type { Prisma, FuturesTrade } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface FuturesTradeImportRow {
@@ -35,62 +43,15 @@ export interface FuturesTradeRepository {
   }): Promise<void>;
 }
 
-export function createPrismaFuturesTradeRepository(): FuturesTradeRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<FuturesTrade[]> {
-      return prisma.futuresTrade.findMany({ where: { taxYearId } });
-    },
-
-    async create(
-      data: Prisma.FuturesTradeUncheckedCreateInput,
-    ): Promise<FuturesTrade> {
-      return prisma.futuresTrade.create({ data });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.futuresTrade.delete({ where: { id } });
-    },
-
-    async importCsvBatch({ taxYearId, sourceType, fileName, rows }): Promise<void> {
-      await prisma.$transaction(async (tx) => {
-        const batch = await tx.importBatch.create({
-          data: {
-            taxYearId,
-            sourceType,
-            fileName,
-            rowCount: rows.length,
-          },
-        });
-
-        if (rows.length > 0) {
-          await tx.futuresTrade.createMany({
-            data: rows.map((row) => ({
-              taxYearId,
-              settledAt: row.settledAt,
-              symbol: row.symbol,
-              realizedPnlJpy: row.realizedPnlJpy,
-              feeJpy: row.feeJpy,
-              swapJpy: row.swapJpy,
-              broker: row.broker,
-              source: row.source,
-              importBatchId: batch.id,
-            })),
-          });
-        }
-      });
-    },
-  };
-}
-
 function rowToFuturesTrade(row: Record<string, SqlValue>): FuturesTrade {
   return {
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
     settledAt: new Date(String(row.settled_at)),
     symbol: String(row.symbol),
-    realizedPnlJpy: new Prisma.Decimal(String(row.realized_pnl_jpy)),
-    feeJpy: new Prisma.Decimal(String(row.fee_jpy)),
-    swapJpy: new Prisma.Decimal(String(row.swap_jpy)),
+    realizedPnlJpy: decodeDecimal(String(row.realized_pnl_jpy)),
+    feeJpy: decodeDecimal(String(row.fee_jpy)),
+    swapJpy: decodeDecimal(String(row.swap_jpy)),
     broker: row.broker === null ? null : String(row.broker),
     memo: row.memo === null ? null : String(row.memo),
     source: String(row.source),

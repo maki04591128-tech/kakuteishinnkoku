@@ -69,6 +69,9 @@
       ],
       "@/lib/repositories/defaultStockMarginTradeRepository": [
         "./src/lib/repositories/defaultStockMarginTradeRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultFuturesTradeRepository": [
+        "./src/lib/repositories/defaultFuturesTradeRepository.standalone.ts"
       ]
     }
   }
