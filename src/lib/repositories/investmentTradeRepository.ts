@@ -6,43 +6,37 @@
  * 移行時に別途このリポジトリへ委譲する)
  * フェーズ2-39でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientInvestmentTradeRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaInvestmentTradeRepository`
+ * (フェーズ5-1-3bで`investmentTradeRepository.prisma.ts`に分離。`@prisma/client`
+ * (Node専用)に依存するため、このファイルからは分離しスタンドアロン版バンドルに
+ * 引き込まれないようにする)を使う。ビルドターゲットに応じたどちらを使うかの既定の
+ * 切り替えは
+ * `defaultInvestmentTradeRepository.ts`/`defaultInvestmentTradeRepository.standalone.ts`
+ * が担う。
+ *
+ * 各Decimal列の型(`Decimal`)は`@prisma/client`の値のみ`import type`で参照し、
+ * 実体は`decimal.js`(`decimalCodec.ts`)で生成する(`@prisma/client`の
+ * `Prisma.Decimal`は構造的に同一の別クラスだが、値としてのimportはスタンドアロン版
+ * バンドルに`@prisma/client`本体を引き込んでしまうため使わない。`decimal.js`の
+ * `Decimal`は型として互換なので代入可能)。
  */
-import {
+import type {
   Prisma,
-  type InvestmentAccountType,
-  type InvestmentAssetType,
-  type InvestmentNisaType,
-  type InvestmentTrade,
-  type InvestmentTradeType,
+  InvestmentAccountType,
+  InvestmentAssetType,
+  InvestmentNisaType,
+  InvestmentTrade,
+  InvestmentTradeType,
 } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
 import { decodeBoolean, encodeBoolean } from "../clientDb/booleanCodec";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface InvestmentTradeRepository {
   findByTaxYearId(taxYearId: number): Promise<InvestmentTrade[]>;
   create(data: Prisma.InvestmentTradeUncheckedCreateInput): Promise<InvestmentTrade>;
   delete(id: number): Promise<void>;
-}
-
-export function createPrismaInvestmentTradeRepository(): InvestmentTradeRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<InvestmentTrade[]> {
-      return prisma.investmentTrade.findMany({ where: { taxYearId } });
-    },
-
-    async create(
-      data: Prisma.InvestmentTradeUncheckedCreateInput,
-    ): Promise<InvestmentTrade> {
-      return prisma.investmentTrade.create({ data });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.investmentTrade.delete({ where: { id } });
-    },
-  };
 }
 
 function rowToInvestmentTrade(row: Record<string, SqlValue>): InvestmentTrade {
@@ -62,15 +56,15 @@ function rowToInvestmentTrade(row: Record<string, SqlValue>): InvestmentTrade {
     ),
     isListed: decodeBoolean(Number(row.is_listed)),
     type: String(row.type) as InvestmentTradeType,
-    quantity: new Prisma.Decimal(String(row.quantity)),
-    unitPriceJpy: new Prisma.Decimal(String(row.unit_price_jpy)),
-    feeJpy: new Prisma.Decimal(String(row.fee_jpy)),
+    quantity: decodeDecimal(String(row.quantity)),
+    unitPriceJpy: decodeDecimal(String(row.unit_price_jpy)),
+    feeJpy: decodeDecimal(String(row.fee_jpy)),
     accountType: String(row.account_type) as InvestmentAccountType,
     isNisa: decodeBoolean(Number(row.is_nisa)),
     nisaType: row.nisa_type === null ? null : (String(row.nisa_type) as InvestmentNisaType),
     isForeign: decodeBoolean(Number(row.is_foreign)),
-    foreignTaxWithheldJpy: new Prisma.Decimal(String(row.foreign_tax_withheld_jpy)),
-    distributionAdjustedForeignTaxJpy: new Prisma.Decimal(
+    foreignTaxWithheldJpy: decodeDecimal(String(row.foreign_tax_withheld_jpy)),
+    distributionAdjustedForeignTaxJpy: decodeDecimal(
       String(row.distribution_adjusted_foreign_tax_jpy),
     ),
     broker: row.broker === null ? null : String(row.broker),
