@@ -6,11 +6,23 @@
  * 呼び出しはそれぞれの移行時に別途このリポジトリへ委譲する)
  * フェーズ2-25でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientNisaLifetimeQuotaRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaNisaLifetimeQuotaRepository`
+ * (フェーズ5-1-3bで`nisaLifetimeQuotaRepository.prisma.ts`に分離。
+ * `@prisma/client`(Node専用)に依存するため、このファイルからは分離しスタンドアロン版
+ * バンドルに引き込まれないようにする)を使う。ビルドターゲットに応じたどちらを使うかの
+ * 既定の切り替えは
+ * `defaultNisaLifetimeQuotaRepository.ts`/
+ * `defaultNisaLifetimeQuotaRepository.standalone.ts`が担う。
+ *
+ * `openingUsedJpy`/`soldCostBasisJpy`の型(`Decimal`)は`@prisma/client`の値のみ
+ * `import type`で参照し、実体は`decimal.js`(`decimalCodec.ts`)で生成する
+ * (`@prisma/client`の`Prisma.Decimal`は構造的に同一の別クラスだが、値としての
+ * importはスタンドアロン版バンドルに`@prisma/client`本体を引き込んでしまうため
+ * 使わない。`decimal.js`の`Decimal`は型として互換なので代入可能)。
  */
-import { Prisma, type InvestmentNisaType, type NisaLifetimeQuota } from "@prisma/client";
+import type { InvestmentNisaType, NisaLifetimeQuota } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface NisaLifetimeQuotaRepository {
@@ -31,45 +43,13 @@ export interface NisaLifetimeQuotaRepository {
   ): Promise<void>;
 }
 
-export function createPrismaNisaLifetimeQuotaRepository(): NisaLifetimeQuotaRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<NisaLifetimeQuota[]> {
-      return prisma.nisaLifetimeQuota.findMany({ where: { taxYearId } });
-    },
-
-    async upsert({
-      taxYearId,
-      nisaType,
-      openingUsedJpy,
-      soldCostBasisJpy,
-    }): Promise<void> {
-      await prisma.nisaLifetimeQuota.upsert({
-        where: {
-          taxYearId_nisaType: { taxYearId, nisaType },
-        },
-        create: { taxYearId, nisaType, openingUsedJpy, soldCostBasisJpy },
-        update: { openingUsedJpy, soldCostBasisJpy },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.nisaLifetimeQuota.delete({ where: { id } });
-    },
-
-    async createMany(data): Promise<void> {
-      if (data.length === 0) return;
-      await prisma.nisaLifetimeQuota.createMany({ data });
-    },
-  };
-}
-
 function rowToNisaLifetimeQuota(row: Record<string, SqlValue>): NisaLifetimeQuota {
   return {
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
     nisaType: String(row.nisa_type) as InvestmentNisaType,
-    openingUsedJpy: new Prisma.Decimal(String(row.opening_used_jpy)),
-    soldCostBasisJpy: new Prisma.Decimal(String(row.sold_cost_basis_jpy)),
+    openingUsedJpy: decodeDecimal(String(row.opening_used_jpy)),
+    soldCostBasisJpy: decodeDecimal(String(row.sold_cost_basis_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

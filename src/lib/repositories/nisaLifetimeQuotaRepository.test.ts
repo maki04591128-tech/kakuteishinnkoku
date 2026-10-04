@@ -4,7 +4,7 @@
  * Prisma実装(`createPrismaNisaLifetimeQuotaRepository`)と
  * 同じ挙動で満たすことを検証する。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -43,7 +43,7 @@ describe("createClientNisaLifetimeQuotaRepository", () => {
     expect(records).toHaveLength(1);
     expect(records[0].taxYearId).toBe(1);
     expect(records[0].nisaType).toBe("TSUMITATE");
-    expect(records[0].openingUsedJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(records[0].openingUsedJpy).toBeInstanceOf(Decimal);
     expect(records[0].openingUsedJpy.toString()).toBe("300000");
     expect(records[0].soldCostBasisJpy.toString()).toBe("50000");
     expect(records[0].id).toBeTypeOf("number");
