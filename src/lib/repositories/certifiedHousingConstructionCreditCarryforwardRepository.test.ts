@@ -4,8 +4,12 @@
  * インターフェースを、Prisma実装
  * (`createPrismaCertifiedHousingConstructionCreditCarryforwardRepository`)と
  * 同じ挙動で満たすことを検証する。
+ *
+ * フェーズ5-1-3bで`remainingAmountJpy`の復元に使うDecimal実装を`@prisma/client`の
+ * `Prisma.Decimal`ではなく`decimal.js`の`Decimal`に変更したため(クライアント実装が実行時に
+ * `@prisma/client`へ依存しないようにするため)、instanceofの確認も`decimal.js`側のクラスで行う。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -39,7 +43,7 @@ describe("createClientCertifiedHousingConstructionCreditCarryforwardRepository",
     expect(record).not.toBeNull();
     expect(record?.taxYearId).toBe(1);
     expect(record?.originYear).toBe(2023);
-    expect(record?.remainingAmountJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.remainingAmountJpy).toBeInstanceOf(Decimal);
     expect(record?.remainingAmountJpy.toString()).toBe("150000");
     expect(record?.id).toBeTypeOf("number");
     expect(record?.createdAt).toBeInstanceOf(Date);

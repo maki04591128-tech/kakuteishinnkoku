@@ -3287,16 +3287,16 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (切り替え機構を導入する必要がない)。**この移行対象からは除外する。**
   `src/app/actions.ts`は他の多数のモデルを集約的に消費するため5-1-3d
   (`actions.ts`自体の分割)と合わせて扱う。残る移行対象は`src/lib/reporting.ts`・
-  各種控除計算モジュール(`certifiedHousingConstructionCredit.ts`・
-  `childRearingRenovationDeduction.ts`・
+  各種控除計算モジュール(`childRearingRenovationDeduction.ts`・
   `donationTaxCredit.ts`・`durabilityImprovementRenovationDeduction.ts`・
   `earthquakeRenovationDeduction.ts`・`energySavingRenovationDeduction.ts`・
   `incomeDeduction.ts`・`investment/distributionAdjustedForeignTaxCredit.ts`・
   `investment/foreignTaxCredit.ts`・`mortgageDeduction.ts`・
   `multiHouseholdRenovationDeduction.ts`・`openingBalance.ts`・
   `residentTaxAdjustmentDeduction.ts`)。いずれもDecimal列を持つため、上記の
-  `decodeDecimal`方式を適用すること(`barrierFreeRenovationDeduction.ts`は
-  下記2026-10-03追記の通り完了済みのため、このリストから除外した)。
+  `decodeDecimal`方式を適用すること(`barrierFreeRenovationDeduction.ts`・
+  `certifiedHousingConstructionCredit.ts`は下記2026-10-03追記の通り完了済みのため、
+  このリストから除外した)。
 
   **追記(2026-10-03、`BarrierFreeRenovationDeductionRecordRepository`への適用):**
   `EmploymentIncomeRecordRepository`と同じパターンを
@@ -3319,6 +3319,35 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `npm run test`(全178ファイル1629件)・`npm run lint`・`npx tsc --noEmit`
   (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで無関係)が
   成功することを確認した。
+
+  **追記(2026-10-04、`CertifiedHousingConstructionCreditRecordRepository`・
+  `CertifiedHousingConstructionCreditCarryforwardRepository`への適用):**
+  `BarrierFreeRenovationDeductionRecordRepository`と同じパターンを、1ファイル
+  (`src/lib/certifiedHousingConstructionCredit.ts`)が2モデルを消費するケース
+  (フェーズ1-10と同種)である`CertifiedHousingConstructionCreditRecordRepository`・
+  `CertifiedHousingConstructionCreditCarryforwardRepository`
+  (`src/lib/certifiedHousingConstructionCredit.ts`・`src/app/actions.ts`が消費)に
+  適用した。それぞれ`src/lib/repositories/certifiedHousingConstructionCreditRecordRepository.ts`・
+  `certifiedHousingConstructionCreditCarryforwardRepository.ts`から
+  `@prisma/client`(`../db`)に依存する`createPrisma...Repository`を
+  `*.prisma.ts`に分離し、`defaultCertifiedHousingConstructionCreditRecordRepository.ts`/
+  `defaultCertifiedHousingConstructionCreditCarryforwardRepository.ts`(自宅サーバー版の
+  既定実装)と、それぞれの`.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。両消費先を
+  `@/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository`/
+  `defaultCertifiedHousingConstructionCreditCarryforwardRepository`経由の参照に統一した
+  (`src/app/actions.ts`の直接呼び出しも前例と同様この時点で解消した)。両モデルとも
+  `creditJpy`/`remainingAmountJpy`(Decimal型)の復元処理が`new Prisma.Decimal(...)`
+  (`@prisma/client`からの値import)を使っていたため、同じく`decimalCodec.ts`の
+  `decodeDecimal`に置き換えた(既存テストの`instanceof`検証も`Prisma.Decimal`から
+  `decimal.js`の`Decimal`に変更)。1ファイルが2モデルを消費する構成でも
+  フェーズ1-10と同様、モデルごとにリポジトリ・既定実装ファイルを1組ずつ用意する
+  方針をそのまま適用できた。`npm run test`(全180ファイル1635件)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`
+  エラーのみで無関係)が成功することを確認した。また`npm run build`(自宅サーバー版)が
+  従来通り成功し、`npm run build:standalone`が従来と同じ
+  `Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。

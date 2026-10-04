@@ -1,12 +1,7 @@
 import { Decimal } from "decimal.js";
-import { createPrismaCertifiedHousingConstructionCreditCarryforwardRepository } from "./repositories/certifiedHousingConstructionCreditCarryforwardRepository";
-import { createPrismaCertifiedHousingConstructionCreditRecordRepository } from "./repositories/certifiedHousingConstructionCreditRecordRepository";
+import { certifiedHousingConstructionCreditCarryforwardRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository";
+import { certifiedHousingConstructionCreditRecordRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const certifiedHousingConstructionCreditRecordRepository =
-  createPrismaCertifiedHousingConstructionCreditRecordRepository();
-const certifiedHousingConstructionCreditCarryforwardRepository =
-  createPrismaCertifiedHousingConstructionCreditCarryforwardRepository();
 
 /**
  * 認定住宅等新築等特別税額控除(投資型減税。租税特別措置法41条の19の4。
