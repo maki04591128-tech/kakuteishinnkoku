@@ -3371,7 +3371,31 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `Server Actions are not supported with static export`エラーで失敗すること
   (新たなリグレッションが無いこと)を確認した。
 
-  **残る5-1-3bの対象ファイル:** `src/lib/reporting.ts`・`donationTaxCredit.ts`・
+  **追記(2026-10-04、`DonationTaxCreditRecordRepository`への適用):**
+  同じパターンを`DonationTaxCreditRecordRepository`
+  (`src/lib/donationTaxCredit.ts`・`src/app/actions.ts`が消費)にも適用した。
+  このモデルは1ファイルがPrisma実装・クライアント実装の両方を1つの
+  `donationTaxCreditRecordRepository.ts`に同居させる構成だった(フェーズ1-11時点の
+  構成。他の移行済みモデルはフェーズ5-1-3b適用前から既に分離されていた)ため、まず
+  `@prisma/client`(`../db`)に依存する`createPrismaDonationTaxCreditRecordRepository`を
+  `donationTaxCreditRecordRepository.prisma.ts`に分離した上で、
+  `defaultDonationTaxCreditRecordRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultDonationTaxCreditRecordRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。両消費先を
+  `@/lib/repositories/defaultDonationTaxCreditRecordRepository`経由の参照に統一した
+  (`src/app/actions.ts`の直接呼び出しも前例と同様この時点で解消した)。このモデルは
+  `totalTaxCreditJpy`・`residentTaxBasicDeductionJpy`の2つのDecimal列を持つが、
+  いずれも`rowToDonationTaxCreditRecord`の復元処理が`new Prisma.Decimal(...)`
+  (`@prisma/client`からの値import)を使っていたため、同じく`decimalCodec.ts`の
+  `decodeDecimal`に置き換えた(既存テストの`instanceof`検証も`Prisma.Decimal`から
+  `decimal.js`の`Decimal`に変更)。`npm run test`(全182ファイル1641件)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、
+  既存の`LayoutProps`エラーのみで無関係)が成功することを確認した。また
+  `npm run build`(自宅サーバー版)が従来通り成功し、`npm run build:standalone`が
+  従来と同じ`Server Actions are not supported with static export`エラーで
+  失敗すること(新たなリグレッションが無いこと)を確認した。
+
+  **残る5-1-3bの対象ファイル:** `src/lib/reporting.ts`・
   `durabilityImprovementRenovationDeduction.ts`・`earthquakeRenovationDeduction.ts`・
   `energySavingRenovationDeduction.ts`・`incomeDeduction.ts`・
   `investment/distributionAdjustedForeignTaxCredit.ts`・
