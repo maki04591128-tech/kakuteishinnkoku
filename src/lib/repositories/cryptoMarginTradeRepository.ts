@@ -6,11 +6,23 @@
  * (`src/app/import/page.tsx`)は取得後に呼び出し側でソートする)
  * フェーズ2-35でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientCryptoMarginTradeRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaCryptoMarginTradeRepository`
+ * (フェーズ5-1-3bで`cryptoMarginTradeRepository.prisma.ts`に分離。`@prisma/client`
+ * (Node専用)に依存するため、このファイルからは分離しスタンドアロン版バンドルに
+ * 引き込まれないようにする)を使う。ビルドターゲットに応じたどちらを使うかの既定の
+ * 切り替えは
+ * `defaultCryptoMarginTradeRepository.ts`/`defaultCryptoMarginTradeRepository.standalone.ts`
+ * が担う。
+ *
+ * `realizedPnlJpy`/`feeJpy`/`swapJpy`の型(`Decimal`)は`@prisma/client`の値のみ
+ * `import type`で参照し、実体は`decimal.js`(`decimalCodec.ts`)で生成する
+ * (`@prisma/client`の`Prisma.Decimal`は構造的に同一の別クラスだが、値としての
+ * importはスタンドアロン版バンドルに`@prisma/client`本体を引き込んでしまうため
+ * 使わない。`decimal.js`の`Decimal`は型として互換なので代入可能)。
  */
-import { Prisma, type CryptoMarginTrade } from "@prisma/client";
+import type { Prisma, CryptoMarginTrade } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface CryptoMarginTradeImportRow {
@@ -37,53 +49,6 @@ export interface CryptoMarginTradeRepository {
   }): Promise<void>;
 }
 
-export function createPrismaCryptoMarginTradeRepository(): CryptoMarginTradeRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<CryptoMarginTrade[]> {
-      return prisma.cryptoMarginTrade.findMany({ where: { taxYearId } });
-    },
-
-    async create(
-      data: Prisma.CryptoMarginTradeUncheckedCreateInput,
-    ): Promise<CryptoMarginTrade> {
-      return prisma.cryptoMarginTrade.create({ data });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.cryptoMarginTrade.delete({ where: { id } });
-    },
-
-    async importCsvBatch({ taxYearId, sourceType, fileName, rows }): Promise<void> {
-      await prisma.$transaction(async (tx) => {
-        const batch = await tx.importBatch.create({
-          data: {
-            taxYearId,
-            sourceType,
-            fileName,
-            rowCount: rows.length,
-          },
-        });
-
-        if (rows.length > 0) {
-          await tx.cryptoMarginTrade.createMany({
-            data: rows.map((row) => ({
-              taxYearId,
-              settledAt: row.settledAt,
-              symbol: row.symbol,
-              realizedPnlJpy: row.realizedPnlJpy,
-              feeJpy: row.feeJpy,
-              swapJpy: row.swapJpy,
-              exchange: row.exchange,
-              source: row.source,
-              importBatchId: batch.id,
-            })),
-          });
-        }
-      });
-    },
-  };
-}
-
 function rowToCryptoMarginTrade(
   row: Record<string, SqlValue>,
 ): CryptoMarginTrade {
@@ -92,9 +57,9 @@ function rowToCryptoMarginTrade(
     taxYearId: Number(row.tax_year_id),
     settledAt: new Date(String(row.settled_at)),
     symbol: String(row.symbol),
-    realizedPnlJpy: new Prisma.Decimal(String(row.realized_pnl_jpy)),
-    feeJpy: new Prisma.Decimal(String(row.fee_jpy)),
-    swapJpy: new Prisma.Decimal(String(row.swap_jpy)),
+    realizedPnlJpy: decodeDecimal(String(row.realized_pnl_jpy)),
+    feeJpy: decodeDecimal(String(row.fee_jpy)),
+    swapJpy: decodeDecimal(String(row.swap_jpy)),
     exchange: row.exchange === null ? null : String(row.exchange),
     memo: row.memo === null ? null : String(row.memo),
     source: String(row.source),
