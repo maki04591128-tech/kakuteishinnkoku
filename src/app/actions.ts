@@ -7,7 +7,7 @@ import type { InvestmentAccountType } from "@prisma/client";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { employmentIncomeRecordRepository } from "@/lib/repositories/defaultEmploymentIncomeRecordRepository";
 import { barrierFreeRenovationDeductionRecordRepository } from "@/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository";
-import { createPrismaCryptoTradeRepository } from "@/lib/repositories/cryptoTradeRepository";
+import { cryptoTradeRepository } from "@/lib/repositories/defaultCryptoTradeRepository";
 import { createPrismaInvestmentTradeRepository } from "@/lib/repositories/investmentTradeRepository";
 import { createPrismaCryptoMarginTradeRepository } from "@/lib/repositories/cryptoMarginTradeRepository";
 import { createPrismaCryptoCreditTradeRepository } from "@/lib/repositories/cryptoCreditTradeRepository";
@@ -220,7 +220,6 @@ function isKnownExchangeCsvPreset(
   return preset in EXCHANGE_LABELS;
 }
 
-const cryptoTradeRepository = createPrismaCryptoTradeRepository();
 const investmentTradeRepository = createPrismaInvestmentTradeRepository();
 const cryptoMarginTradeRepository = createPrismaCryptoMarginTradeRepository();
 const cryptoCreditTradeRepository = createPrismaCryptoCreditTradeRepository();
