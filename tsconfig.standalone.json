@@ -81,6 +81,9 @@
       ],
       "@/lib/repositories/defaultNisaLifetimeQuotaRepository": [
         "./src/lib/repositories/defaultNisaLifetimeQuotaRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultAssetBalanceSnapshotRepository": [
+        "./src/lib/repositories/defaultAssetBalanceSnapshotRepository.standalone.ts"
       ]
     }
   }

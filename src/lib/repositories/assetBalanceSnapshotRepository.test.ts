@@ -4,7 +4,7 @@
  * Prisma実装(`createPrismaAssetBalanceSnapshotRepository`)と
  * 同じ挙動で満たすことを検証する。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -64,9 +64,9 @@ describe("createClientAssetBalanceSnapshotRepository", () => {
     expect(bitflyer?.taxYearId).toBe(1);
     expect(bitflyer?.category).toBe("暗号資産");
     expect(bitflyer?.assetName).toBe("ビットコイン");
-    expect(bitflyer?.balanceJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(bitflyer?.balanceJpy).toBeInstanceOf(Decimal);
     expect(bitflyer?.balanceJpy.toString()).toBe("1234567");
-    expect(bitflyer?.quantity).toBeInstanceOf(Prisma.Decimal);
+    expect(bitflyer?.quantity).toBeInstanceOf(Decimal);
     expect(bitflyer?.quantity?.toString()).toBe("0.123456789012345678");
     expect(bitflyer?.snapshotDate.toISOString()).toBe(
       "2026-01-01T00:00:00.000Z",

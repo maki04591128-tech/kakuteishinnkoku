@@ -41,7 +41,7 @@ import { incomeDeductionRepository } from "@/lib/repositories/defaultIncomeDeduc
 import { mortgageDeductionRecordRepository } from "@/lib/repositories/defaultMortgageDeductionRecordRepository";
 import { residentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository";
 import { createPrismaCashflowEntryRepository } from "@/lib/repositories/cashflowEntryRepository";
-import { createPrismaAssetBalanceSnapshotRepository } from "@/lib/repositories/assetBalanceSnapshotRepository";
+import { assetBalanceSnapshotRepository } from "@/lib/repositories/defaultAssetBalanceSnapshotRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
 import {
@@ -235,7 +235,6 @@ const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
 const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
 const cashflowEntryRepository = createPrismaCashflowEntryRepository();
-const assetBalanceSnapshotRepository = createPrismaAssetBalanceSnapshotRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
