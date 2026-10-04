@@ -75,6 +75,9 @@
       ],
       "@/lib/repositories/defaultInvestmentLossCarryforwardRepository": [
         "./src/lib/repositories/defaultInvestmentLossCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultFuturesLossCarryforwardRepository": [
+        "./src/lib/repositories/defaultFuturesLossCarryforwardRepository.standalone.ts"
       ]
     }
   }

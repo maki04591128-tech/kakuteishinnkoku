@@ -74,7 +74,7 @@ import { cryptoMarginTradeRepository } from "@/lib/repositories/defaultCryptoMar
 import { cryptoTradeRepository } from "@/lib/repositories/defaultCryptoTradeRepository";
 import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
 import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
-import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
+import { futuresLossCarryforwardRepository } from "@/lib/repositories/defaultFuturesLossCarryforwardRepository";
 import { futuresTradeRepository } from "@/lib/repositories/defaultFuturesTradeRepository";
 import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
@@ -90,8 +90,6 @@ import { getOrCreateTaxYear } from "@/lib/taxYear";
 
 const openingBalanceByInstitutionRepository =
   createPrismaOpeningBalanceByInstitutionRepository();
-const futuresLossCarryforwardRepository =
-  createPrismaFuturesLossCarryforwardRepository();
 const foreignTaxCreditCarryforwardRepository =
   createPrismaForeignTaxCreditCarryforwardRepository();
 const foreignTaxCreditSpareLimitCarryforwardRepository =

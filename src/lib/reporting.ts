@@ -7,7 +7,7 @@ import { investmentTradeRepository } from "@/lib/repositories/defaultInvestmentT
 import { stockMarginTradeRepository } from "@/lib/repositories/defaultStockMarginTradeRepository";
 import { futuresTradeRepository } from "@/lib/repositories/defaultFuturesTradeRepository";
 import { investmentLossCarryforwardRepository } from "@/lib/repositories/defaultInvestmentLossCarryforwardRepository";
-import { createPrismaFuturesLossCarryforwardRepository } from "./repositories/futuresLossCarryforwardRepository";
+import { futuresLossCarryforwardRepository } from "@/lib/repositories/defaultFuturesLossCarryforwardRepository";
 import { createPrismaNisaLifetimeQuotaRepository } from "./repositories/nisaLifetimeQuotaRepository";
 import { createPrismaAssetBalanceSnapshotRepository } from "./repositories/assetBalanceSnapshotRepository";
 import {
@@ -55,8 +55,6 @@ import {
   type AssetBalanceReconciliationResult,
 } from "./moneyforward/assetBalanceReconciliation";
 
-const futuresLossCarryforwardRepository =
-  createPrismaFuturesLossCarryforwardRepository();
 const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
 const assetBalanceSnapshotRepository =
   createPrismaAssetBalanceSnapshotRepository();
