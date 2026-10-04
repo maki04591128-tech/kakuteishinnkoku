@@ -4,11 +4,17 @@
  * 置き換える。挙動は既存のPrisma実装と完全に一致させる。
  * フェーズ2-24でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientForeignTaxCreditRecordRepository`。wa-sqlite)を追加した。
+ * フェーズ5-1-3bで`createPrismaForeignTaxCreditRecordRepository`
+ * (`@prisma/client`(Node専用)に依存)を`foreignTaxCreditRecordRepository.prisma.ts`に
+ * 分離し、スタンドアロン版バンドルに引き込まれないようにした。各Decimal列の型は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`
+ * (`decimalCodec.ts`)で生成する(`@prisma/client`の`Prisma.Decimal`は構造的に同一の
+ * 別クラスだが、値としてのimportはスタンドアロン版バンドルに`@prisma/client`本体を
+ * 引き込んでしまうため使わない)。
  */
-import { Prisma, type ForeignTaxCreditRecord } from "@prisma/client";
+import type { ForeignTaxCreditRecord } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface ForeignTaxCreditRecordRepository {
@@ -22,40 +28,13 @@ export interface ForeignTaxCreditRecordRepository {
   deleteByTaxYearId(taxYearId: number): Promise<void>;
 }
 
-export function createPrismaForeignTaxCreditRecordRepository(): ForeignTaxCreditRecordRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<ForeignTaxCreditRecord | null> {
-      return prisma.foreignTaxCreditRecord.findUnique({
-        where: { taxYearId },
-      });
-    },
-
-    async upsert({
-      taxYearId,
-      totalCreditJpy,
-      nationalTaxCreditJpy,
-      residentTaxCreditJpy,
-    }): Promise<void> {
-      await prisma.foreignTaxCreditRecord.upsert({
-        where: { taxYearId },
-        create: { taxYearId, totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
-        update: { totalCreditJpy, nationalTaxCreditJpy, residentTaxCreditJpy },
-      });
-    },
-
-    async deleteByTaxYearId(taxYearId: number): Promise<void> {
-      await prisma.foreignTaxCreditRecord.deleteMany({ where: { taxYearId } });
-    },
-  };
-}
-
 function rowToForeignTaxCreditRecord(row: Record<string, SqlValue>): ForeignTaxCreditRecord {
   return {
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
-    totalCreditJpy: new Prisma.Decimal(String(row.total_tax_credit_jpy)),
-    nationalTaxCreditJpy: new Prisma.Decimal(String(row.national_tax_credit_jpy)),
-    residentTaxCreditJpy: new Prisma.Decimal(String(row.resident_tax_credit_jpy)),
+    totalCreditJpy: decodeDecimal(String(row.total_tax_credit_jpy)),
+    nationalTaxCreditJpy: decodeDecimal(String(row.national_tax_credit_jpy)),
+    residentTaxCreditJpy: decodeDecimal(String(row.resident_tax_credit_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

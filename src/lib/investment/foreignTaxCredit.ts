@@ -1,8 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaForeignTaxCreditRecordRepository } from "../repositories/foreignTaxCreditRecordRepository";
+import { foreignTaxCreditRecordRepository } from "@/lib/repositories/defaultForeignTaxCreditRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const foreignTaxCreditRecordRepository = createPrismaForeignTaxCreditRecordRepository();
 
 /**
  * 外国税額控除(所得税法95条)。

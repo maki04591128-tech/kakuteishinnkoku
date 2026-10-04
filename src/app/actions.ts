@@ -27,7 +27,7 @@ import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositori
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
 import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
-import { createPrismaForeignTaxCreditRecordRepository } from "@/lib/repositories/foreignTaxCreditRecordRepository";
+import { foreignTaxCreditRecordRepository } from "@/lib/repositories/defaultForeignTaxCreditRecordRepository";
 import { donationTaxCreditRecordRepository } from "@/lib/repositories/defaultDonationTaxCreditRecordRepository";
 import { createPrismaDistributionAdjustedForeignTaxCreditRecordRepository } from "@/lib/repositories/distributionAdjustedForeignTaxCreditRecordRepository";
 import { earthquakeRenovationDeductionRecordRepository } from "@/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository";
@@ -39,7 +39,7 @@ import { certifiedHousingConstructionCreditRecordRepository } from "@/lib/reposi
 import { certifiedHousingConstructionCreditCarryforwardRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository";
 import { incomeDeductionRepository } from "@/lib/repositories/defaultIncomeDeductionRepository";
 import { mortgageDeductionRecordRepository } from "@/lib/repositories/defaultMortgageDeductionRecordRepository";
-import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/residentTaxAdjustmentDeductionRecordRepository";
+import { residentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository";
 import { createPrismaCashflowEntryRepository } from "@/lib/repositories/cashflowEntryRepository";
 import { createPrismaAssetBalanceSnapshotRepository } from "@/lib/repositories/assetBalanceSnapshotRepository";
 import { decodeCsvFile } from "@/lib/csv";
@@ -244,11 +244,8 @@ const homeSaleLossCarryforwardRepository = createPrismaHomeSaleLossCarryforwardR
 const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
 const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
-const foreignTaxCreditRecordRepository = createPrismaForeignTaxCreditRecordRepository();
 const distributionAdjustedForeignTaxCreditRecordRepository =
   createPrismaDistributionAdjustedForeignTaxCreditRecordRepository();
-const residentTaxAdjustmentDeductionRecordRepository =
-  createPrismaResidentTaxAdjustmentDeductionRecordRepository();
 const cashflowEntryRepository = createPrismaCashflowEntryRepository();
 const assetBalanceSnapshotRepository = createPrismaAssetBalanceSnapshotRepository();
 

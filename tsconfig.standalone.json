@@ -45,6 +45,12 @@
       ],
       "@/lib/repositories/defaultMortgageDeductionRecordRepository": [
         "./src/lib/repositories/defaultMortgageDeductionRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultForeignTaxCreditRecordRepository": [
+        "./src/lib/repositories/defaultForeignTaxCreditRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository": [
+        "./src/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository.standalone.ts"
       ]
     }
   }
