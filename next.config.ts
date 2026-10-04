@@ -140,6 +140,15 @@ const defaultOpeningBalanceRepositoryStandaloneAliasForWebpack = path.resolve(
   "src/lib/repositories/defaultOpeningBalanceRepository.standalone.ts",
 );
 
+// `MortgageDeductionRecordRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、14つ目)。
+const defaultMortgageDeductionRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultMortgageDeductionRecordRepository.standalone.ts";
+const defaultMortgageDeductionRecordRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultMortgageDeductionRecordRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -178,6 +187,8 @@ const nextConfig: NextConfig = {
             defaultMultiHouseholdRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultOpeningBalanceRepository":
             defaultOpeningBalanceRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultMortgageDeductionRecordRepository":
+            defaultMortgageDeductionRecordRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -212,6 +223,8 @@ const nextConfig: NextConfig = {
           defaultMultiHouseholdRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultOpeningBalanceRepository":
           defaultOpeningBalanceRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultMortgageDeductionRecordRepository":
+          defaultMortgageDeductionRecordRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;
