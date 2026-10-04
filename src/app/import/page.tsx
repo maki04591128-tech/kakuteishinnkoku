@@ -81,7 +81,7 @@ import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositori
 import { investmentLossCarryforwardRepository } from "@/lib/repositories/defaultInvestmentLossCarryforwardRepository";
 import { investmentTradeRepository } from "@/lib/repositories/defaultInvestmentTradeRepository";
 import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
-import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
+import { nisaLifetimeQuotaRepository } from "@/lib/repositories/defaultNisaLifetimeQuotaRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalanceRepository";
 import { stockMarginTradeRepository } from "@/lib/repositories/defaultStockMarginTradeRepository";
@@ -104,7 +104,6 @@ const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
 const assetBalanceSnapshotRepository = createPrismaAssetBalanceSnapshotRepository();
 const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
 const marketPriceRepository = createPrismaMarketPriceRepository();
-const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",

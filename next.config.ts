@@ -251,6 +251,15 @@ const defaultFuturesLossCarryforwardRepositoryStandaloneAliasForWebpack =
     "src/lib/repositories/defaultFuturesLossCarryforwardRepository.standalone.ts",
   );
 
+// `NisaLifetimeQuotaRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、26つ目。`src/lib/reporting.ts`の残り対象の9つ目)。
+const defaultNisaLifetimeQuotaRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultNisaLifetimeQuotaRepository.standalone.ts";
+const defaultNisaLifetimeQuotaRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultNisaLifetimeQuotaRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -313,6 +322,8 @@ const nextConfig: NextConfig = {
             defaultInvestmentLossCarryforwardRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultFuturesLossCarryforwardRepository":
             defaultFuturesLossCarryforwardRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultNisaLifetimeQuotaRepository":
+            defaultNisaLifetimeQuotaRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -371,6 +382,8 @@ const nextConfig: NextConfig = {
           defaultInvestmentLossCarryforwardRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultFuturesLossCarryforwardRepository":
           defaultFuturesLossCarryforwardRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultNisaLifetimeQuotaRepository":
+          defaultNisaLifetimeQuotaRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

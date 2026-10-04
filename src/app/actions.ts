@@ -18,7 +18,7 @@ import { investmentLossCarryforwardRepository } from "@/lib/repositories/default
 import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalanceRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
-import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
+import { nisaLifetimeQuotaRepository } from "@/lib/repositories/defaultNisaLifetimeQuotaRepository";
 import { createPrismaAssetSymbolMappingRepository } from "@/lib/repositories/assetSymbolMappingRepository";
 import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
 import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
@@ -223,7 +223,6 @@ function isKnownExchangeCsvPreset(
 const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
 const openingBalanceByInstitutionRepository =
   createPrismaOpeningBalanceByInstitutionRepository();
-const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();
 const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
 const marketPriceRepository = createPrismaMarketPriceRepository();
 const foreignTaxCreditCarryforwardRepository =

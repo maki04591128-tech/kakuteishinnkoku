@@ -78,6 +78,9 @@
       ],
       "@/lib/repositories/defaultFuturesLossCarryforwardRepository": [
         "./src/lib/repositories/defaultFuturesLossCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultNisaLifetimeQuotaRepository": [
+        "./src/lib/repositories/defaultNisaLifetimeQuotaRepository.standalone.ts"
       ]
     }
   }
