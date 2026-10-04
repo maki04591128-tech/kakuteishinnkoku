@@ -177,6 +177,15 @@ const defaultDistributionAdjustedForeignTaxCreditRecordRepositoryStandaloneAlias
     "src/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository.standalone.ts",
   );
 
+// `CryptoTradeRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、18つ目。`src/lib/reporting.ts`の残り対象の1つ目)。
+const defaultCryptoTradeRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultCryptoTradeRepository.standalone.ts";
+const defaultCryptoTradeRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultCryptoTradeRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -223,6 +232,8 @@ const nextConfig: NextConfig = {
             defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository":
             defaultDistributionAdjustedForeignTaxCreditRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultCryptoTradeRepository":
+            defaultCryptoTradeRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -265,6 +276,8 @@ const nextConfig: NextConfig = {
           defaultResidentTaxAdjustmentDeductionRecordRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository":
           defaultDistributionAdjustedForeignTaxCreditRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultCryptoTradeRepository":
+          defaultCryptoTradeRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

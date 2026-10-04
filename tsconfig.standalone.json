@@ -54,6 +54,9 @@
       ],
       "@/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository": [
         "./src/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultCryptoTradeRepository": [
+        "./src/lib/repositories/defaultCryptoTradeRepository.standalone.ts"
       ]
     }
   }
