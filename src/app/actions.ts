@@ -15,7 +15,7 @@ import { createPrismaStockMarginTradeRepository } from "@/lib/repositories/stock
 import { createPrismaFuturesTradeRepository } from "@/lib/repositories/futuresTradeRepository";
 import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
-import { createPrismaOpeningBalanceRepository } from "@/lib/repositories/openingBalanceRepository";
+import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalanceRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
 import { createPrismaNisaLifetimeQuotaRepository } from "@/lib/repositories/nisaLifetimeQuotaRepository";
@@ -230,7 +230,6 @@ const futuresLossCarryforwardRepository = createPrismaFuturesLossCarryforwardRep
 const investmentLossCarryforwardRepository =
   createPrismaInvestmentLossCarryforwardRepository();
 const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
-const openingBalanceRepository = createPrismaOpeningBalanceRepository();
 const openingBalanceByInstitutionRepository =
   createPrismaOpeningBalanceByInstitutionRepository();
 const nisaLifetimeQuotaRepository = createPrismaNisaLifetimeQuotaRepository();

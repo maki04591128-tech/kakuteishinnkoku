@@ -5,7 +5,7 @@
  * 真偽値列(isNisa/isListed)のクライアントDB変換(`booleanCodec.ts`)を
  * 検証する初めてのリポジトリテストでもある。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -50,7 +50,7 @@ describe("createClientOpeningBalanceRepository", () => {
     expect(records[0].symbol).toBe("1234");
     expect(records[0].isNisa).toBe(true);
     expect(records[0].isListed).toBe(false);
-    expect(records[0].quantity).toBeInstanceOf(Prisma.Decimal);
+    expect(records[0].quantity).toBeInstanceOf(Decimal);
     expect(records[0].quantity.toString()).toBe("100");
     expect(records[0].costBasisJpy.toString()).toBe("500000");
     expect(records[0].id).toBeTypeOf("number");
