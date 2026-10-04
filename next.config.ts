@@ -213,6 +213,15 @@ const defaultInvestmentTradeRepositoryStandaloneAliasForWebpack = path.resolve(
   "src/lib/repositories/defaultInvestmentTradeRepository.standalone.ts",
 );
 
+// `StockMarginTradeRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、22つ目。`src/lib/reporting.ts`の残り対象の5つ目)。
+const defaultStockMarginTradeRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultStockMarginTradeRepository.standalone.ts";
+const defaultStockMarginTradeRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultStockMarginTradeRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -267,6 +276,8 @@ const nextConfig: NextConfig = {
             defaultCryptoCreditTradeRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultInvestmentTradeRepository":
             defaultInvestmentTradeRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultStockMarginTradeRepository":
+            defaultStockMarginTradeRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -317,6 +328,8 @@ const nextConfig: NextConfig = {
           defaultCryptoCreditTradeRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultInvestmentTradeRepository":
           defaultInvestmentTradeRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultStockMarginTradeRepository":
+          defaultStockMarginTradeRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

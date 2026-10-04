@@ -6,11 +6,19 @@
  * 移行時に別途このリポジトリへ委譲する)
  * フェーズ2-37でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientStockMarginTradeRepository`。wa-sqlite)を追加した。
+ * フェーズ5-1-3bでPrisma実装(`createPrismaStockMarginTradeRepository`)を
+ * `stockMarginTradeRepository.prisma.ts`に分離し、ビルドターゲットに応じた
+ * 既定実装の切り替えは`defaultStockMarginTradeRepository.ts`/
+ * `defaultStockMarginTradeRepository.standalone.ts`が担う。
+ *
+ * `realizedPnlJpy`/`feeJpy`/`interestAdjustmentJpy`の型(`Decimal`)は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`
+ * (`decimalCodec.ts`)で生成する(`@prisma/client`の値importはスタンドアロン版
+ * バンドルに`@prisma/client`本体を引き込んでしまうため使わない)。
  */
-import { Prisma, type StockMarginTrade } from "@prisma/client";
+import type { Prisma, StockMarginTrade } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface StockMarginTradeRepository {
@@ -21,24 +29,6 @@ export interface StockMarginTradeRepository {
   delete(id: number): Promise<void>;
 }
 
-export function createPrismaStockMarginTradeRepository(): StockMarginTradeRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<StockMarginTrade[]> {
-      return prisma.stockMarginTrade.findMany({ where: { taxYearId } });
-    },
-
-    async create(
-      data: Prisma.StockMarginTradeUncheckedCreateInput,
-    ): Promise<StockMarginTrade> {
-      return prisma.stockMarginTrade.create({ data });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.stockMarginTrade.delete({ where: { id } });
-    },
-  };
-}
-
 function rowToStockMarginTrade(
   row: Record<string, SqlValue>,
 ): StockMarginTrade {
@@ -47,11 +37,9 @@ function rowToStockMarginTrade(
     taxYearId: Number(row.tax_year_id),
     settledAt: new Date(String(row.settled_at)),
     symbol: String(row.symbol),
-    realizedPnlJpy: new Prisma.Decimal(String(row.realized_pnl_jpy)),
-    feeJpy: new Prisma.Decimal(String(row.fee_jpy)),
-    interestAdjustmentJpy: new Prisma.Decimal(
-      String(row.interest_adjustment_jpy),
-    ),
+    realizedPnlJpy: decodeDecimal(String(row.realized_pnl_jpy)),
+    feeJpy: decodeDecimal(String(row.fee_jpy)),
+    interestAdjustmentJpy: decodeDecimal(String(row.interest_adjustment_jpy)),
     broker: row.broker === null ? null : String(row.broker),
     memo: row.memo === null ? null : String(row.memo),
     createdAt: new Date(String(row.created_at)),

@@ -4,7 +4,7 @@ import { cryptoTradeRepository } from "@/lib/repositories/defaultCryptoTradeRepo
 import { cryptoMarginTradeRepository } from "@/lib/repositories/defaultCryptoMarginTradeRepository";
 import { cryptoCreditTradeRepository } from "@/lib/repositories/defaultCryptoCreditTradeRepository";
 import { investmentTradeRepository } from "@/lib/repositories/defaultInvestmentTradeRepository";
-import { createPrismaStockMarginTradeRepository } from "./repositories/stockMarginTradeRepository";
+import { stockMarginTradeRepository } from "@/lib/repositories/defaultStockMarginTradeRepository";
 import { createPrismaFuturesTradeRepository } from "./repositories/futuresTradeRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "./repositories/investmentLossCarryforwardRepository";
 import { createPrismaFuturesLossCarryforwardRepository } from "./repositories/futuresLossCarryforwardRepository";
@@ -55,7 +55,6 @@ import {
   type AssetBalanceReconciliationResult,
 } from "./moneyforward/assetBalanceReconciliation";
 
-const stockMarginTradeRepository = createPrismaStockMarginTradeRepository();
 const futuresTradeRepository = createPrismaFuturesTradeRepository();
 const investmentLossCarryforwardRepository =
   createPrismaInvestmentLossCarryforwardRepository();
