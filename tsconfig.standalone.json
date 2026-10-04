@@ -36,6 +36,9 @@
       ],
       "@/lib/repositories/defaultIncomeDeductionRepository": [
         "./src/lib/repositories/defaultIncomeDeductionRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository": [
+        "./src/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository.standalone.ts"
       ]
     }
   }

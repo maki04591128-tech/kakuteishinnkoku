@@ -1,9 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaMultiHouseholdRenovationDeductionRecordRepository } from "./repositories/multiHouseholdRenovationDeductionRecordRepository";
+import { multiHouseholdRenovationDeductionRecordRepository } from "@/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const multiHouseholdRenovationDeductionRecordRepository =
-  createPrismaMultiHouseholdRenovationDeductionRecordRepository();
 
 /**
  * 多世帯同居改修工事をした場合の住宅特定改修特別税額控除(税額控除。租税特別措置法
