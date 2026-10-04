@@ -231,6 +231,16 @@ const defaultFuturesTradeRepositoryStandaloneAliasForWebpack = path.resolve(
   "src/lib/repositories/defaultFuturesTradeRepository.standalone.ts",
 );
 
+// `InvestmentLossCarryforwardRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、24つ目。`src/lib/reporting.ts`の残り対象の7つ目)。
+const defaultInvestmentLossCarryforwardRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultInvestmentLossCarryforwardRepository.standalone.ts";
+const defaultInvestmentLossCarryforwardRepositoryStandaloneAliasForWebpack =
+  path.resolve(
+    process.cwd(),
+    "src/lib/repositories/defaultInvestmentLossCarryforwardRepository.standalone.ts",
+  );
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -289,6 +299,8 @@ const nextConfig: NextConfig = {
             defaultStockMarginTradeRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultFuturesTradeRepository":
             defaultFuturesTradeRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultInvestmentLossCarryforwardRepository":
+            defaultInvestmentLossCarryforwardRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -343,6 +355,8 @@ const nextConfig: NextConfig = {
           defaultStockMarginTradeRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultFuturesTradeRepository":
           defaultFuturesTradeRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultInvestmentLossCarryforwardRepository":
+          defaultInvestmentLossCarryforwardRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

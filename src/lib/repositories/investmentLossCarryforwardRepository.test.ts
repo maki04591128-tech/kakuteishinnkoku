@@ -4,7 +4,7 @@
  * Prisma実装(`createPrismaInvestmentLossCarryforwardRepository`)と
  * 同じ挙動で満たすことを検証する。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -38,7 +38,7 @@ describe("createClientInvestmentLossCarryforwardRepository", () => {
     expect(records).toHaveLength(1);
     expect(records[0].taxYearId).toBe(1);
     expect(records[0].originYear).toBe(2023);
-    expect(records[0].remainingAmountJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(records[0].remainingAmountJpy).toBeInstanceOf(Decimal);
     expect(records[0].remainingAmountJpy.toString()).toBe("150000");
     expect(records[0].id).toBeTypeOf("number");
     expect(records[0].createdAt).toBeInstanceOf(Date);

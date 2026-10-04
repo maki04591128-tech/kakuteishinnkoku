@@ -14,7 +14,7 @@ import { cryptoCreditTradeRepository } from "@/lib/repositories/defaultCryptoCre
 import { stockMarginTradeRepository } from "@/lib/repositories/defaultStockMarginTradeRepository";
 import { futuresTradeRepository } from "@/lib/repositories/defaultFuturesTradeRepository";
 import { createPrismaFuturesLossCarryforwardRepository } from "@/lib/repositories/futuresLossCarryforwardRepository";
-import { createPrismaInvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
+import { investmentLossCarryforwardRepository } from "@/lib/repositories/defaultInvestmentLossCarryforwardRepository";
 import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalanceRepository";
 import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
 import { createPrismaBrokerAnnualReportRepository } from "@/lib/repositories/brokerAnnualReportRepository";
@@ -221,8 +221,6 @@ function isKnownExchangeCsvPreset(
 }
 
 const futuresLossCarryforwardRepository = createPrismaFuturesLossCarryforwardRepository();
-const investmentLossCarryforwardRepository =
-  createPrismaInvestmentLossCarryforwardRepository();
 const brokerAnnualReportRepository = createPrismaBrokerAnnualReportRepository();
 const openingBalanceByInstitutionRepository =
   createPrismaOpeningBalanceByInstitutionRepository();
