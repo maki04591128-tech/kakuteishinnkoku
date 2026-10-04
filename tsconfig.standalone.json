@@ -33,6 +33,9 @@
       ],
       "@/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository": [
         "./src/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultIncomeDeductionRepository": [
+        "./src/lib/repositories/defaultIncomeDeductionRepository.standalone.ts"
       ]
     }
   }

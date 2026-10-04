@@ -4,7 +4,7 @@
  * Prisma実装(`createPrismaIncomeDeductionRepository`)と
  * 同じ挙動で満たすことを検証する。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -43,7 +43,7 @@ describe("createClientIncomeDeductionRepository", () => {
     expect(records).toHaveLength(1);
     expect(records[0].taxYearId).toBe(1);
     expect(records[0].type).toBe("MEDICAL_EXPENSE");
-    expect(records[0].incomeTaxAmountJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(records[0].incomeTaxAmountJpy).toBeInstanceOf(Decimal);
     expect(records[0].incomeTaxAmountJpy.toString()).toBe("100000");
     expect(records[0].residentTaxAmountJpy.toString()).toBe("100000");
     expect(records[0].id).toBeTypeOf("number");

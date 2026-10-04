@@ -112,6 +112,15 @@ const defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForWe
   "src/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository.standalone.ts",
 );
 
+// `IncomeDeductionRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、11つ目)。
+const defaultIncomeDeductionRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultIncomeDeductionRepository.standalone.ts";
+const defaultIncomeDeductionRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultIncomeDeductionRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -144,6 +153,8 @@ const nextConfig: NextConfig = {
             defaultEarthquakeRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository":
             defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultIncomeDeductionRepository":
+            defaultIncomeDeductionRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -172,6 +183,8 @@ const nextConfig: NextConfig = {
           defaultEarthquakeRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository":
           defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultIncomeDeductionRepository":
+          defaultIncomeDeductionRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;
