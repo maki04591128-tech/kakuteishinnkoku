@@ -28,7 +28,7 @@ import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositori
 import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
 import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
 import { createPrismaForeignTaxCreditRecordRepository } from "@/lib/repositories/foreignTaxCreditRecordRepository";
-import { createPrismaDonationTaxCreditRecordRepository } from "@/lib/repositories/donationTaxCreditRecordRepository";
+import { donationTaxCreditRecordRepository } from "@/lib/repositories/defaultDonationTaxCreditRecordRepository";
 import { createPrismaDistributionAdjustedForeignTaxCreditRecordRepository } from "@/lib/repositories/distributionAdjustedForeignTaxCreditRecordRepository";
 import { createPrismaEarthquakeRenovationDeductionRecordRepository } from "@/lib/repositories/earthquakeRenovationDeductionRecordRepository";
 import { createPrismaEnergySavingRenovationDeductionRecordRepository } from "@/lib/repositories/energySavingRenovationDeductionRecordRepository";
@@ -246,7 +246,6 @@ const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
 const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
 const foreignTaxCreditRecordRepository = createPrismaForeignTaxCreditRecordRepository();
-const donationTaxCreditRecordRepository = createPrismaDonationTaxCreditRecordRepository();
 const distributionAdjustedForeignTaxCreditRecordRepository =
   createPrismaDistributionAdjustedForeignTaxCreditRecordRepository();
 const earthquakeRenovationDeductionRecordRepository =

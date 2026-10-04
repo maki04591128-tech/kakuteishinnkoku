@@ -1,9 +1,14 @@
 /**
  * フェーズ2-20: `createClientDonationTaxCreditRecordRepository`(wa-sqlite実装)が
  * `DonationTaxCreditRecordRepository`インターフェースを、Prisma実装
- * (`createPrismaDonationTaxCreditRecordRepository`)と同じ挙動で満たすことを検証する。
+ * (`createPrismaDonationTaxCreditRecordRepository`。
+ * `donationTaxCreditRecordRepository.prisma.ts`)と同じ挙動で満たすことを検証する。
+ * フェーズ5-1-3bで`totalTaxCreditJpy`/`residentTaxBasicDeductionJpy`の実体を
+ * `@prisma/client`の`Prisma.Decimal`ではなく`decimal.js`の`Decimal`に変更したため
+ * (スタンドアロン版バンドルに`@prisma/client`本体を引き込まないため)、
+ * instanceofの確認も`decimal.js`側のクラスで行う。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -40,9 +45,9 @@ describe("createClientDonationTaxCreditRecordRepository", () => {
     const record = await repo.findByTaxYearId(1);
     expect(record).not.toBeNull();
     expect(record?.taxYearId).toBe(1);
-    expect(record?.totalTaxCreditJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.totalTaxCreditJpy).toBeInstanceOf(Decimal);
     expect(record?.totalTaxCreditJpy.toString()).toBe("150000");
-    expect(record?.residentTaxBasicDeductionJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.residentTaxBasicDeductionJpy).toBeInstanceOf(Decimal);
     expect(record?.residentTaxBasicDeductionJpy.toString()).toBe("30000");
     expect(record?.id).toBeTypeOf("number");
     expect(record?.createdAt).toBeInstanceOf(Date);

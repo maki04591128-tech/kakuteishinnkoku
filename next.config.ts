@@ -75,6 +75,15 @@ const defaultChildRearingRenovationDeductionRecordRepositoryStandaloneAliasForWe
   "src/lib/repositories/defaultChildRearingRenovationDeductionRecordRepository.standalone.ts",
 );
 
+// `DonationTaxCreditRecordRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、7つ目)。
+const defaultDonationTaxCreditRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultDonationTaxCreditRecordRepository.standalone.ts";
+const defaultDonationTaxCreditRecordRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultDonationTaxCreditRecordRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -99,6 +108,8 @@ const nextConfig: NextConfig = {
             defaultCertifiedHousingConstructionCreditCarryforwardRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultChildRearingRenovationDeductionRecordRepository":
             defaultChildRearingRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultDonationTaxCreditRecordRepository":
+            defaultDonationTaxCreditRecordRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -119,6 +130,8 @@ const nextConfig: NextConfig = {
           defaultCertifiedHousingConstructionCreditCarryforwardRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultChildRearingRenovationDeductionRecordRepository":
           defaultChildRearingRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultDonationTaxCreditRecordRepository":
+          defaultDonationTaxCreditRecordRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

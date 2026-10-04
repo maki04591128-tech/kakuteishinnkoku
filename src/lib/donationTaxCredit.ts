@@ -1,9 +1,7 @@
 import { Decimal } from "decimal.js";
 import { RECONSTRUCTION_SURTAX_RATE } from "./incomeTax";
-import { createPrismaDonationTaxCreditRecordRepository } from "./repositories/donationTaxCreditRecordRepository";
+import { donationTaxCreditRecordRepository } from "@/lib/repositories/defaultDonationTaxCreditRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const donationTaxCreditRecordRepository = createPrismaDonationTaxCreditRecordRepository();
 
 /**
  * 政党等・認定NPO法人等・公益社団法人等寄附金特別控除(税額控除)の試算
