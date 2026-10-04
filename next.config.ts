@@ -121,6 +121,16 @@ const defaultIncomeDeductionRepositoryStandaloneAliasForWebpack = path.resolve(
   "src/lib/repositories/defaultIncomeDeductionRepository.standalone.ts",
 );
 
+// `MultiHouseholdRenovationDeductionRecordRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、12つ目)。
+const defaultMultiHouseholdRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository.standalone.ts";
+const defaultMultiHouseholdRenovationDeductionRecordRepositoryStandaloneAliasForWebpack =
+  path.resolve(
+    process.cwd(),
+    "src/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository.standalone.ts",
+  );
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -155,6 +165,8 @@ const nextConfig: NextConfig = {
             defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultIncomeDeductionRepository":
             defaultIncomeDeductionRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository":
+            defaultMultiHouseholdRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -185,6 +197,8 @@ const nextConfig: NextConfig = {
           defaultEnergySavingRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultIncomeDeductionRepository":
           defaultIncomeDeductionRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultMultiHouseholdRenovationDeductionRecordRepository":
+          defaultMultiHouseholdRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;
