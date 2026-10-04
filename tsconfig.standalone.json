@@ -12,6 +12,12 @@
       ],
       "@/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository": [
         "./src/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository": [
+        "./src/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository": [
+        "./src/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository.standalone.ts"
       ]
     }
   }

@@ -48,6 +48,24 @@ const defaultBarrierFreeRenovationDeductionRecordRepositoryStandaloneAliasForWeb
   "src/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository.standalone.ts",
 );
 
+// `CertifiedHousingConstructionCreditRecordRepository`/
+// `CertifiedHousingConstructionCreditCarryforwardRepository`にも同じ切り替えパターンを
+// 適用する(フェーズ5-1-3b、4つ目・5つ目)。
+const defaultCertifiedHousingConstructionCreditRecordRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository.standalone.ts";
+const defaultCertifiedHousingConstructionCreditRecordRepositoryStandaloneAliasForWebpack =
+  path.resolve(
+    process.cwd(),
+    "src/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository.standalone.ts",
+  );
+const defaultCertifiedHousingConstructionCreditCarryforwardRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository.standalone.ts";
+const defaultCertifiedHousingConstructionCreditCarryforwardRepositoryStandaloneAliasForWebpack =
+  path.resolve(
+    process.cwd(),
+    "src/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository.standalone.ts",
+  );
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -66,6 +84,10 @@ const nextConfig: NextConfig = {
             defaultEmploymentIncomeRecordRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository":
             defaultBarrierFreeRenovationDeductionRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository":
+            defaultCertifiedHousingConstructionCreditRecordRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository":
+            defaultCertifiedHousingConstructionCreditCarryforwardRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -80,6 +102,10 @@ const nextConfig: NextConfig = {
           defaultEmploymentIncomeRecordRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultBarrierFreeRenovationDeductionRecordRepository":
           defaultBarrierFreeRenovationDeductionRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository":
+          defaultCertifiedHousingConstructionCreditRecordRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository":
+          defaultCertifiedHousingConstructionCreditCarryforwardRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

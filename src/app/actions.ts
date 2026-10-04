@@ -35,8 +35,8 @@ import { createPrismaEnergySavingRenovationDeductionRecordRepository } from "@/l
 import { createPrismaMultiHouseholdRenovationDeductionRecordRepository } from "@/lib/repositories/multiHouseholdRenovationDeductionRecordRepository";
 import { createPrismaDurabilityImprovementRenovationDeductionRecordRepository } from "@/lib/repositories/durabilityImprovementRenovationDeductionRecordRepository";
 import { createPrismaChildRearingRenovationDeductionRecordRepository } from "@/lib/repositories/childRearingRenovationDeductionRecordRepository";
-import { createPrismaCertifiedHousingConstructionCreditRecordRepository } from "@/lib/repositories/certifiedHousingConstructionCreditRecordRepository";
-import { createPrismaCertifiedHousingConstructionCreditCarryforwardRepository } from "@/lib/repositories/certifiedHousingConstructionCreditCarryforwardRepository";
+import { certifiedHousingConstructionCreditRecordRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditRecordRepository";
+import { certifiedHousingConstructionCreditCarryforwardRepository } from "@/lib/repositories/defaultCertifiedHousingConstructionCreditCarryforwardRepository";
 import { createPrismaIncomeDeductionRepository } from "@/lib/repositories/incomeDeductionRepository";
 import { createPrismaMortgageDeductionRecordRepository } from "@/lib/repositories/mortgageDeductionRecordRepository";
 import { createPrismaResidentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/residentTaxAdjustmentDeductionRecordRepository";
@@ -259,10 +259,6 @@ const durabilityImprovementRenovationDeductionRecordRepository =
   createPrismaDurabilityImprovementRenovationDeductionRecordRepository();
 const childRearingRenovationDeductionRecordRepository =
   createPrismaChildRearingRenovationDeductionRecordRepository();
-const certifiedHousingConstructionCreditRecordRepository =
-  createPrismaCertifiedHousingConstructionCreditRecordRepository();
-const certifiedHousingConstructionCreditCarryforwardRepository =
-  createPrismaCertifiedHousingConstructionCreditCarryforwardRepository();
 const incomeDeductionRepository = createPrismaIncomeDeductionRepository();
 const mortgageDeductionRecordRepository = createPrismaMortgageDeductionRecordRepository();
 const residentTaxAdjustmentDeductionRecordRepository =
