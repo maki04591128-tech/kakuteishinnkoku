@@ -3751,6 +3751,34 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `FuturesTradeRepository`・`InvestmentLossCarryforwardRepository`・
   `FuturesLossCarryforwardRepository`・`NisaLifetimeQuotaRepository`・
   `AssetBalanceSnapshotRepository`。
+
+  **追記(2026-10-04、`InvestmentTradeRepository`への適用):** 同じパターンを
+  `InvestmentTradeRepository`(`src/lib/reporting.ts`・`src/app/actions.ts`・
+  `src/app/import/page.tsx`が消費)にも適用した。
+  `src/lib/repositories/investmentTradeRepository.ts`から`@prisma/client`
+  (`../db`)に依存する`createPrismaInvestmentTradeRepository`を
+  `investmentTradeRepository.prisma.ts`に分離し、
+  `defaultInvestmentTradeRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultInvestmentTradeRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。3消費先を
+  `@/lib/repositories/defaultInvestmentTradeRepository`経由の参照に統一した。
+  このモデルも`quantity`・`unitPriceJpy`・`feeJpy`・`foreignTaxWithheldJpy`・
+  `distributionAdjustedForeignTaxJpy`(いずれもDecimal型)の復元処理が
+  `new Prisma.Decimal(...)`(`@prisma/client`からの値import)を使っていたため、
+  同じく`decimalCodec.ts`の`decodeDecimal`に置き換えた(既存テストの
+  `instanceof`検証も`Prisma.Decimal`から`decimal.js`の`Decimal`に変更)。
+  `npm run test`(全187ファイル1657件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで
+  無関係)が成功することを確認した。また`DATABASE_URL`を設定し
+  `npx prisma db push`でDBを作成した上で、`npm run build`(自宅サーバー版)が
+  従来通り成功し、`npm run build:standalone`が従来と同じ
+  `Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残る5-1-3bの対象(`src/lib/reporting.ts`内の残り6リポジトリ、更新):**
+  `StockMarginTradeRepository`・`FuturesTradeRepository`・
+  `InvestmentLossCarryforwardRepository`・`FuturesLossCarryforwardRepository`・
+  `NisaLifetimeQuotaRepository`・`AssetBalanceSnapshotRepository`。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。

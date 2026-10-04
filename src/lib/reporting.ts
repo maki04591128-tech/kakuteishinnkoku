@@ -3,7 +3,7 @@ import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { cryptoTradeRepository } from "@/lib/repositories/defaultCryptoTradeRepository";
 import { cryptoMarginTradeRepository } from "@/lib/repositories/defaultCryptoMarginTradeRepository";
 import { cryptoCreditTradeRepository } from "@/lib/repositories/defaultCryptoCreditTradeRepository";
-import { createPrismaInvestmentTradeRepository } from "./repositories/investmentTradeRepository";
+import { investmentTradeRepository } from "@/lib/repositories/defaultInvestmentTradeRepository";
 import { createPrismaStockMarginTradeRepository } from "./repositories/stockMarginTradeRepository";
 import { createPrismaFuturesTradeRepository } from "./repositories/futuresTradeRepository";
 import { createPrismaInvestmentLossCarryforwardRepository } from "./repositories/investmentLossCarryforwardRepository";
@@ -55,7 +55,6 @@ import {
   type AssetBalanceReconciliationResult,
 } from "./moneyforward/assetBalanceReconciliation";
 
-const investmentTradeRepository = createPrismaInvestmentTradeRepository();
 const stockMarginTradeRepository = createPrismaStockMarginTradeRepository();
 const futuresTradeRepository = createPrismaFuturesTradeRepository();
 const investmentLossCarryforwardRepository =

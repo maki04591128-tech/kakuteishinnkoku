@@ -63,6 +63,9 @@
       ],
       "@/lib/repositories/defaultCryptoCreditTradeRepository": [
         "./src/lib/repositories/defaultCryptoCreditTradeRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultInvestmentTradeRepository": [
+        "./src/lib/repositories/defaultInvestmentTradeRepository.standalone.ts"
       ]
     }
   }
