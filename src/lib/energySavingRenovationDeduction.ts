@@ -1,9 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaEnergySavingRenovationDeductionRecordRepository } from "./repositories/energySavingRenovationDeductionRecordRepository";
+import { energySavingRenovationDeductionRecordRepository } from "@/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const energySavingRenovationDeductionRecordRepository =
-  createPrismaEnergySavingRenovationDeductionRecordRepository();
 
 /**
  * 省エネ改修工事をした場合の住宅特定改修特別税額控除(税額控除。租税特別措置法

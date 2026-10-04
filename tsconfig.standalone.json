@@ -30,6 +30,9 @@
       ],
       "@/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository": [
         "./src/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository": [
+        "./src/lib/repositories/defaultEnergySavingRenovationDeductionRecordRepository.standalone.ts"
       ]
     }
   }
