@@ -1,9 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaChildRearingRenovationDeductionRecordRepository } from "./repositories/childRearingRenovationDeductionRecordRepository";
+import { childRearingRenovationDeductionRecordRepository } from "@/lib/repositories/defaultChildRearingRenovationDeductionRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const childRearingRenovationDeductionRecordRepository =
-  createPrismaChildRearingRenovationDeductionRecordRepository();
 
 /**
  * 子育て対応改修工事をした場合の住宅特定改修特別税額控除(税額控除。租税特別措置法

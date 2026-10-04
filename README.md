@@ -3348,6 +3348,37 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   従来通り成功し、`npm run build:standalone`が従来と同じ
   `Server Actions are not supported with static export`エラーで失敗すること
   (新たなリグレッションが無いこと)を確認した。
+
+  **追記(2026-10-04、`ChildRearingRenovationDeductionRecordRepository`への適用):**
+  同じパターンを`ChildRearingRenovationDeductionRecordRepository`
+  (`src/lib/childRearingRenovationDeduction.ts`・`src/app/actions.ts`が消費)にも
+  適用した。`src/lib/repositories/childRearingRenovationDeductionRecordRepository.ts`から
+  `@prisma/client`(`../db`)に依存する
+  `createPrismaChildRearingRenovationDeductionRecordRepository`を
+  `childRearingRenovationDeductionRecordRepository.prisma.ts`に分離し、
+  `defaultChildRearingRenovationDeductionRecordRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultChildRearingRenovationDeductionRecordRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。両消費先を
+  `@/lib/repositories/defaultChildRearingRenovationDeductionRecordRepository`経由の参照に統一した
+  (`src/app/actions.ts`の直接呼び出しも前例と同様この時点で解消した)。このモデルも
+  `creditJpy`(Decimal型)の復元処理が`new Prisma.Decimal(...)`(`@prisma/client`からの
+  値import)を使っていたため、同じく`decimalCodec.ts`の`decodeDecimal`に置き換えた
+  (既存テストの`instanceof`検証も`Prisma.Decimal`から`decimal.js`の`Decimal`に変更)。
+  `npm run test`(全181ファイル1638件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで無関係)が
+  成功することを確認した。また`npm run build`(自宅サーバー版)が従来通り成功し、
+  `npm run build:standalone`が従来と同じ
+  `Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残る5-1-3bの対象ファイル:** `src/lib/reporting.ts`・`donationTaxCredit.ts`・
+  `durabilityImprovementRenovationDeduction.ts`・`earthquakeRenovationDeduction.ts`・
+  `energySavingRenovationDeduction.ts`・`incomeDeduction.ts`・
+  `investment/distributionAdjustedForeignTaxCredit.ts`・
+  `investment/foreignTaxCredit.ts`・`mortgageDeduction.ts`・
+  `multiHouseholdRenovationDeduction.ts`・`openingBalance.ts`・
+  `residentTaxAdjustmentDeduction.ts`(`grep -rln "createPrisma.*Repository()"
+  src/lib/*.ts src/lib/investment/*.ts`で再確認可能)。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。
