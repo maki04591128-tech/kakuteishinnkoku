@@ -27,6 +27,9 @@
       ],
       "@/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository": [
         "./src/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository": [
+        "./src/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository.standalone.ts"
       ]
     }
   }

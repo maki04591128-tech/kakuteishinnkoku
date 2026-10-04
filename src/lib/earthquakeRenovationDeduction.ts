@@ -1,9 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaEarthquakeRenovationDeductionRecordRepository } from "./repositories/earthquakeRenovationDeductionRecordRepository";
+import { earthquakeRenovationDeductionRecordRepository } from "@/lib/repositories/defaultEarthquakeRenovationDeductionRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const earthquakeRenovationDeductionRecordRepository =
-  createPrismaEarthquakeRenovationDeductionRecordRepository();
 
 /**
  * 住宅耐震改修特別控除(税額控除。租税特別措置法41条の19の2)。
