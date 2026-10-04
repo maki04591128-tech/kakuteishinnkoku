@@ -24,6 +24,9 @@
       ],
       "@/lib/repositories/defaultDonationTaxCreditRecordRepository": [
         "./src/lib/repositories/defaultDonationTaxCreditRecordRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository": [
+        "./src/lib/repositories/defaultDurabilityImprovementRenovationDeductionRecordRepository.standalone.ts"
       ]
     }
   }
