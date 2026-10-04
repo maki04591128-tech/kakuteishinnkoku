@@ -5,7 +5,7 @@
  * (`createPrismaDistributionAdjustedForeignTaxCreditRecordRepository`)と
  * 同じ挙動で満たすことを検証する。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -38,7 +38,7 @@ describe("createClientDistributionAdjustedForeignTaxCreditRecordRepository", () 
     const record = await repo.findByTaxYearId(1);
     expect(record).not.toBeNull();
     expect(record?.taxYearId).toBe(1);
-    expect(record?.creditJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(record?.creditJpy).toBeInstanceOf(Decimal);
     expect(record?.creditJpy.toString()).toBe("25000");
     expect(record?.id).toBeTypeOf("number");
     expect(record?.createdAt).toBeInstanceOf(Date);

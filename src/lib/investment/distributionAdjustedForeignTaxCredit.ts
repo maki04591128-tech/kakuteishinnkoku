@@ -1,9 +1,6 @@
 import { Decimal } from "decimal.js";
-import { createPrismaDistributionAdjustedForeignTaxCreditRecordRepository } from "../repositories/distributionAdjustedForeignTaxCreditRecordRepository";
+import { distributionAdjustedForeignTaxCreditRecordRepository } from "@/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
-
-const distributionAdjustedForeignTaxCreditRecordRepository =
-  createPrismaDistributionAdjustedForeignTaxCreditRecordRepository();
 
 /**
  * 分配時調整外国税相当額控除(所得税法93条の2)。
