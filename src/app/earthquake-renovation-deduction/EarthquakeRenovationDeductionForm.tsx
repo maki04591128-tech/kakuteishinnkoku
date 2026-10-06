@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import {
   deleteEarthquakeRenovationDeductionRecord,
   saveEarthquakeRenovationDeductionRecord,
-} from "@/app/actions";
+} from "@/lib/earthquakeRenovationDeductionActions";
 import { estimateEarthquakeRenovationDeduction } from "@/lib/earthquakeRenovationDeduction";
 
 function yen(value: { toString(): string }): string {

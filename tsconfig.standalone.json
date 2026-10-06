@@ -10,6 +10,9 @@
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"
       ],
+      "@/lib/earthquakeRenovationDeductionActions": [
+        "./src/lib/earthquakeRenovationDeductionActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
