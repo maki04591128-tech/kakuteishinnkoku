@@ -84,6 +84,9 @@
       ],
       "@/lib/repositories/defaultAssetBalanceSnapshotRepository": [
         "./src/lib/repositories/defaultAssetBalanceSnapshotRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultBrokerAnnualReportRepository": [
+        "./src/lib/repositories/defaultBrokerAnnualReportRepository.standalone.ts"
       ]
     }
   }
