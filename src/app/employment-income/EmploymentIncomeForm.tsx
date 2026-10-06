@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { deleteEmploymentIncomeRecord, saveEmploymentIncomeRecord } from "@/app/actions";
+import {
+  deleteEmploymentIncomeRecord,
+  saveEmploymentIncomeRecord,
+} from "@/lib/employmentIncomeActions";
 import { estimateEmploymentIncome } from "@/lib/employmentIncome";
 
 function yen(value: { toString(): string }): string {
