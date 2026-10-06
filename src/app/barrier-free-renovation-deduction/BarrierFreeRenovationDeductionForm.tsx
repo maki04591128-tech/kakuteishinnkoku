@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import {
   deleteBarrierFreeRenovationDeductionRecord,
   saveBarrierFreeRenovationDeductionRecord,
-} from "@/app/actions";
+} from "@/lib/barrierFreeRenovationDeductionActions";
 import {
   estimateBarrierFreeRenovationDeduction,
   type BarrierFreeRenovationFloorAreaCategory,
