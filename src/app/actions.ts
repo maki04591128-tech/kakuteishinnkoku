@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Decimal } from "decimal.js";
 import type { InvestmentAccountType } from "@prisma/client";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { employmentIncomeRecordRepository } from "@/lib/repositories/defaultEmploymentIncomeRecordRepository";
@@ -136,6 +135,11 @@ import {
   saveCertifiedHousingConstructionCreditRecordCore,
   deleteCertifiedHousingConstructionCreditRecordCore,
 } from "@/lib/actions/certifiedHousingConstructionCreditRecord";
+import {
+  carryForwardCertifiedHousingConstructionCreditExcessCore,
+  applyCertifiedHousingConstructionCreditCarryforwardCore,
+  deleteCertifiedHousingConstructionCreditCarryforwardCore,
+} from "@/lib/actions/certifiedHousingConstructionCreditCarryforward";
 import {
   saveForeignTaxCreditRecordCore,
   deleteForeignTaxCreditRecordCore,
@@ -1762,15 +1766,14 @@ export async function carryForwardCertifiedHousingConstructionCreditExcess(
   const year = Number(requireString(formData, "year"));
   const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
 
-  const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  await certifiedHousingConstructionCreditCarryforwardRepository.upsert({
-    taxYearId: nextTaxYear.id,
-    originYear: year,
-    remainingAmountJpy,
-  });
+  const { redirectTo } = await carryForwardCertifiedHousingConstructionCreditExcessCore(
+    taxYearRepository,
+    certifiedHousingConstructionCreditCarryforwardRepository,
+    { year, remainingAmountJpy },
+  );
 
   revalidatePath("/certified-housing-construction-credit");
-  redirect(`/certified-housing-construction-credit?year=${year}&carryforwardSaved=1`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1785,29 +1788,17 @@ export async function applyCertifiedHousingConstructionCreditCarryforward(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  const carryforward = taxYear
-    ? await certifiedHousingConstructionCreditCarryforwardRepository.findByTaxYearId(taxYear.id)
-    : null;
 
-  if (taxYear && carryforward) {
-    const existingRecord = await certifiedHousingConstructionCreditRecordRepository.findByTaxYearId(
-      taxYear.id,
-    );
-    const combinedCreditJpy = new Decimal(existingRecord?.creditJpy.toString() ?? "0")
-      .plus(carryforward.remainingAmountJpy.toString())
-      .toString();
-
-    await certifiedHousingConstructionCreditRecordRepository.upsert({
-      taxYearId: taxYear.id,
-      creditJpy: combinedCreditJpy,
-    });
-    await certifiedHousingConstructionCreditCarryforwardRepository.deleteByTaxYearId(taxYear.id);
-  }
+  const { redirectTo } = await applyCertifiedHousingConstructionCreditCarryforwardCore(
+    taxYearRepository,
+    certifiedHousingConstructionCreditRecordRepository,
+    certifiedHousingConstructionCreditCarryforwardRepository,
+    { year },
+  );
 
   revalidatePath("/tax-estimate");
   revalidatePath("/certified-housing-construction-credit");
-  redirect(`/certified-housing-construction-credit?year=${year}&carryforwardApplied=1`);
+  redirect(redirectTo);
 }
 
 /**
@@ -1819,13 +1810,15 @@ export async function deleteCertifiedHousingConstructionCreditCarryforward(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await taxYearRepository.findByYear(year);
-  if (taxYear) {
-    await certifiedHousingConstructionCreditCarryforwardRepository.deleteByTaxYearId(taxYear.id);
-  }
+
+  const { redirectTo } = await deleteCertifiedHousingConstructionCreditCarryforwardCore(
+    taxYearRepository,
+    certifiedHousingConstructionCreditCarryforwardRepository,
+    { year },
+  );
 
   revalidatePath("/certified-housing-construction-credit");
-  redirect(`/certified-housing-construction-credit?year=${year}&carryforwardDeleted=1`);
+  redirect(redirectTo);
 }
 
 /**

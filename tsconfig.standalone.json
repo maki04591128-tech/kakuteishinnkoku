@@ -33,6 +33,9 @@
       "@/lib/residentTaxAdjustmentDeductionActions": [
         "./src/lib/residentTaxAdjustmentDeductionActions.standalone.ts"
       ],
+      "@/lib/certifiedHousingConstructionCreditActions": [
+        "./src/lib/certifiedHousingConstructionCreditActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
