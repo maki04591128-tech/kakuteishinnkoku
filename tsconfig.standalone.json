@@ -30,6 +30,9 @@
       "@/lib/multiHouseholdRenovationDeductionActions": [
         "./src/lib/multiHouseholdRenovationDeductionActions.standalone.ts"
       ],
+      "@/lib/residentTaxAdjustmentDeductionActions": [
+        "./src/lib/residentTaxAdjustmentDeductionActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
