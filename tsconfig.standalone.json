@@ -4,6 +4,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/lib/authUi": ["./src/lib/authUi.standalone.tsx"],
+      "@/lib/exportUi": ["./src/lib/exportUi.standalone.tsx"],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],

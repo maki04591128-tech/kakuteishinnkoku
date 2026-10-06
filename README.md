@@ -4082,9 +4082,31 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `CasualtyLossCarryforwardRepository`・`HomeSaleLossCarryforwardRepository`・
   `HomeReplacementLossCarryforwardRepository`・
   `AngelTaxLossCarryforwardRepository`・`CashflowEntryRepository`。
-- [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
+- [x] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。
+
+  **実装内容(2026-10-06):** `@/lib/authUi`と同種のビルドターゲット切り替え
+  パターンを`@/lib/exportUi`として新設した。自宅サーバー版の既定実装
+  (`src/lib/exportUi.tsx`)は従来通り`/api/export?year=...`へのリンク
+  (`<a>`タグ)を返す`DraftCsvExportLink`コンポーネントを提供する。スタンドアロン
+  版向け差し替え実装(`src/lib/exportUi.standalone.tsx`)は`"use client"`
+  コンポーネントとし、クリック時に`buildDraftCsvExport(year)`
+  (5-1-3bの切り替え機構により依存先のリポジトリは全てクライアント実装に
+  差し替わる)をブラウザ上で直接実行し、結果を`Blob`化して
+  `URL.createObjectURL`経由で`<a download>`相当の処理でダウンロードさせる
+  (対象年のデータが無い場合・生成中の例外はコンポーネント内にエラー表示)。
+  `next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`・
+  `tsconfig.standalone.json`の`paths`に`@/lib/authUi`と並べて
+  `@/lib/exportUi`のエントリを追加し、`src/app/page.tsx`は直接の`<a>`タグを
+  この`DraftCsvExportLink`コンポーネント呼び出しに置き換えた(自宅サーバー版の
+  見た目・挙動は変更無し)。なお、スタンドアロン版の`npm run build:standalone`
+  は`src/app/actions.ts`(`"use server"`)が未だビルド対象から除外されておらず
+  (5-1-3d未着手)`page.tsx`がこれをimportしているため、本対応のみでは
+  "Server Actions are not supported with static export" エラーのままビルドは
+  通らない(5-1-3d完了後に解消する見込み。本対応前から存在する既知の制約で、
+  本対応による新たな破壊ではないことを`git stash`で変更前の状態に戻して同じ
+  ビルドコマンドを実行し同一のエラーで失敗することを確認済み)。
 - [ ] 5-1-3d. `src/app/actions.ts`(`"use server"`)をスタンドアロン版のビルド
       対象から除外し(`scripts/build-standalone.mjs`の退避対象に追加)、
       これを直接importしている32ファイル(`page.tsx`・クライアント
@@ -4104,17 +4126,14 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点はフェーズ3・
-  フェーズ4・5-1・5-1-2・5-1-3a・5-1-3b(`TaxYearRepository`・
-  `EmploymentIncomeRecordRepository`・`BarrierFreeRenovationDeductionRecordRepository`の
-  3つ)が完了し、5-1-3bの残り(他リポジトリへの
-  同パターン適用。`src/lib/auth/loginRateLimit.ts`は`src/lib/auth`ディレクトリ自体が
-  スタンドアロン版ビルドから丸ごと除外されるため対象外。`src/app/actions.ts`は
-  5-1-3dと合わせて扱う。残る対象ファイルは`grep -rln "createPrisma.*Repository()"
-  src/lib/*.ts src/lib/investment/*.ts`で確認可能で、上記5-1-3bの追記で判明した
-  Decimal列の`decodeDecimal`方式を各ファイルで適用すること)・5-1-3c
-  (クライアント側CSV生成への置き換え)・5-1-3d(`src/app/actions.ts`のビルド対象
-  除外と32ファイルの書き換え。5-1-3aの調査で新たに判明した項目)から着手可能)
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点は5-1-3d
+  (`src/app/actions.ts`のビルド対象除外と、これを直接importしている32ファイルの
+  書き換え。5-1-3aの調査で判明した項目)のみ。5-1-3bの「他リポジトリへの同パターン
+  適用」は`src/app/actions.ts`(5-1-3dと合わせて扱う対象)を除き完了済み
+  (`grep -rln "createPrisma.*Repository()" src/lib/*.ts src/lib/investment/*.ts`で
+  確認可能。`src/lib/auth/loginRateLimit.ts`は`src/lib/auth`ディレクトリ自体が
+  スタンドアロン版ビルドから丸ごと除外されるため対象外)。5-1-3c
+  (クライアント側CSV生成への置き換え)も完了済み)
   から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。5-1-3dはフェーズ
   1・2と同程度の規模が見込まれるため、急がず1ファイルずつ進める。5-1-3bで判明
   した通り、クライアント実装(`createClientXxxRepository`)を実際にスタンドアロン版
