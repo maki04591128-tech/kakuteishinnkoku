@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useRef, useState } from "react";
-import { deleteIncomeDeduction, saveIncomeDeduction } from "@/app/actions";
+import { deleteIncomeDeduction, saveIncomeDeduction } from "@/lib/incomeDeductionActions";
 import {
   estimateSpouseDeduction,
   summarizeDependentsDeduction,

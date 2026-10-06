@@ -29,6 +29,18 @@ const exportUiStandaloneAliasForWebpack = path.resolve(
   "src/lib/exportUi.standalone.tsx",
 );
 
+// スタンドアロン版では`@/lib/incomeDeductionActions`の実装を、`src/app/actions.ts`
+// (`"use server"`、`output: "export"`非対応)の`saveIncomeDeduction`/
+// `deleteIncomeDeduction`をそのまま再エクスポートする代わりに、フェーズ3で
+// 抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える(フェーズ5-1-3d。
+// `@/lib/authUi`・`@/lib/exportUi`と同種のパターン)。
+const incomeDeductionActionsStandaloneAliasForTurbopack =
+  "./src/lib/incomeDeductionActions.standalone.ts";
+const incomeDeductionActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/incomeDeductionActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -329,6 +341,7 @@ const nextConfig: NextConfig = {
         resolveAlias: {
           "@/lib/authUi": authUiStandaloneAliasForTurbopack,
           "@/lib/exportUi": exportUiStandaloneAliasForTurbopack,
+          "@/lib/incomeDeductionActions": incomeDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -400,6 +413,7 @@ const nextConfig: NextConfig = {
         ...config.resolve.alias,
         "@/lib/authUi": authUiStandaloneAliasForWebpack,
         "@/lib/exportUi": exportUiStandaloneAliasForWebpack,
+        "@/lib/incomeDeductionActions": incomeDeductionActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":

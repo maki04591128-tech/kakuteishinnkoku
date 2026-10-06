@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { deleteIncomeDeduction, saveIncomeDeduction } from "@/app/actions";
+import { deleteIncomeDeduction, saveIncomeDeduction } from "@/lib/incomeDeductionActions";
 import { estimateIncomeAmountAdjustmentDeduction } from "@/lib/incomeAmountAdjustmentDeduction";
 
 function yen(value: { toString(): string }): string {
