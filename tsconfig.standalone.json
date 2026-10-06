@@ -15,6 +15,9 @@
       ],
       "@/lib/donationTaxCreditActions": ["./src/lib/donationTaxCreditActions.standalone.ts"],
       "@/lib/mortgageDeductionActions": ["./src/lib/mortgageDeductionActions.standalone.ts"],
+      "@/lib/childRearingRenovationDeductionActions": [
+        "./src/lib/childRearingRenovationDeductionActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
