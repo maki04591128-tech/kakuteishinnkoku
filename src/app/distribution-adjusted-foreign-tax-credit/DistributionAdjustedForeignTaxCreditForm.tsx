@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import {
   deleteDistributionAdjustedForeignTaxCreditRecord,
   saveDistributionAdjustedForeignTaxCreditRecord,
-} from "@/app/actions";
+} from "@/lib/distributionAdjustedForeignTaxCreditActions";
 import { estimateDistributionAdjustedForeignTaxCredit } from "@/lib/investment/distributionAdjustedForeignTaxCredit";
 
 function yen(value: { toString(): string }): string {

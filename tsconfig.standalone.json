@@ -21,6 +21,9 @@
       "@/lib/energySavingRenovationDeductionActions": [
         "./src/lib/energySavingRenovationDeductionActions.standalone.ts"
       ],
+      "@/lib/distributionAdjustedForeignTaxCreditActions": [
+        "./src/lib/distributionAdjustedForeignTaxCreditActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
