@@ -297,6 +297,15 @@ const defaultAssetSymbolMappingRepositoryStandaloneAliasForWebpack = path.resolv
   "src/lib/repositories/defaultAssetSymbolMappingRepository.standalone.ts",
 );
 
+// `MarketPriceRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、`src/app/actions.ts`のみが消費する残り11個の4つ目)。
+const defaultMarketPriceRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultMarketPriceRepository.standalone.ts";
+const defaultMarketPriceRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultMarketPriceRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -369,6 +378,8 @@ const nextConfig: NextConfig = {
             defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultAssetSymbolMappingRepository":
             defaultAssetSymbolMappingRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultMarketPriceRepository":
+            defaultMarketPriceRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -437,6 +448,8 @@ const nextConfig: NextConfig = {
           defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultAssetSymbolMappingRepository":
           defaultAssetSymbolMappingRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultMarketPriceRepository":
+          defaultMarketPriceRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

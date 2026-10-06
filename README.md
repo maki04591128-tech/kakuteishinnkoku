@@ -4052,6 +4052,36 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `CasualtyLossCarryforwardRepository`・`HomeSaleLossCarryforwardRepository`・
   `HomeReplacementLossCarryforwardRepository`・
   `AngelTaxLossCarryforwardRepository`・`CashflowEntryRepository`。
+
+  **追記(2026-10-06、`MarketPriceRepository`への適用。残り8個の1つ目):** 同じ
+  パターンを`MarketPriceRepository`に適用した。このモデルは他と異なり
+  `src/app/actions.ts`・`src/app/import/page.tsx`に加え`src/app/unrealized-gain/page.tsx`
+  の3ファイルが消費していたが、同じ手順(3ファイルとも
+  `createPrismaMarketPriceRepository()`の直接呼び出しをやめ、
+  `@/lib/repositories/defaultMarketPriceRepository`経由の参照に統一)で問題なく
+  対応できた。`src/lib/repositories/marketPriceRepository.ts`から`@prisma/client`
+  (`../db`)に依存する`createPrismaMarketPriceRepository`を
+  `marketPriceRepository.prisma.ts`に分離し、`defaultMarketPriceRepository.ts`
+  (自宅サーバー版の既定実装)と`defaultMarketPriceRepository.standalone.ts`
+  (未結線プレースホルダー)を`next.config.ts`/`tsconfig.standalone.json`に
+  追加した。このモデルも`priceJpy`(Decimal型)の復元処理が
+  `new Prisma.Decimal(...)`(`@prisma/client`からの値import)を使っていたため、
+  同じく`decimalCodec.ts`の`decodeDecimal`に置き換えた(既存テストの
+  `instanceof`検証も`Prisma.Decimal`から`decimal.js`の`Decimal`に変更)。
+  `npm run test`(全189ファイル1664件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで
+  無関係)が成功することを確認した。また`DATABASE_URL`を設定し
+  `npx prisma db push`でDBを作成した上で、`npm run build`(自宅サーバー版)が
+  従来通り成功し、`npm run build:standalone`が従来と同じ
+  `Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残る5-1-3bの対象(`actions.ts`のみが消費する残り7個、更新):**
+  `ForeignTaxCreditCarryforwardRepository`・
+  `ForeignTaxCreditSpareLimitCarryforwardRepository`・
+  `CasualtyLossCarryforwardRepository`・`HomeSaleLossCarryforwardRepository`・
+  `HomeReplacementLossCarryforwardRepository`・
+  `AngelTaxLossCarryforwardRepository`・`CashflowEntryRepository`。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。

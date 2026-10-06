@@ -2,8 +2,11 @@
  * フェーズ2-29: `createClientMarketPriceRepository`(wa-sqlite実装)が
  * `MarketPriceRepository`インターフェースを、Prisma実装
  * (`createPrismaMarketPriceRepository`)と同じ挙動で満たすことを検証する。
+ * フェーズ5-1-3b: Decimal列の復元を`decimalCodec.ts`の`decodeDecimal`
+ * (`decimal.js`の`Decimal`)に変更したため、`priceJpy`の型チェックも
+ * `@prisma/client`の`Prisma.Decimal`ではなく`decimal.js`の`Decimal`に変更している。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -36,7 +39,7 @@ describe("createClientMarketPriceRepository", () => {
     const records = await repo.findMany();
     expect(records).toHaveLength(1);
     expect(records[0].symbol).toBe("BTC");
-    expect(records[0].priceJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(records[0].priceJpy).toBeInstanceOf(Decimal);
     expect(records[0].priceJpy.toString()).toBe("12345678");
     expect(records[0].id).toBeTypeOf("number");
     expect(records[0].createdAt).toBeInstanceOf(Date);
