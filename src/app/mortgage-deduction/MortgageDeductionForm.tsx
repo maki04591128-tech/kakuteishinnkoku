@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { deleteMortgageDeductionRecord, saveMortgageDeductionRecord } from "@/app/actions";
+import {
+  deleteMortgageDeductionRecord,
+  saveMortgageDeductionRecord,
+} from "@/lib/mortgageDeductionActions";
 import {
   HOUSING_CATEGORY_LABEL,
   calculateMortgageDeduction,
