@@ -4113,7 +4113,64 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
       コンポーネント)を、フェーズ3で`src/lib/actions/*.ts`に抽出済みの
       コア関数を直接呼ぶ形に書き換える(5-1-3aの調査で判明。詳細は
       上記5-1-3aの実装内容を参照)。フェーズ1・2と同様、1回のブラッシュ
-      アップで1〜数ファイルずつ進める想定。
+      アップで1〜数ファイルずつ進める想定。32ファイルは`@/app/actions`から
+      importしている関数の組ごとにグルーピングし(例:
+      `saveIncomeDeduction`/`deleteIncomeDeduction`は15ファイルが共通して使う)、
+      1つの組を片付けると複数ファイルが一度に進む想定(下記5-1-3d-1参照)。
+      全32ファイルが完了したら本項目を`[x]`にする。
+
+  - [x] 5-1-3d-1. `saveIncomeDeduction`/`deleteIncomeDeduction`
+        (`src/app/actions.ts`からexportされ、基礎控除・医療費控除・
+        生命保険料控除等15の所得控除試算画面が共通して使うアクション)を
+        切り出す。
+
+    **実装内容(2026-10-06):** `@/lib/authUi`・`@/lib/exportUi`と同種の
+    ビルドターゲット切り替えパターンを`@/lib/incomeDeductionActions`として
+    新設した。自宅サーバー版の既定実装(`src/lib/incomeDeductionActions.ts`)は
+    `src/app/actions.ts`の`saveIncomeDeduction`/`deleteIncomeDeduction`
+    (Server Action)をそのまま再エクスポートするだけ(挙動は従来と完全に
+    同一)。スタンドアロン版向け差し替え実装
+    (`src/lib/incomeDeductionActions.standalone.ts`)は`"use server"`を
+    付けない素のクライアント関数とし、フェーズ3で抽出済みの
+    `saveIncomeDeductionCore`/`deleteIncomeDeductionCore`
+    (`src/lib/actions/incomeDeductionRecord.ts`)を、5-1-3bのビルド
+    ターゲット切り替え機構経由の`defaultTaxYearRepository`/
+    `defaultIncomeDeductionRepository`をDIして直接呼び出す(FormDataの
+    解釈ロジックは`src/app/actions.ts`の対応する関数と同一のものを複製した。
+    `@/app/actions`自体がスタンドアロン版のビルド対象から外れるため
+    importできないため)。`revalidatePath`/`redirect`(Server Action専用API)の
+    代わりに`window.location.href = redirectTo`によるフルリロード遷移で
+    置き換えた(スタンドアロン版はuseRouter等のフックに依存しない素の関数で
+    完結させたいこと、クライアントDBの内容を画面遷移のたびに読み直すなら
+    フルリロードで実用上問題ないことから採用。詳細な理由はファイル内コメント
+    参照)。`next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に`@/lib/authUi`等と並べて
+    `@/lib/incomeDeductionActions`のエントリを追加し、`saveIncomeDeduction`/
+    `deleteIncomeDeduction`を`@/app/actions`から直接importしていた15ファイル
+    (`BasicDeductionForm.tsx`・`MedicalExpenseDeductionForm.tsx`等。うち3つ
+    (`CasualtyLossDeductionForm.tsx`・`HomeReplacementLossDeductionForm.tsx`・
+    `HomeSaleLossDeductionForm.tsx`)は`carryForwardXxxExcess`という別の
+    未移行アクションも同じ画面から使っているため、そちらは引き続き
+    `@/app/actions`からimportしたまま残した)を、全てこの
+    `@/lib/incomeDeductionActions`からimportする形に書き換えた
+    (自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-06時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全189ファイル1664件)・`npm run lint`・
+    `npx tsc --noEmit`(既存の`src/app/layout.tsx`の`LayoutProps`エラーのみで
+    本変更と無関係)が成功することを確認した。加えて(1)`npm run build`
+    (自宅サーバー版)が本変更後も従来通り成功すること、(2)`npm run
+    build:standalone`は、本変更後も5-1-3d未完了(`src/app/actions.ts`自体が
+    未だ退避対象に入っておらず、残り17ファイルも`@/app/actions`を直接import
+    したまま)のため引き続き`Server Actions are not supported with static
+    export`で失敗すること(本対応による新たな破壊ではなく、5-1-3a時点から
+    存在する既知の制約のまま)を確認した。
+
+    **残り(次のステップ以降で対応):** `saveIncomeDeduction`/
+    `deleteIncomeDeduction`以外の組(`carryForwardCasualtyLossExcess`等
+    個別アクション、`@/app/actions`を直接importする残り17ファイル)を
+    同じパターンで順次切り出し、全て完了した時点で`src/app/actions.ts`自体を
+    `scripts/build-standalone.mjs`の退避対象に追加する。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 

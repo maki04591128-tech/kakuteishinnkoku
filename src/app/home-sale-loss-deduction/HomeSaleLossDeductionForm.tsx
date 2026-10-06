@@ -1,11 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  carryForwardHomeSaleLossExcess,
-  deleteIncomeDeduction,
-  saveIncomeDeduction,
-} from "@/app/actions";
+import { carryForwardHomeSaleLossExcess } from "@/app/actions";
+import { deleteIncomeDeduction, saveIncomeDeduction } from "@/lib/incomeDeductionActions";
 import {
   calculateHomeSaleLoss,
   calculateHomeSaleLossCarryforward,
