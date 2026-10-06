@@ -82,14 +82,12 @@ import { investmentLossCarryforwardRepository } from "@/lib/repositories/default
 import { investmentTradeRepository } from "@/lib/repositories/defaultInvestmentTradeRepository";
 import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
 import { nisaLifetimeQuotaRepository } from "@/lib/repositories/defaultNisaLifetimeQuotaRepository";
-import { createPrismaOpeningBalanceByInstitutionRepository } from "@/lib/repositories/openingBalanceByInstitutionRepository";
+import { openingBalanceByInstitutionRepository } from "@/lib/repositories/defaultOpeningBalanceByInstitutionRepository";
 import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalanceRepository";
 import { stockMarginTradeRepository } from "@/lib/repositories/defaultStockMarginTradeRepository";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
 
-const openingBalanceByInstitutionRepository =
-  createPrismaOpeningBalanceByInstitutionRepository();
 const foreignTaxCreditCarryforwardRepository =
   createPrismaForeignTaxCreditCarryforwardRepository();
 const foreignTaxCreditSpareLimitCarryforwardRepository =

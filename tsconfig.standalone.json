@@ -87,6 +87,9 @@
       ],
       "@/lib/repositories/defaultBrokerAnnualReportRepository": [
         "./src/lib/repositories/defaultBrokerAnnualReportRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultOpeningBalanceByInstitutionRepository": [
+        "./src/lib/repositories/defaultOpeningBalanceByInstitutionRepository.standalone.ts"
       ]
     }
   }
