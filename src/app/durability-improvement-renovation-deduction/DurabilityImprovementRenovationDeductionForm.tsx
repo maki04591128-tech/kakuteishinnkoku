@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import {
   deleteDurabilityImprovementRenovationDeductionRecord,
   saveDurabilityImprovementRenovationDeductionRecord,
-} from "@/app/actions";
+} from "@/lib/durabilityImprovementRenovationDeductionActions";
 import {
   estimateDurabilityImprovementRenovationDeduction,
   type DurabilityImprovementRenovationCombinationType,

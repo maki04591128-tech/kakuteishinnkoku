@@ -24,6 +24,9 @@
       "@/lib/distributionAdjustedForeignTaxCreditActions": [
         "./src/lib/distributionAdjustedForeignTaxCreditActions.standalone.ts"
       ],
+      "@/lib/durabilityImprovementRenovationDeductionActions": [
+        "./src/lib/durabilityImprovementRenovationDeductionActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],

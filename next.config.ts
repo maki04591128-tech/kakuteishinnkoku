@@ -160,6 +160,24 @@ const distributionAdjustedForeignTaxCreditActionsStandaloneAliasForWebpack = pat
   "src/lib/distributionAdjustedForeignTaxCreditActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/durabilityImprovementRenovationDeductionActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `saveDurabilityImprovementRenovationDeductionRecord`/
+// `deleteDurabilityImprovementRenovationDeductionRecord`をそのまま再エクスポートする
+// 代わりに、フェーズ3で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/incomeDeductionActions`・`@/lib/employmentIncomeActions`・
+// `@/lib/barrierFreeRenovationDeductionActions`・
+// `@/lib/earthquakeRenovationDeductionActions`・`@/lib/donationTaxCreditActions`・
+// `@/lib/mortgageDeductionActions`・`@/lib/childRearingRenovationDeductionActions`・
+// `@/lib/energySavingRenovationDeductionActions`・
+// `@/lib/distributionAdjustedForeignTaxCreditActions`に続く10つ目)。
+const durabilityImprovementRenovationDeductionActionsStandaloneAliasForTurbopack =
+  "./src/lib/durabilityImprovementRenovationDeductionActions.standalone.ts";
+const durabilityImprovementRenovationDeductionActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/durabilityImprovementRenovationDeductionActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -474,6 +492,8 @@ const nextConfig: NextConfig = {
             energySavingRenovationDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/distributionAdjustedForeignTaxCreditActions":
             distributionAdjustedForeignTaxCreditActionsStandaloneAliasForTurbopack,
+          "@/lib/durabilityImprovementRenovationDeductionActions":
+            durabilityImprovementRenovationDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -559,6 +579,8 @@ const nextConfig: NextConfig = {
           energySavingRenovationDeductionActionsStandaloneAliasForWebpack,
         "@/lib/distributionAdjustedForeignTaxCreditActions":
           distributionAdjustedForeignTaxCreditActionsStandaloneAliasForWebpack,
+        "@/lib/durabilityImprovementRenovationDeductionActions":
+          durabilityImprovementRenovationDeductionActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
