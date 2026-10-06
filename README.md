@@ -4568,6 +4568,63 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     `multi-household-renovation-deduction/MultiHouseholdRenovationDeductionForm.tsx`・
     `resident-tax-adjustment-deduction/ResidentTaxAdjustmentDeductionForm.tsx`
     (`grep -rl 'from "@/app/actions"' src`で確認可能)。
+
+  - [x] 5-1-3d-9. `saveDistributionAdjustedForeignTaxCreditRecord`/
+        `deleteDistributionAdjustedForeignTaxCreditRecord`
+        (`src/app/actions.ts`からexportされ、
+        `/distribution-adjusted-foreign-tax-credit`
+        (`DistributionAdjustedForeignTaxCreditForm.tsx`)の1ファイルのみが使うアクション)を
+        切り出す。
+
+    **実装内容(2026-10-06):** 5-1-3d-1〜5-1-3d-8と同じビルドターゲット切り替え
+    パターンを`@/lib/distributionAdjustedForeignTaxCreditActions`として新設した。
+    自宅サーバー版の既定実装
+    (`src/lib/distributionAdjustedForeignTaxCreditActions.ts`)は
+    `src/app/actions.ts`の`saveDistributionAdjustedForeignTaxCreditRecord`/
+    `deleteDistributionAdjustedForeignTaxCreditRecord`をそのまま再エクスポートする
+    だけ(挙動は従来と完全に同一)。スタンドアロン版向け差し替え実装
+    (`src/lib/distributionAdjustedForeignTaxCreditActions.standalone.ts`)は、
+    フェーズ3で抽出済みの
+    `saveDistributionAdjustedForeignTaxCreditRecordCore`/
+    `deleteDistributionAdjustedForeignTaxCreditRecordCore`
+    (`src/lib/actions/distributionAdjustedForeignTaxCreditRecord.ts`)を、5-1-3bの
+    ビルドターゲット切り替え機構経由の`defaultTaxYearRepository`/
+    `defaultDistributionAdjustedForeignTaxCreditRecordRepository`(いずれも
+    5-1-3bで既に切り替え機構を適用済み)をDIして直接呼び出す。`redirect`/
+    `revalidatePath`の代わりに`window.location.href = redirectTo`による
+    フルリロード遷移を使う点も5-1-3d-1〜5-1-3d-8と同じ。`next.config.ts`の
+    `turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に
+    `@/lib/energySavingRenovationDeductionActions`と並べて
+    `@/lib/distributionAdjustedForeignTaxCreditActions`のエントリを追加し、
+    `DistributionAdjustedForeignTaxCreditForm.tsx`を
+    `@/lib/distributionAdjustedForeignTaxCreditActions`からimportする形に
+    書き換えた(自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-06時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全189ファイル1664件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も5-1-3d未完了(`src/app/actions.ts`
+    自体が未だ退避対象に入っておらず、残り12ファイルも`@/app/actions`を直接
+    importしたまま)のため引き続き`Server Actions are not supported with
+    static export`で失敗すること(本対応による新たな破壊ではないこと)を
+    確認した。
+
+    **残る5-1-3dの対象(`@/app/actions`を直接importする残り12ファイル、
+    更新):** `angel-tax-loss-carryforward/page.tsx`・
+    `casualty-loss-deduction/CasualtyLossDeductionForm.tsx`・
+    `certified-housing-construction-credit/CertifiedHousingConstructionCreditForm.tsx`・
+    `certified-housing-construction-credit/page.tsx`・
+    `durability-improvement-renovation-deduction/DurabilityImprovementRenovationDeductionForm.tsx`・
+    `foreign-tax-credit/ForeignTaxCreditForm.tsx`・
+    `home-replacement-loss-deduction/HomeReplacementLossDeductionForm.tsx`・
+    `home-sale-loss-deduction/HomeSaleLossDeductionForm.tsx`・
+    `import/AnnualReportTextImportForm.tsx`・`import/page.tsx`・
+    `multi-household-renovation-deduction/MultiHouseholdRenovationDeductionForm.tsx`・
+    `resident-tax-adjustment-deduction/ResidentTaxAdjustmentDeductionForm.tsx`
+    (`grep -rl 'from "@/app/actions"' src`で確認可能)。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
