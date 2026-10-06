@@ -13,6 +13,7 @@
       "@/lib/earthquakeRenovationDeductionActions": [
         "./src/lib/earthquakeRenovationDeductionActions.standalone.ts"
       ],
+      "@/lib/donationTaxCreditActions": ["./src/lib/donationTaxCreditActions.standalone.ts"],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],

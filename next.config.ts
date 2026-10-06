@@ -81,6 +81,20 @@ const earthquakeRenovationDeductionActionsStandaloneAliasForWebpack = path.resol
   "src/lib/earthquakeRenovationDeductionActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/donationTaxCreditActions`の実装を、`src/app/actions.ts`
+// (`"use server"`、`output: "export"`非対応)の`saveDonationTaxCreditRecord`/
+// `deleteDonationTaxCreditRecord`をそのまま再エクスポートする代わりに、フェーズ3で
+// 抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える(フェーズ5-1-3d、
+// `@/lib/incomeDeductionActions`・`@/lib/employmentIncomeActions`・
+// `@/lib/barrierFreeRenovationDeductionActions`・
+// `@/lib/earthquakeRenovationDeductionActions`に続く5つ目)。
+const donationTaxCreditActionsStandaloneAliasForTurbopack =
+  "./src/lib/donationTaxCreditActions.standalone.ts";
+const donationTaxCreditActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/donationTaxCreditActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -387,6 +401,7 @@ const nextConfig: NextConfig = {
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/earthquakeRenovationDeductionActions":
             earthquakeRenovationDeductionActionsStandaloneAliasForTurbopack,
+          "@/lib/donationTaxCreditActions": donationTaxCreditActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -464,6 +479,7 @@ const nextConfig: NextConfig = {
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,
         "@/lib/earthquakeRenovationDeductionActions":
           earthquakeRenovationDeductionActionsStandaloneAliasForWebpack,
+        "@/lib/donationTaxCreditActions": donationTaxCreditActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
