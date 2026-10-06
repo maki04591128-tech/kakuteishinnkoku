@@ -18,6 +18,9 @@
       "@/lib/childRearingRenovationDeductionActions": [
         "./src/lib/childRearingRenovationDeductionActions.standalone.ts"
       ],
+      "@/lib/energySavingRenovationDeductionActions": [
+        "./src/lib/energySavingRenovationDeductionActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
