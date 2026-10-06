@@ -110,6 +110,22 @@ const mortgageDeductionActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/mortgageDeductionActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/childRearingRenovationDeductionActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `saveChildRearingRenovationDeductionRecord`/
+// `deleteChildRearingRenovationDeductionRecord`をそのまま再エクスポートする代わりに、
+// フェーズ3で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/incomeDeductionActions`・`@/lib/employmentIncomeActions`・
+// `@/lib/barrierFreeRenovationDeductionActions`・
+// `@/lib/earthquakeRenovationDeductionActions`・`@/lib/donationTaxCreditActions`・
+// `@/lib/mortgageDeductionActions`に続く7つ目)。
+const childRearingRenovationDeductionActionsStandaloneAliasForTurbopack =
+  "./src/lib/childRearingRenovationDeductionActions.standalone.ts";
+const childRearingRenovationDeductionActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/childRearingRenovationDeductionActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -418,6 +434,8 @@ const nextConfig: NextConfig = {
             earthquakeRenovationDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/donationTaxCreditActions": donationTaxCreditActionsStandaloneAliasForTurbopack,
           "@/lib/mortgageDeductionActions": mortgageDeductionActionsStandaloneAliasForTurbopack,
+          "@/lib/childRearingRenovationDeductionActions":
+            childRearingRenovationDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -497,6 +515,8 @@ const nextConfig: NextConfig = {
           earthquakeRenovationDeductionActionsStandaloneAliasForWebpack,
         "@/lib/donationTaxCreditActions": donationTaxCreditActionsStandaloneAliasForWebpack,
         "@/lib/mortgageDeductionActions": mortgageDeductionActionsStandaloneAliasForWebpack,
+        "@/lib/childRearingRenovationDeductionActions":
+          childRearingRenovationDeductionActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
