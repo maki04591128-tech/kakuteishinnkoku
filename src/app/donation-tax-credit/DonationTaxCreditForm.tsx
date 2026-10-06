@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { deleteDonationTaxCreditRecord, saveDonationTaxCreditRecord } from "@/app/actions";
+import {
+  deleteDonationTaxCreditRecord,
+  saveDonationTaxCreditRecord,
+} from "@/lib/donationTaxCreditActions";
 import {
   DONATION_TAX_CREDIT_CATEGORY_LABELS,
   type DonationTaxCreditCategory,
