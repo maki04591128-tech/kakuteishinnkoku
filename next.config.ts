@@ -19,6 +19,16 @@ const authUiStandaloneAliasForTurbopack = "./src/lib/authUi.standalone.tsx";
 // resolve.aliasは絶対パスを要求する。
 const authUiStandaloneAliasForWebpack = path.resolve(process.cwd(), "src/lib/authUi.standalone.tsx");
 
+// スタンドアロン版では`@/lib/exportUi`の実装を、`/api/export`(Route Handler。
+// スタンドアロン版のビルド対象から除外される)へのリンクではなく、ブラウザ上で直接
+// `buildDraftCsvExport`を実行してBlobダウンロードさせる実装に差し替える
+// (フェーズ5-1-3c。`@/lib/authUi`と同種のパターン)。
+const exportUiStandaloneAliasForTurbopack = "./src/lib/exportUi.standalone.tsx";
+const exportUiStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/exportUi.standalone.tsx",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -318,6 +328,7 @@ const nextConfig: NextConfig = {
     ? {
         resolveAlias: {
           "@/lib/authUi": authUiStandaloneAliasForTurbopack,
+          "@/lib/exportUi": exportUiStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -388,6 +399,7 @@ const nextConfig: NextConfig = {
       config.resolve.alias = {
         ...config.resolve.alias,
         "@/lib/authUi": authUiStandaloneAliasForWebpack,
+        "@/lib/exportUi": exportUiStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
