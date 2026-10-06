@@ -4824,6 +4824,88 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     依存しており、着手時にまず`defaultXxxRepository`/
     `defaultXxxRepository.standalone.ts`の追加が必要な見込み(5-1-3d-11の
     「残り」注記と同じ状況)。
+
+  - [x] 5-1-3d-13. `certified-housing-construction-credit/`の2ファイル
+        (`CertifiedHousingConstructionCreditForm.tsx`・`page.tsx`、
+        `saveCertifiedHousingConstructionCreditRecord`/
+        `deleteCertifiedHousingConstructionCreditRecord`/
+        `carryForwardCertifiedHousingConstructionCreditExcess`/
+        `applyCertifiedHousingConstructionCreditCarryforward`/
+        `deleteCertifiedHousingConstructionCreditCarryforward`の5アクションを
+        使用)を切り出す。
+
+    **実装内容(2026-10-06):** 5アクションのうち
+    `saveCertifiedHousingConstructionCreditRecord`/
+    `deleteCertifiedHousingConstructionCreditRecord`はフェーズ3で既に
+    `saveCertifiedHousingConstructionCreditRecordCore`/
+    `deleteCertifiedHousingConstructionCreditRecordCore`
+    (`src/lib/actions/certifiedHousingConstructionCreditRecord.ts`)として
+    コア関数抽出済みだったが、残り3つの繰越(`CertifiedHousingConstructionCreditCarryforward`、
+    1年限りの繰越)関連アクション
+    (`carryForwardCertifiedHousingConstructionCreditExcess`/
+    `applyCertifiedHousingConstructionCreditCarryforward`/
+    `deleteCertifiedHousingConstructionCreditCarryforward`)はフェーズ3時点では
+    コア関数化されていなかった(`src/app/actions.ts`内でリポジトリを直接呼んで
+    いた)。本ステップで新たに
+    `src/lib/actions/certifiedHousingConstructionCreditCarryforward.ts`に
+    この3関数のコア版(`carryForwardCertifiedHousingConstructionCreditExcessCore`/
+    `applyCertifiedHousingConstructionCreditCarryforwardCore`/
+    `deleteCertifiedHousingConstructionCreditCarryforwardCore`)を抽出し、
+    `src/app/actions.ts`側はこれらに処理を委譲する薄いラッパーに変更した
+    (挙動は変更していない。委譲の結果`src/app/actions.ts`で`decimal.js`の
+    `Decimal`を直接使う箇所が無くなったため、不要になった
+    `import { Decimal } from "decimal.js";`も削除した)。
+
+    その上で、5-1-3d-1〜12と同じビルドターゲット切り替えパターンを
+    `@/lib/certifiedHousingConstructionCreditActions`として新設した。自宅
+    サーバー版の既定実装(`src/lib/certifiedHousingConstructionCreditActions.ts`)は
+    `src/app/actions.ts`の5アクションをそのまま再エクスポートするだけ。
+    スタンドアロン版向け差し替え実装
+    (`src/lib/certifiedHousingConstructionCreditActions.standalone.ts`)は、上記の
+    新規コア関数2本(と既存のRecord用コア関数2本)を、5-1-3bのビルドターゲット
+    切り替え機構経由の`defaultTaxYearRepository`/
+    `defaultCertifiedHousingConstructionCreditRecordRepository`/
+    `defaultCertifiedHousingConstructionCreditCarryforwardRepository`
+    (いずれも5-1-3bで既に切り替え機構を適用済み)をDIして直接呼び出す。
+    `redirect`/`revalidatePath`の代わりに`window.location.href = redirectTo`に
+    よるフルリロード遷移を使う点も従来と同じ。`next.config.ts`の
+    `turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に
+    `@/lib/residentTaxAdjustmentDeductionActions`と並べて
+    `@/lib/certifiedHousingConstructionCreditActions`のエントリを追加し、
+    `CertifiedHousingConstructionCreditForm.tsx`・`page.tsx`を
+    `@/app/actions`の代わりにこのモジュールからimportする形に書き換えた
+    (自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認・新たに判明した注意点(2026-10-06時点):** `DATABASE_URL`を
+    設定し`npx prisma db push`でDBを作成した上で、`npm run test`
+    (全190ファイル1671件)・`npm run lint`・`npx tsc --noEmit`(標準・
+    `tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで無関係)
+    が成功することを確認した。加えて(1)`npm run build`(自宅サーバー版)が
+    本変更後も従来通り成功すること、(2)`npm run build:standalone`は本変更後も
+    従来通り`Server Actions are not supported with static export`で失敗する
+    こと(`src/app/actions.ts`自体が未だ退避対象に入っていないため。本対応に
+    よる新たな破壊ではない)を確認した。
+
+    なお`page.tsx`は(`CertifiedHousingConstructionCreditForm.tsx`と異なり)
+    `"use client"`を付けないServer Componentのままで、繰越の合算・削除用の
+    2つの`<form action={...}>`を直接レンダーしている。自宅サーバー版では
+    `@/lib/certifiedHousingConstructionCreditActions`経由でも実体は
+    `"use server"`を持つ`src/app/actions.ts`の関数そのものなので問題なく動く
+    (本ステップの`npm run build`成功で確認済み)が、スタンドアロン版では
+    `next.config.ts`のresolveAliasにより`"use server"`を持たない
+    `certifiedHousingConstructionCreditActions.standalone.ts`の関数に
+    差し替わる。React Server Componentsの仕様上、`"use server"`を持たない
+    関数をServer Componentから(Client Componentを介さず)直接クライアント側の
+    `<form action={...}>`に渡すことはできないため、**`src/app/actions.ts`を
+    実際に退避対象へ加える段(本チェックリストの5-1-3d本体の完了後)になったら、
+    この`page.tsx`の2フォームを`CertifiedHousingConstructionCreditForm.tsx`と
+    同様の`"use client"`コンポーネントに切り出す追加対応が別途必要になる**
+    (現時点では`src/app/actions.ts`自体がまだ退避されておらず
+    `build:standalone`は別のエラーで先に失敗するため、この問題はまだ表面化
+    していない。他の残り7ファイルのうち`angel-tax-loss-carryforward/page.tsx`・
+    `import/page.tsx`もServer Componentのまま`<form action={...}>`を直接
+    レンダーしており同様の対応が必要になる見込み)。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 

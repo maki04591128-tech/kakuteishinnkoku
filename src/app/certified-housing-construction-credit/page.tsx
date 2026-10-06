@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   applyCertifiedHousingConstructionCreditCarryforward,
   deleteCertifiedHousingConstructionCreditCarryforward,
-} from "@/app/actions";
+} from "@/lib/certifiedHousingConstructionCreditActions";
 import {
   getCertifiedHousingConstructionCreditCarryforward,
   getCertifiedHousingConstructionCreditRecord,
