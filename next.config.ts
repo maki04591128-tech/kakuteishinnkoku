@@ -279,6 +279,15 @@ const defaultBrokerAnnualReportRepositoryStandaloneAliasForWebpack = path.resolv
   "src/lib/repositories/defaultBrokerAnnualReportRepository.standalone.ts",
 );
 
+// `OpeningBalanceByInstitutionRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、`src/app/actions.ts`のみが消費する残り11個の2つ目)。
+const defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultOpeningBalanceByInstitutionRepository.standalone.ts";
+const defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultOpeningBalanceByInstitutionRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -347,6 +356,8 @@ const nextConfig: NextConfig = {
             defaultAssetBalanceSnapshotRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultBrokerAnnualReportRepository":
             defaultBrokerAnnualReportRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultOpeningBalanceByInstitutionRepository":
+            defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -411,6 +422,8 @@ const nextConfig: NextConfig = {
           defaultAssetBalanceSnapshotRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultBrokerAnnualReportRepository":
           defaultBrokerAnnualReportRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultOpeningBalanceByInstitutionRepository":
+          defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

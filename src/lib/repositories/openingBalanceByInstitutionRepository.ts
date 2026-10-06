@@ -5,15 +5,25 @@
  * Prisma実装と完全に一致させる。
  * フェーズ2-28でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientOpeningBalanceByInstitutionRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaOpeningBalanceByInstitutionRepository`(フェーズ
+ * 5-1-3bで`openingBalanceByInstitutionRepository.prisma.ts`に分離。
+ * `@prisma/client`(Node専用)に依存するため、このファイルからは分離し
+ * スタンドアロン版バンドルに引き込まれないようにする)を使う。ビルドターゲットに
+ * 応じたどちらを使うかの既定の切り替えは`defaultOpeningBalanceByInstitutionRepository.ts`/
+ * `defaultOpeningBalanceByInstitutionRepository.standalone.ts`が担う。
+ *
+ * `quantity`の型(`OpeningBalanceByInstitution`の`Decimal`)は`@prisma/client`の
+ * 値のみ`import type`で参照し、実体は`decimal.js`(`decimalCodec.ts`)で生成する
+ * (`@prisma/client`の`Prisma.Decimal`は構造的に同一の別クラスだが、値としての
+ * importはスタンドアロン版バンドルに`@prisma/client`本体を引き込んでしまうため
+ * 使わない。`decimal.js`の`Decimal`は型として互換なので代入可能)。
  */
-import {
-  Prisma,
-  type OpeningBalanceAssetClass,
-  type OpeningBalanceByInstitution,
+import type {
+  OpeningBalanceAssetClass,
+  OpeningBalanceByInstitution,
 } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface OpeningBalanceByInstitutionRepository {
@@ -30,43 +40,6 @@ export interface OpeningBalanceByInstitutionRepository {
   delete(id: number): Promise<void>;
 }
 
-export function createPrismaOpeningBalanceByInstitutionRepository(): OpeningBalanceByInstitutionRepository {
-  return {
-    async findByTaxYearId(
-      taxYearId: number,
-    ): Promise<OpeningBalanceByInstitution[]> {
-      return prisma.openingBalanceByInstitution.findMany({
-        where: { taxYearId },
-      });
-    },
-
-    async upsert({
-      taxYearId,
-      assetClass,
-      symbol,
-      institution,
-      quantity,
-    }): Promise<void> {
-      await prisma.openingBalanceByInstitution.upsert({
-        where: {
-          taxYearId_assetClass_symbol_institution: {
-            taxYearId,
-            assetClass,
-            symbol,
-            institution,
-          },
-        },
-        create: { taxYearId, assetClass, symbol, institution, quantity },
-        update: { quantity },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.openingBalanceByInstitution.delete({ where: { id } });
-    },
-  };
-}
-
 function rowToOpeningBalanceByInstitution(
   row: Record<string, SqlValue>,
 ): OpeningBalanceByInstitution {
@@ -76,7 +49,7 @@ function rowToOpeningBalanceByInstitution(
     assetClass: String(row.asset_class) as OpeningBalanceAssetClass,
     symbol: String(row.symbol),
     institution: String(row.institution),
-    quantity: new Prisma.Decimal(String(row.quantity)),
+    quantity: decodeDecimal(String(row.quantity)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

@@ -3,8 +3,12 @@
  * (wa-sqlite実装)が`OpeningBalanceByInstitutionRepository`インターフェースを、
  * Prisma実装(`createPrismaOpeningBalanceByInstitutionRepository`)と
  * 同じ挙動で満たすことを検証する。
+ *
+ * フェーズ5-1-3b: Decimal列の復元を`decimalCodec.ts`の`decodeDecimal`
+ * (`decimal.js`)に置き換えたため、`instanceof`検証も
+ * `@prisma/client`の`Prisma.Decimal`ではなく`decimal.js`の`Decimal`に変更している。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -46,7 +50,7 @@ describe("createClientOpeningBalanceByInstitutionRepository", () => {
     expect(records[0].assetClass).toBe("CRYPTO");
     expect(records[0].symbol).toBe("BTC");
     expect(records[0].institution).toBe("bitFlyer");
-    expect(records[0].quantity).toBeInstanceOf(Prisma.Decimal);
+    expect(records[0].quantity).toBeInstanceOf(Decimal);
     expect(records[0].quantity.toString()).toBe("1.5");
     expect(records[0].id).toBeTypeOf("number");
     expect(records[0].createdAt).toBeInstanceOf(Date);
