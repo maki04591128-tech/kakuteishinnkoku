@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { buildYearReport } from "@/lib/reporting";
 import { listTaxYears } from "@/lib/taxYear";
-import { createPrismaMarketPriceRepository } from "@/lib/repositories/marketPriceRepository";
+import { marketPriceRepository } from "@/lib/repositories/defaultMarketPriceRepository";
 import { UnrealizedGainForm, type UnrealizedGainFormHolding } from "./UnrealizedGainForm";
-
-const marketPriceRepository = createPrismaMarketPriceRepository();
 
 export default async function UnrealizedGainPage({
   searchParams,

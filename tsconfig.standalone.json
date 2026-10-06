@@ -93,6 +93,9 @@
       ],
       "@/lib/repositories/defaultAssetSymbolMappingRepository": [
         "./src/lib/repositories/defaultAssetSymbolMappingRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultMarketPriceRepository": [
+        "./src/lib/repositories/defaultMarketPriceRepository.standalone.ts"
       ]
     }
   }
