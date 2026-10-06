@@ -3,8 +3,12 @@
  * (wa-sqlite実装)が`BrokerAnnualReportRepository`インターフェースを、
  * Prisma実装(`createPrismaBrokerAnnualReportRepository`)と
  * 同じ挙動で満たすことを検証する。
+ *
+ * フェーズ5-1-3b: Decimal列の復元を`decimalCodec.ts`の`decodeDecimal`
+ * (`decimal.js`実装)に変更したため、instanceof検証も
+ * `@prisma/client`の`Prisma.Decimal`ではなく`decimal.js`の`Decimal`に変更している。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -46,7 +50,7 @@ describe("createClientBrokerAnnualReportRepository", () => {
     expect(records[0].taxYearId).toBe(1);
     expect(records[0].broker).toBe("SBI証券");
     expect(records[0].accountType).toBe("SPECIFIC_WITHHOLDING");
-    expect(records[0].proceedsJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(records[0].proceedsJpy).toBeInstanceOf(Decimal);
     expect(records[0].proceedsJpy.toString()).toBe("1000000");
     expect(records[0].acquisitionCostJpy.toString()).toBe("800000");
     expect(records[0].dividendJpy.toString()).toBe("5000");

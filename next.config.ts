@@ -269,6 +269,16 @@ const defaultAssetBalanceSnapshotRepositoryStandaloneAliasForWebpack = path.reso
   "src/lib/repositories/defaultAssetBalanceSnapshotRepository.standalone.ts",
 );
 
+// `BrokerAnnualReportRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、`src/lib/reporting.ts`消費分の27個に続く、`src/app/actions.ts`
+// のみが消費する残り11個の1つ目)。
+const defaultBrokerAnnualReportRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultBrokerAnnualReportRepository.standalone.ts";
+const defaultBrokerAnnualReportRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultBrokerAnnualReportRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -335,6 +345,8 @@ const nextConfig: NextConfig = {
             defaultNisaLifetimeQuotaRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultAssetBalanceSnapshotRepository":
             defaultAssetBalanceSnapshotRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultBrokerAnnualReportRepository":
+            defaultBrokerAnnualReportRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -397,6 +409,8 @@ const nextConfig: NextConfig = {
           defaultNisaLifetimeQuotaRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultAssetBalanceSnapshotRepository":
           defaultAssetBalanceSnapshotRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultBrokerAnnualReportRepository":
+          defaultBrokerAnnualReportRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

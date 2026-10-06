@@ -5,15 +5,23 @@
  * 完全に一致させる。
  * フェーズ2-31でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientBrokerAnnualReportRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaBrokerAnnualReportRepository`(フェーズ5-1-3bで
+ * `brokerAnnualReportRepository.prisma.ts`に分離。`@prisma/client`(Node専用)に
+ * 依存するため、このファイルからは分離しスタンドアロン版バンドルに引き込まれない
+ * ようにする)を使う。ビルドターゲットに応じたどちらを使うかの既定の切り替えは
+ * `defaultBrokerAnnualReportRepository.ts`/
+ * `defaultBrokerAnnualReportRepository.standalone.ts`が担う。
+ *
+ * `proceedsJpy`/`acquisitionCostJpy`/`dividendJpy`の型
+ * (`BrokerAnnualReport`の`Decimal`)は`@prisma/client`の値のみ`import type`で
+ * 参照し、実体は`decimal.js`(`decimalCodec.ts`)で生成する(`@prisma/client`の
+ * `Prisma.Decimal`は構造的に同一の別クラスだが、値としてのimportはスタンドアロン版
+ * バンドルに`@prisma/client`本体を引き込んでしまうため使わない。`decimal.js`の
+ * `Decimal`は型として互換なので代入可能)。
  */
-import {
-  Prisma,
-  type BrokerAnnualReport,
-  type InvestmentAccountType,
-} from "@prisma/client";
+import type { BrokerAnnualReport, InvestmentAccountType } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface BrokerAnnualReportUpsertInput {
@@ -32,74 +40,6 @@ export interface BrokerAnnualReportRepository {
   upsertMany(inputs: BrokerAnnualReportUpsertInput[]): Promise<void>;
 }
 
-export function createPrismaBrokerAnnualReportRepository(): BrokerAnnualReportRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<BrokerAnnualReport[]> {
-      return prisma.brokerAnnualReport.findMany({
-        where: { taxYearId },
-        orderBy: [{ broker: "asc" }, { accountType: "asc" }],
-      });
-    },
-
-    async upsert({
-      taxYearId,
-      broker,
-      accountType,
-      proceedsJpy,
-      acquisitionCostJpy,
-      dividendJpy,
-    }): Promise<void> {
-      await prisma.brokerAnnualReport.upsert({
-        where: {
-          taxYearId_broker_accountType: { taxYearId, broker, accountType },
-        },
-        create: {
-          taxYearId,
-          broker,
-          accountType,
-          proceedsJpy,
-          acquisitionCostJpy,
-          dividendJpy,
-        },
-        update: { proceedsJpy, acquisitionCostJpy, dividendJpy },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.brokerAnnualReport.delete({ where: { id } });
-    },
-
-    async upsertMany(inputs): Promise<void> {
-      await prisma.$transaction(
-        inputs.map((input) =>
-          prisma.brokerAnnualReport.upsert({
-            where: {
-              taxYearId_broker_accountType: {
-                taxYearId: input.taxYearId,
-                broker: input.broker,
-                accountType: input.accountType,
-              },
-            },
-            create: {
-              taxYearId: input.taxYearId,
-              broker: input.broker,
-              accountType: input.accountType,
-              proceedsJpy: input.proceedsJpy,
-              acquisitionCostJpy: input.acquisitionCostJpy,
-              dividendJpy: input.dividendJpy,
-            },
-            update: {
-              proceedsJpy: input.proceedsJpy,
-              acquisitionCostJpy: input.acquisitionCostJpy,
-              dividendJpy: input.dividendJpy,
-            },
-          }),
-        ),
-      );
-    },
-  };
-}
-
 function rowToBrokerAnnualReport(
   row: Record<string, SqlValue>,
 ): BrokerAnnualReport {
@@ -108,9 +48,9 @@ function rowToBrokerAnnualReport(
     taxYearId: Number(row.tax_year_id),
     broker: String(row.broker),
     accountType: String(row.account_type) as InvestmentAccountType,
-    proceedsJpy: new Prisma.Decimal(String(row.proceeds_jpy)),
-    acquisitionCostJpy: new Prisma.Decimal(String(row.acquisition_cost_jpy)),
-    dividendJpy: new Prisma.Decimal(String(row.dividend_jpy)),
+    proceedsJpy: decodeDecimal(String(row.proceeds_jpy)),
+    acquisitionCostJpy: decodeDecimal(String(row.acquisition_cost_jpy)),
+    dividendJpy: decodeDecimal(String(row.dividend_jpy)),
     memo: row.memo === null ? null : String(row.memo),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
