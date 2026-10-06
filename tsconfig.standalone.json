@@ -90,6 +90,9 @@
       ],
       "@/lib/repositories/defaultOpeningBalanceByInstitutionRepository": [
         "./src/lib/repositories/defaultOpeningBalanceByInstitutionRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultAssetSymbolMappingRepository": [
+        "./src/lib/repositories/defaultAssetSymbolMappingRepository.standalone.ts"
       ]
     }
   }

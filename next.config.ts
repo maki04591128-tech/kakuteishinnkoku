@@ -288,6 +288,15 @@ const defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForWebpack = pa
   "src/lib/repositories/defaultOpeningBalanceByInstitutionRepository.standalone.ts",
 );
 
+// `AssetSymbolMappingRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3b、`src/app/actions.ts`のみが消費する残り11個の3つ目)。
+const defaultAssetSymbolMappingRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultAssetSymbolMappingRepository.standalone.ts";
+const defaultAssetSymbolMappingRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultAssetSymbolMappingRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -358,6 +367,8 @@ const nextConfig: NextConfig = {
             defaultBrokerAnnualReportRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultOpeningBalanceByInstitutionRepository":
             defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultAssetSymbolMappingRepository":
+            defaultAssetSymbolMappingRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -424,6 +435,8 @@ const nextConfig: NextConfig = {
           defaultBrokerAnnualReportRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultOpeningBalanceByInstitutionRepository":
           defaultOpeningBalanceByInstitutionRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultAssetSymbolMappingRepository":
+          defaultAssetSymbolMappingRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

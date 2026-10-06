@@ -5,35 +5,20 @@
  * 完全に一致させる。
  * フェーズ2-30でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientAssetSymbolMappingRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaAssetSymbolMappingRepository`(フェーズ5-1-3bで
+ * `assetSymbolMappingRepository.prisma.ts`に分離。`@prisma/client`(Node専用)に
+ * 依存するため、このファイルからは分離しスタンドアロン版バンドルに引き込まれない
+ * ようにする)を使う。ビルドターゲットに応じたどちらを使うかの既定の切り替えは
+ * `defaultAssetSymbolMappingRepository.ts`/
+ * `defaultAssetSymbolMappingRepository.standalone.ts`が担う。
  */
 import type { AssetSymbolMapping } from "@prisma/client";
-import { prisma } from "../db";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface AssetSymbolMappingRepository {
   findMany(): Promise<AssetSymbolMapping[]>;
   upsert(params: { assetName: string; symbol: string }): Promise<void>;
   delete(id: number): Promise<void>;
-}
-
-export function createPrismaAssetSymbolMappingRepository(): AssetSymbolMappingRepository {
-  return {
-    async findMany(): Promise<AssetSymbolMapping[]> {
-      return prisma.assetSymbolMapping.findMany({ orderBy: { assetName: "asc" } });
-    },
-
-    async upsert({ assetName, symbol }): Promise<void> {
-      await prisma.assetSymbolMapping.upsert({
-        where: { assetName },
-        create: { assetName, symbol },
-        update: { symbol },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.assetSymbolMapping.delete({ where: { id } });
-    },
-  };
 }
 
 function rowToAssetSymbolMapping(row: Record<string, SqlValue>): AssetSymbolMapping {
