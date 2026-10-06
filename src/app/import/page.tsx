@@ -66,7 +66,7 @@ import {
   reconcileAssetSymbolBalances,
 } from "@/lib/moneyforward/assetBalanceReconciliation";
 import { assetBalanceSnapshotRepository } from "@/lib/repositories/defaultAssetBalanceSnapshotRepository";
-import { createPrismaAssetSymbolMappingRepository } from "@/lib/repositories/assetSymbolMappingRepository";
+import { assetSymbolMappingRepository } from "@/lib/repositories/defaultAssetSymbolMappingRepository";
 import { brokerAnnualReportRepository } from "@/lib/repositories/defaultBrokerAnnualReportRepository";
 import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositories/casualtyLossCarryforwardRepository";
 import { cryptoCreditTradeRepository } from "@/lib/repositories/defaultCryptoCreditTradeRepository";
@@ -98,7 +98,6 @@ const homeSaleLossCarryforwardRepository =
   createPrismaHomeSaleLossCarryforwardRepository();
 const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
-const assetSymbolMappingRepository = createPrismaAssetSymbolMappingRepository();
 const marketPriceRepository = createPrismaMarketPriceRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {

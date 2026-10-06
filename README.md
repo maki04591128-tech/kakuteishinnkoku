@@ -4025,6 +4025,33 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `CasualtyLossCarryforwardRepository`・`HomeSaleLossCarryforwardRepository`・
   `HomeReplacementLossCarryforwardRepository`・
   `AngelTaxLossCarryforwardRepository`・`CashflowEntryRepository`。
+
+  **追記(2026-10-06、`AssetSymbolMappingRepository`への適用。`actions.ts`のみが
+  消費する残り9個の1つ目):** 同じパターンを`AssetSymbolMappingRepository`
+  (`src/app/actions.ts`・`src/app/import/page.tsx`が消費)にも適用した。
+  `src/lib/repositories/assetSymbolMappingRepository.ts`から`@prisma/client`
+  (`../db`)に依存する`createPrismaAssetSymbolMappingRepository`を
+  `assetSymbolMappingRepository.prisma.ts`に分離し、
+  `defaultAssetSymbolMappingRepository.ts`(自宅サーバー版の既定実装)と
+  `defaultAssetSymbolMappingRepository.standalone.ts`(未結線プレースホルダー)を
+  `next.config.ts`/`tsconfig.standalone.json`に追加した。両消費先を
+  `@/lib/repositories/defaultAssetSymbolMappingRepository`経由の参照に統一した。
+  このモデルはDecimal型の列を持たないため、これまでのモデルと異なり
+  `decimalCodec.ts`への置き換えは不要だった。`npm run test`
+  (全189ファイル1664件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで無関係)が
+  成功することを確認した。また`DATABASE_URL`を設定し`npx prisma db push`で
+  DBを作成した上で、`npm run build`(自宅サーバー版)が従来通り成功し、
+  `npm run build:standalone`が従来と同じ
+  `Server Actions are not supported with static export`エラーで失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残る5-1-3bの対象(`actions.ts`のみが消費する残り8個、更新):**
+  `MarketPriceRepository`・`ForeignTaxCreditCarryforwardRepository`・
+  `ForeignTaxCreditSpareLimitCarryforwardRepository`・
+  `CasualtyLossCarryforwardRepository`・`HomeSaleLossCarryforwardRepository`・
+  `HomeReplacementLossCarryforwardRepository`・
+  `AngelTaxLossCarryforwardRepository`・`CashflowEntryRepository`。
 - [ ] 5-1-3c. `src/app/page.tsx`のダウンロードリンクをスタンドアロン版では
       `buildDraftCsvExport`相当の処理をブラウザ上で実行しBlobダウンロード
       させる形に置き換える(5-1-3bの切り替え機構に依存)。
