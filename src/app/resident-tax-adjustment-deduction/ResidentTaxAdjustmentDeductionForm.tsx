@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import {
   deleteResidentTaxAdjustmentDeductionRecord,
   saveResidentTaxAdjustmentDeductionRecord,
-} from "@/app/actions";
+} from "@/lib/residentTaxAdjustmentDeductionActions";
 import {
   estimateResidentTaxAdjustmentDeduction,
   type DependentDeductionDiffCategory,

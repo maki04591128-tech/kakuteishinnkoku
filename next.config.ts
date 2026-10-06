@@ -192,6 +192,20 @@ const multiHouseholdRenovationDeductionActionsStandaloneAliasForWebpack = path.r
   "src/lib/multiHouseholdRenovationDeductionActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/residentTaxAdjustmentDeductionActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `saveResidentTaxAdjustmentDeductionRecord`/
+// `deleteResidentTaxAdjustmentDeductionRecord`をそのまま再エクスポートする
+// 代わりに、フェーズ3で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/multiHouseholdRenovationDeductionActions`に続く
+// 12個目)。
+const residentTaxAdjustmentDeductionActionsStandaloneAliasForTurbopack =
+  "./src/lib/residentTaxAdjustmentDeductionActions.standalone.ts";
+const residentTaxAdjustmentDeductionActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/residentTaxAdjustmentDeductionActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -510,6 +524,8 @@ const nextConfig: NextConfig = {
             durabilityImprovementRenovationDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/multiHouseholdRenovationDeductionActions":
             multiHouseholdRenovationDeductionActionsStandaloneAliasForTurbopack,
+          "@/lib/residentTaxAdjustmentDeductionActions":
+            residentTaxAdjustmentDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -599,6 +615,8 @@ const nextConfig: NextConfig = {
           durabilityImprovementRenovationDeductionActionsStandaloneAliasForWebpack,
         "@/lib/multiHouseholdRenovationDeductionActions":
           multiHouseholdRenovationDeductionActionsStandaloneAliasForWebpack,
+        "@/lib/residentTaxAdjustmentDeductionActions":
+          residentTaxAdjustmentDeductionActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
