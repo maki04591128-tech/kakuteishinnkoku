@@ -63,6 +63,7 @@
       "@/lib/cryptoMarginTradeActions": [
         "./src/lib/cryptoMarginTradeActions.standalone.ts"
       ],
+      "@/lib/futuresTradeActions": ["./src/lib/futuresTradeActions.standalone.ts"],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
