@@ -1,14 +1,10 @@
 import Link from "next/link";
 import { getForeignTaxCreditRecord } from "@/lib/investment/foreignTaxCredit";
 import { buildYearReport } from "@/lib/reporting";
-import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
-import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
+import { foreignTaxCreditCarryforwardRepository } from "@/lib/repositories/defaultForeignTaxCreditCarryforwardRepository";
+import { foreignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
 import { ForeignTaxCreditForm } from "./ForeignTaxCreditForm";
-
-const foreignTaxCreditCarryforwardRepository = createPrismaForeignTaxCreditCarryforwardRepository();
-const foreignTaxCreditSpareLimitCarryforwardRepository =
-  createPrismaForeignTaxCreditSpareLimitCarryforwardRepository();
 
 export default async function ForeignTaxCreditPage({
   searchParams,

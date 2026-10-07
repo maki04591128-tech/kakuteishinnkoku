@@ -42,6 +42,7 @@
       "@/lib/angelTaxLossCarryforwardActions": [
         "./src/lib/angelTaxLossCarryforwardActions.standalone.ts"
       ],
+      "@/lib/foreignTaxCreditActions": ["./src/lib/foreignTaxCreditActions.standalone.ts"],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
@@ -140,6 +141,12 @@
       ],
       "@/lib/repositories/defaultAngelTaxLossCarryforwardRepository": [
         "./src/lib/repositories/defaultAngelTaxLossCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultForeignTaxCreditCarryforwardRepository": [
+        "./src/lib/repositories/defaultForeignTaxCreditCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository": [
+        "./src/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone.ts"
       ]
     }
   }

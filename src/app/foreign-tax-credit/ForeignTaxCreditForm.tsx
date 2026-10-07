@@ -7,7 +7,7 @@ import {
   carryForwardForeignTaxCreditSpareLimit,
   deleteForeignTaxCreditRecord,
   saveForeignTaxCreditRecord,
-} from "@/app/actions";
+} from "@/lib/foreignTaxCreditActions";
 import { calculateForeignTaxCredit } from "@/lib/investment/foreignTaxCredit";
 
 function yen(value: { toString(): string }): string {

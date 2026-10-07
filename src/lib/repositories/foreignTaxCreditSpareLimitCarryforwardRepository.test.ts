@@ -4,8 +4,11 @@
  * インターフェースを、Prisma実装
  * (`createPrismaForeignTaxCreditSpareLimitCarryforwardRepository`)と
  * 同じ挙動で満たすことを検証する。
+ * フェーズ5-1-3d-16: Decimal列の復元を`decimalCodec.ts`の`decodeDecimal`
+ * (`decimal.js`の`Decimal`)に変更したため、`remainingAmountJpy`の型チェックも
+ * `@prisma/client`の`Prisma.Decimal`ではなく`decimal.js`の`Decimal`に変更している。
  */
-import { Prisma } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyClientDbSchema } from "../clientDb/schema";
 import { openClientDb, type ClientDb } from "../clientDb/sqlite";
@@ -39,7 +42,7 @@ describe("createClientForeignTaxCreditSpareLimitCarryforwardRepository", () => {
     expect(records).toHaveLength(1);
     expect(records[0].taxYearId).toBe(1);
     expect(records[0].originYear).toBe(2023);
-    expect(records[0].remainingAmountJpy).toBeInstanceOf(Prisma.Decimal);
+    expect(records[0].remainingAmountJpy).toBeInstanceOf(Decimal);
     expect(records[0].remainingAmountJpy.toString()).toBe("150000");
     expect(records[0].id).toBeTypeOf("number");
     expect(records[0].createdAt).toBeInstanceOf(Date);
