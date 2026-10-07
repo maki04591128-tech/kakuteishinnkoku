@@ -20,8 +20,8 @@ import { brokerAnnualReportRepository } from "@/lib/repositories/defaultBrokerAn
 import { nisaLifetimeQuotaRepository } from "@/lib/repositories/defaultNisaLifetimeQuotaRepository";
 import { assetSymbolMappingRepository } from "@/lib/repositories/defaultAssetSymbolMappingRepository";
 import { marketPriceRepository } from "@/lib/repositories/defaultMarketPriceRepository";
-import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
-import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
+import { foreignTaxCreditCarryforwardRepository } from "@/lib/repositories/defaultForeignTaxCreditCarryforwardRepository";
+import { foreignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository";
 import { casualtyLossCarryforwardRepository } from "@/lib/repositories/defaultCasualtyLossCarryforwardRepository";
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
@@ -99,10 +99,12 @@ import {
 import {
   setForeignTaxCreditCarryforwardCore,
   deleteForeignTaxCreditCarryforwardCore,
+  carryForwardForeignTaxCreditExcessCore,
 } from "@/lib/actions/foreignTaxCreditCarryforward";
 import {
   setForeignTaxCreditSpareLimitCarryforwardCore,
   deleteForeignTaxCreditSpareLimitCarryforwardCore,
+  carryForwardForeignTaxCreditSpareLimitCore,
 } from "@/lib/actions/foreignTaxCreditSpareLimitCarryforward";
 import {
   saveDistributionAdjustedForeignTaxCreditRecordCore,
@@ -225,10 +227,6 @@ function isKnownExchangeCsvPreset(
   return preset in EXCHANGE_LABELS;
 }
 
-const foreignTaxCreditCarryforwardRepository =
-  createPrismaForeignTaxCreditCarryforwardRepository();
-const foreignTaxCreditSpareLimitCarryforwardRepository =
-  createPrismaForeignTaxCreditSpareLimitCarryforwardRepository();
 const homeSaleLossCarryforwardRepository = createPrismaHomeSaleLossCarryforwardRepository();
 const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
@@ -1214,25 +1212,14 @@ export async function carryForwardForeignTaxCreditExcess(
   const entriesJson = requireString(formData, "carryforwardToNextYearJson");
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
-  const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing = await foreignTaxCreditCarryforwardRepository.findByTaxYearId(
-    nextTaxYear.id,
-  );
-  const existingYears = new Set(existing.map((e) => e.originYear));
-  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
-
-  await foreignTaxCreditCarryforwardRepository.createMany(
-    toCreate.map((e) => ({
-      taxYearId: nextTaxYear.id,
-      originYear: e.originYear,
-      remainingAmountJpy: e.remainingAmountJpy,
-    })),
+  const { redirectTo } = await carryForwardForeignTaxCreditExcessCore(
+    taxYearRepository,
+    foreignTaxCreditCarryforwardRepository,
+    { year, entries },
   );
 
   revalidatePath("/import");
-  redirect(
-    `/foreign-tax-credit?year=${year}&excessCarried=${toCreate.length}`,
-  );
+  redirect(redirectTo);
 }
 
 export async function setForeignTaxCreditSpareLimitCarryforward(
@@ -1283,26 +1270,14 @@ export async function carryForwardForeignTaxCreditSpareLimit(
   const entriesJson = requireString(formData, "spareLimitCarryforwardToNextYearJson");
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
-  const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing =
-    await foreignTaxCreditSpareLimitCarryforwardRepository.findByTaxYearId(
-      nextTaxYear.id,
-    );
-  const existingYears = new Set(existing.map((e) => e.originYear));
-  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
-
-  await foreignTaxCreditSpareLimitCarryforwardRepository.createMany(
-    toCreate.map((e) => ({
-      taxYearId: nextTaxYear.id,
-      originYear: e.originYear,
-      remainingAmountJpy: e.remainingAmountJpy,
-    })),
+  const { redirectTo } = await carryForwardForeignTaxCreditSpareLimitCore(
+    taxYearRepository,
+    foreignTaxCreditSpareLimitCarryforwardRepository,
+    { year, entries },
   );
 
   revalidatePath("/import");
-  redirect(
-    `/foreign-tax-credit?year=${year}&spareLimitCarried=${toCreate.length}`,
-  );
+  redirect(redirectTo);
 }
 
 /**

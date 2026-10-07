@@ -5,11 +5,20 @@
  * 完全に一致させる。
  * フェーズ2-16でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientForeignTaxCreditSpareLimitCarryforwardRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaForeignTaxCreditSpareLimitCarryforwardRepository`
+ * (フェーズ5-1-3d-16で`foreignTaxCreditSpareLimitCarryforwardRepository.prisma.ts`に
+ * 分離。`@prisma/client`(Node専用)に依存するため、このファイルからは分離しスタンドアロン
+ * 版バンドルに引き込まれないようにする)を使う。ビルドターゲットに応じたどちらを使うかの
+ * 既定の切り替えは`defaultForeignTaxCreditSpareLimitCarryforwardRepository.ts`/
+ * `defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone.ts`が担う。
+ *
+ * `remainingAmountJpy`の型(`ForeignTaxCreditSpareLimitCarryforward`の`Decimal`)は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`
+ * (`decimalCodec.ts`)で生成する(`foreignTaxCreditCarryforwardRepository.ts`と同じ理由)。
  */
-import { Prisma, type ForeignTaxCreditSpareLimitCarryforward } from "@prisma/client";
+import type { ForeignTaxCreditSpareLimitCarryforward } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface ForeignTaxCreditSpareLimitCarryforwardRepository {
@@ -25,36 +34,6 @@ export interface ForeignTaxCreditSpareLimitCarryforwardRepository {
   ): Promise<void>;
 }
 
-export function createPrismaForeignTaxCreditSpareLimitCarryforwardRepository(): ForeignTaxCreditSpareLimitCarryforwardRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<ForeignTaxCreditSpareLimitCarryforward[]> {
-      return prisma.foreignTaxCreditSpareLimitCarryforward.findMany({
-        where: { taxYearId },
-        orderBy: { originYear: "asc" },
-      });
-    },
-
-    async upsert({ taxYearId, originYear, remainingAmountJpy }): Promise<void> {
-      await prisma.foreignTaxCreditSpareLimitCarryforward.upsert({
-        where: {
-          taxYearId_originYear: { taxYearId, originYear },
-        },
-        create: { taxYearId, originYear, remainingAmountJpy },
-        update: { remainingAmountJpy },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.foreignTaxCreditSpareLimitCarryforward.delete({ where: { id } });
-    },
-
-    async createMany(data): Promise<void> {
-      if (data.length === 0) return;
-      await prisma.foreignTaxCreditSpareLimitCarryforward.createMany({ data });
-    },
-  };
-}
-
 function rowToForeignTaxCreditSpareLimitCarryforward(
   row: Record<string, SqlValue>,
 ): ForeignTaxCreditSpareLimitCarryforward {
@@ -62,7 +41,7 @@ function rowToForeignTaxCreditSpareLimitCarryforward(
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
     originYear: Number(row.origin_year),
-    remainingAmountJpy: new Prisma.Decimal(String(row.remaining_amount_jpy)),
+    remainingAmountJpy: decodeDecimal(String(row.remaining_amount_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

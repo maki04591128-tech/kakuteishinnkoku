@@ -4,11 +4,20 @@
  * 処理をこのインターフェース経由に置き換える。挙動は既存のPrisma実装と完全に一致させる。
  * フェーズ2-15でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientForeignTaxCreditCarryforwardRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaForeignTaxCreditCarryforwardRepository`(フェーズ5-1-3d-16で
+ * `foreignTaxCreditCarryforwardRepository.prisma.ts`に分離。`@prisma/client`(Node専用)に
+ * 依存するため、このファイルからは分離しスタンドアロン版バンドルに引き込まれない
+ * ようにする)を使う。ビルドターゲットに応じたどちらを使うかの既定の切り替えは
+ * `defaultForeignTaxCreditCarryforwardRepository.ts`/
+ * `defaultForeignTaxCreditCarryforwardRepository.standalone.ts`が担う。
+ *
+ * `remainingAmountJpy`の型(`ForeignTaxCreditCarryforward`の`Decimal`)は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`
+ * (`decimalCodec.ts`)で生成する(`casualtyLossCarryforwardRepository.ts`と同じ理由)。
  */
-import { Prisma, type ForeignTaxCreditCarryforward } from "@prisma/client";
+import type { ForeignTaxCreditCarryforward } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface ForeignTaxCreditCarryforwardRepository {
@@ -24,36 +33,6 @@ export interface ForeignTaxCreditCarryforwardRepository {
   ): Promise<void>;
 }
 
-export function createPrismaForeignTaxCreditCarryforwardRepository(): ForeignTaxCreditCarryforwardRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<ForeignTaxCreditCarryforward[]> {
-      return prisma.foreignTaxCreditCarryforward.findMany({
-        where: { taxYearId },
-        orderBy: { originYear: "asc" },
-      });
-    },
-
-    async upsert({ taxYearId, originYear, remainingAmountJpy }): Promise<void> {
-      await prisma.foreignTaxCreditCarryforward.upsert({
-        where: {
-          taxYearId_originYear: { taxYearId, originYear },
-        },
-        create: { taxYearId, originYear, remainingAmountJpy },
-        update: { remainingAmountJpy },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.foreignTaxCreditCarryforward.delete({ where: { id } });
-    },
-
-    async createMany(data): Promise<void> {
-      if (data.length === 0) return;
-      await prisma.foreignTaxCreditCarryforward.createMany({ data });
-    },
-  };
-}
-
 function rowToForeignTaxCreditCarryforward(
   row: Record<string, SqlValue>,
 ): ForeignTaxCreditCarryforward {
@@ -61,7 +40,7 @@ function rowToForeignTaxCreditCarryforward(
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
     originYear: Number(row.origin_year),
-    remainingAmountJpy: new Prisma.Decimal(String(row.remaining_amount_jpy)),
+    remainingAmountJpy: decodeDecimal(String(row.remaining_amount_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };

@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { TaxYear } from "@prisma/client";
+import type { ForeignTaxCreditSpareLimitCarryforward, TaxYear } from "@prisma/client";
 import type { TaxYearRepository } from "@/lib/repositories/taxYearRepository";
 import type { ForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
 import {
+  carryForwardForeignTaxCreditSpareLimitCore,
   deleteForeignTaxCreditSpareLimitCarryforwardCore,
   setForeignTaxCreditSpareLimitCarryforwardCore,
 } from "./foreignTaxCreditSpareLimitCarryforward";
@@ -85,6 +86,53 @@ describe("deleteForeignTaxCreditSpareLimitCarryforwardCore", () => {
     expect(repo.delete).toHaveBeenCalledWith(9);
     expect(result).toEqual({
       redirectTo: "/import?year=2024&tab=foreignTaxCredit",
+    });
+  });
+});
+
+describe("carryForwardForeignTaxCreditSpareLimitCore", () => {
+  it("翌年分のtaxYearを取得・作成し、未登録の発生年のみ繰り越して遷移先を返す", async () => {
+    const nextTaxYear = createTaxYear({ id: 7, year: 2026 });
+    const taxYearRepo = createFakeTaxYearRepository(nextTaxYear);
+    const repo = createFakeForeignTaxCreditSpareLimitCarryforwardRepository();
+
+    const result = await carryForwardForeignTaxCreditSpareLimitCore(taxYearRepo, repo, {
+      year: 2025,
+      entries: [{ originYear: 2025, remainingAmountJpy: "30000" }],
+    });
+
+    expect(taxYearRepo.getOrCreateTaxYear).toHaveBeenCalledWith(2026);
+    expect(repo.createMany).toHaveBeenCalledWith([
+      { taxYearId: 7, originYear: 2025, remainingAmountJpy: "30000" },
+    ]);
+    expect(result).toEqual({
+      redirectTo: "/foreign-tax-credit?year=2025&spareLimitCarried=1",
+    });
+  });
+
+  it("翌年分に既に同じ発生年の登録がある場合は上書きせず繰り越し対象から除外する", async () => {
+    const nextTaxYear = createTaxYear({ id: 7, year: 2026 });
+    const taxYearRepo = createFakeTaxYearRepository(nextTaxYear);
+    const repo = createFakeForeignTaxCreditSpareLimitCarryforwardRepository();
+    repo.findByTaxYearId = vi.fn(async () => [
+      {
+        id: 1,
+        taxYearId: 7,
+        originYear: 2025,
+        remainingAmountJpy: "10000",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as unknown as ForeignTaxCreditSpareLimitCarryforward,
+    ]);
+
+    const result = await carryForwardForeignTaxCreditSpareLimitCore(taxYearRepo, repo, {
+      year: 2025,
+      entries: [{ originYear: 2025, remainingAmountJpy: "30000" }],
+    });
+
+    expect(repo.createMany).toHaveBeenCalledWith([]);
+    expect(result).toEqual({
+      redirectTo: "/foreign-tax-credit?year=2025&spareLimitCarried=0",
     });
   });
 });
