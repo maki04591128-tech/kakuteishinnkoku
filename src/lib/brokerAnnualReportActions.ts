@@ -5,8 +5,10 @@
 // ビルド対象に含まれない(フェーズ5-1-3d-19。`@/lib/homeReplacementLossCarryforwardActions`
 // と同種のパターン)。
 //
-// `setBrokerAnnualReport`は`/import`(`AnnualReportTextImportForm.tsx`)から
-// 呼ばれるServer Actionで、呼び出し元は`@/app/actions`から直接importする代わりに
-// このモジュールを経由することで、スタンドアロン版ビルドでは`src/app/actions.ts`
-// (`"use server"`、`output: "export"`非対応)をimportグラフから切り離せる。
-export { setBrokerAnnualReport } from "@/app/actions";
+// `setBrokerAnnualReport`は`/import`(`AnnualReportTextImportForm.tsx`・
+// `import/page.tsx`自身)から、`deleteBrokerAnnualReport`は`import/page.tsx`
+// から呼ばれるServer Actionで、呼び出し元は`@/app/actions`から直接importする
+// 代わりにこのモジュールを経由することで、スタンドアロン版ビルドでは
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)を
+// importグラフから切り離せる(5-1-3d-22で`deleteBrokerAnnualReport`を追加)。
+export { setBrokerAnnualReport, deleteBrokerAnnualReport } from "@/app/actions";

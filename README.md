@@ -5396,16 +5396,42 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     `Server Actions are not supported with static export`で失敗すること
     (本対応による新たな破壊ではないこと)を確認した。
 
-    **残る5-1-3d-21以降の対象:** `import/page.tsx`が`@/app/actions`から
-    importする残り38個のアクション(`addCryptoCreditTrade`/
+  - [x] 5-1-3d-22. `setBrokerAnnualReport`/`deleteBrokerAnnualReport`
+        (`import/page.tsx`自身が使う組)を切り出す。
+
+    **実装内容(2026-10-07):** `setBrokerAnnualReport`は5-1-3d-19で
+    `AnnualReportTextImportForm.tsx`向けに既に`@/lib/brokerAnnualReportActions`
+    へ移行済みだったが、`import/page.tsx`自身は引き続き`@/app/actions`から
+    直接importしていた。`deleteBrokerAnnualReportCore`
+    (`src/lib/actions/brokerAnnualReport.ts`)も5-1-3d-19の時点で既に
+    フェーズ3で抽出済みだったため、`@/lib/brokerAnnualReportActions.ts`の
+    再エクスポートに`deleteBrokerAnnualReport`を追加し、
+    `@/lib/brokerAnnualReportActions.standalone.ts`にも
+    `deleteBrokerAnnualReportCore`を直接呼ぶ同名関数(`setBrokerAnnualReport`と
+    同じ`window.location.href`遷移パターン)を追加しただけで対応できた
+    (`next.config.ts`・`tsconfig.standalone.json`のエイリアス設定は
+    5-1-3d-19で追加済みのため変更不要)。`import/page.tsx`の
+    `setBrokerAnnualReport`/`deleteBrokerAnnualReport`のimport元を
+    `@/app/actions`から`@/lib/brokerAnnualReportActions`に変更した
+    (自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-07時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も`import/page.tsx`が残り37個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-23以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り37個のアクション(`addCryptoCreditTrade`/
     `addCryptoMarginTrade`/`addCryptoTrade`等の暗号資産/株式等の各取引の
     add/delete・`carryForwardFuturesLoss`等のcarryForward系・
     `deleteCasualtyLossCarryforward`/`setCasualtyLossCarryforward`等の各種
-    繰越控除のset/delete・`setBrokerAnnualReport`(page.tsx自体が使う組。
-    `AnnualReportTextImportForm.tsx`側は5-1-3d-19で既に
-    `@/lib/brokerAnnualReportActions`に移行済みだが、`page.tsx`自身の
-    importはまだ`@/app/actions`のまま残っている)等)を、同じ要領で組ごとに
-    1つずつ切り出していく。
+    繰越控除のset/delete等)を、同じ要領で組ごとに1つずつ切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
