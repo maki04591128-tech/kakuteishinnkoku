@@ -4,7 +4,7 @@ import { buildTaxFilingSummary } from "@/lib/etax/summary";
 import { listTaxYears } from "@/lib/taxYear";
 import { LogoutButton } from "@/lib/authUi";
 import { DraftCsvExportLink } from "@/lib/exportUi";
-import { setCryptoCostMethod } from "./actions";
+import { setCryptoCostMethod } from "@/lib/cryptoCostMethodActions";
 
 const CRYPTO_COST_METHOD_LABEL: Record<string, string> = {
   AVERAGE: "総平均法",
