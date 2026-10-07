@@ -39,6 +39,9 @@
       "@/lib/casualtyLossCarryforwardActions": [
         "./src/lib/casualtyLossCarryforwardActions.standalone.ts"
       ],
+      "@/lib/angelTaxLossCarryforwardActions": [
+        "./src/lib/angelTaxLossCarryforwardActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
@@ -134,6 +137,9 @@
       ],
       "@/lib/repositories/defaultCasualtyLossCarryforwardRepository": [
         "./src/lib/repositories/defaultCasualtyLossCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultAngelTaxLossCarryforwardRepository": [
+        "./src/lib/repositories/defaultAngelTaxLossCarryforwardRepository.standalone.ts"
       ]
     }
   }

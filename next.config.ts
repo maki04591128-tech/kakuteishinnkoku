@@ -231,6 +231,19 @@ const casualtyLossCarryforwardActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/casualtyLossCarryforwardActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/angelTaxLossCarryforwardActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `setAngelTaxLossCarryforward`/`deleteAngelTaxLossCarryforward`をそのまま
+// 再エクスポートする代わりに、本ステップ(5-1-3d-15)で抽出済みのコア関数を
+// ブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/casualtyLossCarryforwardActions`に続く15個目)。
+const angelTaxLossCarryforwardActionsStandaloneAliasForTurbopack =
+  "./src/lib/angelTaxLossCarryforwardActions.standalone.ts";
+const angelTaxLossCarryforwardActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/angelTaxLossCarryforwardActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -528,6 +541,16 @@ const defaultCasualtyLossCarryforwardRepositoryStandaloneAliasForWebpack = path.
   "src/lib/repositories/defaultCasualtyLossCarryforwardRepository.standalone.ts",
 );
 
+// `AngelTaxLossCarryforwardRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3d-15。5-1-3bで洗い出した「`actions.ts`のみが消費する残り7個の
+// リポジトリ」の2つ目)。
+const defaultAngelTaxLossCarryforwardRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultAngelTaxLossCarryforwardRepository.standalone.ts";
+const defaultAngelTaxLossCarryforwardRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultAngelTaxLossCarryforwardRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -565,6 +588,8 @@ const nextConfig: NextConfig = {
             certifiedHousingConstructionCreditActionsStandaloneAliasForTurbopack,
           "@/lib/casualtyLossCarryforwardActions":
             casualtyLossCarryforwardActionsStandaloneAliasForTurbopack,
+          "@/lib/angelTaxLossCarryforwardActions":
+            angelTaxLossCarryforwardActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -629,6 +654,8 @@ const nextConfig: NextConfig = {
             defaultMarketPriceRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultCasualtyLossCarryforwardRepository":
             defaultCasualtyLossCarryforwardRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultAngelTaxLossCarryforwardRepository":
+            defaultAngelTaxLossCarryforwardRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -662,6 +689,8 @@ const nextConfig: NextConfig = {
           certifiedHousingConstructionCreditActionsStandaloneAliasForWebpack,
         "@/lib/casualtyLossCarryforwardActions":
           casualtyLossCarryforwardActionsStandaloneAliasForWebpack,
+        "@/lib/angelTaxLossCarryforwardActions":
+          angelTaxLossCarryforwardActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -726,6 +755,8 @@ const nextConfig: NextConfig = {
           defaultMarketPriceRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultCasualtyLossCarryforwardRepository":
           defaultCasualtyLossCarryforwardRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultAngelTaxLossCarryforwardRepository":
+          defaultAngelTaxLossCarryforwardRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

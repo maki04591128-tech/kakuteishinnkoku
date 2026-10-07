@@ -4,11 +4,22 @@
  * インターフェース経由に置き換える。挙動は既存のPrisma実装と完全に一致させる。
  * フェーズ2-14でスタンドアロン(Android)版向けのクライアントサイド実装
  * (`createClientAngelTaxLossCarryforwardRepository`。wa-sqlite)を追加した。
+ * 自宅サーバー版は`createPrismaAngelTaxLossCarryforwardRepository`(フェーズ5-1-3d-15で
+ * `angelTaxLossCarryforwardRepository.prisma.ts`に分離。`@prisma/client`(Node専用)に
+ * 依存するため、このファイルからは分離しスタンドアロン版バンドルに引き込まれない
+ * ようにする)を使う。ビルドターゲットに応じたどちらを使うかの既定の切り替えは
+ * `defaultAngelTaxLossCarryforwardRepository.ts`/
+ * `defaultAngelTaxLossCarryforwardRepository.standalone.ts`が担う。
+ *
+ * `remainingAmountJpy`の型(`AngelTaxLossCarryforward`の`Decimal`)は
+ * `@prisma/client`の値のみ`import type`で参照し、実体は`decimal.js`
+ * (`decimalCodec.ts`)で生成する(`casualtyLossCarryforwardRepository.ts`と
+ * 同じ理由。5-1-3d-15でクライアント実装が`new Prisma.Decimal(...)`を使っていた
+ * 問題を同様に修正した)。
  */
-import { Prisma, type AngelTaxLossCarryforward } from "@prisma/client";
+import type { AngelTaxLossCarryforward } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { prisma } from "../db";
-import { encodeDecimal } from "../clientDb/decimalCodec";
+import { decodeDecimal, encodeDecimal } from "../clientDb/decimalCodec";
 import type { ClientDb, SqlValue } from "../clientDb/sqlite";
 
 export interface AngelTaxLossCarryforwardRepository {
@@ -21,31 +32,6 @@ export interface AngelTaxLossCarryforwardRepository {
   delete(id: number): Promise<void>;
 }
 
-export function createPrismaAngelTaxLossCarryforwardRepository(): AngelTaxLossCarryforwardRepository {
-  return {
-    async findByTaxYearId(taxYearId: number): Promise<AngelTaxLossCarryforward[]> {
-      return prisma.angelTaxLossCarryforward.findMany({
-        where: { taxYearId },
-        orderBy: { originYear: "asc" },
-      });
-    },
-
-    async upsert({ taxYearId, originYear, remainingAmountJpy }): Promise<void> {
-      await prisma.angelTaxLossCarryforward.upsert({
-        where: {
-          taxYearId_originYear: { taxYearId, originYear },
-        },
-        create: { taxYearId, originYear, remainingAmountJpy },
-        update: { remainingAmountJpy },
-      });
-    },
-
-    async delete(id: number): Promise<void> {
-      await prisma.angelTaxLossCarryforward.delete({ where: { id } });
-    },
-  };
-}
-
 function rowToAngelTaxLossCarryforward(
   row: Record<string, SqlValue>,
 ): AngelTaxLossCarryforward {
@@ -53,7 +39,7 @@ function rowToAngelTaxLossCarryforward(
     id: Number(row.id),
     taxYearId: Number(row.tax_year_id),
     originYear: Number(row.origin_year),
-    remainingAmountJpy: new Prisma.Decimal(String(row.remaining_amount_jpy)),
+    remainingAmountJpy: decodeDecimal(String(row.remaining_amount_jpy)),
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
   };
