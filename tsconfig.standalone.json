@@ -43,6 +43,12 @@
         "./src/lib/angelTaxLossCarryforwardActions.standalone.ts"
       ],
       "@/lib/foreignTaxCreditActions": ["./src/lib/foreignTaxCreditActions.standalone.ts"],
+      "@/lib/homeSaleLossCarryforwardActions": [
+        "./src/lib/homeSaleLossCarryforwardActions.standalone.ts"
+      ],
+      "@/lib/homeReplacementLossCarryforwardActions": [
+        "./src/lib/homeReplacementLossCarryforwardActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
@@ -147,6 +153,12 @@
       ],
       "@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository": [
         "./src/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultHomeSaleLossCarryforwardRepository": [
+        "./src/lib/repositories/defaultHomeSaleLossCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository": [
+        "./src/lib/repositories/defaultHomeReplacementLossCarryforwardRepository.standalone.ts"
       ]
     }
   }
