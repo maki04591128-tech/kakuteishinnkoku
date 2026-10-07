@@ -73,6 +73,12 @@
       "@/lib/futuresLossCarryforwardActions": [
         "./src/lib/futuresLossCarryforwardActions.standalone.ts"
       ],
+      "@/lib/foreignTaxCreditCarryforwardActions": [
+        "./src/lib/foreignTaxCreditCarryforwardActions.standalone.ts"
+      ],
+      "@/lib/foreignTaxCreditSpareLimitCarryforwardActions": [
+        "./src/lib/foreignTaxCreditSpareLimitCarryforwardActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],

@@ -5784,6 +5784,58 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     carryForward系・`deleteForeignTaxCreditCarryforward`/
     `setForeignTaxCreditCarryforward`等の各種繰越控除のset/delete等)を、
     同じ要領で組ごとに1つずつ切り出していく。
+
+  - [x] 5-1-3d-31. `setForeignTaxCreditCarryforward`/
+        `deleteForeignTaxCreditCarryforward`・
+        `setForeignTaxCreditSpareLimitCarryforward`/
+        `deleteForeignTaxCreditSpareLimitCarryforward`(いずれも
+        `import/page.tsx`自身のみが使う組)を切り出す。
+
+    **実装内容(2026-10-07):** 5-1-3d-29と同じパターンで、新規モジュール
+    `@/lib/foreignTaxCreditCarryforwardActions`
+    (`setForeignTaxCreditCarryforward`/`deleteForeignTaxCreditCarryforward`用)と
+    `@/lib/foreignTaxCreditSpareLimitCarryforwardActions`
+    (`setForeignTaxCreditSpareLimitCarryforward`/
+    `deleteForeignTaxCreditSpareLimitCarryforward`用)を追加した。自宅サーバー版の
+    既定実装(`*.ts`)は`src/app/actions.ts`の対応する関数をそのまま再エクスポート
+    するだけ(挙動は従来と完全に同一)。スタンドアロン版向け差し替え実装
+    (`*.standalone.ts`)は、フェーズ3で既に抽出済みの
+    `setForeignTaxCreditCarryforwardCore`/`deleteForeignTaxCreditCarryforwardCore`
+    (`src/lib/actions/foreignTaxCreditCarryforward.ts`)・
+    `setForeignTaxCreditSpareLimitCarryforwardCore`/
+    `deleteForeignTaxCreditSpareLimitCarryforwardCore`
+    (`src/lib/actions/foreignTaxCreditSpareLimitCarryforward.ts`、いずれも
+    5-1-3d-16で`carryForwardForeignTaxCreditExcess`等と同時に抽出済み)を、
+    5-1-3bのビルドターゲット切り替え機構経由の`defaultTaxYearRepository`/
+    `defaultForeignTaxCreditCarryforwardRepository`/
+    `defaultForeignTaxCreditSpareLimitCarryforwardRepository`(いずれも
+    既存の切り替え機構をそのまま利用、新規リポジトリ実装は不要)をDIして直接
+    呼び出す。`revalidatePath`/`redirect`の代わりに`window.location.href =
+    redirectTo`によるフルリロード遷移を使う点も5-1-3d-1以降と同じ。
+    `next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に、この2モジュールのエントリを追加した。
+    `import/page.tsx`の該当4関数のimport元を`@/app/actions`からこの2モジュールに
+    変更した(自宅サーバー版の見た目・挙動は変更無し)。この4関数は
+    `import/page.tsx`自身以外から使われていないため、1ファイルのみの書き換えで
+    完了した。
+
+    **動作確認(2026-10-07時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も`import/page.tsx`が残り24個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-32以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り24個のアクション(`carryForwardFuturesLoss`等のcarryForward系
+    (4個)・`setLossCarryforward`/`deleteLossCarryforward`等の各種繰越控除の
+    set/delete(6ペア)・`setCryptoCostMethod`・`deleteAssetBalanceImportBatch`・
+    `importAssetBalanceCsv`等のCSV取込系(6個))を、同じ要領で組ごとに1つずつ
+    切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
