@@ -12,7 +12,6 @@ import {
   carryForwardNisaLifetimeQuota,
   carryForwardOpeningBalances,
   deleteAssetBalanceImportBatch,
-  deleteBrokerAnnualReport,
   deleteCasualtyLossCarryforward,
   deleteCryptoCreditTrade,
   deleteCryptoMarginTrade,
@@ -35,7 +34,6 @@ import {
   importCryptoMarginCsv,
   importFuturesCsv,
   importMoneyForwardCsv,
-  setBrokerAnnualReport,
   setCasualtyLossCarryforward,
   setCryptoCostMethod,
   setForeignTaxCreditCarryforward,
@@ -53,6 +51,10 @@ import {
   setAssetSymbolMapping,
   deleteAssetSymbolMapping,
 } from "@/lib/assetSymbolMappingActions";
+import {
+  setBrokerAnnualReport,
+  deleteBrokerAnnualReport,
+} from "@/lib/brokerAnnualReportActions";
 import { cryptoTradeQuantityDelta } from "@/lib/crypto/calculator";
 import {
   COMMON_EXCHANGE_CSV_HEADER_NAMES,

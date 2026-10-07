@@ -31,7 +31,10 @@
 // 存在せず(ページは毎回クライアントDBを読み直す想定)、`redirect`相当の画面遷移は
 // `useRouter`等のフックに依存せずに済むよう、この関数内で`window.location.href`による
 // フルリロード遷移で代替する。
-import { setBrokerAnnualReportCore } from "@/lib/actions/brokerAnnualReport";
+import {
+  setBrokerAnnualReportCore,
+  deleteBrokerAnnualReportCore,
+} from "@/lib/actions/brokerAnnualReport";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { brokerAnnualReportRepository } from "@/lib/repositories/defaultBrokerAnnualReportRepository";
 import type { AnnualReportAccountType } from "@/lib/investment/annualReportCsv";
@@ -63,6 +66,18 @@ export async function setBrokerAnnualReport(formData: FormData): Promise<void> {
     brokerAnnualReportRepository,
     { year, broker, accountType, proceedsJpy, acquisitionCostJpy, dividendJpy },
   );
+
+  window.location.href = redirectTo;
+}
+
+export async function deleteBrokerAnnualReport(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+
+  const { redirectTo } = await deleteBrokerAnnualReportCore(brokerAnnualReportRepository, {
+    id,
+    year,
+  });
 
   window.location.href = redirectTo;
 }
