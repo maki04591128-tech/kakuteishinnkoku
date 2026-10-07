@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportForm";
 import {
-  addInvestmentTrade,
   addStockMarginTrade,
   carryForwardFuturesLoss,
   carryForwardInvestmentLoss,
@@ -14,7 +13,6 @@ import {
   deleteFuturesLossCarryforward,
   deleteHomeReplacementLossCarryforward,
   deleteHomeSaleLossCarryforward,
-  deleteInvestmentTrade,
   deleteLossCarryforward,
   deleteNisaLifetimeQuota,
   deleteOpeningBalance,
@@ -39,6 +37,10 @@ import {
   setOpeningBalanceByInstitution,
 } from "@/app/actions";
 import { addFuturesTrade, deleteFuturesTrade } from "@/lib/futuresTradeActions";
+import {
+  addInvestmentTrade,
+  deleteInvestmentTrade,
+} from "@/lib/investmentTradeActions";
 import { setMarketPrice, deleteMarketPrice } from "@/lib/marketPriceActions";
 import {
   setAssetSymbolMapping,
