@@ -6042,6 +6042,49 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     (2ペア)・`setCryptoCostMethod`・`deleteAssetBalanceImportBatch`・
     `importAssetBalanceCsv`等のCSV取込系(6個))を、同じ要領で組ごとに
     1つずつ切り出していく。
+
+  - [x] 5-1-3d-37. `setHomeSaleLossCarryforward`/`deleteHomeSaleLossCarryforward`・
+        `setHomeReplacementLossCarryforward`/`deleteHomeReplacementLossCarryforward`
+        (特定居住用財産の譲渡損失・居住用財産の買換え等の場合の譲渡損失の各繰越控除
+        の登録・削除、2ペア)を切り出す。
+
+    **実装内容(2026-10-07):** 両モデルとも、コア処理
+    (`setHomeSaleLossCarryforwardCore`/`deleteHomeSaleLossCarryforwardCore`、
+    `setHomeReplacementLossCarryforwardCore`/
+    `deleteHomeReplacementLossCarryforwardCore`)はフェーズ3時点で既に
+    `src/lib/actions/homeSaleLossCarryforward.ts`/
+    `homeReplacementLossCarryforward.ts`に抽出済みだったため、本ステップでは
+    5-1-3d-17・5-1-3d-18(`carryForwardHomeSaleLossExcess`/
+    `carryForwardHomeReplacementLossExcess`切り出し時)で新設済みの
+    ビルドターゲット切り替えモジュール`@/lib/homeSaleLossCarryforwardActions`/
+    `@/lib/homeReplacementLossCarryforwardActions`に、自宅サーバー版実装
+    (`@/app/actions`からの再エクスポート追加)・スタンドアロン版実装
+    (各コア関数を5-1-3bの`defaultTaxYearRepository`/
+    `defaultHomeSaleLossCarryforwardRepository`・
+    `defaultHomeReplacementLossCarryforwardRepository`経由でDIして直接
+    呼び出し、`window.location.href`遷移で代替)の2つをそれぞれ追加しただけで
+    済んだ(`next.config.ts`/`tsconfig.standalone.json`のエイリアス設定は
+    5-1-3d-17・5-1-3d-18で追加済みのため変更不要)。`import/page.tsx`の
+    該当4関数のimport元を`@/app/actions`からこの2モジュールに変更した
+    (自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-07時点):** `npm install`・`npx prisma db push`で
+    環境を用意した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も`import/page.tsx`が残り8個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-38以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り8個のアクション(`setCryptoCostMethod`・
+    `deleteAssetBalanceImportBatch`・`importAssetBalanceCsv`・
+    `importBrokerAnnualReportCsv`・`importCryptoExchangeCsv`・
+    `importCryptoMarginCsv`・`importFuturesCsv`・`importMoneyForwardCsv`)を、
+    同じ要領で組ごとに1つずつ切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 

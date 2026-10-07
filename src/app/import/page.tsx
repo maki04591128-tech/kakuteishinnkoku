@@ -2,8 +2,6 @@ import Link from "next/link";
 import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportForm";
 import {
   deleteAssetBalanceImportBatch,
-  deleteHomeReplacementLossCarryforward,
-  deleteHomeSaleLossCarryforward,
   importAssetBalanceCsv,
   importBrokerAnnualReportCsv,
   importCryptoExchangeCsv,
@@ -11,8 +9,6 @@ import {
   importFuturesCsv,
   importMoneyForwardCsv,
   setCryptoCostMethod,
-  setHomeReplacementLossCarryforward,
-  setHomeSaleLossCarryforward,
 } from "@/app/actions";
 import {
   setForeignTaxCreditCarryforward,
@@ -50,6 +46,14 @@ import {
   setCasualtyLossCarryforward,
   deleteCasualtyLossCarryforward,
 } from "@/lib/casualtyLossCarryforwardActions";
+import {
+  setHomeSaleLossCarryforward,
+  deleteHomeSaleLossCarryforward,
+} from "@/lib/homeSaleLossCarryforwardActions";
+import {
+  setHomeReplacementLossCarryforward,
+  deleteHomeReplacementLossCarryforward,
+} from "@/lib/homeReplacementLossCarryforwardActions";
 import { addFuturesTrade, deleteFuturesTrade } from "@/lib/futuresTradeActions";
 import {
   addInvestmentTrade,
