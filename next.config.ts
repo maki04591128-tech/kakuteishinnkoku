@@ -260,6 +260,18 @@ const foreignTaxCreditActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/foreignTaxCreditActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/cryptoCostMethodActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `setCryptoCostMethod`をそのまま再エクスポートする代わりに、本ステップ
+// (5-1-3d-38)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/homeReplacementLossCarryforwardActions`に続く38個目)。
+const cryptoCostMethodActionsStandaloneAliasForTurbopack =
+  "./src/lib/cryptoCostMethodActions.standalone.ts";
+const cryptoCostMethodActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/cryptoCostMethodActions.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/homeSaleLossCarryforwardActions`の実装を、
 // `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
 // `carryForwardHomeSaleLossExcess`をそのまま再エクスポートする代わりに、本ステップ
@@ -976,6 +988,7 @@ const nextConfig: NextConfig = {
             defaultHomeSaleLossCarryforwardRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository":
             defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForTurbopack,
+          "@/lib/cryptoCostMethodActions": cryptoCostMethodActionsStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -1116,6 +1129,7 @@ const nextConfig: NextConfig = {
           defaultHomeSaleLossCarryforwardRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository":
           defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForWebpack,
+        "@/lib/cryptoCostMethodActions": cryptoCostMethodActionsStandaloneAliasForWebpack,
       };
     }
     return config;

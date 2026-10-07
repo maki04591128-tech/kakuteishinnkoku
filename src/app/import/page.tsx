@@ -8,8 +8,8 @@ import {
   importCryptoMarginCsv,
   importFuturesCsv,
   importMoneyForwardCsv,
-  setCryptoCostMethod,
 } from "@/app/actions";
+import { setCryptoCostMethod } from "@/lib/cryptoCostMethodActions";
 import {
   setForeignTaxCreditCarryforward,
   deleteForeignTaxCreditCarryforward,

@@ -49,6 +49,7 @@
       "@/lib/homeReplacementLossCarryforwardActions": [
         "./src/lib/homeReplacementLossCarryforwardActions.standalone.ts"
       ],
+      "@/lib/cryptoCostMethodActions": ["./src/lib/cryptoCostMethodActions.standalone.ts"],
       "@/lib/brokerAnnualReportActions": [
         "./src/lib/brokerAnnualReportActions.standalone.ts"
       ],
