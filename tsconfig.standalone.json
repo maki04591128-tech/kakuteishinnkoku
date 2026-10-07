@@ -53,6 +53,9 @@
         "./src/lib/brokerAnnualReportActions.standalone.ts"
       ],
       "@/lib/marketPriceActions": ["./src/lib/marketPriceActions.standalone.ts"],
+      "@/lib/assetSymbolMappingActions": [
+        "./src/lib/assetSymbolMappingActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
