@@ -24,7 +24,11 @@
 // 存在せず(ページは毎回クライアントDBを読み直す想定)、`redirect`相当の画面遷移は
 // `useRouter`等のフックに依存せずに済むよう、この関数内で`window.location.href`による
 // フルリロード遷移で代替する。
-import { carryForwardNisaLifetimeQuotaCore } from "@/lib/actions/nisaLifetimeQuota";
+import {
+  carryForwardNisaLifetimeQuotaCore,
+  setNisaLifetimeQuotaCore,
+  deleteNisaLifetimeQuotaCore,
+} from "@/lib/actions/nisaLifetimeQuota";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { nisaLifetimeQuotaRepository } from "@/lib/repositories/defaultNisaLifetimeQuotaRepository";
 
@@ -36,6 +40,11 @@ function requireString(formData: FormData, key: string): string {
   return value;
 }
 
+function optionalString(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : undefined;
+}
+
 export async function carryForwardNisaLifetimeQuota(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
 
@@ -43,6 +52,36 @@ export async function carryForwardNisaLifetimeQuota(formData: FormData): Promise
     taxYearRepository,
     nisaLifetimeQuotaRepository,
     { year },
+  );
+
+  window.location.href = redirectTo;
+}
+
+// `setNisaLifetimeQuota`/`deleteNisaLifetimeQuota`はフェーズ5-1-3d-34で追加
+// (`setNisaLifetimeQuotaCore`/`deleteNisaLifetimeQuotaCore`はフェーズ3時点で
+// 既に`src/lib/actions/nisaLifetimeQuota.ts`に抽出済み)。
+export async function setNisaLifetimeQuota(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const nisaType = requireString(formData, "nisaType");
+  const openingUsedJpy = requireString(formData, "openingUsedJpy");
+  const soldCostBasisJpy = optionalString(formData, "soldCostBasisJpy") ?? "0";
+
+  const { redirectTo } = await setNisaLifetimeQuotaCore(
+    taxYearRepository,
+    nisaLifetimeQuotaRepository,
+    { year, nisaType, openingUsedJpy, soldCostBasisJpy },
+  );
+
+  window.location.href = redirectTo;
+}
+
+export async function deleteNisaLifetimeQuota(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+
+  const { redirectTo } = await deleteNisaLifetimeQuotaCore(
+    nisaLifetimeQuotaRepository,
+    { id, year },
   );
 
   window.location.href = redirectTo;
