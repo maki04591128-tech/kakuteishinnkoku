@@ -24,7 +24,11 @@
 // 存在せず(ページは毎回クライアントDBを読み直す想定)、`redirect`相当の画面遷移は
 // `useRouter`等のフックに依存せずに済むよう、この関数内で`window.location.href`による
 // フルリロード遷移で代替する。
-import { carryForwardInvestmentLossCore } from "@/lib/actions/investmentLossCarryforward";
+import {
+  carryForwardInvestmentLossCore,
+  setInvestmentLossCarryforwardCore,
+  deleteInvestmentLossCarryforwardCore,
+} from "@/lib/actions/investmentLossCarryforward";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { investmentLossCarryforwardRepository } from "@/lib/repositories/defaultInvestmentLossCarryforwardRepository";
 
@@ -43,6 +47,35 @@ export async function carryForwardInvestmentLoss(formData: FormData): Promise<vo
     taxYearRepository,
     investmentLossCarryforwardRepository,
     { year },
+  );
+
+  window.location.href = redirectTo;
+}
+
+// `setLossCarryforward`/`deleteLossCarryforward`はフェーズ5-1-3d-33で追加
+// (`setInvestmentLossCarryforwardCore`/`deleteInvestmentLossCarryforwardCore`は
+// フェーズ3時点で既に`src/lib/actions/investmentLossCarryforward.ts`に抽出済み)。
+export async function setLossCarryforward(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const originYear = Number(requireString(formData, "originYear"));
+  const remainingAmountJpy = requireString(formData, "remainingAmountJpy");
+
+  const { redirectTo } = await setInvestmentLossCarryforwardCore(
+    taxYearRepository,
+    investmentLossCarryforwardRepository,
+    { year, originYear, remainingAmountJpy },
+  );
+
+  window.location.href = redirectTo;
+}
+
+export async function deleteLossCarryforward(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+
+  const { redirectTo } = await deleteInvestmentLossCarryforwardCore(
+    investmentLossCarryforwardRepository,
+    { id, year },
   );
 
   window.location.href = redirectTo;
