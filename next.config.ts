@@ -468,6 +468,19 @@ const openingBalanceActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/openingBalanceActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/openingBalanceByInstitutionActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `setOpeningBalanceByInstitution`/`deleteOpeningBalanceByInstitution`を
+// そのまま再エクスポートする代わりに、本ステップ(5-1-3d-36)で抽出済みの
+// コア関数をブラウザ上で直接呼び出す実装に差し替える(フェーズ5-1-3d、
+// `@/lib/openingBalanceActions`に続く34個目)。
+const openingBalanceByInstitutionActionsStandaloneAliasForTurbopack =
+  "./src/lib/openingBalanceByInstitutionActions.standalone.ts";
+const openingBalanceByInstitutionActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/openingBalanceByInstitutionActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -887,6 +900,8 @@ const nextConfig: NextConfig = {
             nisaLifetimeQuotaActionsStandaloneAliasForTurbopack,
           "@/lib/openingBalanceActions":
             openingBalanceActionsStandaloneAliasForTurbopack,
+          "@/lib/openingBalanceByInstitutionActions":
+            openingBalanceByInstitutionActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -1025,6 +1040,8 @@ const nextConfig: NextConfig = {
         "@/lib/nisaLifetimeQuotaActions":
           nisaLifetimeQuotaActionsStandaloneAliasForWebpack,
         "@/lib/openingBalanceActions": openingBalanceActionsStandaloneAliasForWebpack,
+        "@/lib/openingBalanceByInstitutionActions":
+          openingBalanceByInstitutionActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":

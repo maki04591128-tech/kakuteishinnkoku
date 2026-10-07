@@ -5980,6 +5980,68 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     (4ペア)・`setCryptoCostMethod`・`deleteAssetBalanceImportBatch`・
     `importAssetBalanceCsv`等のCSV取込系(6個))を、同じ要領で組ごとに
     1つずつ切り出していく。
+
+  - [x] 5-1-3d-35. `setOpeningBalance`/`deleteOpeningBalance`
+        (期首残高の登録・削除)を切り出す。
+
+    **実装内容(2026-10-07):** 両関数のコア処理(`setOpeningBalanceCore`/
+    `deleteOpeningBalanceCore`)はフェーズ3時点で既に
+    `src/lib/actions/openingBalance.ts`に抽出済みだったため、本ステップでは
+    5-1-3d-32(`carryForwardOpeningBalances`切り出し時)で新設済みの
+    ビルドターゲット切り替えモジュール`@/lib/openingBalanceActions`
+    (既に`carryForwardOpeningBalances`を持つ)に、自宅サーバー版実装
+    (`@/app/actions`からの再エクスポート追加)・スタンドアロン版実装
+    (`setOpeningBalanceCore`/`deleteOpeningBalanceCore`を5-1-3bの
+    `defaultTaxYearRepository`/`defaultOpeningBalanceRepository`経由で
+    DIして直接呼び出し、NISA口座・一般株式等(非上場株式)区分の判定ロジック
+    (`src/app/actions.ts`の対応する関数と同一)を複製した上で、
+    `window.location.href`遷移で代替)の2つを追加しただけで済んだ
+    (`next.config.ts`/`tsconfig.standalone.json`のエイリアス設定は
+    5-1-3d-32で追加済みのため変更不要)。`import/page.tsx`の該当2関数の
+    import元を`@/app/actions`からこのモジュールに変更した(自宅サーバー版の
+    見た目・挙動は変更無し)。
+
+  - [x] 5-1-3d-36. `setOpeningBalanceByInstitution`/
+        `deleteOpeningBalanceByInstitution`(期首残高の金融機関別内訳の
+        登録・削除)を切り出す。
+
+    **実装内容(2026-10-07):** 5-1-3d-35と同じビルドターゲット切り替え
+    パターンを`@/lib/openingBalanceByInstitutionActions`として新設した。
+    自宅サーバー版の既定実装
+    (`src/lib/openingBalanceByInstitutionActions.ts`)は
+    `src/app/actions.ts`の`setOpeningBalanceByInstitution`/
+    `deleteOpeningBalanceByInstitution`をそのまま再エクスポートするだけ
+    (挙動は従来と完全に同一)。スタンドアロン版向け差し替え実装
+    (`src/lib/openingBalanceByInstitutionActions.standalone.ts`)は、
+    フェーズ3で抽出済みの`setOpeningBalanceByInstitutionCore`/
+    `deleteOpeningBalanceByInstitutionCore`
+    (`src/lib/actions/openingBalanceByInstitution.ts`)を、5-1-3bの
+    `defaultTaxYearRepository`/`defaultOpeningBalanceByInstitutionRepository`
+    をDIして直接呼び出す。`next.config.ts`の`turbopack.resolveAlias`/
+    `webpack.resolve.alias`・`tsconfig.standalone.json`の`paths`に
+    `@/lib/openingBalanceActions`と並べて
+    `@/lib/openingBalanceByInstitutionActions`のエントリを追加し、
+    `import/page.tsx`の該当2関数のimport元を`@/app/actions`からこの
+    モジュールに変更した(自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-07時点):** `npm install`・`npx prisma db push`で
+    環境を用意した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も`import/page.tsx`が残り12個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-37以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り12個のアクション(`setHomeSaleLossCarryforward`/
+    `deleteHomeSaleLossCarryforward`・`setHomeReplacementLossCarryforward`/
+    `deleteHomeReplacementLossCarryforward`の各種繰越控除等set/delete
+    (2ペア)・`setCryptoCostMethod`・`deleteAssetBalanceImportBatch`・
+    `importAssetBalanceCsv`等のCSV取込系(6個))を、同じ要領で組ごとに
+    1つずつ切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
