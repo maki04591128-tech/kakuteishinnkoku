@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { setBrokerAnnualReport } from "@/app/actions";
+import { setBrokerAnnualReport } from "@/lib/brokerAnnualReportActions";
 import type { AnnualReportAccountType } from "@/lib/investment/annualReportCsv";
 import { parseAnnualReportText } from "@/lib/investment/annualReportText";
 

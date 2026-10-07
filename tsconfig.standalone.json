@@ -49,6 +49,9 @@
       "@/lib/homeReplacementLossCarryforwardActions": [
         "./src/lib/homeReplacementLossCarryforwardActions.standalone.ts"
       ],
+      "@/lib/brokerAnnualReportActions": [
+        "./src/lib/brokerAnnualReportActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
