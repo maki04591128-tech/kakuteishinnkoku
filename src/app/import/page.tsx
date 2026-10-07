@@ -6,8 +6,6 @@ import {
   carryForwardNisaLifetimeQuota,
   carryForwardOpeningBalances,
   deleteAssetBalanceImportBatch,
-  deleteForeignTaxCreditCarryforward,
-  deleteForeignTaxCreditSpareLimitCarryforward,
   deleteHomeReplacementLossCarryforward,
   deleteHomeSaleLossCarryforward,
   deleteLossCarryforward,
@@ -21,8 +19,6 @@ import {
   importFuturesCsv,
   importMoneyForwardCsv,
   setCryptoCostMethod,
-  setForeignTaxCreditCarryforward,
-  setForeignTaxCreditSpareLimitCarryforward,
   setHomeReplacementLossCarryforward,
   setHomeSaleLossCarryforward,
   setLossCarryforward,
@@ -30,6 +26,14 @@ import {
   setOpeningBalance,
   setOpeningBalanceByInstitution,
 } from "@/app/actions";
+import {
+  setForeignTaxCreditCarryforward,
+  deleteForeignTaxCreditCarryforward,
+} from "@/lib/foreignTaxCreditCarryforwardActions";
+import {
+  setForeignTaxCreditSpareLimitCarryforward,
+  deleteForeignTaxCreditSpareLimitCarryforward,
+} from "@/lib/foreignTaxCreditSpareLimitCarryforwardActions";
 import {
   setFuturesLossCarryforward,
   deleteFuturesLossCarryforward,
