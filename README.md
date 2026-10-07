@@ -5263,17 +5263,55 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     static export`で失敗すること(本対応による新たな破壊ではないこと)を
     確認した。
 
-    **残る5-1-3dの対象(`@/app/actions`を直接importする残り2ファイル):**
-    `import/AnnualReportTextImportForm.tsx`・`import/page.tsx`
-    (`grep -rl 'from "@/app/actions"' src`で確認可能)。
-    `import/AnnualReportTextImportForm.tsx`は`setBrokerAnnualReport`のみを使い、
-    依存先の`BrokerAnnualReportRepository`は既に切り替え機構を適用済みのため、
-    フォーム側の切り出しのみ(ビルドターゲット切り替えアクションモジュールの新設と
-    import書き換え)で対応できる見込み。`import/page.tsx`は多数の未移行アクション・
-    リポジトリ(`CashflowEntryRepository`含む)を直接importしているため、最後に
-    まとめて対応する想定。この2ファイルが完了すれば5-1-3d全体(32ファイル)が
-    完了し、`src/app/actions.ts`自体を`scripts/build-standalone.mjs`の退避対象に
-    追加できるようになる。
+  - [x] 5-1-3d-19. `import/AnnualReportTextImportForm.tsx`が使う
+        `setBrokerAnnualReport`を切り出す。5-1-3d-18の「残る5-1-3dの対象」注記で
+        判明した通り、依存先の`BrokerAnnualReportRepository`は既に5-1-3bの
+        ビルドターゲット切り替え機構を適用済みのため、フォーム側の切り出しのみで
+        対応できた。
+
+    **実装内容(2026-10-07):** 5-1-3d-1〜18と同じビルドターゲット切り替え
+    パターンを`@/lib/brokerAnnualReportActions`として新設した。自宅サーバー版の
+    既定実装(`src/lib/brokerAnnualReportActions.ts`)は`src/app/actions.ts`の
+    `setBrokerAnnualReport`(Server Action)をそのまま再エクスポートするだけ
+    (挙動は従来と完全に同一)。スタンドアロン版向け差し替え実装
+    (`src/lib/brokerAnnualReportActions.standalone.ts`)は`"use server"`を
+    付けない素のクライアント関数とし、フェーズ3で抽出済みの
+    `setBrokerAnnualReportCore`(`src/lib/actions/brokerAnnualReport.ts`)を、
+    5-1-3bのビルドターゲット切り替え機構経由の`defaultTaxYearRepository`/
+    `defaultBrokerAnnualReportRepository`をDIして直接呼び出す(FormDataの
+    解釈ロジックは`src/app/actions.ts`の`setBrokerAnnualReport`と同一のものを
+    複製した。`@/app/actions`自体がスタンドアロン版のビルド対象から外れるため
+    importできないため)。`accountType`の型は、呼び出し元が元々
+    `@prisma/client`に依存しない`AnnualReportAccountType`
+    (`src/lib/investment/annualReportCsv.ts`。`InvestmentAccountType`の
+    `NISA`を除くサブセット)で管理していたため、スタンドアロン版実装でも
+    `@prisma/client`をimportせずそれを使った。`redirect`/`revalidatePath`
+    (Server Action専用API)の代わりに`window.location.href`による
+    フルリロード遷移で置き換えた(5-1-3d-1以降と同じ理由)。`next.config.ts`の
+    `turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に
+    `@/lib/homeReplacementLossCarryforwardActions`と並べて
+    `@/lib/brokerAnnualReportActions`のエントリを追加し、
+    `AnnualReportTextImportForm.tsx`を`@/app/actions`の代わりにこのモジュールから
+    importする形に書き換えた(自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-07時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も5-1-3d未完了(`src/app/actions.ts`
+    自体が未だ退避対象に入っておらず、残り1ファイルも`@/app/actions`を直接
+    importしたまま)のため引き続き`Server Actions are not supported with
+    static export`で失敗すること(本対応による新たな破壊ではないこと)を
+    確認した。
+
+    **残る5-1-3dの対象(`@/app/actions`を直接importする残り1ファイル):**
+    `import/page.tsx`(`grep -rl 'from "@/app/actions"' src`で確認可能)。
+    多数の未移行アクション・リポジトリ(`CashflowEntryRepository`含む)を
+    直接importしているため、最後にまとめて対応する想定。この1ファイルが
+    完了すれば5-1-3d全体(32ファイル)が完了し、`src/app/actions.ts`自体を
+    `scripts/build-standalone.mjs`の退避対象に追加できるようになる。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
