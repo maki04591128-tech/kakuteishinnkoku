@@ -3,7 +3,6 @@ import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportF
 import {
   addCryptoCreditTrade,
   addCryptoMarginTrade,
-  addCryptoTrade,
   addFuturesTrade,
   addInvestmentTrade,
   addStockMarginTrade,
@@ -15,7 +14,6 @@ import {
   deleteCasualtyLossCarryforward,
   deleteCryptoCreditTrade,
   deleteCryptoMarginTrade,
-  deleteCryptoTrade,
   deleteForeignTaxCreditCarryforward,
   deleteForeignTaxCreditSpareLimitCarryforward,
   deleteFuturesLossCarryforward,
@@ -55,6 +53,7 @@ import {
   setBrokerAnnualReport,
   deleteBrokerAnnualReport,
 } from "@/lib/brokerAnnualReportActions";
+import { addCryptoTrade, deleteCryptoTrade } from "@/lib/cryptoTradeActions";
 import { cryptoTradeQuantityDelta } from "@/lib/crypto/calculator";
 import {
   COMMON_EXCHANGE_CSV_HEADER_NAMES,
