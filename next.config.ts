@@ -378,6 +378,18 @@ const investmentTradeActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/investmentTradeActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/stockMarginTradeActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `addStockMarginTrade`/`deleteStockMarginTrade`をそのまま再エクスポートする代わりに、
+// 本ステップ(5-1-3d-28)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に
+// 差し替える(フェーズ5-1-3d、`@/lib/investmentTradeActions`に続く27個目)。
+const stockMarginTradeActionsStandaloneAliasForTurbopack =
+  "./src/lib/stockMarginTradeActions.standalone.ts";
+const stockMarginTradeActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/stockMarginTradeActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -783,6 +795,8 @@ const nextConfig: NextConfig = {
           "@/lib/futuresTradeActions": futuresTradeActionsStandaloneAliasForTurbopack,
           "@/lib/investmentTradeActions":
             investmentTradeActionsStandaloneAliasForTurbopack,
+          "@/lib/stockMarginTradeActions":
+            stockMarginTradeActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -909,6 +923,7 @@ const nextConfig: NextConfig = {
           cryptoMarginTradeActionsStandaloneAliasForWebpack,
         "@/lib/futuresTradeActions": futuresTradeActionsStandaloneAliasForWebpack,
         "@/lib/investmentTradeActions": investmentTradeActionsStandaloneAliasForWebpack,
+        "@/lib/stockMarginTradeActions": stockMarginTradeActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
