@@ -9,7 +9,6 @@ import {
   deleteCasualtyLossCarryforward,
   deleteForeignTaxCreditCarryforward,
   deleteForeignTaxCreditSpareLimitCarryforward,
-  deleteFuturesLossCarryforward,
   deleteHomeReplacementLossCarryforward,
   deleteHomeSaleLossCarryforward,
   deleteLossCarryforward,
@@ -26,7 +25,6 @@ import {
   setCryptoCostMethod,
   setForeignTaxCreditCarryforward,
   setForeignTaxCreditSpareLimitCarryforward,
-  setFuturesLossCarryforward,
   setHomeReplacementLossCarryforward,
   setHomeSaleLossCarryforward,
   setLossCarryforward,
@@ -34,6 +32,10 @@ import {
   setOpeningBalance,
   setOpeningBalanceByInstitution,
 } from "@/app/actions";
+import {
+  setFuturesLossCarryforward,
+  deleteFuturesLossCarryforward,
+} from "@/lib/futuresLossCarryforwardActions";
 import { addFuturesTrade, deleteFuturesTrade } from "@/lib/futuresTradeActions";
 import {
   addInvestmentTrade,
