@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportForm";
 import {
-  addStockMarginTrade,
   carryForwardFuturesLoss,
   carryForwardInvestmentLoss,
   carryForwardNisaLifetimeQuota,
@@ -17,7 +16,6 @@ import {
   deleteNisaLifetimeQuota,
   deleteOpeningBalance,
   deleteOpeningBalanceByInstitution,
-  deleteStockMarginTrade,
   importAssetBalanceCsv,
   importBrokerAnnualReportCsv,
   importCryptoExchangeCsv,
@@ -41,6 +39,10 @@ import {
   addInvestmentTrade,
   deleteInvestmentTrade,
 } from "@/lib/investmentTradeActions";
+import {
+  addStockMarginTrade,
+  deleteStockMarginTrade,
+} from "@/lib/stockMarginTradeActions";
 import { setMarketPrice, deleteMarketPrice } from "@/lib/marketPriceActions";
 import {
   setAssetSymbolMapping,

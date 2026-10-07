@@ -67,6 +67,9 @@
       "@/lib/investmentTradeActions": [
         "./src/lib/investmentTradeActions.standalone.ts"
       ],
+      "@/lib/stockMarginTradeActions": [
+        "./src/lib/stockMarginTradeActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],

@@ -5650,6 +5650,50 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     `carryForwardFuturesLoss`等のcarryForward系・
     `deleteCasualtyLossCarryforward`/`setCasualtyLossCarryforward`等の
     各種繰越控除のset/delete等)を、同じ要領で組ごとに1つずつ切り出していく。
+
+  - [x] 5-1-3d-28. `addStockMarginTrade`/`deleteStockMarginTrade`
+        (`import/page.tsx`自身が使う組)を切り出す。
+
+    **実装内容(2026-10-07):** 5-1-3d-27の`investmentTradeActions`と同じ
+    パターンを`stockMarginTradeActions`として新設した。自宅サーバー版の既定実装
+    (`src/lib/stockMarginTradeActions.ts`)は`src/app/actions.ts`の
+    `addStockMarginTrade`/`deleteStockMarginTrade`(Server Action)をそのまま
+    再エクスポートするだけ(挙動は従来と完全に同一)。スタンドアロン版向け
+    差し替え実装(`src/lib/stockMarginTradeActions.standalone.ts`)は
+    `"use server"`を付けない素のクライアント関数とし、フェーズ3で抽出済みの
+    `addStockMarginTradeCore`/`deleteStockMarginTradeCore`
+    (`src/lib/actions/stockMarginTrade.ts`)を、5-1-3bのビルドターゲット
+    切り替え機構経由の`defaultTaxYearRepository`/
+    `defaultStockMarginTradeRepository`(いずれも既存。追加のリポジトリ実装は
+    不要だった)をDIして直接呼び出す(FormDataの解釈ロジック(symbolの大文字化・
+    feeJpy/interestAdjustmentJpy省略時の"0"補完)は`src/app/actions.ts`の
+    対応する関数と同一のものを複製した)。`revalidatePath`/`redirect`の代わりに
+    `window.location.href = redirectTo`によるフルリロード遷移で置き換えた。
+    `next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に`@/lib/investmentTradeActions`と
+    並べて`@/lib/stockMarginTradeActions`のエントリを追加し、
+    `import/page.tsx`の`addStockMarginTrade`/`deleteStockMarginTrade`の
+    import元を`@/app/actions`から`@/lib/stockMarginTradeActions`に変更した
+    (自宅サーバー版の見た目・挙動は変更無し)。`addStockMarginTrade`/
+    `deleteStockMarginTrade`は`import/page.tsx`自身以外から使われていないため、
+    1ファイルのみの書き換えで完了した。
+
+    **動作確認(2026-10-07時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も`import/page.tsx`が残り29個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-29以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り29個のアクション(`carryForwardFuturesLoss`等の
+    carryForward系・`deleteCasualtyLossCarryforward`/
+    `setCasualtyLossCarryforward`等の各種繰越控除のset/delete等)を、
+    同じ要領で組ごとに1つずつ切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
