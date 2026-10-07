@@ -60,6 +60,9 @@
       "@/lib/cryptoCreditTradeActions": [
         "./src/lib/cryptoCreditTradeActions.standalone.ts"
       ],
+      "@/lib/cryptoMarginTradeActions": [
+        "./src/lib/cryptoMarginTradeActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
