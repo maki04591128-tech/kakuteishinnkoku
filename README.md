@@ -5739,6 +5739,51 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     carryForward系・`deleteCasualtyLossCarryforward`/
     `setCasualtyLossCarryforward`等の各種繰越控除のset/delete等)を、
     同じ要領で組ごとに1つずつ切り出していく。
+
+  - [x] 5-1-3d-30. `setCasualtyLossCarryforward`/`deleteCasualtyLossCarryforward`
+        (`import/page.tsx`自身が使う組)を切り出す。5-1-3d-14で既に
+        `carryForwardCasualtyLossExcess`用に`@/lib/casualtyLossCarryforwardActions`
+        (ビルドターゲット切り替えのalias自体は`next.config.ts`/
+        `tsconfig.standalone.json`に設定済み)を新設済みのため、本ステップは
+        新規モジュールを作らず、同モジュールに関数を追加する形とした
+        (依存リポジトリ・切り替え機構が共通のため)。
+
+    **実装内容(2026-10-07):** `src/lib/casualtyLossCarryforwardActions.ts`
+    (自宅サーバー版の既定実装)に`setCasualtyLossCarryforward`/
+    `deleteCasualtyLossCarryforward`の再エクスポートを追加(挙動は従来と完全に
+    同一)。`src/lib/casualtyLossCarryforwardActions.standalone.ts`
+    (スタンドアロン版向け差し替え実装)に、フェーズ3で抽出済みの
+    `setCasualtyLossCarryforwardCore`/`deleteCasualtyLossCarryforwardCore`
+    (`src/lib/actions/casualtyLossCarryforward.ts`)を、5-1-3d-14と同じ
+    `defaultTaxYearRepository`/`defaultCasualtyLossCarryforwardRepository`を
+    DIして直接呼び出す実装を追加した(`revalidatePath`/`redirect`の代わりに
+    `window.location.href = redirectTo`によるフルリロード遷移、5-1-3d-1以降と
+    同じ理由)。`next.config.ts`/`tsconfig.standalone.json`の
+    `@/lib/casualtyLossCarryforwardActions`のaliasは5-1-3d-14で設定済みの
+    ため変更不要(コメントのみ本ステップの追加関数を反映して更新)。
+    `import/page.tsx`の`setCasualtyLossCarryforward`/
+    `deleteCasualtyLossCarryforward`のimport元を`@/app/actions`から
+    `@/lib/casualtyLossCarryforwardActions`に変更した(自宅サーバー版の見た目・
+    挙動は変更無し)。`setCasualtyLossCarryforward`/
+    `deleteCasualtyLossCarryforward`は`import/page.tsx`自身以外から使われて
+    いないため、1ファイルのみの書き換えで完了した。
+
+    **動作確認(2026-10-07時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も`import/page.tsx`が残り26個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-31以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り26個のアクション(`carryForwardFuturesLoss`等の
+    carryForward系・`deleteForeignTaxCreditCarryforward`/
+    `setForeignTaxCreditCarryforward`等の各種繰越控除のset/delete等)を、
+    同じ要領で組ごとに1つずつ切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
