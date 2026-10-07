@@ -5312,6 +5312,52 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     直接importしているため、最後にまとめて対応する想定。この1ファイルが
     完了すれば5-1-3d全体(32ファイル)が完了し、`src/app/actions.ts`自体を
     `scripts/build-standalone.mjs`の退避対象に追加できるようになる。
+
+  - [x] 5-1-3d-20. `import/page.tsx`が使う42個のアクションのうち、
+        `setMarketPrice`/`deleteMarketPrice`(現在価格(時価)の登録・削除)を
+        切り出す。5-1-3d-19時点の注記の通り`import/page.tsx`は1ファイルで
+        多数のアクション・リポジトリを使うため、5-1-3d-1〜19と同様
+        「組ごとに1つずつ」切り出していく方針とし、本ステップではそのうち
+        最も依存が単純な1組(依存リポジトリが`MarketPriceRepository`のみで、
+        フェーズ3で抽出済みのコア関数`setMarketPriceCore`/
+        `deleteMarketPriceCore`が既にある)を選んだ。
+
+    **実装内容(2026-10-07):** 5-1-3d-1〜19と同じビルドターゲット切り替え
+    パターンを`@/lib/marketPriceActions`として新設した。自宅サーバー版の
+    既定実装(`src/lib/marketPriceActions.ts`)は`src/app/actions.ts`の
+    `setMarketPrice`/`deleteMarketPrice`(Server Action)をそのまま
+    再エクスポートするだけ(挙動は従来と完全に同一)。スタンドアロン版向け
+    差し替え実装(`src/lib/marketPriceActions.standalone.ts`)は
+    `"use server"`を付けない素のクライアント関数とし、`setMarketPriceCore`/
+    `deleteMarketPriceCore`(`src/lib/actions/marketPrice.ts`)を、5-1-3bの
+    ビルドターゲット切り替え機構経由の`defaultMarketPriceRepository`をDIして
+    直接呼び出す。`redirect`/`revalidatePath`の代わりに`window.location.href`
+    によるフルリロード遷移で置き換えた(5-1-3d-1以降と同じ理由)。
+    `next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に`@/lib/brokerAnnualReportActions`と
+    並べて`@/lib/marketPriceActions`のエントリを追加し、`import/page.tsx`の
+    `setMarketPrice`/`deleteMarketPrice`の2つだけをこのモジュールから
+    importする形に書き換えた(残り40個のアクションは引き続き
+    `@/app/actions`から直接importしたまま。自宅サーバー版の見た目・挙動は
+    変更無し)。
+
+    **動作確認(2026-10-07時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も`import/page.tsx`が残り40個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-20以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り40個のアクション(`setAssetSymbolMapping`/
+    `deleteAssetSymbolMapping`・暗号資産/株式等の各取引のadd/delete・
+    各種繰越控除のset/delete等)を、同じ要領で組ごとに1つずつ切り出していく。
+    全て切り出せたら`import/page.tsx`が`@/app/actions`から何もimportしなくなり、
+    5-1-3d全体(32ファイル)が完了する。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 

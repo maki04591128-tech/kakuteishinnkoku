@@ -26,7 +26,6 @@ import {
   deleteHomeSaleLossCarryforward,
   deleteInvestmentTrade,
   deleteLossCarryforward,
-  deleteMarketPrice,
   deleteNisaLifetimeQuota,
   deleteOpeningBalance,
   deleteOpeningBalanceByInstitution,
@@ -47,11 +46,11 @@ import {
   setHomeReplacementLossCarryforward,
   setHomeSaleLossCarryforward,
   setLossCarryforward,
-  setMarketPrice,
   setNisaLifetimeQuota,
   setOpeningBalance,
   setOpeningBalanceByInstitution,
 } from "@/app/actions";
+import { setMarketPrice, deleteMarketPrice } from "@/lib/marketPriceActions";
 import { cryptoTradeQuantityDelta } from "@/lib/crypto/calculator";
 import {
   COMMON_EXCHANGE_CSV_HEADER_NAMES,
