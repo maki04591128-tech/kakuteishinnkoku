@@ -221,8 +221,10 @@ const certifiedHousingConstructionCreditActionsStandaloneAliasForWebpack = path.
 
 // スタンドアロン版では`@/lib/casualtyLossCarryforwardActions`の実装を、
 // `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
-// `carryForwardCasualtyLossExcess`をそのまま再エクスポートする代わりに、本ステップ
-// (5-1-3d-14)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// `carryForwardCasualtyLossExcess`(5-1-3d-14)・`setCasualtyLossCarryforward`/
+// `deleteCasualtyLossCarryforward`(5-1-3d-30、`import/page.tsx`が使う組)を
+// そのまま再エクスポートする代わりに、抽出済みのコア関数をブラウザ上で直接呼び出す
+// 実装に差し替える
 // (フェーズ5-1-3d、`@/lib/certifiedHousingConstructionCreditActions`に続く14個目)。
 const casualtyLossCarryforwardActionsStandaloneAliasForTurbopack =
   "./src/lib/casualtyLossCarryforwardActions.standalone.ts";
