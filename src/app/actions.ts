@@ -23,8 +23,8 @@ import { marketPriceRepository } from "@/lib/repositories/defaultMarketPriceRepo
 import { foreignTaxCreditCarryforwardRepository } from "@/lib/repositories/defaultForeignTaxCreditCarryforwardRepository";
 import { foreignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository";
 import { casualtyLossCarryforwardRepository } from "@/lib/repositories/defaultCasualtyLossCarryforwardRepository";
-import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
-import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
+import { homeSaleLossCarryforwardRepository } from "@/lib/repositories/defaultHomeSaleLossCarryforwardRepository";
+import { homeReplacementLossCarryforwardRepository } from "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository";
 import { angelTaxLossCarryforwardRepository } from "@/lib/repositories/defaultAngelTaxLossCarryforwardRepository";
 import { foreignTaxCreditRecordRepository } from "@/lib/repositories/defaultForeignTaxCreditRecordRepository";
 import { donationTaxCreditRecordRepository } from "@/lib/repositories/defaultDonationTaxCreditRecordRepository";
@@ -91,10 +91,12 @@ import {
 import {
   setHomeSaleLossCarryforwardCore,
   deleteHomeSaleLossCarryforwardCore,
+  carryForwardHomeSaleLossExcessCore,
 } from "@/lib/actions/homeSaleLossCarryforward";
 import {
   setHomeReplacementLossCarryforwardCore,
   deleteHomeReplacementLossCarryforwardCore,
+  carryForwardHomeReplacementLossExcessCore,
 } from "@/lib/actions/homeReplacementLossCarryforward";
 import {
   setForeignTaxCreditCarryforwardCore,
@@ -227,9 +229,6 @@ function isKnownExchangeCsvPreset(
   return preset in EXCHANGE_LABELS;
 }
 
-const homeSaleLossCarryforwardRepository = createPrismaHomeSaleLossCarryforwardRepository();
-const homeReplacementLossCarryforwardRepository =
-  createPrismaHomeReplacementLossCarryforwardRepository();
 const cashflowEntryRepository = createPrismaCashflowEntryRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
@@ -2061,21 +2060,14 @@ export async function carryForwardHomeSaleLossExcess(formData: FormData): Promis
   const entriesJson = requireString(formData, "carryforwardToNextYearJson");
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
-  const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing = await homeSaleLossCarryforwardRepository.findByTaxYearId(nextTaxYear.id);
-  const existingYears = new Set(existing.map((e) => e.originYear));
-  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
-
-  await homeSaleLossCarryforwardRepository.createMany(
-    toCreate.map((e) => ({
-      taxYearId: nextTaxYear.id,
-      originYear: e.originYear,
-      remainingAmountJpy: e.remainingAmountJpy,
-    })),
+  const { redirectTo } = await carryForwardHomeSaleLossExcessCore(
+    taxYearRepository,
+    homeSaleLossCarryforwardRepository,
+    { year, entries },
   );
 
   revalidatePath("/import");
-  redirect(`/home-sale-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
+  redirect(redirectTo);
 }
 
 export async function setHomeReplacementLossCarryforward(formData: FormData): Promise<void> {
@@ -2123,22 +2115,14 @@ export async function carryForwardHomeReplacementLossExcess(formData: FormData):
   const entriesJson = requireString(formData, "carryforwardToNextYearJson");
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
-  const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing =
-    await homeReplacementLossCarryforwardRepository.findByTaxYearId(nextTaxYear.id);
-  const existingYears = new Set(existing.map((e) => e.originYear));
-  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
-
-  await homeReplacementLossCarryforwardRepository.createMany(
-    toCreate.map((e) => ({
-      taxYearId: nextTaxYear.id,
-      originYear: e.originYear,
-      remainingAmountJpy: e.remainingAmountJpy,
-    })),
+  const { redirectTo } = await carryForwardHomeReplacementLossExcessCore(
+    taxYearRepository,
+    homeReplacementLossCarryforwardRepository,
+    { year, entries },
   );
 
   revalidatePath("/import");
-  redirect(`/home-replacement-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
+  redirect(redirectTo);
 }
 
 /**

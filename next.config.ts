@@ -258,6 +258,30 @@ const foreignTaxCreditActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/foreignTaxCreditActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/homeSaleLossCarryforwardActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `carryForwardHomeSaleLossExcess`をそのまま再エクスポートする代わりに、本ステップ
+// (5-1-3d-17)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/foreignTaxCreditActions`に続く17個目)。
+const homeSaleLossCarryforwardActionsStandaloneAliasForTurbopack =
+  "./src/lib/homeSaleLossCarryforwardActions.standalone.ts";
+const homeSaleLossCarryforwardActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/homeSaleLossCarryforwardActions.standalone.ts",
+);
+
+// スタンドアロン版では`@/lib/homeReplacementLossCarryforwardActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `carryForwardHomeReplacementLossExcess`をそのまま再エクスポートする代わりに、
+// 本ステップ(5-1-3d-18)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に
+// 差し替える(フェーズ5-1-3d、`@/lib/homeSaleLossCarryforwardActions`に続く18個目)。
+const homeReplacementLossCarryforwardActionsStandaloneAliasForTurbopack =
+  "./src/lib/homeReplacementLossCarryforwardActions.standalone.ts";
+const homeReplacementLossCarryforwardActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/homeReplacementLossCarryforwardActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -586,6 +610,26 @@ const defaultForeignTaxCreditSpareLimitCarryforwardRepositoryStandaloneAliasForW
     "src/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone.ts",
   );
 
+// `HomeSaleLossCarryforwardRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3d-17。5-1-3bで洗い出した「`actions.ts`のみが消費する残り7個の
+// リポジトリ」の5つ目)。
+const defaultHomeSaleLossCarryforwardRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultHomeSaleLossCarryforwardRepository.standalone.ts";
+const defaultHomeSaleLossCarryforwardRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultHomeSaleLossCarryforwardRepository.standalone.ts",
+);
+
+// `HomeReplacementLossCarryforwardRepository`にも同じ切り替えパターンを適用する
+// (フェーズ5-1-3d-18。5-1-3bで洗い出した「`actions.ts`のみが消費する残り7個の
+// リポジトリ」の6つ目)。
+const defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultHomeReplacementLossCarryforwardRepository.standalone.ts";
+const defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultHomeReplacementLossCarryforwardRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -626,6 +670,10 @@ const nextConfig: NextConfig = {
           "@/lib/angelTaxLossCarryforwardActions":
             angelTaxLossCarryforwardActionsStandaloneAliasForTurbopack,
           "@/lib/foreignTaxCreditActions": foreignTaxCreditActionsStandaloneAliasForTurbopack,
+          "@/lib/homeSaleLossCarryforwardActions":
+            homeSaleLossCarryforwardActionsStandaloneAliasForTurbopack,
+          "@/lib/homeReplacementLossCarryforwardActions":
+            homeReplacementLossCarryforwardActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -696,6 +744,10 @@ const nextConfig: NextConfig = {
             defaultForeignTaxCreditCarryforwardRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository":
             defaultForeignTaxCreditSpareLimitCarryforwardRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultHomeSaleLossCarryforwardRepository":
+            defaultHomeSaleLossCarryforwardRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository":
+            defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -732,6 +784,10 @@ const nextConfig: NextConfig = {
         "@/lib/angelTaxLossCarryforwardActions":
           angelTaxLossCarryforwardActionsStandaloneAliasForWebpack,
         "@/lib/foreignTaxCreditActions": foreignTaxCreditActionsStandaloneAliasForWebpack,
+        "@/lib/homeSaleLossCarryforwardActions":
+          homeSaleLossCarryforwardActionsStandaloneAliasForWebpack,
+        "@/lib/homeReplacementLossCarryforwardActions":
+          homeReplacementLossCarryforwardActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -802,6 +858,10 @@ const nextConfig: NextConfig = {
           defaultForeignTaxCreditCarryforwardRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository":
           defaultForeignTaxCreditSpareLimitCarryforwardRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultHomeSaleLossCarryforwardRepository":
+          defaultHomeSaleLossCarryforwardRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository":
+          defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForWebpack,
       };
     }
     return config;

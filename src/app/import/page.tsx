@@ -76,8 +76,8 @@ import { foreignTaxCreditCarryforwardRepository } from "@/lib/repositories/defau
 import { foreignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository";
 import { futuresLossCarryforwardRepository } from "@/lib/repositories/defaultFuturesLossCarryforwardRepository";
 import { futuresTradeRepository } from "@/lib/repositories/defaultFuturesTradeRepository";
-import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
-import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
+import { homeReplacementLossCarryforwardRepository } from "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository";
+import { homeSaleLossCarryforwardRepository } from "@/lib/repositories/defaultHomeSaleLossCarryforwardRepository";
 import { investmentLossCarryforwardRepository } from "@/lib/repositories/defaultInvestmentLossCarryforwardRepository";
 import { investmentTradeRepository } from "@/lib/repositories/defaultInvestmentTradeRepository";
 import { marketPriceRepository } from "@/lib/repositories/defaultMarketPriceRepository";
@@ -87,11 +87,6 @@ import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalan
 import { stockMarginTradeRepository } from "@/lib/repositories/defaultStockMarginTradeRepository";
 import { buildYearReport } from "@/lib/reporting";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
-
-const homeSaleLossCarryforwardRepository =
-  createPrismaHomeSaleLossCarryforwardRepository();
-const homeReplacementLossCarryforwardRepository =
-  createPrismaHomeReplacementLossCarryforwardRepository();
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",

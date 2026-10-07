@@ -58,3 +58,44 @@ export async function deleteHomeSaleLossCarryforwardCore(
 
   return { redirectTo: `/import?year=${year}&tab=homeSaleLossCarryforward` };
 }
+
+export interface CarryForwardHomeSaleLossExcessInput {
+  year: number;
+  entries: { originYear: number; remainingAmountJpy: string }[];
+}
+
+export interface CarryForwardHomeSaleLossExcessResult {
+  /** 処理後に遷移すべきパス。 */
+  redirectTo: string;
+}
+
+/**
+ * フェーズ5-1-3d-17: `src/app/actions.ts`の`carryForwardHomeSaleLossExcess`から
+ * コア部分を切り出した(`carryForwardCasualtyLossExcessCore`等と同じ理由)。
+ * 特定居住用財産の譲渡損失の損益通算及び繰越控除の試算画面
+ * (/home-sale-loss-deduction)の当年分の計算結果のうち、翌年以後に繰り越す
+ * 譲渡損失額(発生年ごと)を、翌年分のHomeSaleLossCarryforwardとしてまとめて
+ * 登録する(既に翌年分に同じ発生年の登録がある場合は上書きしない)。
+ */
+export async function carryForwardHomeSaleLossExcessCore(
+  taxYearRepository: TaxYearRepository,
+  homeSaleLossCarryforwardRepository: HomeSaleLossCarryforwardRepository,
+  input: CarryForwardHomeSaleLossExcessInput,
+): Promise<CarryForwardHomeSaleLossExcessResult> {
+  const { year, entries } = input;
+
+  const nextTaxYear = await taxYearRepository.getOrCreateTaxYear(year + 1);
+  const existing = await homeSaleLossCarryforwardRepository.findByTaxYearId(nextTaxYear.id);
+  const existingYears = new Set(existing.map((e) => e.originYear));
+  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
+
+  await homeSaleLossCarryforwardRepository.createMany(
+    toCreate.map((e) => ({
+      taxYearId: nextTaxYear.id,
+      originYear: e.originYear,
+      remainingAmountJpy: e.remainingAmountJpy,
+    })),
+  );
+
+  return { redirectTo: `/home-sale-loss-deduction?year=${year}&lossCarried=${toCreate.length}` };
+}
