@@ -88,6 +88,9 @@
       "@/lib/openingBalanceActions": [
         "./src/lib/openingBalanceActions.standalone.ts"
       ],
+      "@/lib/openingBalanceByInstitutionActions": [
+        "./src/lib/openingBalanceByInstitutionActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],

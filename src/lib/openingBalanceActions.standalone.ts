@@ -2,8 +2,9 @@
 // (next.config.tsのresolveAlias経由。フェーズ5-1-3d-32。
 // `@/lib/futuresLossCarryforwardActions.standalone.ts`と同種のパターン)。
 //
-// 自宅サーバー版は`src/app/actions.ts`の`carryForwardOpeningBalances`
-// (Server Action)をそのまま再エクスポートするが、`src/app/actions.ts`は
+// 自宅サーバー版は`src/app/actions.ts`の`carryForwardOpeningBalances`/
+// `setOpeningBalance`/`deleteOpeningBalance`(Server Action)をそのまま
+// 再エクスポートするが、`src/app/actions.ts`は
 // `"use server"`ディレクティブを持ち`output: "export"`の静的ビルドでは使えない
 // (5-1-3a参照)。そのため呼び出し元の`import/page.tsx`から見た関数シグネチャ
 // (`(formData: FormData) => Promise<void>`、`<form action={...}>`にそのまま
@@ -24,7 +25,12 @@
 // 存在せず(ページは毎回クライアントDBを読み直す想定)、`redirect`相当の画面遷移は
 // `useRouter`等のフックに依存せずに済むよう、この関数内で`window.location.href`による
 // フルリロード遷移で代替する。
-import { carryForwardOpeningBalancesCore } from "@/lib/actions/openingBalance";
+import type { OpeningBalanceAssetClass } from "@prisma/client";
+import {
+  carryForwardOpeningBalancesCore,
+  setOpeningBalanceCore,
+  deleteOpeningBalanceCore,
+} from "@/lib/actions/openingBalance";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { openingBalanceRepository } from "@/lib/repositories/defaultOpeningBalanceRepository";
 
@@ -44,6 +50,40 @@ export async function carryForwardOpeningBalances(formData: FormData): Promise<v
     openingBalanceRepository,
     { year },
   );
+
+  window.location.href = redirectTo;
+}
+
+// `setOpeningBalance`/`deleteOpeningBalance`はフェーズ5-1-3d-35で追加
+// (`setOpeningBalanceCore`/`deleteOpeningBalanceCore`はフェーズ3時点で既に
+// `src/lib/actions/openingBalance.ts`に抽出済み。NISA口座・一般株式等
+// (非上場株式)区分の判定ロジックは`src/app/actions.ts`の対応する関数と同一)。
+export async function setOpeningBalance(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+  const assetClass = requireString(formData, "assetClass") as OpeningBalanceAssetClass;
+  const symbol = requireString(formData, "symbol").toUpperCase();
+  const isNisa = assetClass === "INVESTMENT" && formData.get("isNisa") === "on";
+  const isListed = assetClass !== "INVESTMENT" || formData.get("isListed") === "on";
+  const quantity = requireString(formData, "quantity");
+  const costBasisJpy = requireString(formData, "costBasisJpy");
+
+  const { redirectTo } = await setOpeningBalanceCore(
+    taxYearRepository,
+    openingBalanceRepository,
+    { year, assetClass, symbol, isNisa, isListed, quantity, costBasisJpy },
+  );
+
+  window.location.href = redirectTo;
+}
+
+export async function deleteOpeningBalance(formData: FormData): Promise<void> {
+  const id = Number(requireString(formData, "id"));
+  const year = Number(requireString(formData, "year"));
+
+  const { redirectTo } = await deleteOpeningBalanceCore(openingBalanceRepository, {
+    id,
+    year,
+  });
 
   window.location.href = redirectTo;
 }

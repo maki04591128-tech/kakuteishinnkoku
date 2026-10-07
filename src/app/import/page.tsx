@@ -4,8 +4,6 @@ import {
   deleteAssetBalanceImportBatch,
   deleteHomeReplacementLossCarryforward,
   deleteHomeSaleLossCarryforward,
-  deleteOpeningBalance,
-  deleteOpeningBalanceByInstitution,
   importAssetBalanceCsv,
   importBrokerAnnualReportCsv,
   importCryptoExchangeCsv,
@@ -15,8 +13,6 @@ import {
   setCryptoCostMethod,
   setHomeReplacementLossCarryforward,
   setHomeSaleLossCarryforward,
-  setOpeningBalance,
-  setOpeningBalanceByInstitution,
 } from "@/app/actions";
 import {
   setForeignTaxCreditCarryforward,
@@ -41,7 +37,15 @@ import {
   setNisaLifetimeQuota,
   deleteNisaLifetimeQuota,
 } from "@/lib/nisaLifetimeQuotaActions";
-import { carryForwardOpeningBalances } from "@/lib/openingBalanceActions";
+import {
+  carryForwardOpeningBalances,
+  setOpeningBalance,
+  deleteOpeningBalance,
+} from "@/lib/openingBalanceActions";
+import {
+  setOpeningBalanceByInstitution,
+  deleteOpeningBalanceByInstitution,
+} from "@/lib/openingBalanceByInstitutionActions";
 import {
   setCasualtyLossCarryforward,
   deleteCasualtyLossCarryforward,

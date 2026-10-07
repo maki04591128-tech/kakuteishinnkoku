@@ -4,10 +4,13 @@
 // `src/app/actions.ts`全体)はビルド対象に含まれない(フェーズ5-1-3d-32。
 // `@/lib/futuresLossCarryforwardActions`と同種のパターン)。
 //
-// `carryForwardOpeningBalances`は`import/page.tsx`からのみ呼ばれるServer Actionで、
-// 呼び出し元は`@/app/actions`から直接importする代わりにこのモジュールを経由することで、
-// スタンドアロン版ビルドでは`src/app/actions.ts`(`"use server"`、`output: "export"`
-// 非対応)をimportグラフから切り離せる。(`setOpeningBalance`/`deleteOpeningBalance`は
-// 本ステップの対象外で、残り24個の対象として未移行のまま`@/app/actions`からの
-// 直接importで残っている)
-export { carryForwardOpeningBalances } from "@/app/actions";
+// `carryForwardOpeningBalances`/`setOpeningBalance`/`deleteOpeningBalance`は
+// `import/page.tsx`からのみ呼ばれるServer Actionで、呼び出し元は`@/app/actions`から
+// 直接importする代わりにこのモジュールを経由することで、スタンドアロン版ビルドでは
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)をimportグラフ
+// から切り離せる。(`setOpeningBalance`/`deleteOpeningBalance`はフェーズ5-1-3d-35で追加)
+export {
+  carryForwardOpeningBalances,
+  setOpeningBalance,
+  deleteOpeningBalance,
+} from "@/app/actions";
