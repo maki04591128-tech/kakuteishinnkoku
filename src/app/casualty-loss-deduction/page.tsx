@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
 import { findIncomeDeductionEntry, getIncomeDeductionEntries } from "@/lib/incomeDeduction";
-import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositories/casualtyLossCarryforwardRepository";
+import { casualtyLossCarryforwardRepository } from "@/lib/repositories/defaultCasualtyLossCarryforwardRepository";
 import { CasualtyLossDeductionForm } from "./CasualtyLossDeductionForm";
-
-const casualtyLossCarryforwardRepository = createPrismaCasualtyLossCarryforwardRepository();
 
 export default async function CasualtyLossDeductionPage({
   searchParams,

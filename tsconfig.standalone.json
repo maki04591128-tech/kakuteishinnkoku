@@ -36,6 +36,9 @@
       "@/lib/certifiedHousingConstructionCreditActions": [
         "./src/lib/certifiedHousingConstructionCreditActions.standalone.ts"
       ],
+      "@/lib/casualtyLossCarryforwardActions": [
+        "./src/lib/casualtyLossCarryforwardActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
@@ -128,6 +131,9 @@
       ],
       "@/lib/repositories/defaultMarketPriceRepository": [
         "./src/lib/repositories/defaultMarketPriceRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultCasualtyLossCarryforwardRepository": [
+        "./src/lib/repositories/defaultCasualtyLossCarryforwardRepository.standalone.ts"
       ]
     }
   }

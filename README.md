@@ -4906,6 +4906,83 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     していない。他の残り7ファイルのうち`angel-tax-loss-carryforward/page.tsx`・
     `import/page.tsx`もServer Componentのまま`<form action={...}>`を直接
     レンダーしており同様の対応が必要になる見込み)。
+
+  - [x] 5-1-3d-14. `casualty-loss-deduction/CasualtyLossDeductionForm.tsx`が
+        使う`carryForwardCasualtyLossExcess`を切り出す。5-1-3d-11の
+        「残り」注記で判明した通り、依存先の`CasualtyLossCarryforwardRepository`が
+        5-1-3bのビルドターゲット切り替え機構(`defaultXxxRepository`)未適用だった
+        ため、まずこちらを先に追加する。
+
+    **実装内容(2026-10-07):** まず5-1-3bと同じパターンで
+    `CasualtyLossCarryforwardRepository`にビルドターゲット切り替え機構を追加した。
+    `casualtyLossCarryforwardRepository.ts`(`@prisma/client`・`../db`に依存する
+    `createPrismaCasualtyLossCarryforwardRepository`を含んでいた)から、Prisma実装を
+    `casualtyLossCarryforwardRepository.prisma.ts`に分離し(`marketPriceRepository.ts`/
+    `marketPriceRepository.prisma.ts`と同種のパターン)、`defaultCasualtyLossCarryforwardRepository.ts`
+    (自宅サーバー版の既定実装)と`defaultCasualtyLossCarryforwardRepository.standalone.ts`
+    (未結線プレースホルダー)を追加し、`next.config.ts`/`tsconfig.standalone.json`に
+    エントリを追加した。このモデルも`remainingAmountJpy`(Decimal型)の復元処理が
+    `new Prisma.Decimal(...)`を使っていたため、`decimalCodec.ts`の`decodeDecimal`に
+    置き換えた(既存テストの`instanceof`検証も`Prisma.Decimal`から`decimal.js`の
+    `Decimal`に変更)。`src/app/actions.ts`・`src/app/casualty-loss-deduction/page.tsx`・
+    `src/app/import/page.tsx`の3箇所で`createPrismaCasualtyLossCarryforwardRepository()`
+    を直接呼んでいた箇所を、いずれも`@/lib/repositories/defaultCasualtyLossCarryforwardRepository`
+    経由の`casualtyLossCarryforwardRepository`参照に統一した。
+
+    その上で、`src/app/actions.ts`の`carryForwardCasualtyLossExcess`から
+    Next.js固有のAPI(`revalidatePath`/`redirect`)に依存しない部分を
+    `carryForwardCasualtyLossExcessCore`(`src/lib/actions/casualtyLossCarryforward.ts`。
+    既存の`setCasualtyLossCarryforwardCore`/`deleteCasualtyLossCarryforwardCore`と
+    同じファイル)としてコア関数化し、`src/app/actions.ts`側はこれに処理を委譲する
+    薄いラッパーに変更した(挙動は変更していない)。5-1-3d-1〜13と同じビルド
+    ターゲット切り替えパターンを`@/lib/casualtyLossCarryforwardActions`として新設し、
+    自宅サーバー版の既定実装(`src/lib/casualtyLossCarryforwardActions.ts`)は
+    `src/app/actions.ts`の`carryForwardCasualtyLossExcess`をそのまま再エクスポートする
+    だけ、スタンドアロン版向け差し替え実装
+    (`src/lib/casualtyLossCarryforwardActions.standalone.ts`)は上記のコア関数を、
+    5-1-3bのビルドターゲット切り替え機構経由の`defaultTaxYearRepository`/
+    `defaultCasualtyLossCarryforwardRepository`をDIして直接呼び出す(`redirect`の
+    代わりに`window.location.href`によるフルリロード遷移を使う点も従来と同じ)。
+    `next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に`@/lib/certifiedHousingConstructionCreditActions`
+    と並べて`@/lib/casualtyLossCarryforwardActions`のエントリを追加し、
+    `CasualtyLossDeductionForm.tsx`を`@/app/actions`の代わりにこのモジュールから
+    importする形に書き換えた(自宅サーバー版の見た目・挙動は変更無し。これで
+    `CasualtyLossDeductionForm.tsx`は`@/app/actions`を直接importしなくなった)。
+
+    **動作確認(2026-10-07時点):** `DATABASE_URL`を設定し`npx prisma db push`で
+    DBを作成した上で、`npm run test`(全191ファイル1677件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も5-1-3d未完了(`src/app/actions.ts`
+    自体が未だ退避対象に入っておらず、残り6ファイルも`@/app/actions`を直接
+    importしたまま)のため引き続き`Server Actions are not supported with
+    static export`で失敗すること(本対応による新たな破壊ではないこと)を
+    確認した。
+
+    **残る5-1-3dの対象(`@/app/actions`を直接importする残り6ファイル、
+    更新):** `angel-tax-loss-carryforward/page.tsx`・
+    `foreign-tax-credit/ForeignTaxCreditForm.tsx`・
+    `home-replacement-loss-deduction/HomeReplacementLossDeductionForm.tsx`・
+    `home-sale-loss-deduction/HomeSaleLossDeductionForm.tsx`・
+    `import/AnnualReportTextImportForm.tsx`・`import/page.tsx`
+    (`grep -rl 'from "@/app/actions"' src`で確認可能)。このうち
+    `angel-tax-loss-carryforward/page.tsx`・`foreign-tax-credit/ForeignTaxCreditForm.tsx`・
+    `home-replacement-loss-deduction/HomeReplacementLossDeductionForm.tsx`・
+    `home-sale-loss-deduction/HomeSaleLossDeductionForm.tsx`・
+    `import/AnnualReportTextImportForm.tsx`は、5-1-3bで洗い出した
+    「`actions.ts`のみが消費する残り7個のリポジトリ」のうち、本ステップで
+    対応した`CasualtyLossCarryforwardRepository`を除く残り6個
+    (`ForeignTaxCreditCarryforwardRepository`・
+    `ForeignTaxCreditSpareLimitCarryforwardRepository`・
+    `HomeSaleLossCarryforwardRepository`・
+    `HomeReplacementLossCarryforwardRepository`・
+    `AngelTaxLossCarryforwardRepository`・`CashflowEntryRepository`)に依存しており、
+    着手時にまず本ステップと同じ`defaultXxxRepository`/
+    `defaultXxxRepository.standalone.ts`の追加が必要な見込み。`import/page.tsx`は
+    これら全てに加え多数の未移行アクションを直接importしているため、最後に
+    まとめて対応する想定。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 

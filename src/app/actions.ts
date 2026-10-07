@@ -22,7 +22,7 @@ import { assetSymbolMappingRepository } from "@/lib/repositories/defaultAssetSym
 import { marketPriceRepository } from "@/lib/repositories/defaultMarketPriceRepository";
 import { createPrismaForeignTaxCreditCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditCarryforwardRepository";
 import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/lib/repositories/foreignTaxCreditSpareLimitCarryforwardRepository";
-import { createPrismaCasualtyLossCarryforwardRepository } from "@/lib/repositories/casualtyLossCarryforwardRepository";
+import { casualtyLossCarryforwardRepository } from "@/lib/repositories/defaultCasualtyLossCarryforwardRepository";
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
 import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
@@ -86,6 +86,7 @@ import {
 import {
   setCasualtyLossCarryforwardCore,
   deleteCasualtyLossCarryforwardCore,
+  carryForwardCasualtyLossExcessCore,
 } from "@/lib/actions/casualtyLossCarryforward";
 import {
   setHomeSaleLossCarryforwardCore,
@@ -228,7 +229,6 @@ const foreignTaxCreditCarryforwardRepository =
   createPrismaForeignTaxCreditCarryforwardRepository();
 const foreignTaxCreditSpareLimitCarryforwardRepository =
   createPrismaForeignTaxCreditSpareLimitCarryforwardRepository();
-const casualtyLossCarryforwardRepository = createPrismaCasualtyLossCarryforwardRepository();
 const homeSaleLossCarryforwardRepository = createPrismaHomeSaleLossCarryforwardRepository();
 const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
@@ -2033,21 +2033,14 @@ export async function carryForwardCasualtyLossExcess(formData: FormData): Promis
   const entriesJson = requireString(formData, "carryforwardToNextYearJson");
   const entries = JSON.parse(entriesJson) as { originYear: number; remainingAmountJpy: string }[];
 
-  const nextTaxYear = await getOrCreateTaxYear(year + 1);
-  const existing = await casualtyLossCarryforwardRepository.findByTaxYearId(nextTaxYear.id);
-  const existingYears = new Set(existing.map((e) => e.originYear));
-  const toCreate = entries.filter((e) => !existingYears.has(e.originYear));
-
-  await casualtyLossCarryforwardRepository.createMany(
-    toCreate.map((e) => ({
-      taxYearId: nextTaxYear.id,
-      originYear: e.originYear,
-      remainingAmountJpy: e.remainingAmountJpy,
-    })),
+  const { redirectTo } = await carryForwardCasualtyLossExcessCore(
+    taxYearRepository,
+    casualtyLossCarryforwardRepository,
+    { year, entries },
   );
 
   revalidatePath("/import");
-  redirect(`/casualty-loss-deduction?year=${year}&lossCarried=${toCreate.length}`);
+  redirect(redirectTo);
 }
 
 export async function setHomeSaleLossCarryforward(formData: FormData): Promise<void> {
