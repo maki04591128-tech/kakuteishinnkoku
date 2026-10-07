@@ -25,7 +25,7 @@ import { createPrismaForeignTaxCreditSpareLimitCarryforwardRepository } from "@/
 import { casualtyLossCarryforwardRepository } from "@/lib/repositories/defaultCasualtyLossCarryforwardRepository";
 import { createPrismaHomeSaleLossCarryforwardRepository } from "@/lib/repositories/homeSaleLossCarryforwardRepository";
 import { createPrismaHomeReplacementLossCarryforwardRepository } from "@/lib/repositories/homeReplacementLossCarryforwardRepository";
-import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
+import { angelTaxLossCarryforwardRepository } from "@/lib/repositories/defaultAngelTaxLossCarryforwardRepository";
 import { foreignTaxCreditRecordRepository } from "@/lib/repositories/defaultForeignTaxCreditRecordRepository";
 import { donationTaxCreditRecordRepository } from "@/lib/repositories/defaultDonationTaxCreditRecordRepository";
 import { distributionAdjustedForeignTaxCreditRecordRepository } from "@/lib/repositories/defaultDistributionAdjustedForeignTaxCreditRecordRepository";
@@ -232,7 +232,6 @@ const foreignTaxCreditSpareLimitCarryforwardRepository =
 const homeSaleLossCarryforwardRepository = createPrismaHomeSaleLossCarryforwardRepository();
 const homeReplacementLossCarryforwardRepository =
   createPrismaHomeReplacementLossCarryforwardRepository();
-const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
 const cashflowEntryRepository = createPrismaCashflowEntryRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {

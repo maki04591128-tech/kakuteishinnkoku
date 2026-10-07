@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { getOrCreateTaxYear, listTaxYears } from "@/lib/taxYear";
-import { createPrismaAngelTaxLossCarryforwardRepository } from "@/lib/repositories/angelTaxLossCarryforwardRepository";
-import { deleteAngelTaxLossCarryforward, setAngelTaxLossCarryforward } from "@/app/actions";
+import { angelTaxLossCarryforwardRepository } from "@/lib/repositories/defaultAngelTaxLossCarryforwardRepository";
+import {
+  deleteAngelTaxLossCarryforward,
+  setAngelTaxLossCarryforward,
+} from "@/lib/angelTaxLossCarryforwardActions";
 import { AngelTaxLossCarryforwardForm } from "./AngelTaxLossCarryforwardForm";
-
-const angelTaxLossCarryforwardRepository = createPrismaAngelTaxLossCarryforwardRepository();
 
 function yen(value: { toString(): string }): string {
   const n = Number(value.toString());
