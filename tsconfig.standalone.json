@@ -56,6 +56,7 @@
       "@/lib/assetSymbolMappingActions": [
         "./src/lib/assetSymbolMappingActions.standalone.ts"
       ],
+      "@/lib/cryptoTradeActions": ["./src/lib/cryptoTradeActions.standalone.ts"],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],
