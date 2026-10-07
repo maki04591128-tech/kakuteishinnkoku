@@ -6,7 +6,14 @@
  * リポジトリ呼び出し・次の遷移先の決定)をコア関数として切り出した。3-5の
  * `setAngelTaxLossCarryforward`と同じ`TaxYearRepository`と
  * `InvestmentLossCarryforwardRepository`の2つに依存するパターン。
+ *
+ * フェーズ5-1-3d-32で`carryForwardInvestmentLoss`も
+ * `carryForwardInvestmentLossCore`として切り出した
+ * (`futuresLossCarryforward.ts`の`carryForwardFuturesLossCore`と同じパターン。
+ * `buildYearReport`は`defaultXxxRepository`経由で依存先を解決するため追加の
+ * 依存注入は不要)。
  */
+import { buildYearReport } from "@/lib/reporting";
 import type { TaxYearRepository } from "@/lib/repositories/taxYearRepository";
 import type { InvestmentLossCarryforwardRepository } from "@/lib/repositories/investmentLossCarryforwardRepository";
 
@@ -55,4 +62,47 @@ export async function deleteInvestmentLossCarryforwardCore(
   await investmentLossCarryforwardRepository.delete(id);
 
   return { redirectTo: `/import?year=${year}&tab=lossCarryforward` };
+}
+
+export interface CarryForwardInvestmentLossInput {
+  year: number;
+}
+
+export interface CarryForwardInvestmentLossResult {
+  /** 処理後に遷移すべきパス。 */
+  redirectTo: string;
+}
+
+/**
+ * 前年分の譲渡損益・繰越控除の計算結果から、翌年に繰り越す譲渡損失の残高を
+ * 一括登録する。既に当年分に発生年ごとの登録がある場合は上書きしない。
+ */
+export async function carryForwardInvestmentLossCore(
+  taxYearRepository: TaxYearRepository,
+  investmentLossCarryforwardRepository: InvestmentLossCarryforwardRepository,
+  input: CarryForwardInvestmentLossInput,
+): Promise<CarryForwardInvestmentLossResult> {
+  const { year } = input;
+  const taxYear = await taxYearRepository.getOrCreateTaxYear(year);
+  const previousReport = await buildYearReport(year - 1);
+  const candidates = previousReport?.lossCarryforward.carryforwardToNextYear ?? [];
+
+  const existing = await investmentLossCarryforwardRepository.findByTaxYearId(
+    taxYear.id,
+  );
+  const existingYears = new Set(existing.map((e) => e.originYear));
+
+  const toCreate = candidates.filter((c) => !existingYears.has(c.originYear));
+
+  await investmentLossCarryforwardRepository.createMany(
+    toCreate.map((c) => ({
+      taxYearId: taxYear.id,
+      originYear: c.originYear,
+      remainingAmountJpy: c.remainingAmountJpy.toString(),
+    })),
+  );
+
+  return {
+    redirectTo: `/import?year=${year}&tab=lossCarryforward&lossCarried=${toCreate.length}`,
+  };
 }

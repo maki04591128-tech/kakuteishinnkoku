@@ -4,9 +4,14 @@
 // "use server"の`src/app/actions.ts`全体)はビルド対象に含まれない
 // (フェーズ5-1-3d-29。`@/lib/stockMarginTradeActions`と同種のパターン)。
 //
-// `setFuturesLossCarryforward`/`deleteFuturesLossCarryforward`は`import/page.tsx`からのみ
-// 呼ばれるServer Actionで、呼び出し元は`@/app/actions`から直接importする代わりに
+// `setFuturesLossCarryforward`/`deleteFuturesLossCarryforward`/
+// `carryForwardFuturesLoss`は`import/page.tsx`からのみ呼ばれるServer Actionで、
+// 呼び出し元は`@/app/actions`から直接importする代わりに
 // このモジュールを経由することで、スタンドアロン版ビルドでは
 // `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)を
-// importグラフから切り離せる。
-export { setFuturesLossCarryforward, deleteFuturesLossCarryforward } from "@/app/actions";
+// importグラフから切り離せる。(`carryForwardFuturesLoss`はフェーズ5-1-3d-32で追加)
+export {
+  setFuturesLossCarryforward,
+  deleteFuturesLossCarryforward,
+  carryForwardFuturesLoss,
+} from "@/app/actions";

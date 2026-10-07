@@ -430,6 +430,44 @@ const foreignTaxCreditSpareLimitCarryforwardActionsStandaloneAliasForWebpack = p
   "src/lib/foreignTaxCreditSpareLimitCarryforwardActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/investmentLossCarryforwardActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `carryForwardInvestmentLoss`をそのまま再エクスポートする代わりに、
+// 本ステップ(5-1-3d-32)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に
+// 差し替える(フェーズ5-1-3d、`@/lib/foreignTaxCreditSpareLimitCarryforwardActions`に
+// 続く31個目)。
+const investmentLossCarryforwardActionsStandaloneAliasForTurbopack =
+  "./src/lib/investmentLossCarryforwardActions.standalone.ts";
+const investmentLossCarryforwardActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/investmentLossCarryforwardActions.standalone.ts",
+);
+
+// スタンドアロン版では`@/lib/nisaLifetimeQuotaActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `carryForwardNisaLifetimeQuota`をそのまま再エクスポートする代わりに、
+// 本ステップ(5-1-3d-32)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に
+// 差し替える(フェーズ5-1-3d、`@/lib/investmentLossCarryforwardActions`に続く
+// 32個目)。
+const nisaLifetimeQuotaActionsStandaloneAliasForTurbopack =
+  "./src/lib/nisaLifetimeQuotaActions.standalone.ts";
+const nisaLifetimeQuotaActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/nisaLifetimeQuotaActions.standalone.ts",
+);
+
+// スタンドアロン版では`@/lib/openingBalanceActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `carryForwardOpeningBalances`をそのまま再エクスポートする代わりに、
+// 本ステップ(5-1-3d-32)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に
+// 差し替える(フェーズ5-1-3d、`@/lib/nisaLifetimeQuotaActions`に続く33個目)。
+const openingBalanceActionsStandaloneAliasForTurbopack =
+  "./src/lib/openingBalanceActions.standalone.ts";
+const openingBalanceActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/openingBalanceActions.standalone.ts",
+);
+
 // スタンドアロン版では既定の`TaxYearRepository`実装を、`@prisma/client`
 // (Node専用)に依存しないクライアント(wa-sqlite)実装に差し替える
 // (フェーズ5-1-3b。`@/lib/authUi`と同種のパターンを`TaxYearRepository`で
@@ -843,6 +881,12 @@ const nextConfig: NextConfig = {
             foreignTaxCreditCarryforwardActionsStandaloneAliasForTurbopack,
           "@/lib/foreignTaxCreditSpareLimitCarryforwardActions":
             foreignTaxCreditSpareLimitCarryforwardActionsStandaloneAliasForTurbopack,
+          "@/lib/investmentLossCarryforwardActions":
+            investmentLossCarryforwardActionsStandaloneAliasForTurbopack,
+          "@/lib/nisaLifetimeQuotaActions":
+            nisaLifetimeQuotaActionsStandaloneAliasForTurbopack,
+          "@/lib/openingBalanceActions":
+            openingBalanceActionsStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultTaxYearRepository":
             defaultTaxYearRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultEmploymentIncomeRecordRepository":
@@ -976,6 +1020,11 @@ const nextConfig: NextConfig = {
           foreignTaxCreditCarryforwardActionsStandaloneAliasForWebpack,
         "@/lib/foreignTaxCreditSpareLimitCarryforwardActions":
           foreignTaxCreditSpareLimitCarryforwardActionsStandaloneAliasForWebpack,
+        "@/lib/investmentLossCarryforwardActions":
+          investmentLossCarryforwardActionsStandaloneAliasForWebpack,
+        "@/lib/nisaLifetimeQuotaActions":
+          nisaLifetimeQuotaActionsStandaloneAliasForWebpack,
+        "@/lib/openingBalanceActions": openingBalanceActionsStandaloneAliasForWebpack,
         "@/lib/repositories/defaultTaxYearRepository":
           defaultTaxYearRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultEmploymentIncomeRecordRepository":

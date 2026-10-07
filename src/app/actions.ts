@@ -59,8 +59,6 @@ import {
   type AnnualReportCsvMapping,
 } from "@/lib/investment/annualReportCsv";
 import { getOrCreateTaxYear } from "@/lib/taxYear";
-import { buildCarryForwardCandidates, buildYearReport } from "@/lib/reporting";
-import { deriveNisaLifetimeCarryForwardCandidates } from "@/lib/investment/nisaQuota";
 import { setCryptoCostMethodCore } from "@/lib/actions/setCryptoCostMethod";
 import {
   addInvestmentTradeCore,
@@ -78,10 +76,12 @@ import {
 import {
   setInvestmentLossCarryforwardCore,
   deleteInvestmentLossCarryforwardCore,
+  carryForwardInvestmentLossCore,
 } from "@/lib/actions/investmentLossCarryforward";
 import {
   setFuturesLossCarryforwardCore,
   deleteFuturesLossCarryforwardCore,
+  carryForwardFuturesLossCore,
 } from "@/lib/actions/futuresLossCarryforward";
 import {
   setCasualtyLossCarryforwardCore,
@@ -183,10 +183,15 @@ import {
   deleteStockMarginTradeCore,
 } from "@/lib/actions/stockMarginTrade";
 import { addFuturesTradeCore, deleteFuturesTradeCore } from "@/lib/actions/futuresTrade";
-import { setOpeningBalanceCore, deleteOpeningBalanceCore } from "@/lib/actions/openingBalance";
+import {
+  setOpeningBalanceCore,
+  deleteOpeningBalanceCore,
+  carryForwardOpeningBalancesCore,
+} from "@/lib/actions/openingBalance";
 import {
   setNisaLifetimeQuotaCore,
   deleteNisaLifetimeQuotaCore,
+  carryForwardNisaLifetimeQuotaCore,
 } from "@/lib/actions/nisaLifetimeQuota";
 import {
   setOpeningBalanceByInstitutionCore,
@@ -706,29 +711,16 @@ export async function deleteFuturesLossCarryforward(formData: FormData): Promise
  */
 export async function carryForwardFuturesLoss(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
-  const previousReport = await buildYearReport(year - 1);
-  const candidates =
-    previousReport?.futuresLossCarryforward.carryforwardToNextYear ?? [];
 
-  const existing = await futuresLossCarryforwardRepository.findByTaxYearId(taxYear.id);
-  const existingYears = new Set(existing.map((e) => e.originYear));
-
-  const toCreate = candidates.filter((c) => !existingYears.has(c.originYear));
-
-  await futuresLossCarryforwardRepository.createMany(
-    toCreate.map((c) => ({
-      taxYearId: taxYear.id,
-      originYear: c.originYear,
-      remainingAmountJpy: c.remainingAmountJpy.toString(),
-    })),
+  const { redirectTo } = await carryForwardFuturesLossCore(
+    taxYearRepository,
+    futuresLossCarryforwardRepository,
+    { year },
   );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(
-    `/import?year=${year}&tab=futuresLossCarryforward&futuresLossCarried=${toCreate.length}`,
-  );
+  redirect(redirectTo);
 }
 
 export async function setBrokerAnnualReport(formData: FormData): Promise<void> {
@@ -890,33 +882,16 @@ export async function carryForwardOpeningBalances(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
-  const candidates = await buildCarryForwardCandidates(year - 1);
 
-  const existing = await openingBalanceRepository.findByTaxYearId(taxYear.id);
-  const existingKeys = new Set(
-    existing.map((e) => `${e.assetClass}:${e.symbol}:${e.isNisa}:${e.isListed}`),
-  );
-
-  const toCreate = candidates.filter(
-    (c) => !existingKeys.has(`${c.assetClass}:${c.symbol}:${c.isNisa}:${c.isListed}`),
-  );
-
-  await openingBalanceRepository.createMany(
-    toCreate.map((c) => ({
-      taxYearId: taxYear.id,
-      assetClass: c.assetClass,
-      symbol: c.symbol,
-      isNisa: c.isNisa,
-      isListed: c.isListed,
-      quantity: c.quantity,
-      costBasisJpy: c.costBasisJpy,
-    })),
+  const { redirectTo } = await carryForwardOpeningBalancesCore(
+    taxYearRepository,
+    openingBalanceRepository,
+    { year },
   );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(`/import?year=${year}&tab=opening&carried=${toCreate.length}`);
+  redirect(redirectTo);
 }
 
 export async function setLossCarryforward(formData: FormData): Promise<void> {
@@ -957,30 +932,16 @@ export async function carryForwardInvestmentLoss(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
-  const previousReport = await buildYearReport(year - 1);
-  const candidates = previousReport?.lossCarryforward.carryforwardToNextYear ?? [];
 
-  const existing = await investmentLossCarryforwardRepository.findByTaxYearId(
-    taxYear.id,
-  );
-  const existingYears = new Set(existing.map((e) => e.originYear));
-
-  const toCreate = candidates.filter((c) => !existingYears.has(c.originYear));
-
-  await investmentLossCarryforwardRepository.createMany(
-    toCreate.map((c) => ({
-      taxYearId: taxYear.id,
-      originYear: c.originYear,
-      remainingAmountJpy: c.remainingAmountJpy.toString(),
-    })),
+  const { redirectTo } = await carryForwardInvestmentLossCore(
+    taxYearRepository,
+    investmentLossCarryforwardRepository,
+    { year },
   );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(
-    `/import?year=${year}&tab=lossCarryforward&lossCarried=${toCreate.length}`,
-  );
+  redirect(redirectTo);
 }
 
 export async function setNisaLifetimeQuota(formData: FormData): Promise<void> {
@@ -1022,32 +983,16 @@ export async function carryForwardNisaLifetimeQuota(
   formData: FormData,
 ): Promise<void> {
   const year = Number(requireString(formData, "year"));
-  const taxYear = await getOrCreateTaxYear(year);
-  const previousReport = await buildYearReport(year - 1);
-  const candidates = previousReport
-    ? deriveNisaLifetimeCarryForwardCandidates(previousReport.nisaLifetimeQuota)
-    : [];
 
-  const existing = await nisaLifetimeQuotaRepository.findByTaxYearId(
-    taxYear.id,
-  );
-  const existingTypes = new Set(existing.map((e) => e.nisaType));
-
-  const toCreate = candidates.filter((c) => !existingTypes.has(c.nisaType));
-
-  await nisaLifetimeQuotaRepository.createMany(
-    toCreate.map((c) => ({
-      taxYearId: taxYear.id,
-      nisaType: c.nisaType,
-      openingUsedJpy: c.openingUsedJpy,
-    })),
+  const { redirectTo } = await carryForwardNisaLifetimeQuotaCore(
+    taxYearRepository,
+    nisaLifetimeQuotaRepository,
+    { year },
   );
 
   revalidatePath("/import");
   revalidatePath("/");
-  redirect(
-    `/import?year=${year}&tab=nisaLifetime&nisaLifetimeCarried=${toCreate.length}`,
-  );
+  redirect(redirectTo);
 }
 
 export async function importAssetBalanceCsv(formData: FormData): Promise<void> {

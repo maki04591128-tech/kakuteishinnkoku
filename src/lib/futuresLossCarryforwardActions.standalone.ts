@@ -26,9 +26,13 @@
 // 存在せず(ページは毎回クライアントDBを読み直す想定)、`redirect`相当の画面遷移は
 // `useRouter`等のフックに依存せずに済むよう、この関数内で`window.location.href`による
 // フルリロード遷移で代替する。
+//
+// フェーズ5-1-3d-32で`carryForwardFuturesLoss`(フェーズ3で抽出済みの
+// `carryForwardFuturesLossCore`を呼び出す)も同じパターンでこのモジュールに追加した。
 import {
   setFuturesLossCarryforwardCore,
   deleteFuturesLossCarryforwardCore,
+  carryForwardFuturesLossCore,
 } from "@/lib/actions/futuresLossCarryforward";
 import { taxYearRepository } from "@/lib/repositories/defaultTaxYearRepository";
 import { futuresLossCarryforwardRepository } from "@/lib/repositories/defaultFuturesLossCarryforwardRepository";
@@ -62,6 +66,18 @@ export async function deleteFuturesLossCarryforward(formData: FormData): Promise
   const { redirectTo } = await deleteFuturesLossCarryforwardCore(
     futuresLossCarryforwardRepository,
     { id, year },
+  );
+
+  window.location.href = redirectTo;
+}
+
+export async function carryForwardFuturesLoss(formData: FormData): Promise<void> {
+  const year = Number(requireString(formData, "year"));
+
+  const { redirectTo } = await carryForwardFuturesLossCore(
+    taxYearRepository,
+    futuresLossCarryforwardRepository,
+    { year },
   );
 
   window.location.href = redirectTo;

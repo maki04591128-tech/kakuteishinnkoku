@@ -5836,6 +5836,67 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     set/delete(6ペア)・`setCryptoCostMethod`・`deleteAssetBalanceImportBatch`・
     `importAssetBalanceCsv`等のCSV取込系(6個))を、同じ要領で組ごとに1つずつ
     切り出していく。
+
+  - [x] 5-1-3d-32. `carryForwardFuturesLoss`・`carryForwardInvestmentLoss`・
+        `carryForwardNisaLifetimeQuota`・`carryForwardOpeningBalances`
+        (いずれも`import/page.tsx`自身のみが使う、前年分の計算結果から
+        翌年分の繰越・期首残高を一括登録するcarryForward系4関数)を切り出す。
+
+    **実装内容(2026-10-07):** この4関数は、他のcarryForward系(例:
+    `carryForwardForeignTaxCreditExcess`)と異なり画面から渡されたJSONを
+    保存するのではなく、`buildYearReport(year - 1)`/
+    `buildCarryForwardCandidates(year - 1)`(いずれも`src/lib/reporting.ts`。
+    フェーズ1で`defaultXxxRepository`経由のリポジトリ参照に移行済み)で
+    前年分を再計算した結果を使う点が異なり、このため5-1-3d-29・5-1-3d-32で
+    該当ファイルの`setXxxCarryforwardCore`等を抽出した際にも
+    「`buildYearReport`にも依存する別のアクションのため対象外」として
+    見送っていた(`src/lib/actions/futuresLossCarryforward.ts`等の
+    コメント参照)。`buildYearReport`/`buildCarryForwardCandidates`自体は
+    追加の依存注入をせずそのまま呼び出せるため、`setXxxCarryforwardCore`と
+    同じ`TaxYearRepository`+個別リポジトリの2引数構成で
+    `carryForwardFuturesLossCore`(`src/lib/actions/futuresLossCarryforward.ts`)・
+    `carryForwardInvestmentLossCore`
+    (`src/lib/actions/investmentLossCarryforward.ts`)・
+    `carryForwardNisaLifetimeQuotaCore`
+    (`src/lib/actions/nisaLifetimeQuota.ts`)・
+    `carryForwardOpeningBalancesCore`(`src/lib/actions/openingBalance.ts`)の
+    4つのコア関数を抽出した(ロジックは`actions.ts`の元の実装をそのまま移した
+    だけで変更無し)。
+
+    ビルドターゲット切り替えモジュールは、`carryForwardFuturesLoss`は
+    5-1-3d-29で既存の`@/lib/futuresLossCarryforwardActions`(同じ
+    `FuturesLossCarryforwardRepository`を使う`setFuturesLossCarryforward`/
+    `deleteFuturesLossCarryforward`と同じ画面・同じリポジトリ)にそのまま
+    追加した(`@/lib/foreignTaxCreditActions`が
+    `saveForeignTaxCreditRecord`/`carryForwardForeignTaxCreditExcess`等を
+    1モジュールにまとめているのと同じ考え方)。残り3つは対応する
+    `setXxx`/`deleteXxx`がまだ未移行(残り24個の対象。`setLossCarryforward`/
+    `setNisaLifetimeQuota`/`setOpeningBalance`は別名のため、このコア関数単独の
+    新規モジュール`@/lib/investmentLossCarryforwardActions`・
+    `@/lib/nisaLifetimeQuotaActions`・`@/lib/openingBalanceActions`を追加した
+    (将来`setXxx`/`deleteXxx`を移行する際にこのファイルへ追記する想定)。
+    `next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に、新規3モジュールのエントリを追加した。
+    `import/page.tsx`の該当4関数のimport元を`@/app/actions`からこれらの
+    モジュールに変更した(自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-07時点):** `npm install`・`npx prisma db push`で
+    環境を用意した上で、`npm run test`(全196ファイル1700件)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで無関係)が成功することを確認した。加えて(1)
+    `npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、(2)
+    `npm run build:standalone`は、本変更後も`import/page.tsx`が残り20個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-33以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り20個のアクション(`setLossCarryforward`/
+    `deleteLossCarryforward`等の各種繰越控除のset/delete(6ペア)・
+    `setCryptoCostMethod`・`deleteAssetBalanceImportBatch`・
+    `importAssetBalanceCsv`等のCSV取込系(6個))を、同じ要領で組ごとに
+    1つずつ切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 

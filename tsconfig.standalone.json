@@ -79,6 +79,15 @@
       "@/lib/foreignTaxCreditSpareLimitCarryforwardActions": [
         "./src/lib/foreignTaxCreditSpareLimitCarryforwardActions.standalone.ts"
       ],
+      "@/lib/investmentLossCarryforwardActions": [
+        "./src/lib/investmentLossCarryforwardActions.standalone.ts"
+      ],
+      "@/lib/nisaLifetimeQuotaActions": [
+        "./src/lib/nisaLifetimeQuotaActions.standalone.ts"
+      ],
+      "@/lib/openingBalanceActions": [
+        "./src/lib/openingBalanceActions.standalone.ts"
+      ],
       "@/lib/repositories/defaultTaxYearRepository": [
         "./src/lib/repositories/defaultTaxYearRepository.standalone.ts"
       ],

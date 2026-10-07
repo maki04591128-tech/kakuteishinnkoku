@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportForm";
 import {
-  carryForwardFuturesLoss,
-  carryForwardInvestmentLoss,
-  carryForwardNisaLifetimeQuota,
-  carryForwardOpeningBalances,
   deleteAssetBalanceImportBatch,
   deleteHomeReplacementLossCarryforward,
   deleteHomeSaleLossCarryforward,
@@ -37,7 +33,11 @@ import {
 import {
   setFuturesLossCarryforward,
   deleteFuturesLossCarryforward,
+  carryForwardFuturesLoss,
 } from "@/lib/futuresLossCarryforwardActions";
+import { carryForwardInvestmentLoss } from "@/lib/investmentLossCarryforwardActions";
+import { carryForwardNisaLifetimeQuota } from "@/lib/nisaLifetimeQuotaActions";
+import { carryForwardOpeningBalances } from "@/lib/openingBalanceActions";
 import {
   setCasualtyLossCarryforward,
   deleteCasualtyLossCarryforward,
