@@ -6128,6 +6128,47 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     `importAssetBalanceCsv`・`importBrokerAnnualReportCsv`・
     `importCryptoExchangeCsv`・`importCryptoMarginCsv`・`importFuturesCsv`・
     `importMoneyForwardCsv`)を、同じ要領で組ごとに1つずつ切り出していく。
+
+  - [x] 5-1-3d-39. `deleteAssetBalanceImportBatch`(資産残高CSVインポート
+        バッチの削除。`import/page.tsx`のみが使うアクション)を切り出す。
+
+    **実装内容(2026-10-07):** 5-1-3d-1以降と同じビルドターゲット切り替え
+    パターンを`@/lib/deleteAssetBalanceImportBatchActions`として新設した。
+    コア処理(`deleteAssetBalanceImportBatchCore`)は未抽出だったため本ステップ
+    で`src/lib/actions/deleteAssetBalanceImportBatch.ts`として新規に切り出した
+    (依存する`AssetBalanceSnapshotRepository`は5-1-3bで既にビルドターゲット
+    切り替え機構を適用済み)。自宅サーバー版の既定実装
+    (`src/lib/deleteAssetBalanceImportBatchActions.ts`)は`src/app/actions.ts`の
+    `deleteAssetBalanceImportBatch`をそのまま再エクスポートするだけ(挙動は
+    従来と完全に同一)。スタンドアロン版向け差し替え実装
+    (`src/lib/deleteAssetBalanceImportBatchActions.standalone.ts`)は、
+    `deleteAssetBalanceImportBatchCore`を5-1-3bの
+    `defaultAssetBalanceSnapshotRepository`経由でDIして直接呼び出す
+    (`redirect`/`revalidatePath`の代わりに`window.location.href`遷移で代替する
+    点も既存パターンと同じ)。`next.config.ts`の`turbopack.resolveAlias`/
+    `webpack.resolve.alias`・`tsconfig.standalone.json`の`paths`に
+    `@/lib/cryptoCostMethodActions`と並べて
+    `@/lib/deleteAssetBalanceImportBatchActions`のエントリを追加し、
+    `deleteAssetBalanceImportBatch`を`@/app/actions`から直接importしていた
+    `import/page.tsx`を、この`@/lib/deleteAssetBalanceImportBatchActions`から
+    importする形に書き換えた(自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-07時点):** `npm install`・`npx prisma db push`で
+    環境を用意した上で、`npm run test`(全197ファイル1701件、新規テスト1件追加)・
+    `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の
+    両方、既存の`LayoutProps`エラーのみで本変更と無関係)が成功することを
+    確認した。加えて(1)`npm run build`(自宅サーバー版)が本変更後も従来通り
+    成功すること、(2)`npm run build:standalone`は、本変更後も`import/page.tsx`
+    が残り6個のアクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-40以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り6個のアクション(`importAssetBalanceCsv`・
+    `importBrokerAnnualReportCsv`・`importCryptoExchangeCsv`・
+    `importCryptoMarginCsv`・`importFuturesCsv`・`importMoneyForwardCsv`)を、
+    同じ要領で組ごとに1つずつ切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
