@@ -2,35 +2,41 @@
 // `@/lib/repositories/defaultForeignTaxCreditCarryforwardRepository`差し替え実装
 // (next.config.tsのresolveAlias経由。フェーズ5-1-3d-16)。
 //
-// `defaultCasualtyLossCarryforwardRepository.standalone.ts`と同じ理由(ブラウザ向け
-// OPFSベースの`openClientDb`実装がまだ無く、Node専用の現行`openClientDb`をそのまま
-// 結線するとビルドが壊れる。README「現在の最優先事項」フェーズ5-1-3bの残課題を参照)
-// により、`createClientForeignTaxCreditCarryforwardRepository`を実際には呼ばず、
-// 各メソッド呼び出し時に分かりやすいエラーを投げるだけのプレースホルダーとする。
+// フェーズ5-1-3bの時点ではブラウザ向け(OPFSベース)の`openClientDb`実装が
+// 無かったため、各メソッド呼び出し時にエラーを投げるだけのプレースホルダーに
+// していた。フェーズ5-3でブラウザ向け実装(`../clientDb/sqlite.browser.ts`)が
+// 用意され、5-3-2で`TaxYearRepository`向けに確立したパターンを、本ステップ(5-3-3)で
+// このモデルにも適用する。`getStandaloneClientDb()`
+// (`../clientDb/standaloneClientDb.ts`)がアプリ全体で共有する`ClientDb`接続を
+// 遅延オープンし、`createClientForeignTaxCreditCarryforwardRepository`
+// (wa-sqlite実装。`./foreignTaxCreditCarryforwardRepository.ts`)に渡す。
+import { createClientForeignTaxCreditCarryforwardRepository } from "./foreignTaxCreditCarryforwardRepository";
 import type { ForeignTaxCreditCarryforwardRepository } from "./foreignTaxCreditCarryforwardRepository";
+import { getStandaloneClientDb } from "../clientDb/standaloneClientDb";
 
-function notImplemented(): never {
-  throw new Error(
-    "スタンドアロン版のForeignTaxCreditCarryforwardRepositoryクライアント実装は" +
-      "未結線です(ブラウザ向けOPFSベースのopenClientDb実装待ち。README" +
-      "「現在の最優先事項」フェーズ5-1-3bの残課題を参照)。",
-  );
+async function getRepository(): Promise<ForeignTaxCreditCarryforwardRepository> {
+  const db = await getStandaloneClientDb();
+  return createClientForeignTaxCreditCarryforwardRepository(db);
 }
 
 export const foreignTaxCreditCarryforwardRepository: ForeignTaxCreditCarryforwardRepository = {
-  async findByTaxYearId() {
-    notImplemented();
+  async findByTaxYearId(taxYearId) {
+    const repository = await getRepository();
+    return repository.findByTaxYearId(taxYearId);
   },
 
-  async upsert() {
-    notImplemented();
+  async upsert(params) {
+    const repository = await getRepository();
+    return repository.upsert(params);
   },
 
-  async delete() {
-    notImplemented();
+  async delete(id) {
+    const repository = await getRepository();
+    return repository.delete(id);
   },
 
-  async createMany() {
-    notImplemented();
+  async createMany(data) {
+    const repository = await getRepository();
+    return repository.createMany(data);
   },
 };
