@@ -332,6 +332,18 @@ const importCryptoMarginCsvActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/importCryptoMarginCsvActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/importFuturesCsvActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `importFuturesCsv`をそのまま再エクスポートする代わりに、本ステップ
+// (5-1-3d-44)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/importCryptoMarginCsvActions`に続く44個目)。
+const importFuturesCsvActionsStandaloneAliasForTurbopack =
+  "./src/lib/importFuturesCsvActions.standalone.ts";
+const importFuturesCsvActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/importFuturesCsvActions.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/homeSaleLossCarryforwardActions`の実装を、
 // `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
 // `carryForwardHomeSaleLossExcess`をそのまま再エクスポートする代わりに、本ステップ
@@ -1059,6 +1071,7 @@ const nextConfig: NextConfig = {
             importCryptoExchangeCsvActionsStandaloneAliasForTurbopack,
           "@/lib/importCryptoMarginCsvActions":
             importCryptoMarginCsvActionsStandaloneAliasForTurbopack,
+          "@/lib/importFuturesCsvActions": importFuturesCsvActionsStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -1210,6 +1223,7 @@ const nextConfig: NextConfig = {
           importCryptoExchangeCsvActionsStandaloneAliasForWebpack,
         "@/lib/importCryptoMarginCsvActions":
           importCryptoMarginCsvActionsStandaloneAliasForWebpack,
+        "@/lib/importFuturesCsvActions": importFuturesCsvActionsStandaloneAliasForWebpack,
       };
     }
     return config;
