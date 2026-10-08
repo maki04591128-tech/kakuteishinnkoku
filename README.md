@@ -6634,7 +6634,20 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (フェーズ5-1-3dから既知の)`searchParams`関連エラーでのみ失敗すること
   (新たなリグレッションが無いこと)を確認した。
 
-  **残り35ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  **進捗2(2026-10-08):** 続けて`EnergySavingRenovationDeductionRecord`・
+  `MultiHouseholdRenovationDeductionRecord`の2モデルにも同じパターンを適用した
+  (5/38ファイル完了)。両モデルも`BarrierFreeRenovationDeductionRecord`等と同じ
+  `findByTaxYearId`/`upsert`/`deleteByTaxYearId`のみのシンプルな構造(Decimal列
+  `creditJpy`を持つが、前述の通り`createClientXxxRepository`側で既に
+  `decimalCodec.ts`を使用済みのため`standalone.ts`側に追加対応は不要)で、
+  `.standalone.ts`・`.standalone.test.ts`とも1つ前の進捗で完了した2モデルと
+  文字列置換のみで移行できた。`npm run test`(全205ファイル1721件)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。
+  既知の`LayoutProps`エラーのみで本変更と無関係)・`npm run build`(自宅サーバー版)
+  が成功し、`npm run build:standalone`も従来と同じ`searchParams`関連エラーでのみ
+  失敗すること(新たなリグレッションが無いこと)を確認した。
+
+  **残り33ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
   エラーを投げるプレースホルダーのまま):**
   `AngelTaxLossCarryforward`・`AssetBalanceSnapshot`・`AssetSymbolMapping`・
   `BrokerAnnualReport`・`CashflowEntry`・`CasualtyLossCarryforward`・
@@ -6643,12 +6656,12 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `CryptoCreditTrade`・`CryptoMarginTrade`・`CryptoTrade`・
   `DistributionAdjustedForeignTaxCreditRecord`・`DonationTaxCreditRecord`・
   `DurabilityImprovementRenovationDeductionRecord`・`EmploymentIncomeRecord`・
-  `EnergySavingRenovationDeductionRecord`・`ForeignTaxCreditCarryforward`・
+  `ForeignTaxCreditCarryforward`・
   `ForeignTaxCreditRecord`・`ForeignTaxCreditSpareLimitCarryforward`・
   `FuturesLossCarryforward`・`FuturesTrade`・`HomeReplacementLossCarryforward`・
   `HomeSaleLossCarryforward`・`IncomeDeduction`・`InvestmentLossCarryforward`・
   `InvestmentTrade`・`MarketPrice`・`MortgageDeductionRecord`・
-  `MultiHouseholdRenovationDeductionRecord`・`NisaLifetimeQuota`・
+  `NisaLifetimeQuota`・
   `OpeningBalance`・`OpeningBalanceByInstitution`・
   `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
   (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
@@ -6669,8 +6682,9 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
   完了したらチェックを付けて次回に引き継ぐ。**5-3-3着手(2026-10-08、
-  `BarrierFreeRenovationDeductionRecord`・`EarthquakeRenovationDeductionRecord`の
-  2ファイル完了)時点の未着手(`[ ]`)項目は5-3-3の残り35ファイル(5-3-2で確立した
+  `BarrierFreeRenovationDeductionRecord`・`EarthquakeRenovationDeductionRecord`・
+  `EnergySavingRenovationDeductionRecord`・`MultiHouseholdRenovationDeductionRecord`の
+  4ファイル完了)時点の未着手(`[ ]`)項目は5-3-3の残り33ファイル(5-3-2で確立した
   パターンを各`defaultXxxRepository.standalone.ts`へ適用する作業。ファイル一覧は
   5-3-3の実装メモを参照)と5-3-4(実機/ブラウザでの動作検証)。** 次回も5-3-3の
   残りから(Decimal列を持つモデルは`decimalCodec.ts`との組み合わせに注意)、
