@@ -6888,6 +6888,33 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
   (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
 
+  **進捗12(2026-10-08):** 続けて`ForeignTaxCreditSpareLimitCarryforward`・
+  `FuturesLossCarryforward`の2モデルにも同じパターンを適用した
+  (25/38ファイル完了)。両モデルとも前述のモデル群と同じ
+  `findByTaxYearId`/`upsert`/`deleteByTaxYearId`のみのシンプルな構造
+  (Decimal列`remainingAmountJpy`を持つが、どちらも`createClientXxxRepository`側
+  (フェーズ2で実装済み)で`decimalCodec.ts`使用済みのため`standalone.ts`側に
+  追加対応は不要)で、`.standalone.ts`・`.standalone.test.ts`(
+  `ForeignTaxCreditSpareLimitCarryforward`は既存の「未結線」エラー検証テストを
+  5-3-2と同様のモック化テストに置き換え、`FuturesLossCarryforward`は
+  新規作成)とも文字列置換のみで移行できた。`npm run test`(全213ファイル
+  1749件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーは`.next/types`
+  生成後(`npm run build`実行後)に再現しないことを確認済み)・`npm run build`
+  (自宅サーバー版)が成功し、`npm run build:standalone`も従来と同じ
+  (フェーズ5-1-3dから既知の)`searchParams`関連エラーでのみ失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残り13ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  エラーを投げるプレースホルダーのまま):**
+  `FuturesTrade`・`HomeReplacementLossCarryforward`・
+  `HomeSaleLossCarryforward`・`IncomeDeduction`・`InvestmentLossCarryforward`・
+  `InvestmentTrade`・`MarketPrice`・`MortgageDeductionRecord`・
+  `NisaLifetimeQuota`・
+  `OpeningBalance`・`OpeningBalanceByInstitution`・
+  `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
+  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
       では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する

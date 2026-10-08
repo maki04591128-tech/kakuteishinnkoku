@@ -1,12 +1,11 @@
 /**
- * フェーズ5-3-3: `@/lib/repositories/defaultForeignTaxCreditSpareLimitCarryforwardRepository`の
- * スタンドアロン版差し替え実装
- * (`defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone.ts`)が、`../clientDb/
- * standaloneClientDb.ts`経由で取得した`ClientDb`を
- * `createClientForeignTaxCreditSpareLimitCarryforwardRepository`に正しく結線していることを
- * 検証する(`createClientForeignTaxCreditSpareLimitCarryforwardRepository`自体の挙動は
- * `foreignTaxCreditSpareLimitCarryforwardRepository.test.ts`で別途検証済みのため、ここでは
- * 委譲先の`ClientDb`が共有・再利用されていることを中心に確認する。テスト構成は
+ * フェーズ5-3-3: `@/lib/repositories/defaultFuturesLossCarryforwardRepository`の
+ * スタンドアロン版差し替え実装(`defaultFuturesLossCarryforwardRepository.standalone.ts`)が、
+ * `../clientDb/standaloneClientDb.ts`経由で取得した`ClientDb`を
+ * `createClientFuturesLossCarryforwardRepository`に正しく結線していることを検証する
+ * (`createClientFuturesLossCarryforwardRepository`自体の挙動は
+ * `futuresLossCarryforwardRepository.test.ts`で別途検証済みのため、ここでは委譲先の
+ * `ClientDb`が共有・再利用されていることを中心に確認する。テスト構成は
  * `defaultForeignTaxCreditCarryforwardRepository.standalone.test.ts`(5-3-3)と同じ)。
  *
  * `../clientDb/standaloneClientDb`は内部で`new Worker(...)`
@@ -44,25 +43,25 @@ vi.mock("../clientDb/schema", () => ({
   applyClientDbSchema: applyClientDbSchemaMock,
 }));
 
-describe("defaultForeignTaxCreditSpareLimitCarryforwardRepository (standalone)", () => {
+describe("defaultFuturesLossCarryforwardRepository (standalone)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
   });
 
   it("共有のClientDb接続を1回だけ開き、全メソッドで再利用する", async () => {
-    const { foreignTaxCreditSpareLimitCarryforwardRepository } = await import(
-      "./defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone"
+    const { futuresLossCarryforwardRepository } = await import(
+      "./defaultFuturesLossCarryforwardRepository.standalone"
     );
 
-    await foreignTaxCreditSpareLimitCarryforwardRepository.findByTaxYearId(1);
-    await foreignTaxCreditSpareLimitCarryforwardRepository.upsert({
+    await futuresLossCarryforwardRepository.findByTaxYearId(1);
+    await futuresLossCarryforwardRepository.upsert({
       taxYearId: 1,
       originYear: 2023,
       remainingAmountJpy: "150000",
     });
-    await foreignTaxCreditSpareLimitCarryforwardRepository.delete(1);
-    await foreignTaxCreditSpareLimitCarryforwardRepository.createMany([
+    await futuresLossCarryforwardRepository.delete(1);
+    await futuresLossCarryforwardRepository.createMany([
       { taxYearId: 1, originYear: 2023, remainingAmountJpy: "150000" },
     ]);
 
@@ -73,46 +72,46 @@ describe("defaultForeignTaxCreditSpareLimitCarryforwardRepository (standalone)",
   });
 
   it("upsertは共有ClientDbに対してSQLを発行する", async () => {
-    const { foreignTaxCreditSpareLimitCarryforwardRepository } = await import(
-      "./defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone"
+    const { futuresLossCarryforwardRepository } = await import(
+      "./defaultFuturesLossCarryforwardRepository.standalone"
     );
 
-    await foreignTaxCreditSpareLimitCarryforwardRepository.upsert({
+    await futuresLossCarryforwardRepository.upsert({
       taxYearId: 1,
       originYear: 2023,
       remainingAmountJpy: "150000",
     });
 
     expect(fakeDb.run).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO foreign_tax_credit_spare_limit_carryforward"),
+      expect.stringContaining("INSERT INTO futures_loss_carryforward"),
       expect.arrayContaining([1, 2023, "150000"]),
     );
   });
 
   it("deleteは共有ClientDbに対してSQLを発行する", async () => {
-    const { foreignTaxCreditSpareLimitCarryforwardRepository } = await import(
-      "./defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone"
+    const { futuresLossCarryforwardRepository } = await import(
+      "./defaultFuturesLossCarryforwardRepository.standalone"
     );
 
-    await foreignTaxCreditSpareLimitCarryforwardRepository.delete(1);
+    await futuresLossCarryforwardRepository.delete(1);
 
     expect(fakeDb.run).toHaveBeenCalledWith(
-      expect.stringContaining("DELETE FROM foreign_tax_credit_spare_limit_carryforward"),
+      expect.stringContaining("DELETE FROM futures_loss_carryforward"),
       [1],
     );
   });
 
   it("createManyは共有ClientDbに対してSQLを発行する", async () => {
-    const { foreignTaxCreditSpareLimitCarryforwardRepository } = await import(
-      "./defaultForeignTaxCreditSpareLimitCarryforwardRepository.standalone"
+    const { futuresLossCarryforwardRepository } = await import(
+      "./defaultFuturesLossCarryforwardRepository.standalone"
     );
 
-    await foreignTaxCreditSpareLimitCarryforwardRepository.createMany([
+    await futuresLossCarryforwardRepository.createMany([
       { taxYearId: 1, originYear: 2023, remainingAmountJpy: "150000" },
     ]);
 
     expect(fakeDb.run).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO foreign_tax_credit_spare_limit_carryforward"),
+      expect.stringContaining("INSERT INTO futures_loss_carryforward"),
       expect.arrayContaining([1, 2023, "150000"]),
     );
   });
