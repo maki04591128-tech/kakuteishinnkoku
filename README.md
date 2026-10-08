@@ -6722,10 +6722,22 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
   無いこと)を確認した。
 
-  **残り25ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  **進捗7(2026-10-08):** 続けて`CertifiedHousingConstructionCreditCarryforward`・
+  `CertifiedHousingConstructionCreditRecord`の2モデルにも同じパターンを適用した
+  (15/38ファイル完了)。両モデルも前述のモデル群と同じ
+  `findByTaxYearId`/`upsert`/`deleteByTaxYearId`のみのシンプルな構造(Decimal列
+  `remainingAmountJpy`/`creditJpy`を持つが`createClientXxxRepository`側で
+  `decimalCodec.ts`使用済みのため`standalone.ts`側に追加対応は不要)で、
+  `.standalone.ts`・`.standalone.test.ts`(既存の「未結線」エラー検証テストを
+  5-3-2と同様のモック化テストに置き換え)とも文字列置換のみで移行できた。
+  `npm run test`(全207ファイル1728件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版)
+  が成功し、`npm run build:standalone`も従来と同じ`searchParams`関連エラーでのみ
+  失敗すること(新たなリグレッションが無いこと)を確認した。
+
+  **残り23ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
   エラーを投げるプレースホルダーのまま):**
-  `CertifiedHousingConstructionCreditCarryforward`・
-  `CertifiedHousingConstructionCreditRecord`・
   `CryptoCreditTrade`・`CryptoMarginTrade`・`CryptoTrade`・
   `DistributionAdjustedForeignTaxCreditRecord`・`DonationTaxCreditRecord`・
   `EmploymentIncomeRecord`・
@@ -6759,10 +6771,12 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `EnergySavingRenovationDeductionRecord`・`MultiHouseholdRenovationDeductionRecord`・
   `DurabilityImprovementRenovationDeductionRecord`・`ChildRearingRenovationDeductionRecord`・
   `AngelTaxLossCarryforward`・`CasualtyLossCarryforward`・`AssetBalanceSnapshot`・
-  `AssetSymbolMapping`の10ファイル完了、5-3-2のTaxYearRepositoryと合わせて
-  11/38ファイル完了)時点の未着手(`[ ]`)項目は5-3-3の残り27ファイル(5-3-2で
-  確立したパターンを各`defaultXxxRepository.standalone.ts`へ適用する作業。
-  ファイル一覧は5-3-3の実装メモを参照)と5-3-4(実機/ブラウザでの動作検証)。**
+  `AssetSymbolMapping`・`CertifiedHousingConstructionCreditCarryforward`・
+  `CertifiedHousingConstructionCreditRecord`の12ファイル完了、5-3-2の
+  TaxYearRepositoryと合わせて15/38ファイル完了)時点の未着手(`[ ]`)項目は
+  5-3-3の残り23ファイル(5-3-2で確立したパターンを各`defaultXxxRepository.
+  standalone.ts`へ適用する作業。ファイル一覧は5-3-3の実装メモを参照)と
+  5-3-4(実機/ブラウザでの動作検証)。**
   次回も5-3-3の残りから(Decimal列を持つモデルは`decimalCodec.ts`との組み合わせに注意)、
   1〜数モデルずつ着手すること。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
