@@ -6570,13 +6570,47 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (フェーズ7待ちの)`searchParams`関連エラーで失敗すること(新たなリグレッション
   が無いこと)を確認した。
 
-- [ ] 5-3-2. `sqlite.browser.ts`の`openClientDb`を、5-1-3bで「未結線」
+- [x] 5-3-2. `sqlite.browser.ts`の`openClientDb`を、5-1-3bで「未結線」
       プレースホルダーのままにしていた`defaultTaxYearRepository.standalone.ts`
       (`createClientTaxYearRepository`)に実際に結線する。5-1-3bの既知の懸念
       (`openClientDb`実装がNode専用コードに依存していると、webpack/turbopackの
       静的解析でビルドが早期に壊れる)が、ブラウザ専用実装(`node:fs`等を使わない
       本ステップの実装)でも再発しないか`BUILD_TARGET=standalone`でのビルドで
       確認すること。まず1リポジトリで試してパターンを確立する。
+
+  **実装内容(2026-10-08):** `src/lib/clientDb/standaloneClientDb.ts`を新設し、
+  `getStandaloneClientDb()`でアプリ全体が共有する`ClientDb`接続を1つだけ
+  遅延オープンする仕組みを追加した。モデルごとに個別に`openClientDb`を呼ぶと
+  `sqlite.browser.ts`の実装上Workerを都度新規に起動することになり、OPFSの
+  `AccessHandlePoolVFS`が同じDBファイルに対して複数のWorkerから同時に
+  `createSyncAccessHandle()`しようとして排他ロックに抵触するため(1つのOPFS
+  ファイルは同時に1つのアクセスハンドルしか持てない)、26モデル全てで1つの
+  接続を共有する設計とした(5-3-3以降の残り25モデルもこの関数を再利用する
+  想定)。`defaultTaxYearRepository.standalone.ts`は、各メソッド呼び出し時に
+  `getStandaloneClientDb()`で取得した`db`を`createClientTaxYearRepository(db)`
+  (フェーズ2-1で実装済み)に渡して委譲するように変更し、「未結線」エラーを
+  投げるプレースホルダー実装を置き換えた。
+
+  **ビルド確認(2026-10-08時点):** `npm install`・`DATABASE_URL`を設定し
+  `npx prisma db push`で環境を用意した上で、`npm run test`(全205ファイル
+  1721件、プレースホルダーのエラー検証テスト4件を実際の結線を検証する
+  テスト3件に置き換え)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と
+  無関係。変更前の状態でも同じエラーが再現することを`git stash`で確認済み)
+  が成功することを確認した。`npm run build`(自宅サーバー版)も従来通り
+  成功した。`npm run build:standalone`は、5-1-3bで懸念していた
+  「`openClientDb`実装がNode専用コードに依存していると静的解析でビルドが
+  早期に壊れる」問題は**再発しなかった**(「Running TypeScript」工程が
+  エラー無く完了し、`sqlite.browser.ts`・`sqlite.worker.ts`が
+  `node:fs`/`createRequire`等のNode専用APIを使わないブラウザ専用実装である
+  ことを実際のビルドで確認できた)。その後の「Generating static pages」
+  工程では、フェーズ5-1-3dから既知の
+  `Error: Route /employment-income with "dynamic = \"error\"" couldn't be
+  rendered statically because it used \`await searchParams\`, ...`
+  (`output: "export"`の静的書き出しが`searchParams`を使うページと非対応という
+  別の制約。本ステップのスコープ外)で引き続き失敗することを確認した
+  (本対応による新たなリグレッションではないことの確認)。
+
 - [ ] 5-3-3. 5-3-2で確立したパターンを、5-1-3bが残課題として列挙していた
       残りの各`defaultXxxRepository.standalone.ts`(Decimal列を持つものは
       `decimalCodec.ts`の`decodeDecimal`方式と組み合わせる)へ順次適用していく。
@@ -6595,12 +6629,13 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
-  完了したらチェックを付けて次回に引き継ぐ。**5-3完了(2026-10-08)時点の
-  未着手(`[ ]`)項目は5-3-2〜5-3-4(ブラウザ向け`openClientDb`を各
-  `defaultXxxRepository.standalone.ts`へ実際に結線する作業)。** 次回は
-  まず5-3-2(1リポジトリでの結線パターン確立、特にwebpack/turbopackの
-  ビルドが壊れないかの確認)に着手すること。残るフェーズ6(実機ビルド・
-  動作確認)はこのクラウド開発環境にAndroid SDK・エミュレータが無いため
+  完了したらチェックを付けて次回に引き継ぐ。**5-3-2完了(2026-10-08)時点の
+  未着手(`[ ]`)項目は5-3-3〜5-3-4(5-3-2で確立したパターンを残り25モデルの
+  `defaultXxxRepository.standalone.ts`へ適用する作業、および実機/ブラウザでの
+  動作検証)。** 次回はまず5-3-3(`TaxYearRepository`以外の各モデルへの
+  `getStandaloneClientDb()`結線。Decimal列を持つモデルは`decimalCodec.ts`との
+  組み合わせに注意)から、1〜数モデルずつ着手すること。残るフェーズ6(実機
+  ビルド・動作確認)はこのクラウド開発環境にAndroid SDK・エミュレータが無いため
   自動化セッションでは検証できず、チェックリスト項目も無い(ユーザー自身の
   Android Studio環境またはCI経由でのビルド手順を追記する節)。
 - 5-3-2〜5-3-4がすべて完了した後は、`npm run build:standalone`が失敗する
