@@ -6647,15 +6647,27 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   が成功し、`npm run build:standalone`も従来と同じ`searchParams`関連エラーでのみ
   失敗すること(新たなリグレッションが無いこと)を確認した。
 
-  **残り33ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  **進捗3(2026-10-08):** 続けて`DurabilityImprovementRenovationDeductionRecord`・
+  `ChildRearingRenovationDeductionRecord`の2モデルにも同じパターンを適用した
+  (7/38ファイル完了)。両モデルも前述のモデル群と全く同じ
+  `findByTaxYearId`/`upsert`/`deleteByTaxYearId`のみのシンプルな構造(Decimal列
+  `creditJpy`を持つが`createClientXxxRepository`側で対応済みのため追加対応不要)で、
+  `.standalone.ts`・`.standalone.test.ts`とも文字列置換のみで移行できた。
+  `npm run test`(全205ファイル1721件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版)
+  が成功し、`npm run build:standalone`も従来と同じ`searchParams`関連エラーでのみ
+  失敗すること(新たなリグレッションが無いこと)を確認した。
+
+  **残り31ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
   エラーを投げるプレースホルダーのまま):**
   `AngelTaxLossCarryforward`・`AssetBalanceSnapshot`・`AssetSymbolMapping`・
   `BrokerAnnualReport`・`CashflowEntry`・`CasualtyLossCarryforward`・
   `CertifiedHousingConstructionCreditCarryforward`・
-  `CertifiedHousingConstructionCreditRecord`・`ChildRearingRenovationDeductionRecord`・
+  `CertifiedHousingConstructionCreditRecord`・
   `CryptoCreditTrade`・`CryptoMarginTrade`・`CryptoTrade`・
   `DistributionAdjustedForeignTaxCreditRecord`・`DonationTaxCreditRecord`・
-  `DurabilityImprovementRenovationDeductionRecord`・`EmploymentIncomeRecord`・
+  `EmploymentIncomeRecord`・
   `ForeignTaxCreditCarryforward`・
   `ForeignTaxCreditRecord`・`ForeignTaxCreditSpareLimitCarryforward`・
   `FuturesLossCarryforward`・`FuturesTrade`・`HomeReplacementLossCarryforward`・
@@ -6683,8 +6695,9 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
   完了したらチェックを付けて次回に引き継ぐ。**5-3-3着手(2026-10-08、
   `BarrierFreeRenovationDeductionRecord`・`EarthquakeRenovationDeductionRecord`・
-  `EnergySavingRenovationDeductionRecord`・`MultiHouseholdRenovationDeductionRecord`の
-  4ファイル完了)時点の未着手(`[ ]`)項目は5-3-3の残り33ファイル(5-3-2で確立した
+  `EnergySavingRenovationDeductionRecord`・`MultiHouseholdRenovationDeductionRecord`・
+  `DurabilityImprovementRenovationDeductionRecord`・`ChildRearingRenovationDeductionRecord`の
+  6ファイル完了)時点の未着手(`[ ]`)項目は5-3-3の残り31ファイル(5-3-2で確立した
   パターンを各`defaultXxxRepository.standalone.ts`へ適用する作業。ファイル一覧は
   5-3-3の実装メモを参照)と5-3-4(実機/ブラウザでの動作検証)。** 次回も5-3-3の
   残りから(Decimal列を持つモデルは`decimalCodec.ts`との組み合わせに注意)、
