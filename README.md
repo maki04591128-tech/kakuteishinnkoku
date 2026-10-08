@@ -6977,6 +6977,38 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
   (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
 
+  **進捗15(2026-10-08):** 続けて`InvestmentLossCarryforward`・
+  `InvestmentTrade`の2モデルにも同じパターンを適用した(31/38ファイル完了)。
+  `InvestmentLossCarryforward`は`findByTaxYearId`/`upsert`/`delete`/
+  `createMany`の4メソッド構成(進捗13・14の`HomeReplacementLossCarryforward`・
+  `HomeSaleLossCarryforward`と同じ構成)、`InvestmentTrade`は
+  `findByTaxYearId`/`create`/`delete`の3メソッド構成(進捗8・9・13の
+  `CryptoCreditTrade`・`CryptoTrade`・`FuturesTrade`と同じ構成)だが、どちらも
+  `createClientInvestmentLossCarryforwardRepository`/
+  `createClientInvestmentTradeRepository`(フェーズ2で実装済み)に各メソッドを
+  そのまま委譲するだけの`.standalone.ts`の骨格は変わらず、同じパターンを
+  適用できた(`InvestmentLossCarryforward`のDecimal列`remainingAmountJpy`、
+  `InvestmentTrade`のDecimal列`quantity`/`unitPriceJpy`/`feeJpy`等も
+  `createClientXxxRepository`側で`decimalCodec.ts`使用済みのため
+  `standalone.ts`側に追加対応は不要)。両モデルの`.standalone.test.ts`は
+  新規作成し、5-3-2と同様`openClientDb`/`applyClientDbSchema`をモック化する
+  内容とした(`InvestmentTrade`の`create`が発行する`last_insert_rowid()`経由の
+  再取得も検証)。`npm run test`(全217ファイル1763件)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーは`.next/types`生成後(`npm run build`実行後)に
+  再現しないことを確認済み)・`npm run build`(自宅サーバー版)が成功し、
+  `npm run build:standalone`も従来と同じ(フェーズ5-1-3dから既知の)
+  `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
+  無いこと)を確認した。
+
+  **残り7ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  エラーを投げるプレースホルダーのまま):**
+  `MarketPrice`・`MortgageDeductionRecord`・
+  `NisaLifetimeQuota`・
+  `OpeningBalance`・`OpeningBalanceByInstitution`・
+  `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
+  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
       では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
