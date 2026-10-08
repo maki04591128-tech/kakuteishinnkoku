@@ -6944,6 +6944,39 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
   (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
 
+  **進捗14(2026-10-08):** 続けて`HomeSaleLossCarryforward`・`IncomeDeduction`の
+  2モデルにも同じパターンを適用した(29/38ファイル完了)。
+  `HomeSaleLossCarryforward`は`findByTaxYearId`/`upsert`/`delete`/`createMany`の
+  4メソッド構成(進捗13の`HomeReplacementLossCarryforward`と同じ構成)、
+  `IncomeDeduction`は`findByTaxYearId`/`upsert`/`deleteByTaxYearIdAndType`の
+  3メソッド構成(これまでのモデル群と異なり`delete`系メソッドが`taxYearId`と
+  `type`の複合キーを取る)だが、どちらも
+  `createClientHomeSaleLossCarryforwardRepository`/
+  `createClientIncomeDeductionRepository`(フェーズ2で実装済み)に各メソッドを
+  そのまま委譲するだけの`.standalone.ts`の骨格は変わらず、同じパターンを
+  適用できた(`HomeSaleLossCarryforward`のDecimal列`remainingAmountJpy`、
+  `IncomeDeduction`のDecimal列`incomeTaxAmountJpy`/`residentTaxAmountJpy`も
+  `createClientXxxRepository`側で`decimalCodec.ts`使用済みのため
+  `standalone.ts`側に追加対応は不要)。`HomeSaleLossCarryforward`の
+  `.standalone.test.ts`は既存の「未結線」エラー検証テストを5-3-2と同様の
+  モック化テストに置き換え、`IncomeDeduction`の`.standalone.test.ts`は
+  新規作成した。`npm run test`(全215ファイル1756件)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーは`.next/types`生成後(`npm run build`実行後)に
+  再現しないことを確認済み)・`npm run build`(自宅サーバー版)が成功し、
+  `npm run build:standalone`も従来と同じ(フェーズ5-1-3dから既知の)
+  `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
+  無いこと)を確認した。
+
+  **残り9ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  エラーを投げるプレースホルダーのまま):**
+  `InvestmentLossCarryforward`・
+  `InvestmentTrade`・`MarketPrice`・`MortgageDeductionRecord`・
+  `NisaLifetimeQuota`・
+  `OpeningBalance`・`OpeningBalanceByInstitution`・
+  `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
+  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
       では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
