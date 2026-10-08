@@ -6659,10 +6659,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   が成功し、`npm run build:standalone`も従来と同じ`searchParams`関連エラーでのみ
   失敗すること(新たなリグレッションが無いこと)を確認した。
 
-  **残り31ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  **進捗4(2026-10-08):** 続けて`AngelTaxLossCarryforward`・
+  `CasualtyLossCarryforward`の2モデルにも同じパターンを適用した
+  (9/38ファイル完了)。両モデルは`findByTaxYearId`/`upsert`/`delete`
+  (`CasualtyLossCarryforward`はさらに`createMany`)という、ここまでの
+  `findByTaxYearId`/`upsert`/`deleteByTaxYearId`の3モデル群とはメソッド名が
+  一部異なる構造だが、`createClientXxxRepository`側(フェーズ2で実装済み)に
+  各メソッドをそのまま委譲するだけの`.standalone.ts`の骨格は変わらず、同じ
+  パターンを適用できた(Decimal列`remainingAmountJpy`も
+  `createClientXxxRepository`側で`decimalCodec.ts`使用済みのため
+  `standalone.ts`側に追加対応は不要)。`.standalone.test.ts`も5-3-2と同様、
+  `openClientDb`/`applyClientDbSchema`をモック化する内容に置き換えた
+  (`CasualtyLossCarryforward`は`createMany`発行SQLの検証を追加)。
+  `npm run test`(全205ファイル1721件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`
+  (自宅サーバー版)が成功し、`npm run build:standalone`も従来と同じ
+  `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
+  無いこと)を確認した。
+
+  **残り29ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
   エラーを投げるプレースホルダーのまま):**
-  `AngelTaxLossCarryforward`・`AssetBalanceSnapshot`・`AssetSymbolMapping`・
-  `BrokerAnnualReport`・`CashflowEntry`・`CasualtyLossCarryforward`・
+  `AssetBalanceSnapshot`・`AssetSymbolMapping`・
+  `BrokerAnnualReport`・`CashflowEntry`・
   `CertifiedHousingConstructionCreditCarryforward`・
   `CertifiedHousingConstructionCreditRecord`・
   `CryptoCreditTrade`・`CryptoMarginTrade`・`CryptoTrade`・
