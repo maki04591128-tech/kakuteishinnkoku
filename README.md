@@ -6255,10 +6255,50 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     `Server Actions are not supported with static export`で失敗すること
     (本対応による新たな破壊ではないこと)を確認した。
 
-    **残る5-1-3d-42以降の対象:** `import/page.tsx`が`@/app/actions`から
-    importする残り4個のアクション(`importCryptoExchangeCsv`・
-    `importCryptoMarginCsv`・`importFuturesCsv`・`importMoneyForwardCsv`)を、
-    同じ要領で組ごとに1つずつ切り出していく。
+  - [x] 5-1-3d-42. `importCryptoExchangeCsv`(暗号資産取引所の取引履歴CSV
+        取り込み。`import/page.tsx`のみが使うアクション)を切り出す。
+
+    **実装内容(2026-10-08):** コア処理(`importCryptoExchangeCsvCore`)を
+    `src/lib/actions/importCryptoExchangeCsv.ts`として新規に切り出した(CSV解析は
+    既存の`parseExchangeCsv`(`src/lib/crypto/exchangeCsv.ts`)をそのまま利用。
+    コア関数はデコード済みのCSV文字列と、手動マッピング(`ExchangeCsvMapping`。
+    未指定ならpresetによる自動解析)を受け取り、文字コード変換(`decodeCsvFile`。`File`
+    ブラウザAPI依存)・手動マッピング欄の有無の判定(`hasManualMapping`。`FormData`
+    依存)は呼び出し側で行う、5-1-3d-40/41と同じ分割方針)。依存する
+    `TaxYearRepository`/`CryptoTradeRepository`はいずれも5-1-3bで既に
+    ビルドターゲット切り替え機構を適用済み。5-1-3d-1以降と同じビルドターゲット
+    切り替えパターンを`@/lib/importCryptoExchangeCsvActions`として新設した。
+    自宅サーバー版の既定実装(`src/lib/importCryptoExchangeCsvActions.ts`)は
+    `src/app/actions.ts`の`importCryptoExchangeCsv`をそのまま再エクスポート
+    するだけ(挙動は従来と完全に同一。`actions.ts`側の実装自体は書き換えず、
+    5-1-3d-40/41と同様に重複実装を許容している)。スタンドアロン版向け差し替え実装
+    (`src/lib/importCryptoExchangeCsvActions.standalone.ts`)は、
+    `decodeCsvFile`でデコードしたCSV文字列と`FormData`から読み取ったpreset/
+    取引所名/手動マッピングを`importCryptoExchangeCsvCore`に渡して直接呼び出す
+    (`redirect`/`revalidatePath`の代わりに`window.location.href`遷移で代替する
+    点も既存パターンと同じ)。`next.config.ts`の`turbopack.resolveAlias`/
+    `webpack.resolve.alias`・`tsconfig.standalone.json`の`paths`に
+    `@/lib/importBrokerAnnualReportCsvActions`と並べて
+    `@/lib/importCryptoExchangeCsvActions`のエントリを追加し、
+    `importCryptoExchangeCsv`を`@/app/actions`から直接importしていた
+    `import/page.tsx`を、この`@/lib/importCryptoExchangeCsvActions`から
+    importする形に書き換えた(自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-08時点):** `npm install`・`DATABASE_URL`を設定し
+    `npx prisma db push`で環境を用意した上で、`npm run test`
+    (全200ファイル1708件、新規テスト3件追加)・`npm run lint`・
+    `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方、既存の
+    `LayoutProps`エラーのみで本変更と無関係)が成功することを確認した。
+    加えて(1)`npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、
+    (2)`npm run build:standalone`は、本変更後も`import/page.tsx`が残り3個の
+    アクションを`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-43以降の対象:** `import/page.tsx`が`@/app/actions`から
+    importする残り3個のアクション(`importCryptoMarginCsv`・`importFuturesCsv`・
+    `importMoneyForwardCsv`)を、同じ要領で組ごとに1つずつ切り出していく。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 

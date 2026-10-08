@@ -308,6 +308,18 @@ const importBrokerAnnualReportCsvActionsStandaloneAliasForWebpack = path.resolve
   "src/lib/importBrokerAnnualReportCsvActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/importCryptoExchangeCsvActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `importCryptoExchangeCsv`をそのまま再エクスポートする代わりに、本ステップ
+// (5-1-3d-42)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/importBrokerAnnualReportCsvActions`に続く42個目)。
+const importCryptoExchangeCsvActionsStandaloneAliasForTurbopack =
+  "./src/lib/importCryptoExchangeCsvActions.standalone.ts";
+const importCryptoExchangeCsvActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/importCryptoExchangeCsvActions.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/homeSaleLossCarryforwardActions`の実装を、
 // `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
 // `carryForwardHomeSaleLossExcess`をそのまま再エクスポートする代わりに、本ステップ
@@ -1031,6 +1043,8 @@ const nextConfig: NextConfig = {
             importAssetBalanceCsvActionsStandaloneAliasForTurbopack,
           "@/lib/importBrokerAnnualReportCsvActions":
             importBrokerAnnualReportCsvActionsStandaloneAliasForTurbopack,
+          "@/lib/importCryptoExchangeCsvActions":
+            importCryptoExchangeCsvActionsStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -1178,6 +1192,8 @@ const nextConfig: NextConfig = {
           importAssetBalanceCsvActionsStandaloneAliasForWebpack,
         "@/lib/importBrokerAnnualReportCsvActions":
           importBrokerAnnualReportCsvActionsStandaloneAliasForWebpack,
+        "@/lib/importCryptoExchangeCsvActions":
+          importCryptoExchangeCsvActionsStandaloneAliasForWebpack,
       };
     }
     return config;
