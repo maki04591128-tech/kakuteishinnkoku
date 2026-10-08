@@ -4107,7 +4107,7 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   通らない(5-1-3d完了後に解消する見込み。本対応前から存在する既知の制約で、
   本対応による新たな破壊ではないことを`git stash`で変更前の状態に戻して同じ
   ビルドコマンドを実行し同一のエラーで失敗することを確認済み)。
-- [ ] 5-1-3d. `src/app/actions.ts`(`"use server"`)をスタンドアロン版のビルド
+- [x] 5-1-3d. `src/app/actions.ts`(`"use server"`)をスタンドアロン版のビルド
       対象から除外し(`scripts/build-standalone.mjs`の退避対象に追加)、
       これを直接importしている32ファイル(`page.tsx`・クライアント
       コンポーネント)を、フェーズ3で`src/lib/actions/*.ts`に抽出済みの
@@ -6444,6 +6444,55 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     (各ページを`"use client"`化して`useSearchParams()`やクライアント側の
     `URLSearchParams`読み取りに置き換える等の方針検討が必要。影響範囲の
     洗い出しから着手するのが望ましい)。
+
+  - [x] 5-1-3d-46(5-1-3d完了). `src/app/actions.ts`自体を
+        `scripts/build-standalone.mjs`の`EXCLUDED_PATHS`に追加する。
+
+    **実装内容(2026-10-08):** `EXCLUDED_PATHS`に`src/app/actions.ts`を
+    追加した。追加した上で`npm run build:standalone`を実行したところ、
+    想定外の副作用が判明した:`src/app/actions.ts`からexportされる
+    `saveXxx`/`deleteXxx`等を自宅サーバー版の既定実装としてそのまま
+    再エクスポートするだけの`src/lib/*Actions.ts`(5-1-3d-1〜45で新設した
+    ビルドターゲット切り替えパターンの「自宅サーバー版の既定実装」側、計42
+    ファイル)は、スタンドアロン版では`next.config.ts`のalias設定により
+    `*.standalone.ts`に差し替えられ参照されなくなるものの、`src/lib/authUi.tsx`
+    (フェーズ4で退避対象に追加済み)と全く同じ理由
+    (`next build`の型チェックはバンドラのalias設定を認識せず、
+    `tsconfig.standalone.json`の`include`に一致する`src/lib/*Actions.ts`
+    自体を直接型チェックしてしまう)で、`from "@/app/actions"`の
+    import解決に失敗し`npm run build:standalone`の「Running TypeScript」
+    工程が42件の`TS2307: Cannot find module '@/app/actions'`エラーで
+    失敗することを確認した。そのため`src/app/actions.ts`と合わせて、
+    この42ファイル(`angelTaxLossCarryforwardActions.ts`から
+    `stockMarginTradeActions.ts`まで。詳細はコード中のコメントと
+    `EXCLUDED_PATHS`配列を参照)も`EXCLUDED_PATHS`に追加した。
+
+    **動作確認(2026-10-08時点):** `npm install`・`DATABASE_URL`を設定し
+    `npx prisma db push`で環境を用意した上で、`npm run test`
+    (全204ファイル1717件、変更なし)・`npm run lint`・`npx tsc --noEmit`
+    (標準・`tsconfig.standalone.json`の両方、エラー無し。本対応前に存在した
+    既知の`LayoutProps`エラーは今回確認した際には再現しなかった
+    ([.next/types](https://nextjs.org/)の生成状態に依存する既知の揺れで、
+    本対応と無関係)が成功することを確認した。加えて(1)`npm run build`
+    (自宅サーバー版)が本変更後も従来通り成功すること、(2)`npm run
+    build:standalone`は、本対応により「Running TypeScript」工程が
+    エラー無く完了するようになったこと(本対応前は上記42件のエラーで
+    この工程自体が失敗していた)、その後の「Generating static pages」
+    工程で5-1-3d-45時点から既知の
+    `Error: Route / with "dynamic = \"error\"" couldn't be rendered
+    statically because it used \`await searchParams\`, ...`
+    (`src/app/page.tsx`等、`searchParams` propを使う多数のページが
+    `output: "export"`の静的書き出しと非対応という別の制約。本対応の
+    スコープ外)でビルド自体は引き続き失敗することを確認した
+    (本対応による新たな破壊ではなく、既知の制約がそのまま残っていることの
+    確認)。`moveAway()`/`restore()`が新たに追加した43ファイル(`actions.ts`+
+    42個の`*Actions.ts`)についても正しく退避・復元されること
+    (`git status`で退避対象の差分が残っていないこと)も確認した。
+
+    これにより、フェーズ5-1-3dの「`src/app/actions.ts`をスタンドアロン版の
+    ビルド対象から除外する」という目的を完了した。残るのは上記(2)の
+    `searchParams`問題(フェーズ5-1-3dのスコープ外、別途対応が必要)のみ。
+
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
