@@ -6493,8 +6493,39 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     ビルド対象から除外する」という目的を完了した。残るのは上記(2)の
     `searchParams`問題(フェーズ5-1-3dのスコープ外、別途対応が必要)のみ。
 
-- [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
+- [x] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
+
+  **実装内容(2026-10-08):** `@capacitor/core`・`@capacitor/android`
+  (`dependencies`)・`@capacitor/cli`(`devDependencies`)を追加し、
+  `npx cap init`で`capacitor.config.ts`を新規作成した(`appId:
+  "com.kakuteishinnkoku.app"`・`appName: "確定申告ツール"`・
+  `webDir: "out"`。`webDir`は5-1で追加した`next.config.ts`の
+  `output: "export"`が既定で書き出す`out/`ディレクトリに合わせた。
+  `distDir`のカスタマイズは無いため追加設定は不要)。続けて`npx cap add
+  android`で`android/`ディレクトリ(Capacitor公式のAndroidネイティブ
+  プロジェクト雛形。Gradle Wrapper・`MainActivity.java`(パッケージ名は
+  `appId`から`com.kakuteishinnkoku.app`)・アイコン/スプラッシュ画像等を含む)
+  を生成した。`android/.gitignore`(Capacitorが自動生成)により、
+  Webビルド成果物のコピー先(`android/app/src/main/assets/public`)・
+  生成される`capacitor.config.json`/`capacitor.plugins.json`・
+  `capacitor-cordova-android-plugins/`は追跡対象から除外される
+  (`npm run build:standalone`で生成した`out/`の内容を実機/APKビルド前に
+  `npx cap sync android`で都度コピーする運用を想定しており、コピー結果自体を
+  リポジトリにコミットする必要は無いため)。
+
+  **動作確認(2026-10-08時点):** `npm install`・`DATABASE_URL`を設定し
+  `npx prisma db push`で環境を用意した上で、`npm run test`
+  (全204ファイル1717件、変更なし)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。`.next/types`生成後は既知の
+  `LayoutProps`エラーも再現せずエラー無しで成功)が成功することを確認した。
+  加えて(1)`npm run build`(自宅サーバー版)が本変更後も従来通り成功すること、
+  (2)`npm run build:standalone`は、本変更による新たな破壊はなく
+  5-1-3d完了時点から既知の`searchParams`問題(フェーズ5-1-3dのスコープ外)
+  でのみ引き続き失敗することを確認した。このクラウド開発環境にはAndroid
+  SDK・エミュレータが無いため、`android/`プロジェクト自体のGradleビルド
+  (`./gradlew assembleDebug`等)・APK生成・実機/エミュレータでの動作確認は
+  このセッションでは検証できない(フェーズ6で対応予定)。
 
 #### フェーズ6: 実機ビルド・動作確認(このセッションでは検証不可)
 
@@ -6505,22 +6536,26 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 
 ### 進め方の指針
 
-- 各ブラッシュアップは上記チェックリストの最初の未着手項目(現時点は5-1-3d
-  (`src/app/actions.ts`のビルド対象除外と、これを直接importしている32ファイルの
-  書き換え。5-1-3aの調査で判明した項目)のみ。5-1-3bの「他リポジトリへの同パターン
-  適用」は`src/app/actions.ts`(5-1-3dと合わせて扱う対象)を除き完了済み
-  (`grep -rln "createPrisma.*Repository()" src/lib/*.ts src/lib/investment/*.ts`で
-  確認可能。`src/lib/auth/loginRateLimit.ts`は`src/lib/auth`ディレクトリ自体が
-  スタンドアロン版ビルドから丸ごと除外されるため対象外)。5-1-3c
-  (クライアント側CSV生成への置き換え)も完了済み)
-  から1つずつ着手し、完了したらチェックを付けて次回に引き継ぐ。5-1-3dはフェーズ
-  1・2と同程度の規模が見込まれるため、急がず1ファイルずつ進める。5-1-3bで判明
-  した通り、クライアント実装(`createClientXxxRepository`)を実際にスタンドアロン版
-  ビルドへ結線する(`defaultXxxRepository.standalone.ts`で本物の`openClientDb`を
-  呼ぶ)のは、ブラウザ向け(OPFSベース)の`openClientDb`実装ができるまで保留し、
-  当面は「未結線」エラーを投げるプレースホルダーのままにする(安易に結線すると
-  `wa-sqlite`のNode専用コードがブラウザ向けバンドルに引き込まれてビルドが
-  壊れるため)。
+- 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
+  完了したらチェックを付けて次回に引き継ぐ。**5-2完了(2026-10-08)時点で
+  フェーズ0〜5の全チェックリスト項目が完了し、未着手(`[ ]`)の項目は
+  無くなった。** 残るフェーズ6(実機ビルド・動作確認)はこのクラウド開発
+  環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
+  チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
+  ビルド手順を追記する節)。そのため次回以降のブラッシュアップでは、まず
+  (1)`npm run build:standalone`が失敗する既知の残課題である`searchParams`
+  問題(フェーズ5-1-3dの残課題。多数のページが`searchParams` propを使って
+  おり`output: "export"`の静的書き出しと非対応なため、各ページを
+  `"use client"`化して`useSearchParams()`や クライアント側の
+  `URLSearchParams`読み取りに置き換える等の対応が必要)の解消、または
+  (2)フェーズ2で用意したクライアントDB実装(`createClientXxxRepository`)を
+  実際にブラウザ(OPFSベース)の`openClientDb`実装と結線する作業
+  (5-1-3bで判明した通り、ブラウザ向けの`openClientDb`実装ができるまで保留し、
+  当面は「未結線」エラーを投げるプレースホルダーのままにしてきた部分。
+  安易に結線すると`wa-sqlite`のNode専用コードがブラウザ向けバンドルに
+  引き込まれてビルドが壊れるため注意が必要)のいずれかに着手し、その内容を
+  このREADMEの新しいフェーズ(またはフェーズ5内の追加項目)として
+  チェックリスト化してから進めることを推奨する。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
