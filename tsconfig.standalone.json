@@ -56,6 +56,9 @@
       "@/lib/importAssetBalanceCsvActions": [
         "./src/lib/importAssetBalanceCsvActions.standalone.ts"
       ],
+      "@/lib/importBrokerAnnualReportCsvActions": [
+        "./src/lib/importBrokerAnnualReportCsvActions.standalone.ts"
+      ],
       "@/lib/brokerAnnualReportActions": [
         "./src/lib/brokerAnnualReportActions.standalone.ts"
       ],
