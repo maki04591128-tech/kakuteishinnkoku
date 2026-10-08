@@ -39,7 +39,7 @@ import { certifiedHousingConstructionCreditCarryforwardRepository } from "@/lib/
 import { incomeDeductionRepository } from "@/lib/repositories/defaultIncomeDeductionRepository";
 import { mortgageDeductionRecordRepository } from "@/lib/repositories/defaultMortgageDeductionRecordRepository";
 import { residentTaxAdjustmentDeductionRecordRepository } from "@/lib/repositories/defaultResidentTaxAdjustmentDeductionRecordRepository";
-import { createPrismaCashflowEntryRepository } from "@/lib/repositories/cashflowEntryRepository";
+import { cashflowEntryRepository } from "@/lib/repositories/defaultCashflowEntryRepository";
 import { assetBalanceSnapshotRepository } from "@/lib/repositories/defaultAssetBalanceSnapshotRepository";
 import { decodeCsvFile } from "@/lib/csv";
 import { parseMoneyForwardCashflowCsv } from "@/lib/moneyforward/parseCashflow";
@@ -233,8 +233,6 @@ function isKnownExchangeCsvPreset(
 ): preset is Exclude<ExchangeCsvPreset, "other"> {
   return preset in EXCHANGE_LABELS;
 }
-
-const cashflowEntryRepository = createPrismaCashflowEntryRepository();
 
 export async function setCryptoCostMethod(formData: FormData): Promise<void> {
   const year = Number(requireString(formData, "year"));

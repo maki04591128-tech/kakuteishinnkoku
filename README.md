@@ -6380,18 +6380,70 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     `Server Actions are not supported with static export`で失敗すること
     (本対応による新たな破壊ではないこと)を確認した。
 
-    **残る5-1-3d-45の対象:** `import/page.tsx`が`@/app/actions`から
-    importする最後の1個のアクション`importMoneyForwardCsv`を切り出す。
-    なお、このアクションが依存する`CashflowEntryRepository`
-    (`src/lib/repositories/cashflowEntryRepository.ts`)は、クライアントDB実装
-    (`createClientCashflowEntryRepository`)自体はフェーズ2-33で追加済みだが、
-    他の26モデルと異なり5-1-3bのビルドターゲット切り替え機構
-    (`defaultCashflowEntryRepository.ts`+`next.config.ts`のalias)がまだ
-    導入されていない(`src/app/actions.ts`内で
-    `createPrismaCashflowEntryRepository()`を直接インスタンス化している)。
-    そのため5-1-3d-45では、他のアクション切り出しと合わせて、この
-    `defaultCashflowEntryRepository`の新設(5-1-3bと同じパターン)も
-    併せて対応する必要がある。
+  - [x] 5-1-3d-45. `importMoneyForwardCsv`(マネーフォワード MEの家計簿CSV
+        取り込み。`import/page.tsx`のみが使う、`@/app/actions`から直接importする
+        最後の1個のアクション)を切り出す。
+
+    **実装内容(2026-10-08):** コア処理(`importMoneyForwardCsvCore`)を
+    `src/lib/actions/importMoneyForwardCsv.ts`として新規に切り出した(CSV解析は
+    既存の`parseMoneyForwardCashflowCsv`(`src/lib/moneyforward/parseCashflow.ts`)
+    をそのまま利用)。このアクションが依存する`CashflowEntryRepository`は、
+    他の26モデルと異なりこれまで5-1-3bのビルドターゲット切り替え機構
+    (`default*Repository.ts`+`next.config.ts`/`tsconfig.standalone.json`の
+    alias)が未導入だった(`src/app/actions.ts`内で
+    `createPrismaCashflowEntryRepository()`を直接インスタンス化していた)ため、
+    本ステップで`src/lib/repositories/defaultCashflowEntryRepository.ts`
+    (既定実装。既存の`cashflowEntryRepository.ts`の
+    `createPrismaCashflowEntryRepository`をそのまま使う)と
+    `defaultCashflowEntryRepository.standalone.ts`
+    (他の26モデルと同じ「ブラウザ向けOPFSベースの`openClientDb`実装待ち」の
+    プレースホルダー。`createClientCashflowEntryRepository`自体はフェーズ2-33で
+    追加済みだがまだ結線しない)を新設し、`next.config.ts`の
+    `turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に他の26モデルと並べて追加した。
+    `src/app/actions.ts`側も、直接`createPrismaCashflowEntryRepository()`を
+    呼ぶのをやめ、この`defaultCashflowEntryRepository`経由の
+    `cashflowEntryRepository`を参照する形に変更した(関数の実装自体は
+    5-1-3d-44までと同様に書き換えていない)。5-1-3d-1以降と同じビルド
+    ターゲット切り替えパターンを`@/lib/importMoneyForwardCsvActions`として
+    新設し(自宅サーバー版の既定実装は`@/app/actions`の
+    `importMoneyForwardCsv`をそのまま再エクスポート、スタンドアロン版向け
+    差し替え実装は`importMoneyForwardCsvCore`を`defaultTaxYearRepository`/
+    `defaultCashflowEntryRepository`経由でDIして直接呼び出し、
+    `window.location.href`遷移で代替)、`import/page.tsx`の
+    `importMoneyForwardCsv`のimport元を`@/app/actions`からこの
+    `@/lib/importMoneyForwardCsvActions`に書き換えた(自宅サーバー版の見た目・
+    挙動は変更無し)。これにより、フェーズ5-1-3dの対象だった32ファイル全てが
+    `@/app/actions`を直接importしない形に移行完了した。
+
+    **動作確認(2026-10-08時点):** `npm install`・`DATABASE_URL`を設定し
+    `npx prisma db push`で環境を用意した上で、`npm run test`
+    (全204ファイル1717件、新規テスト3件追加)・`npm run lint`・`npx tsc --noEmit`
+    (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで
+    本変更と無関係)が成功することを確認した。加えて(1)`npm run build`
+    (自宅サーバー版)が本変更後も従来通り成功すること、(2)`npm run
+    build:standalone`は、32ファイル全ての移行完了により`@/app/actions`
+    (`src/app/actions.ts`、`"use server"`)がどのページの依存グラフからも
+    到達不能になった結果、これまでの既知の制約だった
+    `Server Actions are not supported with static export`エラーは
+    **発生しなくなった**ことを確認した。ただし、その先で新たに
+    `Error: Route / with "dynamic = \"error\"" couldn't be rendered
+    statically because it used \`await searchParams\`, ...`という別の
+    エラーで失敗することも確認した(`output: "export"`の静的書き出しでは
+    `searchParams`のようなリクエスト依存のAPIを使うページを静的化できない
+    制約によるもので、`src/app/page.tsx`等、多数のページが
+    `?year=`のようなクエリパラメータを`searchParams` propで受け取る設計に
+    なっているため影響範囲が広いと見込まれる。本ステップのスコープ外のため
+    未対応)。
+
+    **次のステップ(5-1-3dの完了に向けて)で対応が必要な残課題:**
+    (1)`src/app/actions.ts`自体を`scripts/build-standalone.mjs`の
+    `EXCLUDED_PATHS`に追加し(今回の変更でもう安全に退避できる状態になった)、
+    本項目(5-1-3d)を`[x]`にする。(2)上記で新たに判明した
+    `searchParams`を使うページの静的書き出し非対応の問題を解決する
+    (各ページを`"use client"`化して`useSearchParams()`やクライアント側の
+    `URLSearchParams`読み取りに置き換える等の方針検討が必要。影響範囲の
+    洗い出しから着手するのが望ましい)。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
