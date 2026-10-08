@@ -6614,6 +6614,45 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
 - [ ] 5-3-3. 5-3-2で確立したパターンを、5-1-3bが残課題として列挙していた
       残りの各`defaultXxxRepository.standalone.ts`(Decimal列を持つものは
       `decimalCodec.ts`の`decodeDecimal`方式と組み合わせる)へ順次適用していく。
+
+  **進捗(2026-10-08):** `src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`
+  は全38ファイル(5-3-2で完了済みの`TaxYearRepository`を含む)あり、本ステップでは
+  うち2ファイルに着手した(5-3-2のTaxYearRepositoryと合わせて3/38ファイル完了)。
+  `BarrierFreeRenovationDeductionRecord`・`EarthquakeRenovationDeductionRecord`の
+  2モデルに、5-3-2で`TaxYearRepository`向けに確立したパターン(`getStandaloneClientDb()`
+  で取得した共有`ClientDb`を既存の`createClientXxxRepository`に渡すだけ)をそのまま
+  適用した。両モデルは`findByTaxYearId`/`upsert`/`deleteByTaxYearId`の3メソッドのみの
+  シンプルな構造(`TaxYearRepository`より単純)で、Decimal列(`creditJpy`)を持つが
+  `createClientXxxRepository`側(フェーズ2で実装済み)が既に`decimalCodec.ts`を使って
+  おり、`standalone.ts`側の結線部分では追加対応は不要だった。各`.standalone.test.ts`も
+  5-3-2と同様、`openClientDb`/`applyClientDbSchema`をモック化し「共有ClientDb接続を
+  1回だけ開き全メソッドで再利用する」ことと各メソッドが発行するSQLを検証する内容に
+  置き換えた(「未結線」エラーを検証するテストは削除)。`npm run test`(全205ファイル
+  1721件)・`npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。
+  既知の`LayoutProps`エラーのみで本変更と無関係なことを`git stash`で確認済み)・
+  `npm run build`(自宅サーバー版)が成功し、`npm run build:standalone`も従来と同じ
+  (フェーズ5-1-3dから既知の)`searchParams`関連エラーでのみ失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残り35ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  エラーを投げるプレースホルダーのまま):**
+  `AngelTaxLossCarryforward`・`AssetBalanceSnapshot`・`AssetSymbolMapping`・
+  `BrokerAnnualReport`・`CashflowEntry`・`CasualtyLossCarryforward`・
+  `CertifiedHousingConstructionCreditCarryforward`・
+  `CertifiedHousingConstructionCreditRecord`・`ChildRearingRenovationDeductionRecord`・
+  `CryptoCreditTrade`・`CryptoMarginTrade`・`CryptoTrade`・
+  `DistributionAdjustedForeignTaxCreditRecord`・`DonationTaxCreditRecord`・
+  `DurabilityImprovementRenovationDeductionRecord`・`EmploymentIncomeRecord`・
+  `EnergySavingRenovationDeductionRecord`・`ForeignTaxCreditCarryforward`・
+  `ForeignTaxCreditRecord`・`ForeignTaxCreditSpareLimitCarryforward`・
+  `FuturesLossCarryforward`・`FuturesTrade`・`HomeReplacementLossCarryforward`・
+  `HomeSaleLossCarryforward`・`IncomeDeduction`・`InvestmentLossCarryforward`・
+  `InvestmentTrade`・`MarketPrice`・`MortgageDeductionRecord`・
+  `MultiHouseholdRenovationDeductionRecord`・`NisaLifetimeQuota`・
+  `OpeningBalance`・`OpeningBalanceByInstitution`・
+  `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
+  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
       では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
@@ -6629,15 +6668,16 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
-  完了したらチェックを付けて次回に引き継ぐ。**5-3-2完了(2026-10-08)時点の
-  未着手(`[ ]`)項目は5-3-3〜5-3-4(5-3-2で確立したパターンを残り25モデルの
-  `defaultXxxRepository.standalone.ts`へ適用する作業、および実機/ブラウザでの
-  動作検証)。** 次回はまず5-3-3(`TaxYearRepository`以外の各モデルへの
-  `getStandaloneClientDb()`結線。Decimal列を持つモデルは`decimalCodec.ts`との
-  組み合わせに注意)から、1〜数モデルずつ着手すること。残るフェーズ6(実機
-  ビルド・動作確認)はこのクラウド開発環境にAndroid SDK・エミュレータが無いため
-  自動化セッションでは検証できず、チェックリスト項目も無い(ユーザー自身の
-  Android Studio環境またはCI経由でのビルド手順を追記する節)。
+  完了したらチェックを付けて次回に引き継ぐ。**5-3-3着手(2026-10-08、
+  `BarrierFreeRenovationDeductionRecord`・`EarthquakeRenovationDeductionRecord`の
+  2ファイル完了)時点の未着手(`[ ]`)項目は5-3-3の残り35ファイル(5-3-2で確立した
+  パターンを各`defaultXxxRepository.standalone.ts`へ適用する作業。ファイル一覧は
+  5-3-3の実装メモを参照)と5-3-4(実機/ブラウザでの動作検証)。** 次回も5-3-3の
+  残りから(Decimal列を持つモデルは`decimalCodec.ts`との組み合わせに注意)、
+  1〜数モデルずつ着手すること。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
+  開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
+  チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
+  ビルド手順を追記する節)。
 - 5-3-2〜5-3-4がすべて完了した後は、`npm run build:standalone`が失敗する
   既知の残課題である`searchParams`問題(フェーズ5-1-3dの残課題。多数の
   ページが`searchParams` propを使っており`output: "export"`の静的書き出しと
