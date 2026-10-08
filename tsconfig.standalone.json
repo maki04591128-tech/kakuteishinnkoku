@@ -68,6 +68,9 @@
       "@/lib/importFuturesCsvActions": [
         "./src/lib/importFuturesCsvActions.standalone.ts"
       ],
+      "@/lib/importMoneyForwardCsvActions": [
+        "./src/lib/importMoneyForwardCsvActions.standalone.ts"
+      ],
       "@/lib/brokerAnnualReportActions": [
         "./src/lib/brokerAnnualReportActions.standalone.ts"
       ],
@@ -220,6 +223,9 @@
       ],
       "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository": [
         "./src/lib/repositories/defaultHomeReplacementLossCarryforwardRepository.standalone.ts"
+      ],
+      "@/lib/repositories/defaultCashflowEntryRepository": [
+        "./src/lib/repositories/defaultCashflowEntryRepository.standalone.ts"
       ]
     }
   }

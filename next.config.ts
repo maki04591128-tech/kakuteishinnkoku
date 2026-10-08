@@ -344,6 +344,18 @@ const importFuturesCsvActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/importFuturesCsvActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/importMoneyForwardCsvActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `importMoneyForwardCsv`をそのまま再エクスポートする代わりに、本ステップ
+// (5-1-3d-45)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/importFuturesCsvActions`に続く45個目・最後の1個)。
+const importMoneyForwardCsvActionsStandaloneAliasForTurbopack =
+  "./src/lib/importMoneyForwardCsvActions.standalone.ts";
+const importMoneyForwardCsvActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/importMoneyForwardCsvActions.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/homeSaleLossCarryforwardActions`の実装を、
 // `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
 // `carryForwardHomeSaleLossExcess`をそのまま再エクスポートする代わりに、本ステップ
@@ -913,6 +925,15 @@ const defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForWebpack 
   "src/lib/repositories/defaultHomeReplacementLossCarryforwardRepository.standalone.ts",
 );
 
+// `CashflowEntryRepository`にも同じ切り替えパターンを適用する(フェーズ5-1-3d-45。
+// 他の26モデルと異なりこれまで5-1-3bの対象から漏れていたリポジトリ)。
+const defaultCashflowEntryRepositoryStandaloneAliasForTurbopack =
+  "./src/lib/repositories/defaultCashflowEntryRepository.standalone.ts";
+const defaultCashflowEntryRepositoryStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/repositories/defaultCashflowEntryRepository.standalone.ts",
+);
+
 const nextConfig: NextConfig = {
   ...(isStandaloneBuild ? { output: "export" } : {}),
   // `next build`内蔵の型チェックはバンドラのresolveAlias設定を認識しないため、
@@ -1060,6 +1081,8 @@ const nextConfig: NextConfig = {
             defaultHomeSaleLossCarryforwardRepositoryStandaloneAliasForTurbopack,
           "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository":
             defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForTurbopack,
+          "@/lib/repositories/defaultCashflowEntryRepository":
+            defaultCashflowEntryRepositoryStandaloneAliasForTurbopack,
           "@/lib/cryptoCostMethodActions": cryptoCostMethodActionsStandaloneAliasForTurbopack,
           "@/lib/deleteAssetBalanceImportBatchActions":
             deleteAssetBalanceImportBatchActionsStandaloneAliasForTurbopack,
@@ -1072,6 +1095,8 @@ const nextConfig: NextConfig = {
           "@/lib/importCryptoMarginCsvActions":
             importCryptoMarginCsvActionsStandaloneAliasForTurbopack,
           "@/lib/importFuturesCsvActions": importFuturesCsvActionsStandaloneAliasForTurbopack,
+          "@/lib/importMoneyForwardCsvActions":
+            importMoneyForwardCsvActionsStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -1212,6 +1237,8 @@ const nextConfig: NextConfig = {
           defaultHomeSaleLossCarryforwardRepositoryStandaloneAliasForWebpack,
         "@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository":
           defaultHomeReplacementLossCarryforwardRepositoryStandaloneAliasForWebpack,
+        "@/lib/repositories/defaultCashflowEntryRepository":
+          defaultCashflowEntryRepositoryStandaloneAliasForWebpack,
         "@/lib/cryptoCostMethodActions": cryptoCostMethodActionsStandaloneAliasForWebpack,
         "@/lib/deleteAssetBalanceImportBatchActions":
           deleteAssetBalanceImportBatchActionsStandaloneAliasForWebpack,
@@ -1224,6 +1251,8 @@ const nextConfig: NextConfig = {
         "@/lib/importCryptoMarginCsvActions":
           importCryptoMarginCsvActionsStandaloneAliasForWebpack,
         "@/lib/importFuturesCsvActions": importFuturesCsvActionsStandaloneAliasForWebpack,
+        "@/lib/importMoneyForwardCsvActions":
+          importMoneyForwardCsvActionsStandaloneAliasForWebpack,
       };
     }
     return config;
