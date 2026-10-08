@@ -62,6 +62,9 @@
       "@/lib/importCryptoExchangeCsvActions": [
         "./src/lib/importCryptoExchangeCsvActions.standalone.ts"
       ],
+      "@/lib/importCryptoMarginCsvActions": [
+        "./src/lib/importCryptoMarginCsvActions.standalone.ts"
+      ],
       "@/lib/brokerAnnualReportActions": [
         "./src/lib/brokerAnnualReportActions.standalone.ts"
       ],
