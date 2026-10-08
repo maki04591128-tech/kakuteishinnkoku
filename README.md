@@ -6787,6 +6787,44 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
   (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
 
+  **進捗9(2026-10-08):** 続けて`CryptoTrade`・
+  `DistributionAdjustedForeignTaxCreditRecord`の2モデルにも同じパターンを
+  適用した(19/38ファイル完了)。`CryptoTrade`は`findByTaxYearId`/`create`/
+  `delete`/`importCsvBatch`の4メソッド構成(進捗8の`CryptoMarginTrade`と
+  同じ構成)、`DistributionAdjustedForeignTaxCreditRecord`は
+  `findByTaxYearId`/`upsert`/`deleteByTaxYearId`のみのシンプルな構造
+  (進捗1以降の`BarrierFreeRenovationDeductionRecord`等と同じ構成)だが、
+  どちらも`createClientCryptoTradeRepository`/
+  `createClientDistributionAdjustedForeignTaxCreditRecordRepository`
+  (フェーズ2で実装済み)に各メソッドをそのまま委譲するだけの`.standalone.ts`の
+  骨格は変わらず、同じパターンを適用できた(Decimal列`quantity`/
+  `unitPriceJpy`/`marketValueUnitPriceJpy`/`feeJpy`/`creditJpy`も
+  `createClientXxxRepository`側で`decimalCodec.ts`使用済みのため
+  `standalone.ts`側に追加対応は不要)。`.standalone.test.ts`は両モデルとも
+  新規作成し、5-3-2と同様`openClientDb`/`applyClientDbSchema`をモック化する
+  内容とした(`CryptoTrade`の`importCsvBatch`が発行する`import_batch`・
+  `crypto_trade`両テーブルへのSQLも検証)。`npm run test`(全211ファイル
+  1742件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と
+  無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版)が
+  成功し、`npm run build:standalone`も従来と同じ(フェーズ5-1-3dから既知の)
+  `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
+  無いこと)を確認した。
+
+  **残り19ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  エラーを投げるプレースホルダーのまま):**
+  `DonationTaxCreditRecord`・
+  `EmploymentIncomeRecord`・
+  `ForeignTaxCreditCarryforward`・
+  `ForeignTaxCreditRecord`・`ForeignTaxCreditSpareLimitCarryforward`・
+  `FuturesLossCarryforward`・`FuturesTrade`・`HomeReplacementLossCarryforward`・
+  `HomeSaleLossCarryforward`・`IncomeDeduction`・`InvestmentLossCarryforward`・
+  `InvestmentTrade`・`MarketPrice`・`MortgageDeductionRecord`・
+  `NisaLifetimeQuota`・
+  `OpeningBalance`・`OpeningBalanceByInstitution`・
+  `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
+  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
       では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
