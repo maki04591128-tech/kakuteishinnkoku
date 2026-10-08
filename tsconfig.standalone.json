@@ -53,6 +53,9 @@
       "@/lib/deleteAssetBalanceImportBatchActions": [
         "./src/lib/deleteAssetBalanceImportBatchActions.standalone.ts"
       ],
+      "@/lib/importAssetBalanceCsvActions": [
+        "./src/lib/importAssetBalanceCsvActions.standalone.ts"
+      ],
       "@/lib/brokerAnnualReportActions": [
         "./src/lib/brokerAnnualReportActions.standalone.ts"
       ],

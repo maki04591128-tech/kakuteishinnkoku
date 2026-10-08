@@ -284,6 +284,18 @@ const deleteAssetBalanceImportBatchActionsStandaloneAliasForWebpack = path.resol
   "src/lib/deleteAssetBalanceImportBatchActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/importAssetBalanceCsvActions`の実装を、
+// `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
+// `importAssetBalanceCsv`をそのまま再エクスポートする代わりに、本ステップ
+// (5-1-3d-40)で抽出済みのコア関数をブラウザ上で直接呼び出す実装に差し替える
+// (フェーズ5-1-3d、`@/lib/deleteAssetBalanceImportBatchActions`に続く40個目)。
+const importAssetBalanceCsvActionsStandaloneAliasForTurbopack =
+  "./src/lib/importAssetBalanceCsvActions.standalone.ts";
+const importAssetBalanceCsvActionsStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/importAssetBalanceCsvActions.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/homeSaleLossCarryforwardActions`の実装を、
 // `src/app/actions.ts`(`"use server"`、`output: "export"`非対応)の
 // `carryForwardHomeSaleLossExcess`をそのまま再エクスポートする代わりに、本ステップ
@@ -1003,6 +1015,8 @@ const nextConfig: NextConfig = {
           "@/lib/cryptoCostMethodActions": cryptoCostMethodActionsStandaloneAliasForTurbopack,
           "@/lib/deleteAssetBalanceImportBatchActions":
             deleteAssetBalanceImportBatchActionsStandaloneAliasForTurbopack,
+          "@/lib/importAssetBalanceCsvActions":
+            importAssetBalanceCsvActionsStandaloneAliasForTurbopack,
         },
       }
     : {},
@@ -1146,6 +1160,8 @@ const nextConfig: NextConfig = {
         "@/lib/cryptoCostMethodActions": cryptoCostMethodActionsStandaloneAliasForWebpack,
         "@/lib/deleteAssetBalanceImportBatchActions":
           deleteAssetBalanceImportBatchActionsStandaloneAliasForWebpack,
+        "@/lib/importAssetBalanceCsvActions":
+          importAssetBalanceCsvActionsStandaloneAliasForWebpack,
       };
     }
     return config;

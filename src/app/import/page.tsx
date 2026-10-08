@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportForm";
 import {
-  importAssetBalanceCsv,
   importBrokerAnnualReportCsv,
   importCryptoExchangeCsv,
   importCryptoMarginCsv,
@@ -10,6 +9,7 @@ import {
 } from "@/app/actions";
 import { setCryptoCostMethod } from "@/lib/cryptoCostMethodActions";
 import { deleteAssetBalanceImportBatch } from "@/lib/deleteAssetBalanceImportBatchActions";
+import { importAssetBalanceCsv } from "@/lib/importAssetBalanceCsvActions";
 import {
   setForeignTaxCreditCarryforward,
   deleteForeignTaxCreditCarryforward,
