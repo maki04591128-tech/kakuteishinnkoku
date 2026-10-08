@@ -6527,6 +6527,64 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   (`./gradlew assembleDebug`等)・APK生成・実機/エミュレータでの動作確認は
   このセッションでは検証できない(フェーズ6で対応予定)。
 
+- [x] 5-3. ブラウザ向け(OPFSベース)の`openClientDb`実装に着手する。5-1-3bで
+      判明した通り、OPFSの`createSyncAccessHandle()`はWeb Workerコンテキスト
+      限定という制約があるため、まずWorkerとのpostMessageによるリクエスト/
+      レスポンス往復を担うメインスレッド側プロキシを実装し、そのプロキシ部分
+      (リクエストID管理・エラー伝播等、Workerをモック化すればNode/Vitestでも
+      検証できる部分)から着手する。
+
+  **実装内容(2026-10-08):** `src/lib/clientDb/workerProtocol.ts`に
+  メインスレッドとWorker間のpostMessageメッセージ形式
+  (`ClientDbWorkerRequest`/`ClientDbWorkerResponse`。`open`/`run`/`all`/`close`の
+  4種)を定義した。`src/lib/clientDb/sqlite.browser.ts`に`openClientDb`の
+  ブラウザ向け実装を追加し、`sqlite.ts`(フェーズ0-2のNode版PoC)と同じ
+  `ClientDb`インターフェースを、Workerへのリクエスト送信とリクエストIDに
+  紐づけたPromiseの解決/拒否(`pending`マップ)で実装した。Worker自体
+  (`src/lib/clientDb/sqlite.worker.ts`)は、フェーズ0で決定したOPFSベースVFSの
+  `AccessHandlePoolVFS`(wa-sqlite付属)を使い、`sqlite.ts`と同じ
+  `execWithParams`/`open_v2`/`close`呼び出しでSQLを実行する(WASMロードは
+  Node版の`node:fs`経由の`wasmBinary`指定ではなく、ブラウザではwa-sqlite標準の
+  fetchベースローダーにそのまま委ねる)。
+
+  **型チェックで判明した問題と対処:** `AccessHandlePoolVFS.js`はフェーズ0-2から
+  使っている`MemoryVFS.js`と異なりprivateクラスフィールド(`#directoryPath`等)を
+  使っており、`allowJs`経由の型推論がこの構文で効かず`npx tsc --noEmit`が
+  `TS7016`(暗黙のany)で失敗することが分かった。このファイルで実際に使う
+  API(コンストラクタと`isReady`)のみを宣言する最小限のアンビエント型宣言
+  (`src/lib/clientDb/waSqliteExamples.d.ts`)を追加して解決した。
+
+  **検証状況:** このクラウド開発環境にはOPFS対応ブラウザが無く(Node/Vitest
+  環境のみ)、Worker本体の実際のOPFS永続化・wa-sqlite実行はこのセッションでは
+  検証できない(フェーズ5-2のAndroid実機ビルドと同様の制約)。メインスレッド側
+  プロキシ(`sqlite.browser.ts`)のリクエスト/レスポンス往復処理は、
+  `sqlite.browser.test.ts`で`Worker`グローバルをモック化し、open時のリクエスト
+  送信・run/allそれぞれのリクエストIDの一意性とallのresult透過・Workerからの
+  `ok: false`応答のエラー伝播・Workerの`error`イベントでの保留中リクエスト一括
+  拒否・close時のWorker終了順序(ok応答を待ってから`terminate()`)を検証した。
+  `npm run test`(全205ファイル1722件、新規5件を含む)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方)が成功することを
+  確認した。また本ステップで追加した3ファイルはまだどの`defaultXxxRepository.
+  standalone.ts`からも参照していないため(次のステップの対象)、`npm run build`
+  (自宅サーバー版)が従来通り成功し、`npm run build:standalone`が従来と同じ
+  (フェーズ7待ちの)`searchParams`関連エラーで失敗すること(新たなリグレッション
+  が無いこと)を確認した。
+
+- [ ] 5-3-2. `sqlite.browser.ts`の`openClientDb`を、5-1-3bで「未結線」
+      プレースホルダーのままにしていた`defaultTaxYearRepository.standalone.ts`
+      (`createClientTaxYearRepository`)に実際に結線する。5-1-3bの既知の懸念
+      (`openClientDb`実装がNode専用コードに依存していると、webpack/turbopackの
+      静的解析でビルドが早期に壊れる)が、ブラウザ専用実装(`node:fs`等を使わない
+      本ステップの実装)でも再発しないか`BUILD_TARGET=standalone`でのビルドで
+      確認すること。まず1リポジトリで試してパターンを確立する。
+- [ ] 5-3-3. 5-3-2で確立したパターンを、5-1-3bが残課題として列挙していた
+      残りの各`defaultXxxRepository.standalone.ts`(Decimal列を持つものは
+      `decimalCodec.ts`の`decodeDecimal`方式と組み合わせる)へ順次適用していく。
+- [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
+      永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
+      では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
+      想定)。
+
 #### フェーズ6: 実機ビルド・動作確認(このセッションでは検証不可)
 
 このクラウド開発環境にはAndroid SDKが無いため、Claudeによる自動化セッションでは
@@ -6537,25 +6595,26 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
-  完了したらチェックを付けて次回に引き継ぐ。**5-2完了(2026-10-08)時点で
-  フェーズ0〜5の全チェックリスト項目が完了し、未着手(`[ ]`)の項目は
-  無くなった。** 残るフェーズ6(実機ビルド・動作確認)はこのクラウド開発
-  環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
-  チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
-  ビルド手順を追記する節)。そのため次回以降のブラッシュアップでは、まず
-  (1)`npm run build:standalone`が失敗する既知の残課題である`searchParams`
-  問題(フェーズ5-1-3dの残課題。多数のページが`searchParams` propを使って
-  おり`output: "export"`の静的書き出しと非対応なため、各ページを
-  `"use client"`化して`useSearchParams()`や クライアント側の
-  `URLSearchParams`読み取りに置き換える等の対応が必要)の解消、または
-  (2)フェーズ2で用意したクライアントDB実装(`createClientXxxRepository`)を
-  実際にブラウザ(OPFSベース)の`openClientDb`実装と結線する作業
-  (5-1-3bで判明した通り、ブラウザ向けの`openClientDb`実装ができるまで保留し、
-  当面は「未結線」エラーを投げるプレースホルダーのままにしてきた部分。
-  安易に結線すると`wa-sqlite`のNode専用コードがブラウザ向けバンドルに
-  引き込まれてビルドが壊れるため注意が必要)のいずれかに着手し、その内容を
-  このREADMEの新しいフェーズ(またはフェーズ5内の追加項目)として
-  チェックリスト化してから進めることを推奨する。
+  完了したらチェックを付けて次回に引き継ぐ。**5-3完了(2026-10-08)時点の
+  未着手(`[ ]`)項目は5-3-2〜5-3-4(ブラウザ向け`openClientDb`を各
+  `defaultXxxRepository.standalone.ts`へ実際に結線する作業)。** 次回は
+  まず5-3-2(1リポジトリでの結線パターン確立、特にwebpack/turbopackの
+  ビルドが壊れないかの確認)に着手すること。残るフェーズ6(実機ビルド・
+  動作確認)はこのクラウド開発環境にAndroid SDK・エミュレータが無いため
+  自動化セッションでは検証できず、チェックリスト項目も無い(ユーザー自身の
+  Android Studio環境またはCI経由でのビルド手順を追記する節)。
+- 5-3-2〜5-3-4がすべて完了した後は、`npm run build:standalone`が失敗する
+  既知の残課題である`searchParams`問題(フェーズ5-1-3dの残課題。多数の
+  ページが`searchParams` propを使っており`output: "export"`の静的書き出しと
+  非対応なため、各ページを`"use client"`化して`useSearchParams()`や
+  クライアント側の`URLSearchParams`読み取りに置き換える等の対応が必要)の
+  解消に着手する。この際、データ取得も`await`によるServer Component側での
+  実行からクライアント側での実行に置き換える必要があり、ページごとに同じ
+  `page.tsx`を自宅サーバー版・スタンドアロン版の両方で使っている現状の構成
+  (リポジトリ実装のみをビルドターゲットで切り替える5-1-3bの方式)が
+  そのまま使えるかどうかの検討(アーキテクチャ方針の決定)がまず必要になる
+  見込み。着手する際はその方針検討をフェーズ7として先にチェックリスト化する
+  こと。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
