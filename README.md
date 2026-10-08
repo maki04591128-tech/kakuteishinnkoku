@@ -6699,9 +6699,31 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
   無いこと)を確認した。
 
-  **残り27ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  **進捗6(2026-10-08):** 続けて`BrokerAnnualReport`・`CashflowEntry`の
+  2モデルにも同じパターンを適用した(13/38ファイル完了)。
+  `BrokerAnnualReport`は`findByTaxYearId`/`upsert`/`delete`/`upsertMany`の
+  4メソッド構成、`CashflowEntry`は`importMoneyForwardCsv`の1メソッドのみ
+  (ImportBatch作成とCashflowEntry一括登録を内部で行う)という、ここまでの
+  モデル群とはメソッド名・構成が異なるが、どちらも
+  `createClientBrokerAnnualReportRepository`/`createClientCashflowEntryRepository`
+  (フェーズ2で実装済み)に各メソッドをそのまま委譲するだけの`.standalone.ts`の
+  骨格は変わらず、同じパターンを適用できた(`BrokerAnnualReport`のDecimal列
+  `proceedsJpy`/`acquisitionCostJpy`/`dividendJpy`も`createClientXxxRepository`側で
+  `decimalCodec.ts`使用済みのため`standalone.ts`側に追加対応は不要)。
+  `.standalone.test.ts`も5-3-2と同様、`openClientDb`/`applyClientDbSchema`を
+  モック化する内容に置き換えた(「未結線」エラーを検証するテストは削除。
+  `BrokerAnnualReport`は`upsertMany`が複数件についてSQLを発行することも検証、
+  `CashflowEntry`は`importMoneyForwardCsv`が発行する`import_batch`・
+  `cashflow_entry`両テーブルへのSQLを検証)。
+  `npm run test`(全207ファイル1728件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`
+  (自宅サーバー版)が成功し、`npm run build:standalone`も従来と同じ
+  `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
+  無いこと)を確認した。
+
+  **残り25ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
   エラーを投げるプレースホルダーのまま):**
-  `BrokerAnnualReport`・`CashflowEntry`・
   `CertifiedHousingConstructionCreditCarryforward`・
   `CertifiedHousingConstructionCreditRecord`・
   `CryptoCreditTrade`・`CryptoMarginTrade`・`CryptoTrade`・
