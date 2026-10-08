@@ -6678,9 +6678,29 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
   無いこと)を確認した。
 
-  **残り29ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  **進捗5(2026-10-08):** 続けて`AssetBalanceSnapshot`・`AssetSymbolMapping`の
+  2モデルにも同じパターンを適用した(11/38ファイル完了)。
+  `AssetSymbolMapping`は`findMany`/`upsert`/`delete`のみのシンプルな構造で、
+  Decimal列を持たないため文字列置換のみで移行できた。`AssetBalanceSnapshot`は
+  これまでのモデル群と異なり`findByTaxYearId`/`findImportBatchesWithSnapshots`/
+  `importCsvBatch`/`deleteImportBatch`という4メソッド構成(`ImportBatch`との
+  関連を持つCSV取込機能)だが、`createClientAssetBalanceSnapshotRepository`
+  (フェーズ2-32で実装済み)に各メソッドをそのまま委譲するだけの`.standalone.ts`の
+  骨格は変わらず、同じパターンを適用できた(Decimal列`balanceJpy`/`quantity`も
+  `createClientAssetBalanceSnapshotRepository`側で`decimalCodec.ts`使用済みのため
+  `standalone.ts`側に追加対応は不要)。`.standalone.test.ts`も5-3-2と同様、
+  `openClientDb`/`applyClientDbSchema`をモック化する内容で新規作成した
+  (`AssetBalanceSnapshot`は`findImportBatchesWithSnapshots`・`importCsvBatch`・
+  `deleteImportBatch`が発行する複数のSQL呼び出しも検証)。
+  `npm run test`(全207ファイル1727件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`
+  (自宅サーバー版)が成功し、`npm run build:standalone`も従来と同じ
+  `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが
+  無いこと)を確認した。
+
+  **残り27ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
   エラーを投げるプレースホルダーのまま):**
-  `AssetBalanceSnapshot`・`AssetSymbolMapping`・
   `BrokerAnnualReport`・`CashflowEntry`・
   `CertifiedHousingConstructionCreditCarryforward`・
   `CertifiedHousingConstructionCreditRecord`・
@@ -6712,14 +6732,16 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
-  完了したらチェックを付けて次回に引き継ぐ。**5-3-3着手(2026-10-08、
+  完了したらチェックを付けて次回に引き継ぐ。**5-3-3進捗(2026-10-08、
   `BarrierFreeRenovationDeductionRecord`・`EarthquakeRenovationDeductionRecord`・
   `EnergySavingRenovationDeductionRecord`・`MultiHouseholdRenovationDeductionRecord`・
-  `DurabilityImprovementRenovationDeductionRecord`・`ChildRearingRenovationDeductionRecord`の
-  6ファイル完了)時点の未着手(`[ ]`)項目は5-3-3の残り31ファイル(5-3-2で確立した
-  パターンを各`defaultXxxRepository.standalone.ts`へ適用する作業。ファイル一覧は
-  5-3-3の実装メモを参照)と5-3-4(実機/ブラウザでの動作検証)。** 次回も5-3-3の
-  残りから(Decimal列を持つモデルは`decimalCodec.ts`との組み合わせに注意)、
+  `DurabilityImprovementRenovationDeductionRecord`・`ChildRearingRenovationDeductionRecord`・
+  `AngelTaxLossCarryforward`・`CasualtyLossCarryforward`・`AssetBalanceSnapshot`・
+  `AssetSymbolMapping`の10ファイル完了、5-3-2のTaxYearRepositoryと合わせて
+  11/38ファイル完了)時点の未着手(`[ ]`)項目は5-3-3の残り27ファイル(5-3-2で
+  確立したパターンを各`defaultXxxRepository.standalone.ts`へ適用する作業。
+  ファイル一覧は5-3-3の実装メモを参照)と5-3-4(実機/ブラウザでの動作検証)。**
+  次回も5-3-3の残りから(Decimal列を持つモデルは`decimalCodec.ts`との組み合わせに注意)、
   1〜数モデルずつ着手すること。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
