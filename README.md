@@ -6342,6 +6342,56 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
     **残る5-1-3d-44以降の対象:** `import/page.tsx`が`@/app/actions`から
     importする残り2個のアクション(`importFuturesCsv`・`importMoneyForwardCsv`)を、
     同じ要領で組ごとに1つずつ切り出していく。
+
+  - [x] 5-1-3d-44. `importFuturesCsv`(先物(FX等)取引の決済損益CSV取り込み。
+        `import/page.tsx`のみが使うアクション)を切り出す。
+
+    **実装内容(2026-10-08):** コア処理(`importFuturesCsvCore`)を
+    `src/lib/actions/importFuturesCsv.ts`として新規に切り出した(CSV解析は
+    既存の`parseFuturesCsv`(`src/lib/investment/futuresCsv.ts`)をそのまま利用。
+    依存する`TaxYearRepository`/`FuturesTradeRepository`はいずれも5-1-3bで
+    既にビルドターゲット切り替え機構を適用済み(`defaultFuturesTradeRepository`、
+    5-1-3d-26の`addFuturesTrade`切り出しで導入済み)。5-1-3d-1以降と同じビルド
+    ターゲット切り替えパターンを`@/lib/importFuturesCsvActions`として新設した。
+    自宅サーバー版の既定実装(`src/lib/importFuturesCsvActions.ts`)は
+    `src/app/actions.ts`の`importFuturesCsv`をそのまま再エクスポートするだけ
+    (挙動は従来と完全に同一。`actions.ts`側の実装自体は書き換えず、5-1-3d-40〜43と
+    同様に重複実装を許容している)。スタンドアロン版向け差し替え実装
+    (`src/lib/importFuturesCsvActions.standalone.ts`)は、`decodeCsvFile`で
+    デコードしたCSV文字列と`FormData`から読み取ったブローカー名/マッピングを
+    `importFuturesCsvCore`に渡して直接呼び出す(`redirect`/`revalidatePath`の
+    代わりに`window.location.href`遷移で代替する点も既存パターンと同じ)。
+    `next.config.ts`の`turbopack.resolveAlias`/`webpack.resolve.alias`・
+    `tsconfig.standalone.json`の`paths`に`@/lib/importCryptoMarginCsvActions`と
+    並べて`@/lib/importFuturesCsvActions`のエントリを追加し、
+    `importFuturesCsv`を`@/app/actions`から直接importしていた`import/page.tsx`
+    を、この`@/lib/importFuturesCsvActions`からimportする形に書き換えた
+    (自宅サーバー版の見た目・挙動は変更無し)。
+
+    **動作確認(2026-10-08時点):** `npm install`・`DATABASE_URL`を設定し
+    `npx prisma db push`で環境を用意した上で、`npm run test`
+    (全202ファイル1714件、新規テスト3件追加)・`npm run lint`・`npx tsc --noEmit`
+    (標準・`tsconfig.standalone.json`の両方、既存の`LayoutProps`エラーのみで
+    本変更と無関係)が成功することを確認した。加えて(1)`npm run build`
+    (自宅サーバー版)が本変更後も従来通り成功すること、(2)`npm run
+    build:standalone`は、本変更後も`import/page.tsx`が残り1個のアクション
+    (`importMoneyForwardCsv`)を`@/app/actions`から直接importしたまま(かつ
+    `src/app/actions.ts`自体も未だ退避対象に入っていない)のため引き続き
+    `Server Actions are not supported with static export`で失敗すること
+    (本対応による新たな破壊ではないこと)を確認した。
+
+    **残る5-1-3d-45の対象:** `import/page.tsx`が`@/app/actions`から
+    importする最後の1個のアクション`importMoneyForwardCsv`を切り出す。
+    なお、このアクションが依存する`CashflowEntryRepository`
+    (`src/lib/repositories/cashflowEntryRepository.ts`)は、クライアントDB実装
+    (`createClientCashflowEntryRepository`)自体はフェーズ2-33で追加済みだが、
+    他の26モデルと異なり5-1-3bのビルドターゲット切り替え機構
+    (`defaultCashflowEntryRepository.ts`+`next.config.ts`のalias)がまだ
+    導入されていない(`src/app/actions.ts`内で
+    `createPrismaCashflowEntryRepository()`を直接インスタンス化している)。
+    そのため5-1-3d-45では、他のアクション切り出しと合わせて、この
+    `defaultCashflowEntryRepository`の新設(5-1-3bと同じパターン)も
+    併せて対応する必要がある。
 - [ ] 5-2. Capacitorプロジェクトの雛形(`android/`ディレクトリ・
       `capacitor.config.ts`)を追加する。
 
