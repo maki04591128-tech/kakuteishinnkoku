@@ -2,35 +2,41 @@
 // `@/lib/repositories/defaultBrokerAnnualReportRepository`差し替え実装
 // (next.config.tsのresolveAlias経由。フェーズ5-1-3b)。
 //
-// `defaultTaxYearRepository.standalone.ts`と同じ理由(ブラウザ向けOPFSベースの
-// `openClientDb`実装がまだ無く、Node専用の現行`openClientDb`をそのまま結線すると
-// ビルドが壊れる。README「現在の最優先事項」フェーズ5-1-3bの残課題を参照)により、
-// `createClientBrokerAnnualReportRepository`を実際には呼ばず、各メソッド呼び出し
-// 時に分かりやすいエラーを投げるだけのプレースホルダーとする。
+// フェーズ5-1-3bの時点ではブラウザ向け(OPFSベース)の`openClientDb`実装が
+// 無かったため、各メソッド呼び出し時にエラーを投げるだけのプレースホルダーに
+// していた。フェーズ5-3でブラウザ向け実装(`../clientDb/sqlite.browser.ts`)が
+// 用意され、5-3-2で`TaxYearRepository`を結線したパターンを、本ステップ(5-3-3)で
+// このモデルにも適用する。`getStandaloneClientDb()`
+// (`../clientDb/standaloneClientDb.ts`)がアプリ全体で共有する`ClientDb`接続を
+// 遅延オープンし、`createClientBrokerAnnualReportRepository`
+// (wa-sqlite実装。`./brokerAnnualReportRepository.ts`)に渡す。
+import { createClientBrokerAnnualReportRepository } from "./brokerAnnualReportRepository";
 import type { BrokerAnnualReportRepository } from "./brokerAnnualReportRepository";
+import { getStandaloneClientDb } from "../clientDb/standaloneClientDb";
 
-function notImplemented(): never {
-  throw new Error(
-    "スタンドアロン版のBrokerAnnualReportRepositoryクライアント実装は未結線です" +
-      "(ブラウザ向けOPFSベースのopenClientDb実装待ち。README「現在の最優先事項」" +
-      "フェーズ5-1-3bの残課題を参照)。",
-  );
+async function getRepository(): Promise<BrokerAnnualReportRepository> {
+  const db = await getStandaloneClientDb();
+  return createClientBrokerAnnualReportRepository(db);
 }
 
 export const brokerAnnualReportRepository: BrokerAnnualReportRepository = {
-  async findByTaxYearId() {
-    notImplemented();
+  async findByTaxYearId(taxYearId) {
+    const repository = await getRepository();
+    return repository.findByTaxYearId(taxYearId);
   },
 
-  async upsert() {
-    notImplemented();
+  async upsert(input) {
+    const repository = await getRepository();
+    return repository.upsert(input);
   },
 
-  async delete() {
-    notImplemented();
+  async delete(id) {
+    const repository = await getRepository();
+    return repository.delete(id);
   },
 
-  async upsertMany() {
-    notImplemented();
+  async upsertMany(inputs) {
+    const repository = await getRepository();
+    return repository.upsertMany(inputs);
   },
 };
