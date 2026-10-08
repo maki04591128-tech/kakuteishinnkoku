@@ -1,44 +1,119 @@
 /**
- * フェーズ5-1-3d-18: `@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository`の
+ * フェーズ5-3-3: `@/lib/repositories/defaultHomeReplacementLossCarryforwardRepository`の
  * スタンドアロン版差し替え実装
- * (`defaultHomeReplacementLossCarryforwardRepository.standalone.ts`)を検証する。
+ * (`defaultHomeReplacementLossCarryforwardRepository.standalone.ts`)が、`../clientDb/
+ * standaloneClientDb.ts`経由で取得した`ClientDb`を
+ * `createClientHomeReplacementLossCarryforwardRepository`に正しく結線していることを
+ * 検証する(`createClientHomeReplacementLossCarryforwardRepository`自体の挙動は
+ * `homeReplacementLossCarryforwardRepository.test.ts`で別途検証済みのため、ここでは
+ * 委譲先の`ClientDb`が共有・再利用されていることを中心に確認する。テスト構成は
+ * `defaultTaxYearRepository.standalone.test.ts`(5-3-2)と同じ)。
  *
- * ブラウザ向け(OPFSベース)の`openClientDb`実装が無いため、現時点では各メソッドが
- * 分かりやすいエラーを投げるプレースホルダーであることのみを検証する
- * (`createClientHomeReplacementLossCarryforwardRepository`自体の挙動は
- * `homeReplacementLossCarryforwardRepository.test.ts`で別途検証済み)。
+ * `../clientDb/standaloneClientDb`は内部で`new Worker(...)`
+ * (`sqlite.browser.ts`)を使うため、このファイルではその下位層をモック化し、
+ * Node/Vitest環境でも実行できるようにする。
  */
-import { describe, expect, it } from "vitest";
-import { homeReplacementLossCarryforwardRepository } from "./defaultHomeReplacementLossCarryforwardRepository.standalone";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ClientDb, SqlValue } from "../clientDb/sqlite";
+
+const { openClientDbMock, applyClientDbSchemaMock, fakeDb } = vi.hoisted(() => {
+  const row: Record<string, SqlValue> = {
+    id: 1,
+    tax_year_id: 1,
+    origin_year: 2023,
+    remaining_amount_jpy: "150000",
+    created_at: "2025-01-01T00:00:00.000Z",
+    updated_at: "2025-01-01T00:00:00.000Z",
+  };
+  const fakeDb: ClientDb = {
+    run: vi.fn(async () => {}),
+    all: vi.fn(async () => [row]),
+    close: vi.fn(async () => {}),
+  };
+  return {
+    openClientDbMock: vi.fn(async (): Promise<ClientDb> => fakeDb),
+    applyClientDbSchemaMock: vi.fn(async () => {}),
+    fakeDb,
+  };
+});
+
+vi.mock("../clientDb/sqlite.browser", () => ({
+  openClientDb: openClientDbMock,
+}));
+vi.mock("../clientDb/schema", () => ({
+  applyClientDbSchema: applyClientDbSchemaMock,
+}));
 
 describe("defaultHomeReplacementLossCarryforwardRepository (standalone)", () => {
-  it("findByTaxYearIdは未結線であることを示すエラーを投げる", async () => {
-    await expect(
-      homeReplacementLossCarryforwardRepository.findByTaxYearId(1),
-    ).rejects.toThrow(/未結線/);
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
   });
 
-  it("upsertは未結線であることを示すエラーを投げる", async () => {
-    await expect(
-      homeReplacementLossCarryforwardRepository.upsert({
-        taxYearId: 1,
-        originYear: 2023,
-        remainingAmountJpy: "150000",
-      }),
-    ).rejects.toThrow(/未結線/);
+  it("共有のClientDb接続を1回だけ開き、全メソッドで再利用する", async () => {
+    const { homeReplacementLossCarryforwardRepository } = await import(
+      "./defaultHomeReplacementLossCarryforwardRepository.standalone"
+    );
+
+    await homeReplacementLossCarryforwardRepository.findByTaxYearId(1);
+    await homeReplacementLossCarryforwardRepository.upsert({
+      taxYearId: 1,
+      originYear: 2023,
+      remainingAmountJpy: "150000",
+    });
+    await homeReplacementLossCarryforwardRepository.delete(1);
+    await homeReplacementLossCarryforwardRepository.createMany([
+      { taxYearId: 1, originYear: 2023, remainingAmountJpy: "150000" },
+    ]);
+
+    expect(openClientDbMock).toHaveBeenCalledTimes(1);
+    expect(openClientDbMock).toHaveBeenCalledWith("kakuteishinnkoku.db");
+    expect(applyClientDbSchemaMock).toHaveBeenCalledTimes(1);
+    expect(applyClientDbSchemaMock).toHaveBeenCalledWith(fakeDb);
   });
 
-  it("deleteは未結線であることを示すエラーを投げる", async () => {
-    await expect(homeReplacementLossCarryforwardRepository.delete(1)).rejects.toThrow(
-      /未結線/,
+  it("upsertは共有ClientDbに対してSQLを発行する", async () => {
+    const { homeReplacementLossCarryforwardRepository } = await import(
+      "./defaultHomeReplacementLossCarryforwardRepository.standalone"
+    );
+
+    await homeReplacementLossCarryforwardRepository.upsert({
+      taxYearId: 1,
+      originYear: 2023,
+      remainingAmountJpy: "150000",
+    });
+
+    expect(fakeDb.run).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO home_replacement_loss_carryforward"),
+      expect.arrayContaining([1, 2023, "150000"]),
     );
   });
 
-  it("createManyは未結線であることを示すエラーを投げる", async () => {
-    await expect(
-      homeReplacementLossCarryforwardRepository.createMany([
-        { taxYearId: 1, originYear: 2023, remainingAmountJpy: "150000" },
-      ]),
-    ).rejects.toThrow(/未結線/);
+  it("deleteは共有ClientDbに対してSQLを発行する", async () => {
+    const { homeReplacementLossCarryforwardRepository } = await import(
+      "./defaultHomeReplacementLossCarryforwardRepository.standalone"
+    );
+
+    await homeReplacementLossCarryforwardRepository.delete(1);
+
+    expect(fakeDb.run).toHaveBeenCalledWith(
+      expect.stringContaining("DELETE FROM home_replacement_loss_carryforward"),
+      [1],
+    );
+  });
+
+  it("createManyは共有ClientDbに対してSQLを発行する", async () => {
+    const { homeReplacementLossCarryforwardRepository } = await import(
+      "./defaultHomeReplacementLossCarryforwardRepository.standalone"
+    );
+
+    await homeReplacementLossCarryforwardRepository.createMany([
+      { taxYearId: 1, originYear: 2023, remainingAmountJpy: "150000" },
+    ]);
+
+    expect(fakeDb.run).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO home_replacement_loss_carryforward"),
+      expect.arrayContaining([1, 2023, "150000"]),
+    );
   });
 });
