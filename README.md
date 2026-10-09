@@ -7631,6 +7631,71 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
+
+  **方針(2026-10-09、着手時に確認):** `import/page.tsx`(2900行)は他の37ページと
+  異なり、20種類の生コレクション(暗号資産/株式等/先物の取引明細、期首残高、
+  各種繰越残高、年間取引報告書、資産残高突合、銘柄マッピング、現在価格、
+  NISA生涯投資枠)をDecimal/Dateを含んだまま画面にそのまま表示しており、かつ
+  `yearReport`(`buildYearReport`の戻り値)もダッシュボードより広い範囲
+  (`lossCarryforward`・`futuresLossCarryforward`・`nisaLifetimeQuota`の各種
+  フィールド・`cryptoMargin`/`cryptoCredit`/`stockMargin`/`futures`の
+  `totalRealizedGainJpy`)を使っている。これを1回のブラッシュアップで
+  一度に行うのは「1〜2ステップ程度の小さい範囲」の方針に反するため、
+  次の3ステップに分割する。(1) 20種類の生コレクションのデータ取得層
+  (`importPageData.types.ts`/`.ts`/`.standalone.ts`)の追加。(2) `yearReport`を
+  含むデータ取得層の追加・完成。(3) `page.tsx`を`<Suspense>`で囲むだけの
+  薄いServer Componentに変更し、2900行のJSX本体を`ImportPageContent.tsx`
+  (`"use client"`)に移し、Decimalのメソッド呼び出し(`.greaterThan()`・
+  `.isZero()`等)・Dateのメソッド呼び出し(`.toISOString()`等)をプレーンな
+  number/string比較・文字列操作に書き換える。なお`assetBalanceReconciliations`・
+  `assetSymbolReconciliations`・`brokerReconciliations`(`reconcileAssetBalances`等)は
+  DBに依存しない純粋関数のため、生コレクションがクライアントに届いた後に
+  `ImportPageContent.tsx`側でそのまま呼び出せば十分であり、データ取得層
+  (PageData)には含めない(サーバー・クライアント間で送るデータ量も減らせる)。
+
+  **進捗(2026-10-09、1回目):** 上記ステップ(1)を実施した。`page.tsx`
+  159〜264行目が`Promise.all`で取得・ソートしていた20種類の生コレクション
+  (`cryptoTrades`・`cryptoMarginTrades`・`cryptoCreditTrades`・
+  `investmentTrades`・`stockMarginTrades`・`futuresTrades`・`openingBalances`・
+  `openingBalancesByInstitution`・`lossCarryforwards`・
+  `futuresLossCarryforwards`・`foreignTaxCreditCarryforwards`・
+  `foreignTaxCreditSpareLimitCarryforwards`・`casualtyLossCarryforwards`・
+  `homeSaleLossCarryforwards`・`homeReplacementLossCarryforwards`・
+  `brokerAnnualReports`・`assetBalanceImportBatches`・`assetSymbolMappings`・
+  `marketPrices`・`nisaLifetimeQuotas`)と`taxYear.cryptoCostMethod`を
+  そのまま取得・ソートするだけの`getImportPageData(year)`を
+  `src/lib/importPageData.ts`(`"use server"`)/`.standalone.ts`に実装した。
+  `prisma/schema.prisma`の該当20モデルを確認し、金額(末尾`Jpy`)の
+  Decimalフィールドは`.toNumber()`、数量(`quantity`)のDecimalフィールドは
+  `.toString()`、DateTimeフィールドは`.toISOString()`に変換する他の
+  移行済みページと同じ方針で、各モデルの全スカラーフィールド(リレーション
+  フィールドを除く)を変換する型・変換関数を`src/lib/importPageData.types.ts`に
+  実装した。7モデル(`InvestmentLossCarryforward`・`FuturesLossCarryforward`・
+  `ForeignTaxCreditCarryforward`・`ForeignTaxCreditSpareLimitCarryforward`・
+  `CasualtyLossCarryforward`・`HomeSaleLossCarryforward`・
+  `HomeReplacementLossCarryforward`)は`{id, taxYearId, originYear,
+  remainingAmountJpy, createdAt, updatedAt}`という構造が完全に同一のため、
+  共通の`ImportOriginYearCarryforwardData`型・`toImportOriginYearCarryforwardData`
+  関数1つに統合した。この20モデル分の変換関数は`.ts`/`.standalone.ts`の
+  両方から同一のまま呼ばれるため(両ファイルの違いはリポジトリの実装が
+  Prisma/クライアントDBのどちらに解決されるかだけで、変換ロジック自体は
+  共通)、他の36ページの`<page>PageData.types.ts`(型のみ)と異なり、この
+  ページに限り変換関数自体も`importPageData.types.ts`に切り出して重複を
+  避けた(`"use server"`を付けないファイルのため通常の関数もexportできる)。
+  `next.config.ts`のresolveAlias(Turbopack・webpack両方)・
+  `tsconfig.standalone.json`の`paths`にも`@/lib/importPageData`のエイリアスを
+  他のPageData追加と同じタイミングで登録した(まだ`page.tsx`側に呼び出し元は
+  無いが、次回以降のステップで`ImportPageContent.tsx`から参照する際に
+  エイリアスが既に用意されている状態にした)。`yearReport`の変換・
+  突合処理の呼び出し・`page.tsx`自体のSuspense化は次回以降のステップ(上記
+  (2)(3))で続ける。
+  `npm run test`(全222ファイル1779件、既存のテストに変更無し)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。
+  既知の`LayoutProps`エラーのみで本変更と無関係)・`npm run build`(自宅サーバー版)が
+  成功した。`npm run build:standalone`は、失敗するページが`/import`のみで
+  変わらないことを確認した(`page.tsx`自体はまだ変更していないため想定通りで、
+  新たに追加したファイル自体はコンパイル・型チェックに成功しており
+  新たなリグレッションは無い)。
 - [ ] 7-5(フェーズ7完了). `npm run build:standalone`が全ページで
       成功することを確認する(最終検証)。
 
@@ -7643,9 +7708,12 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   2026-10-09)・7-3(7-2のパターンを`import`を除く全36ページに適用、
   2026-10-09完了)も完了済み。7-3で判明した通り`login`は既にフェーズ4の決定で
   スタンドアロン版のビルド対象から退避済みのため、実際に対応が必要だったのは
-  `/`(ダッシュボード)・`tax-estimate`を含む36ページだった。** 次回はフェーズ7-4
-  (`src/app/import/page.tsx`、42個のアクションを抱える最大のページへの対応)
-  から着手する。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
+  `/`(ダッシュボード)・`tax-estimate`を含む36ページだった。** フェーズ7-4
+  (`src/app/import/page.tsx`、42個のアクションを抱える最大のページへの対応)は
+  規模が大きいため3ステップに分割して着手しており、1回目(2026-10-09、
+  生コレクションのデータ取得層`importPageData.ts`/`.standalone.ts`の追加)が
+  完了した。次回は7-4の2回目(`yearReport`を含むデータ取得層の完成)から
+  続ける。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
   ビルド手順を追記する節)。

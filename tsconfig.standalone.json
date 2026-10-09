@@ -96,6 +96,7 @@
       "@/lib/unrealizedGainPageData": ["./src/lib/unrealizedGainPageData.standalone.ts"],
       "@/lib/homePageData": ["./src/lib/homePageData.standalone.ts"],
       "@/lib/taxEstimatePageData": ["./src/lib/taxEstimatePageData.standalone.ts"],
+      "@/lib/importPageData": ["./src/lib/importPageData.standalone.ts"],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"
