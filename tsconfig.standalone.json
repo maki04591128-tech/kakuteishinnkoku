@@ -80,6 +80,13 @@
       "@/lib/distributionAdjustedForeignTaxCreditPageData": [
         "./src/lib/distributionAdjustedForeignTaxCreditPageData.standalone.ts"
       ],
+      "@/lib/certifiedHousingConstructionCreditPageData": [
+        "./src/lib/certifiedHousingConstructionCreditPageData.standalone.ts"
+      ],
+      "@/lib/foreignTaxCreditPageData": ["./src/lib/foreignTaxCreditPageData.standalone.ts"],
+      "@/lib/homeReplacementLossDeductionPageData": [
+        "./src/lib/homeReplacementLossDeductionPageData.standalone.ts"
+      ],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"
