@@ -7367,6 +7367,41 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (まだ未移行の24ページの中のアルファベット順で先のページ)に変わったことを確認し、新たな
   リグレッションが無いこと・対象3ページがエラーの原因から外れたことの両方を確認できた。
   残り24ページ(`import`を除く)は次回以降のブラッシュアップで継続する。
+
+  **進捗(2026-10-09、5回目):** `angel-tax-loss-carryforward`・
+  `barrier-free-renovation-deduction`・`casualty-loss-deduction`の3ページに
+  同じパターンを適用した。1〜4回目は「`year`のみ・単一レコード取得」という
+  最小構成だったが、`angel-tax-loss-carryforward`・`casualty-loss-deduction`は
+  繰越控除の残高一覧(`XxxCarryforwardRepository.findByTaxYearId`。複数件・
+  `originYear`で識別)を`<page>PageData`に含める初めてのケースとなった(それぞれ
+  `angelTaxLossCarryforwardRepository`・`casualtyLossCarryforwardRepository`を
+  `defaultXxxCarryforwardRepository`経由で呼ぶ既存コードをそのまま移した)。
+  また両ページは移行前の`page.tsx`で`getOrCreateTaxYear(year)`
+  (無ければ作成)を呼んでいたため、`<page>PageData.ts`/`.standalone.ts`でも
+  同じ`getOrCreateTaxYear`を使い、ページを訪れただけで当年のTaxYearレコードが
+  作成される挙動を変えていない。`barrier-free-renovation-deduction`・
+  `casualty-loss-deduction`は移行前、登録・削除・繰越の結果を
+  `saved`/`deleted`/`lossCarried`クエリ値で表示するメッセージを持っていたが、
+  これらはDBに依存しない純粋なURL表示フラグのため`<page>PageData`には含めず、
+  `<Page>PageContent.tsx`側で`useSearchParams()`から直接読み取る設計にした
+  (1〜4回目では該当するページが無く、今回初めて扱うケース)。各ページについて
+  1〜4回目と同じ4点構成(`<page>PageData.types.ts`/`<page>PageData.ts`
+  (`"use server"`)/`<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+
+  `<Page>PageSkeleton`)を追加し、`page.tsx`を`<Suspense>`で囲むだけの薄い
+  Server Componentに変更、`next.config.ts`のresolveAlias(Turbopack・webpack
+  両方)・`tsconfig.standalone.json`の`paths`にエイリアスを追加した。
+  `npm install`(このクラウド開発環境では`node_modules`が未インストールの状態から
+  開始したため)・`cp .env.example .env && npx prisma db push`の後、`npm run test`
+  (全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と
+  無関係なことを確認済み)・`npm run build`(自宅サーバー版。対象3ページが従来の
+  `ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。`npm run build:standalone`は、
+  失敗するページが`/angel-tax-loss-carryforward`(4回目確認時)から
+  `/employment-income`に変わったことを確認し、新たなリグレッションが無いこと・
+  対象3ページがエラーの原因から外れたことの両方を確認できた(ビルドはTurbopackの
+  複数ワーカーで並行してページを処理するため、失敗ページの変化はアルファベット順
+  通りとは限らない)。残り21ページ(`import`を除く)は次回以降のブラッシュアップで
+  継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7385,9 +7420,11 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `specific-expense-deduction`・`income-amount-adjustment-deduction`・
   `donation-deduction`・`widow-single-parent-deduction`・
   `small-business-mutual-aid-deduction`・`mortgage-deduction`・
-  `donation-tax-credit`・`resident-tax-non-taxable`の
-  12ページが完了(2026-10-09)。** 次回は
-  フェーズ7-3の続き(`import`を除く残り24ページ)から着手する。残るフェーズ6
+  `donation-tax-credit`・`resident-tax-non-taxable`・
+  `angel-tax-loss-carryforward`・`barrier-free-renovation-deduction`・
+  `casualty-loss-deduction`の
+  15ページが完了(2026-10-09)。** 次回は
+  フェーズ7-3の続き(`import`を除く残り21ページ)から着手する。残るフェーズ6
   (実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での

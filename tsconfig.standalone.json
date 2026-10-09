@@ -37,6 +37,15 @@
       "@/lib/residentTaxNonTaxablePageData": [
         "./src/lib/residentTaxNonTaxablePageData.standalone.ts"
       ],
+      "@/lib/angelTaxLossCarryforwardPageData": [
+        "./src/lib/angelTaxLossCarryforwardPageData.standalone.ts"
+      ],
+      "@/lib/barrierFreeRenovationDeductionPageData": [
+        "./src/lib/barrierFreeRenovationDeductionPageData.standalone.ts"
+      ],
+      "@/lib/casualtyLossDeductionPageData": [
+        "./src/lib/casualtyLossDeductionPageData.standalone.ts"
+      ],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"

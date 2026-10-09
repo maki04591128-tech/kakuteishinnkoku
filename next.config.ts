@@ -147,6 +147,30 @@ const residentTaxNonTaxablePageDataStandaloneAliasForWebpack = path.resolve(
   "src/lib/residentTaxNonTaxablePageData.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/angelTaxLossCarryforwardPageData`・
+// `@/lib/barrierFreeRenovationDeductionPageData`・
+// `@/lib/casualtyLossDeductionPageData`の実装を、上記と同様にブラウザ上で直接
+// 呼び出すプレーンな非同期関数に差し替える(フェーズ7-3継続。7-2のPoCで確立した
+// パターンの適用)。
+const angelTaxLossCarryforwardPageDataStandaloneAliasForTurbopack =
+  "./src/lib/angelTaxLossCarryforwardPageData.standalone.ts";
+const angelTaxLossCarryforwardPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/angelTaxLossCarryforwardPageData.standalone.ts",
+);
+const barrierFreeRenovationDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/barrierFreeRenovationDeductionPageData.standalone.ts";
+const barrierFreeRenovationDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/barrierFreeRenovationDeductionPageData.standalone.ts",
+);
+const casualtyLossDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/casualtyLossDeductionPageData.standalone.ts";
+const casualtyLossDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/casualtyLossDeductionPageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -1077,6 +1101,12 @@ const nextConfig: NextConfig = {
             donationTaxCreditPageDataStandaloneAliasForTurbopack,
           "@/lib/residentTaxNonTaxablePageData":
             residentTaxNonTaxablePageDataStandaloneAliasForTurbopack,
+          "@/lib/angelTaxLossCarryforwardPageData":
+            angelTaxLossCarryforwardPageDataStandaloneAliasForTurbopack,
+          "@/lib/barrierFreeRenovationDeductionPageData":
+            barrierFreeRenovationDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/casualtyLossDeductionPageData":
+            casualtyLossDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1258,6 +1288,12 @@ const nextConfig: NextConfig = {
         "@/lib/donationTaxCreditPageData": donationTaxCreditPageDataStandaloneAliasForWebpack,
         "@/lib/residentTaxNonTaxablePageData":
           residentTaxNonTaxablePageDataStandaloneAliasForWebpack,
+        "@/lib/angelTaxLossCarryforwardPageData":
+          angelTaxLossCarryforwardPageDataStandaloneAliasForWebpack,
+        "@/lib/barrierFreeRenovationDeductionPageData":
+          barrierFreeRenovationDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/casualtyLossDeductionPageData":
+          casualtyLossDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,
