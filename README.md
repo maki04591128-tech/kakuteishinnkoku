@@ -7105,10 +7105,40 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが無いこと)
   を確認した。
 
-- [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
-      永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
-      では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
-      想定)。
+- [x] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
+      永続化・Worker起動が想定通り動作するかを検証する。
+
+  **検証結果(2026-10-09):** このクラウド開発環境には(5-3-4策定時点では
+  見落としていたが)Playwright経由で操作可能なChromium本体(`/opt/pw-browsers/`)
+  が実際には用意されていたため、「このクラウド開発環境では検証不可」という
+  当初の前提を見直し、実際のブラウザでの検証を実施した。手順:
+  (1) `src/lib/clientDb/sqlite.browser.ts`・`sqlite.worker.ts`を一切変更せず、
+  Vite(既存の devDependency)でエントリーポイントとして素朴にビルドし
+  (`new Worker(new URL("./sqlite.worker.ts", import.meta.url), {type:"module"})`
+  をVite標準のWorkerバンドル機能で解決させ、wa-sqliteのWASM本体も
+  `import.meta.url`基準で正しく資産化されることを確認)、
+  (2) ビルド結果をローカルHTTPサーバー(`http://localhost`。OPFSが要求する
+  セキュアコンテキストを満たす)で配信し、(3) Playwrightから実際の
+  Chromium実行ファイル(`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`)を
+  起動してページを開き、`openClientDb("verify.db")`→
+  `CREATE TABLE`/`INSERT`/`SELECT`を実行した。モック化していない
+  実Worker・実wa-sqlite・実`AccessHandlePoolVFS`を経由して結果が
+  正しく返ることを確認し、さらに永続化プロファイルディレクトリを固定した
+  `launchPersistentContext`でブラウザプロセスを完全終了→再起動しても
+  (1回目の起動とは別プロセス)`SELECT`結果が一致すること、および
+  `navigator.storage.getDirectory()`でOPFSルート直下に`verify.db`
+  エントリが実在することを確認した。これにより、Worker起動・
+  `createSyncAccessHandle()`経由のOPFS永続化が実際のChromiumエンジン上で
+  想定通り動作することを一次情報(実行結果)で確認できた
+  (検証用の一時ファイル・サーバープロセスは本番コードに影響しないため
+  リポジトリにはコミットしていない。0-3のPrisma検証と同様の一度限りの
+  動作確認)。
+  **ただし** これはCapacitor Android WebView(実機/エミュレータ)そのもの
+  ではなく同じChromiumエンジンでの検証であり、Androidアプリとしての
+  パーミッション・バックグラウンド制限等込みの最終確認は、引き続き
+  フェーズ6(このクラウド開発環境にはAndroid SDK・エミュレータが無く
+  Claudeによる自動化セッションでは検証不可)でユーザー側のAndroid Studio
+  環境またはCIにて行う必要がある。
 
 #### フェーズ6: 実機ビルド・動作確認(このセッションでは検証不可)
 
@@ -7120,22 +7150,14 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
-  完了したらチェックを付けて次回に引き継ぐ。**5-3-3進捗(2026-10-08、
-  `BarrierFreeRenovationDeductionRecord`・`EarthquakeRenovationDeductionRecord`・
-  `EnergySavingRenovationDeductionRecord`・`MultiHouseholdRenovationDeductionRecord`・
-  `DurabilityImprovementRenovationDeductionRecord`・`ChildRearingRenovationDeductionRecord`・
-  `AngelTaxLossCarryforward`・`CasualtyLossCarryforward`・`AssetBalanceSnapshot`・
-  `AssetSymbolMapping`・`CertifiedHousingConstructionCreditCarryforward`・
-  `CertifiedHousingConstructionCreditRecord`の12ファイル完了、5-3-2の
-  TaxYearRepositoryと合わせて15/38ファイル完了)時点の未着手(`[ ]`)項目は
-  5-3-3の残り23ファイル(5-3-2で確立したパターンを各`defaultXxxRepository.
-  standalone.ts`へ適用する作業。ファイル一覧は5-3-3の実装メモを参照)と
-  5-3-4(実機/ブラウザでの動作検証)。**
-  次回も5-3-3の残りから(Decimal列を持つモデルは`decimalCodec.ts`との組み合わせに注意)、
-  1〜数モデルずつ着手すること。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
-  開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
-  チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
-  ビルド手順を追記する節)。
+  完了したらチェックを付けて次回に引き継ぐ。**フェーズ5(5-3-4、2026-10-09)が
+  完了し、フェーズ0〜5のチェックリスト項目は全て完了済み(`[x]`)。** 次回は
+  5-3-4の実装メモに記載した「5-3-2〜5-3-4がすべて完了した後」の残課題である
+  `searchParams`問題(直後の指針を参照)の方針検討(フェーズ7として先に
+  チェックリスト化すること)から着手する。残るフェーズ6(実機ビルド・
+  動作確認)はこのクラウド開発環境にAndroid SDK・エミュレータが無いため
+  自動化セッションでは検証できず、チェックリスト項目も無い(ユーザー自身の
+  Android Studio環境またはCI経由でのビルド手順を追記する節)。
 - 5-3-2〜5-3-4がすべて完了した後は、`npm run build:standalone`が失敗する
   既知の残課題である`searchParams`問題(フェーズ5-1-3dの残課題。多数の
   ページが`searchParams` propを使っており`output: "export"`の静的書き出しと
