@@ -7344,6 +7344,29 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   未移行のページの1つ)の`searchParams`エラーで失敗する状態が変わらないことを確認した
   (新たなリグレッションは無い)。残り27ページ(`import`を除く)は次回以降の
   ブラッシュアップで継続する。
+
+  **進捗(2026-10-09、4回目):** `mortgage-deduction`・`donation-tax-credit`・
+  `resident-tax-non-taxable`の3ページに同じパターンを適用した。`mortgage-deduction`は
+  `getMortgageDeductionRecord`、`donation-tax-credit`は`getDonationTaxCreditRecord`で
+  登録済みの税額控除額を1件取得するだけの最小構成(1・2・3回目の`getIncomeDeductionEntries`
+  系とは別の個別データソースだが、同じ「`year`のみ・単一レコード取得」という形のため同じ
+  パターンを適用できた)。`resident-tax-non-taxable`は`year`の解決以外にデータ取得が無い
+  (フォーム自体がその場で入力する値のみで試算する単体画面)ため、`<page>PageData`は
+  `{ year, availableYears }`のみを返す最も単純な構成になった。各ページについて1〜3回目と
+  同じ4点構成(`<page>PageData.types.ts`/`<page>PageData.ts`(`"use server"`)/
+  `<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+`<Page>PageSkeleton`)を追加し、
+  `page.tsx`を`<Suspense>`で囲むだけの薄いServer Componentに変更、`next.config.ts`の
+  resolveAlias(Turbopack・webpack両方)・`tsconfig.standalone.json`の`paths`に
+  エイリアスを追加した。`npm install`(このクラウド開発環境では`node_modules`が
+  未インストールの状態から開始したため)・`cp .env.example .env && npx prisma db push`の後、
+  `npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と無関係なことを
+  確認済み)・`npm run build`(自宅サーバー版。対象3ページが従来の`ƒ`(動的)から
+  `○`(静的)に変わったことを確認)が成功した。`npm run build:standalone`は、失敗するページが
+  `/energy-saving-renovation-deduction`(3回目確認時)から`/angel-tax-loss-carryforward`
+  (まだ未移行の24ページの中のアルファベット順で先のページ)に変わったことを確認し、新たな
+  リグレッションが無いこと・対象3ページがエラーの原因から外れたことの両方を確認できた。
+  残り24ページ(`import`を除く)は次回以降のブラッシュアップで継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7361,9 +7384,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `earthquake-insurance-deduction`・`life-insurance-deduction`・
   `specific-expense-deduction`・`income-amount-adjustment-deduction`・
   `donation-deduction`・`widow-single-parent-deduction`・
-  `small-business-mutual-aid-deduction`の
-  9ページが完了(2026-10-09)。** 次回は
-  フェーズ7-3の続き(`import`を除く残り27ページ)から着手する。残るフェーズ6
+  `small-business-mutual-aid-deduction`・`mortgage-deduction`・
+  `donation-tax-credit`・`resident-tax-non-taxable`の
+  12ページが完了(2026-10-09)。** 次回は
+  フェーズ7-3の続き(`import`を除く残り24ページ)から着手する。残るフェーズ6
   (実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
