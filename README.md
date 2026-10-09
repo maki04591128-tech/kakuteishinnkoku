@@ -7147,6 +7147,28 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 コード・設定一式を整えた上で、ユーザー自身のAndroid Studio環境またはCI経由での
 ビルド手順をこのセクションに追記する。
 
+- [x] 6-1. APK生成をGitHub Actions上で自動化するCIワークフローを追加する。
+
+  **実装内容(2026-10-09):** `.github/workflows/android-build.yml`を追加した。
+  `main`へのpush・PR・手動実行(`workflow_dispatch`)をトリガーに、
+  `npm ci` → `npm run build:standalone`(静的書き出し) →
+  `npx cap sync android`(Web資産をAndroidプロジェクトへ反映) →
+  `./gradlew assembleDebug`の順でデバッグAPKをビルドし、
+  `actions/upload-artifact`で`app-debug.apk`をワークフロー成果物として
+  アップロードする。GitHub提供の`ubuntu-latest`ランナーにはAndroid SDKが
+  プリインストール済みのため、SDKセットアップの追加アクションは不要と判断した
+  (`actions/setup-java`でJDK 21のみ明示的に用意する)。
+
+  このクラウド開発環境にはAndroid SDKが無く`./gradlew assembleDebug`自体は
+  実行・検証できないため、このステップで一次情報として確認できたのは
+  ワークフローの前半(SDK不要な部分)のみ: `npm run build:standalone`が
+  成功すること、および`npx cap sync android`が(Android SDK無しでも)成功し
+  `android/app/src/main/assets/public`にWeb資産が反映されることを実際に
+  実行して確認した。後半の`gradlew assembleDebug`以降(実際のAPK生成・
+  実機動作確認)は、このワークフローがGitHub Actions上で実行されるか、
+  ユーザー自身のAndroid Studio環境で行われるかのいずれかで検証する必要がある
+  (フェーズ6の制約通り)。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -7779,13 +7801,16 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `ImportPageContent.tsx`への移行)の順に完了させた。7-4の3回目の検証時に
   `npm run build:standalone`が対象76ページ(`login`除く)全てで成功することを
   確認できたため、7-5(最終検証)もこの時点で満たされ、フェーズ7全体が完了した。
-  **この最優先事項(スタンドアロン(Android)版への移行)のうち、自動化セッションで
-  対応できる作業はこれで全て完了した。** 残るフェーズ6(実機ビルド・動作確認)は
-  このクラウド開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは
-  検証できず、チェックリスト項目も無い(ユーザー自身のAndroid Studio環境または
-  CI経由でのビルド手順を追記する節)。次回のブラッシュアップは、ユーザーが
-  フェーズ6(実機ビルド)を実施した結果の反映、または末尾の「ロードマップ」
-  (既存の税制対応機能の追加)から着手する。
+  フェーズ0〜7のチェックリスト項目が全て完了済み(`[x]`)になった後、
+  フェーズ6(実機ビルド・動作確認)に「6-1. GitHub Actions上でのAPKビルド
+  自動化」を追加し2026-10-09に完了させた(`.github/workflows/android-build.yml`。
+  このクラウド開発環境にAndroid SDKが無いため`gradlew assembleDebug`自体の
+  実行結果はこのセッションでは検証できないが、ワークフロー前半
+  (`npm run build:standalone`・`npx cap sync android`)は実行して成功を
+  確認済み)。**次回のブラッシュアップは、このワークフローが実際にGitHub
+  Actions上で成功するか(初回push時にユーザー側で確認を依頼する)、または
+  ユーザーがフェーズ6(実機ビルド)を実施した結果の反映、あるいは末尾の
+  「ロードマップ」(既存の税制対応機能の追加)から着手する。**
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
