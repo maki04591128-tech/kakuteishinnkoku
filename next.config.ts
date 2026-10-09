@@ -41,6 +41,17 @@ const incomeDeductionActionsStandaloneAliasForWebpack = path.resolve(
   "src/lib/incomeDeductionActions.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/basicDeductionPageData`の実装を、`"use server"`な
+// 自宅サーバー版(Server Function)の代わりに、ブラウザ上で直接呼び出す
+// プレーンな非同期関数に差し替える(フェーズ7-2。`@/lib/incomeDeductionActions`
+// と同種のパターン)。
+const basicDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/basicDeductionPageData.standalone.ts";
+const basicDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/basicDeductionPageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -948,6 +959,7 @@ const nextConfig: NextConfig = {
           "@/lib/authUi": authUiStandaloneAliasForTurbopack,
           "@/lib/exportUi": exportUiStandaloneAliasForTurbopack,
           "@/lib/incomeDeductionActions": incomeDeductionActionsStandaloneAliasForTurbopack,
+          "@/lib/basicDeductionPageData": basicDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1107,6 +1119,7 @@ const nextConfig: NextConfig = {
         "@/lib/authUi": authUiStandaloneAliasForWebpack,
         "@/lib/exportUi": exportUiStandaloneAliasForWebpack,
         "@/lib/incomeDeductionActions": incomeDeductionActionsStandaloneAliasForWebpack,
+        "@/lib/basicDeductionPageData": basicDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,

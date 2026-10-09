@@ -7224,13 +7224,68 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   抱える最大のページ)は他の37ページと同じ対応で済むか、規模が大きい分
   個別の検討・分割が必要かを着手時に確認する。
 
-- [ ] 7-2. 7-1で決定した構成を1ページ(`src/app/basic-deduction/`。
+- [x] 7-2. 7-1で決定した構成を1ページ(`src/app/basic-deduction/`。
       searchParamsの使い方(`year`のみ)・データ取得(`getIncomeDeductionEntries`
       1件のみ)が最も単純なページ)にPoCとして実装し、自宅サーバー版
       (`npm run build`・`npm run dev`)・スタンドアロン版
       (`npm run build:standalone`)の両方でビルドが成功し、`npm run test`・
       `npx tsc --noEmit`・`npm run lint`が通ることを確認する。7-1の
       「既知のリスク」で挙げたローディング状態の見た目もこのPoCで確認する。
+
+  **実装内容(2026-10-09):** 7-1の決定通り、`src/app/basic-deduction/page.tsx`は
+  `searchParams` propを使わない薄いServer Componentに変更し、
+  `<Suspense fallback={<BasicDeductionPageSkeleton />}>`で実際の画面本体
+  (新設した`"use client"`な`BasicDeductionPageContent.tsx`)を囲む構成にした。
+  `useSearchParams()`を呼ぶClient Componentを`<Suspense>`で囲まずに
+  `output: "export"`で静的ビルドすると
+  `Next.js encountered URL data in a Client Component outside of Suspense`で
+  ビルドが失敗することを実際に確認した(Next.js公式ドキュメント
+  `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/use-search-params.md`
+  に記載された既知の制約で、7-1時点では見落としていた追加の対応点)。
+  データ取得は7-1の決定通り`@/lib/basicDeductionPageData`
+  (自宅サーバー版=`"use server"`なServer Function。内部で既存の
+  `listTaxYears`・`getIncomeDeductionEntries`をそのまま呼ぶだけ)と
+  その`.standalone.ts`(`"use server"`を付けないプレーンな非同期関数。
+  呼ぶ関数は同じ)に分割し、`next.config.ts`のresolveAlias
+  (`@/lib/incomeDeductionActions`等と同じ仕組み)・`tsconfig.standalone.json`
+  で差し替える構成にした。戻り値の型(`BasicDeductionPageData`)は
+  `"use server"`なファイルが非同期関数以外をexportできない制約があるため、
+  どちらからも参照される`basicDeductionPageData.types.ts`
+  (ビルドターゲットで差し替えない共有ファイル)に切り出した。
+  `BasicDeductionPageContent.tsx`は`useSearchParams()`で`year`を読み取り、
+  `useEffect`内で`startTransition(async () => { ... })`
+  (React 19のAsync Transitions)で`getBasicDeductionPageData`を呼び、
+  結果を`useState`に保存してから描画する。年の解決ロジック
+  (`Number(params.year) || availableYears[0] || currentCalendarYear`)は
+  元のページから変更せずそのまま`basicDeductionPageData.ts`/`.standalone.ts`
+  側に移した。
+  `npm install`(このクラウド開発環境では`node_modules`が未インストールの
+  状態から開始したため)・`cp .env.example .env && npx prisma db push`の後、
+  `npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを確認済み)・`npm run build`(自宅サーバー版。
+  `/basic-deduction`が従来の`ƒ`(動的)から`○`(静的)に変わったことを確認)が
+  成功した。`npm run build:standalone`は、失敗するページが
+  `/employment-income`(7-1確認時)から`/energy-saving-renovation-deduction`
+  (まだ未移行の36ページの中のアルファベット順で先のページ)に変わった
+  ことを確認し、`/basic-deduction`自体はエラーの原因ページから外れた
+  (新たなリグレッションが無いこと、かつ7-2の対象ページが解消したことの
+  両方を確認できた)。
+  ローディング状態の見た目は、Playwright経由で実際のChromium
+  (`/opt/pw-browsers/`。5-3-4と同じ検証環境)から`npm run dev`のページに
+  アクセスして確認した。`<Suspense>`のfallback(プリレンダリング/初回SSR時に
+  送出される静的HTML)・ハイドレーション直後の`BasicDeductionPageContent`
+  内部のローディング表示(`data === null`の間)のいずれも同じ
+  `BasicDeductionPageSkeleton`(「読み込み中…」の短いテキスト)を共有して
+  表示しており、`year`クエリパラメータを変えて再度`basic-deduction`に
+  遷移すると一瞬このローディング表示を経てから新しい年の内容
+  (`<h1>基礎控除額の試算(YYYY年分)</h1>`等)に切り替わることを実際に確認した
+  (7-1の「既知のリスク」で懸念した「空→データ取得後に表示」という一瞬の
+  ローディング状態そのものだが、既存の`"use client"`なフォームコンポーネント
+  群と同等のUXであり、この画面の表示量では許容範囲と判断した)。また、
+  この試算結果の登録・削除(`saveIncomeDeduction`/`deleteIncomeDeduction`、
+  5-1-3dで確立済みのServer Action経由)が今回の変更後も正しく動作することも
+  同じPlaywright環境で確認した。
 - [ ] 7-3. 7-2で確立したパターンを、残り36ページ(`src/app/import/`を除く)に
       5-1-3dと同様1コミットで数ページずつ適用する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
@@ -7244,8 +7299,9 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
   完了したらチェックを付けて次回に引き継ぐ。**フェーズ5(5-3-4、2026-10-09)が
   完了し、フェーズ0〜5のチェックリスト項目は全て完了済み(`[x]`)。
-  フェーズ7-1(方針決定、2026-10-09)も完了済み。** 次回はフェーズ7-2
-  (PoC実装)から着手する。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
+  フェーズ7-1(方針決定)・7-2(`basic-deduction`でのPoC実装、いずれも
+  2026-10-09)も完了済み。** 次回はフェーズ7-3(7-2のパターンを残り36ページに
+  適用)から着手する。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
   ビルド手順を追記する節)。
