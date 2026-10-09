@@ -55,6 +55,15 @@
       "@/lib/durabilityImprovementRenovationDeductionPageData": [
         "./src/lib/durabilityImprovementRenovationDeductionPageData.standalone.ts"
       ],
+      "@/lib/childRearingRenovationDeductionPageData": [
+        "./src/lib/childRearingRenovationDeductionPageData.standalone.ts"
+      ],
+      "@/lib/multiHouseholdRenovationDeductionPageData": [
+        "./src/lib/multiHouseholdRenovationDeductionPageData.standalone.ts"
+      ],
+      "@/lib/residentTaxAdjustmentDeductionPageData": [
+        "./src/lib/residentTaxAdjustmentDeductionPageData.standalone.ts"
+      ],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"

@@ -7427,6 +7427,32 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   同じ)から変わらず(今回は`/`(ダッシュボード)・`/employment-income`の2ページが
   失敗)、新たなリグレッションが無いことを確認した。残り18ページ(`import`を除く)は
   次回以降のブラッシュアップで継続する。
+
+  **進捗(2026-10-09、7回目):** `child-rearing-renovation-deduction`・
+  `multi-household-renovation-deduction`・`resident-tax-adjustment-deduction`の
+  3ページに同じパターンを適用した。`child-rearing-renovation-deduction`・
+  `multi-household-renovation-deduction`は6回目の各改修工事ページと同形
+  (`year`のみ・`getXxxRenovationDeductionRecord`で1件取得。`saved`/`deleted`クエリ値は
+  `<Page>PageContent.tsx`側で`useSearchParams()`から直接読み取る)。
+  `resident-tax-adjustment-deduction`は`getResidentTaxAdjustmentDeductionRecord`が
+  `{ taxYear, adjustmentDeductionJpy }`形のオブジェクトを返す点のみ他ページと異なるが、
+  戻り値の型をそのまま`<page>PageData`に含めるだけで同じパターンを適用できた
+  (クエリ値は`residentTaxAdjustmentDeductionSaved`)。各ページについて1〜6回目と
+  同じ4点構成(`<page>PageData.types.ts`/`<page>PageData.ts`(`"use server"`)/
+  `<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+`<Page>PageSkeleton`)を
+  追加し、`page.tsx`を`<Suspense>`で囲むだけの薄いServer Componentに変更、
+  `next.config.ts`のresolveAlias(Turbopack・webpack両方)・
+  `tsconfig.standalone.json`の`paths`にPageData用エイリアスを追加した
+  (3ページとも`Actions`用エイリアスはフェーズ5-1-3dで既に追加済みのため今回の
+  追加は不要だった)。`npm install`(このクラウド開発環境では`node_modules`が
+  未インストールの状態から開始したため)・`cp .env.example .env && npx prisma db push`
+  の後、`npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と
+  無関係なことを確認済み)・`npm run build`(自宅サーバー版。対象3ページが従来の
+  `ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。`npm run build:standalone`は、
+  失敗するページが`/`(ダッシュボード)・`/employment-income`(6回目確認時と同じ)から
+  変わらないことを`git stash`で確認した(新たなリグレッションは無い)。残り15ページ
+  (`import`を除く)は次回以降のブラッシュアップで継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7448,9 +7474,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `donation-tax-credit`・`resident-tax-non-taxable`・
   `angel-tax-loss-carryforward`・`barrier-free-renovation-deduction`・
   `casualty-loss-deduction`・`energy-saving-renovation-deduction`・
-  `earthquake-renovation-deduction`・`durability-improvement-renovation-deduction`の
-  18ページが完了(2026-10-09)。** 次回は
-  フェーズ7-3の続き(`import`を除く残り18ページ)から着手する。残るフェーズ6
+  `earthquake-renovation-deduction`・`durability-improvement-renovation-deduction`・
+  `child-rearing-renovation-deduction`・`multi-household-renovation-deduction`・
+  `resident-tax-adjustment-deduction`の21ページが完了(2026-10-09)。** 次回は
+  フェーズ7-3の続き(`import`を除く残り15ページ)から着手する。残るフェーズ6
   (実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
