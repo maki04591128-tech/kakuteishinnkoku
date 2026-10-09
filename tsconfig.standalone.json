@@ -87,6 +87,13 @@
       "@/lib/homeReplacementLossDeductionPageData": [
         "./src/lib/homeReplacementLossDeductionPageData.standalone.ts"
       ],
+      "@/lib/homeSaleLossDeductionPageData": [
+        "./src/lib/homeSaleLossDeductionPageData.standalone.ts"
+      ],
+      "@/lib/medicalExpenseDeductionPageData": [
+        "./src/lib/medicalExpenseDeductionPageData.standalone.ts"
+      ],
+      "@/lib/unrealizedGainPageData": ["./src/lib/unrealizedGainPageData.standalone.ts"],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"
