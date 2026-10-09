@@ -6611,7 +6611,7 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   別の制約。本ステップのスコープ外)で引き続き失敗することを確認した
   (本対応による新たなリグレッションではないことの確認)。
 
-- [ ] 5-3-3. 5-3-2で確立したパターンを、5-1-3bが残課題として列挙していた
+- [x] 5-3-3. 5-3-2で確立したパターンを、5-1-3bが残課題として列挙していた
       残りの各`defaultXxxRepository.standalone.ts`(Decimal列を持つものは
       `decimalCodec.ts`の`decodeDecimal`方式と組み合わせる)へ順次適用していく。
 
@@ -7084,9 +7084,26 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが無いこと)を
   確認した。
 
-  **残り1ファイル(次回、同じパターンを適用すれば5-3-3は完了する。現状は
-  「未結線」エラーを投げるプレースホルダーのまま):** `StockMarginTrade`
-  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+  **進捗19(2026-10-09)・5-3-3完了:** 残っていた最後の1モデル
+  `StockMarginTrade`にも同じパターンを適用し、38/38ファイル全て完了した。
+  `findByTaxYearId`/`create`/`delete`の3メソッド構成(進捗8・9・13・15の
+  `CryptoCreditTrade`・`InvestmentTrade`等と同じ構成)で、
+  `createClientStockMarginTradeRepository`(フェーズ2で実装済み)に各メソッドを
+  そのまま委譲するだけの`.standalone.ts`の骨格は変わらず、同じパターンを
+  適用できた(Decimal列`realizedPnlJpy`/`feeJpy`/`interestAdjustmentJpy`も
+  `createClientStockMarginTradeRepository`側で`decimalCodec.ts`使用済みのため
+  `standalone.ts`側に追加対応は不要)。`.standalone.test.ts`は新規作成し、
+  5-3-2と同様`openClientDb`/`applyClientDbSchema`をモック化する内容とした。
+  これにより`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`は
+  全て「未結線」プレースホルダーが無くなり、全モデルが`getStandaloneClientDb()`
+  経由で共有`ClientDb`に結線された状態になった(5-3-4のOPFS実機検証待ちの
+  状態を除き、スタンドアロン版のデータアクセス層は完成)。
+  `npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版)
+  が成功し、`npm run build:standalone`も従来と同じ(フェーズ5-1-3dから既知の)
+  `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが無いこと)
+  を確認した。
 
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境

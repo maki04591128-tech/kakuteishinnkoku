@@ -2,31 +2,36 @@
 // `@/lib/repositories/defaultStockMarginTradeRepository`差し替え実装
 // (next.config.tsのresolveAlias経由。フェーズ5-1-3b)。
 //
-// `defaultCryptoTradeRepository.standalone.ts`と同じ理由(ブラウザ向けOPFSベースの
-// `openClientDb`実装がまだ無く、Node専用の現行`openClientDb`をそのまま結線すると
-// ビルドが壊れる。README「現在の最優先事項」フェーズ5-1-3bの残課題を参照)により、
-// `createClientStockMarginTradeRepository`を実際には呼ばず、各メソッド呼び出し時に
-// 分かりやすいエラーを投げるだけのプレースホルダーとする。
+// フェーズ5-1-3bの時点ではブラウザ向け(OPFSベース)の`openClientDb`実装が
+// 無かったため、各メソッド呼び出し時にエラーを投げるだけのプレースホルダーに
+// していた。フェーズ5-3でブラウザ向け実装(`../clientDb/sqlite.browser.ts`)が
+// 用意され、5-3-2で`TaxYearRepository`向けに確立したパターンを、本ステップ(5-3-3)で
+// このモデルにも適用する。`getStandaloneClientDb()`
+// (`../clientDb/standaloneClientDb.ts`)がアプリ全体で共有する`ClientDb`接続を
+// 遅延オープンし、`createClientStockMarginTradeRepository`
+// (wa-sqlite実装。`./stockMarginTradeRepository.ts`)に渡す。
+import { createClientStockMarginTradeRepository } from "./stockMarginTradeRepository";
 import type { StockMarginTradeRepository } from "./stockMarginTradeRepository";
+import { getStandaloneClientDb } from "../clientDb/standaloneClientDb";
 
-function notImplemented(): never {
-  throw new Error(
-    "スタンドアロン版のStockMarginTradeRepositoryクライアント実装は" +
-      "未結線です(ブラウザ向けOPFSベースのopenClientDb実装待ち。README「現在の最優先事項」" +
-      "フェーズ5-1-3bの残課題を参照)。",
-  );
+async function getRepository(): Promise<StockMarginTradeRepository> {
+  const db = await getStandaloneClientDb();
+  return createClientStockMarginTradeRepository(db);
 }
 
 export const stockMarginTradeRepository: StockMarginTradeRepository = {
-  async findByTaxYearId() {
-    notImplemented();
+  async findByTaxYearId(taxYearId) {
+    const repository = await getRepository();
+    return repository.findByTaxYearId(taxYearId);
   },
 
-  async create() {
-    notImplemented();
+  async create(data) {
+    const repository = await getRepository();
+    return repository.create(data);
   },
 
-  async delete() {
-    notImplemented();
+  async delete(id) {
+    const repository = await getRepository();
+    return repository.delete(id);
   },
 };
