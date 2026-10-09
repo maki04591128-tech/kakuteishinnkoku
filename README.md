@@ -7169,6 +7169,28 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   ユーザー自身のAndroid Studio環境で行われるかのいずれかで検証する必要がある
   (フェーズ6の制約通り)。
 
+- [x] 6-2. 6-1で追加したワークフローが実際にGitHub Actions上(Android SDK
+      プリインストール済みの`ubuntu-latest`ランナー)で成功するかを確認する。
+
+  **確認結果(2026-10-09、GitHub Actions実行結果を一次情報として確認):**
+  6-1のコミット(`2bad4d2`、PR #432)が属するPR上でワークフロー
+  `Android build (standalone)`(run ID `38002054600`)が
+  `pull_request`イベントで実際に実行され、`build-apk`ジョブの全9ステップ
+  (`Build standalone (static export)`→`Sync Capacitor Android project`→
+  `Build debug APK`→`Upload APK`を含む)が`success`で完了したことを
+  GitHub Actions REST API経由で確認した
+  (https://github.com/maki04591128-tech/kakuteishinnkoku/actions/runs/38002054600)。
+  このクラウド開発環境にはAndroid SDKが無いためこのセッション自身では
+  `./gradlew assembleDebug`を実行できないが、GitHub Actions側では
+  Android SDKプリインストール済みの`ubuntu-latest`ランナー上で実際に
+  デバッグAPK(`app-debug-apk`アーティファクト、約5.8MB)が生成され、
+  ワークフロー成果物としてアップロードされたことを確認できた
+  (アーティファクトの有効期限は2027-01-07)。これにより、フェーズ6の
+  制約(このクラウド開発環境では検証不可)だった「ワークフローが実際に
+  GitHub Actions上で成功するか」という論点は解消した。残る論点は
+  実機(またはエミュレータ)でのインストール・動作確認のみで、これは
+  依然としてユーザー自身の環境でのみ可能(フェーズ6の制約通り)。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -7807,9 +7829,13 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   このクラウド開発環境にAndroid SDKが無いため`gradlew assembleDebug`自体の
   実行結果はこのセッションでは検証できないが、ワークフロー前半
   (`npm run build:standalone`・`npx cap sync android`)は実行して成功を
-  確認済み)。**次回のブラッシュアップは、このワークフローが実際にGitHub
-  Actions上で成功するか(初回push時にユーザー側で確認を依頼する)、または
-  ユーザーがフェーズ6(実機ビルド)を実施した結果の反映、あるいは末尾の
+  確認済み)。その後、6-1のPR上で実際にワークフローがGitHub Actions上で
+  実行され、`build-apk`ジョブ(`gradlew assembleDebug`を含む)が成功して
+  デバッグAPKが生成されることを2026-10-09に確認し、6-2として追記した
+  (フェーズ6の「このクラウド開発環境では検証不可」という制約のうち
+  ワークフロー自体の成否は解消。残るのは実機でのインストール・動作確認のみ)。
+  **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
+  インストールして動作確認した結果の反映(フェーズ6完了)、または末尾の
   「ロードマップ」(既存の税制対応機能の追加)から着手する。**
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
