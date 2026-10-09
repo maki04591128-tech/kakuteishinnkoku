@@ -7038,6 +7038,30 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
   (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
 
+  **進捗17(2026-10-09):** 続けて`NisaLifetimeQuota`・`OpeningBalance`の
+  2モデルにも同じパターンを適用した(35/38ファイル完了)。両モデルとも
+  `findByTaxYearId`/`upsert`/`delete`/`createMany`の4メソッド構成(進捗4・11・13・14・15の
+  `CasualtyLossCarryforward`等と同じ構成)だが、どちらも
+  `createClientNisaLifetimeQuotaRepository`/`createClientOpeningBalanceRepository`
+  (フェーズ2で実装済み)に各メソッドをそのまま委譲するだけの`.standalone.ts`の骨格は
+  変わらず、同じパターンを適用できた(`NisaLifetimeQuota`のDecimal列
+  `openingUsedJpy`/`soldCostBasisJpy`、`OpeningBalance`のDecimal列`quantity`/
+  `costBasisJpy`も`createClientXxxRepository`側で`decimalCodec.ts`使用済みのため
+  `standalone.ts`側に追加対応は不要)。`NisaLifetimeQuota`の`.standalone.test.ts`は
+  新規作成、`OpeningBalance`の`.standalone.test.ts`は既存の「未結線」エラー検証テストを
+  5-3-2と同様のモック化テストに置き換えた。`npm run test`(全220ファイル1773件)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係なことを`git stash`で確認済み)・`npm run build`
+  (自宅サーバー版)が成功し、`npm run build:standalone`も従来と同じ
+  (フェーズ5-1-3dから既知の)`searchParams`関連エラーでのみ失敗すること(新たな
+  リグレッションが無いこと)を確認した。
+
+  **残り3ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  エラーを投げるプレースホルダーのまま):**
+  `OpeningBalanceByInstitution`・
+  `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
+  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
       では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
