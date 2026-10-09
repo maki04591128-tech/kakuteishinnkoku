@@ -7513,6 +7513,44 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   リグレッションが無いこと・対象3ページ(`employment-income`を含む)がエラーの
   原因から外れたことの両方を`git stash`で確認できた。残り9ページ(`import`を
   除く)は次回以降のブラッシュアップで継続する。
+
+  **進捗(2026-10-09、10回目):** `certified-housing-construction-credit`・
+  `foreign-tax-credit`・`home-replacement-loss-deduction`の3ページに同じ
+  パターンを適用した。`certified-housing-construction-credit`は、単一レコード
+  取得(`getCertifiedHousingConstructionCreditRecord`)に加えて、前年(居住年)
+  から繰り越された控除未済税額控除額(`getCertifiedHousingConstructionCreditCarryforward`。
+  一覧ではなく単一の繰越オブジェクト)の合算・削除フォームも`page.tsx`から
+  `<Page>PageContent.tsx`へそのまま移した(この形の繰越は今回が初めてのケース)。
+  `foreign-tax-credit`は、`getOrCreateTaxYear`で取得した`TaxYear`の`id`を使う
+  繰越控除限度超過額・繰越控除余裕額の2種類の一覧
+  (`foreignTaxCreditCarryforwardRepository`・
+  `foreignTaxCreditSpareLimitCarryforwardRepository`の`findByTaxYearId`)と、
+  `buildYearReport`による自動集計値・登録済み控除額(3種の金額を持つオブジェクト)を
+  `Promise.all`で並行取得する、これまでで最も取得項目数が多い構成だったが、
+  各取得処理自体は既存コードをそのまま移しただけ。`home-replacement-loss-deduction`は
+  5回目の`casualty-loss-deduction`と同形(`findIncomeDeductionEntry`による単一の
+  登録済み控除額+`homeReplacementLossCarryforwardRepository.findByTaxYearId`に
+  よる繰越一覧。`lossCarried`クエリ値は`<Page>PageContent.tsx`側で
+  `useSearchParams()`から直接読み取る)。いずれも`Actions`用エイリアス
+  (`certifiedHousingConstructionCreditActions`・`foreignTaxCreditActions`。
+  `home-replacement-loss-deduction`は`homeReplacementLossCarryforwardActions`・
+  `incomeDeductionActions`)はフェーズ5-1-3dで既に追加済みのため今回の追加は
+  不要で、`PageData`用エイリアスのみ追加した。各ページについて1〜9回目と同じ
+  4点構成(`<page>PageData.types.ts`/`<page>PageData.ts`(`"use server"`)/
+  `<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+`<Page>PageSkeleton`)を
+  追加し、`page.tsx`を`<Suspense>`で囲むだけの薄いServer Componentに変更、
+  `next.config.ts`のresolveAlias(Turbopack・webpack両方)・
+  `tsconfig.standalone.json`の`paths`にPageData用エイリアスを追加した。
+  `npm install`(このクラウド開発環境では`node_modules`が未インストールの状態から
+  開始したため)・`cp .env.example .env && npx prisma db push`の後、`npm run test`
+  (全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方)・`npm run build`(自宅サーバー版。対象3ページが
+  従来の`ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。
+  `npm run build:standalone`は、失敗するページが`/`(ダッシュボード)のみで
+  変わらないことを確認した(新たなリグレッションは無い)。残り6ページ
+  (`import`を除く。`/`・`home-sale-loss-deduction`・`login`・
+  `medical-expense-deduction`・`tax-estimate`・`unrealized-gain`)は次回以降の
+  ブラッシュアップで継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
