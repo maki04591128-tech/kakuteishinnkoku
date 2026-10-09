@@ -1,58 +1,20 @@
-import Link from "next/link";
-import { listTaxYears } from "@/lib/taxYear";
-import { findIncomeDeductionEntry, getIncomeDeductionEntries } from "@/lib/incomeDeduction";
-import { SmallBusinessMutualAidDeductionForm } from "./SmallBusinessMutualAidDeductionForm";
+import { Suspense } from "react";
+import {
+  SmallBusinessMutualAidDeductionPageContent,
+  SmallBusinessMutualAidDeductionPageSkeleton,
+} from "./SmallBusinessMutualAidDeductionPageContent";
 
-export default async function SmallBusinessMutualAidDeductionPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ year?: string }>;
-}) {
-  const params = await searchParams;
-  const availableYears = await listTaxYears();
-  const currentCalendarYear = new Date().getFullYear();
-  const year = Number(params.year) || availableYears[0] || currentCalendarYear;
-
-  const incomeDeductionEntries = await getIncomeDeductionEntries(year);
-  const registeredEntry = findIncomeDeductionEntry(
-    incomeDeductionEntries,
-    "SMALL_BUSINESS_MUTUAL_AID",
-  );
-  const registeredDeductionJpy = registeredEntry
-    ? Number(registeredEntry.incomeTaxAmountJpy)
-    : null;
-
+// フェーズ7-3(7-2で確立したパターンの適用)。`searchParams` propを使う非同期
+// Server Componentは`output: "export"`の静的書き出しと非対応のため、実際の
+// 画面本体は`"use client"`化した`SmallBusinessMutualAidDeductionPageContent`に
+// 移し、`useSearchParams()`で`year`を読み取る構成にした(フェーズ7-1の決定)。
+// `useSearchParams()`を呼ぶClient Componentは`<Suspense>`境界で囲む必要があり
+// (Next.js公式ドキュメントの推奨。囲わないと静的ビルドが失敗する)、このファイル
+// 自体はその境界を提供するだけの薄いServer Componentとして残す。
+export default function SmallBusinessMutualAidDeductionPage() {
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 sm:p-10">
-      <header>
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
-          ← ダッシュボードに戻る
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">
-          小規模企業共済等掛金控除額の試算({year}年分)
-        </h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          iDeCo(個人型確定拠出年金)・小規模企業共済・心身障害者扶養共済の年間掛金額を
-          入力すると、その合計額(全額控除、上限なし)を試算できる。iDeCoは加入区分ごとに
-          年間拠出限度額が法令で定められているため、参考として選択した区分の限度額との
-          比較も表示する。暗号資産・投資の集計とは独立した単体の試算画面のため、
-          この年分の取引データには依存しない。
-        </p>
-      </header>
-
-      <SmallBusinessMutualAidDeductionForm
-        year={year}
-        registeredDeductionJpy={registeredDeductionJpy}
-      />
-
-      <p className="rounded-md border border-dashed border-neutral-300 p-4 text-xs text-neutral-500 dark:border-neutral-700">
-        小規模企業共済等掛金控除は生命保険料控除・医療費控除と異なり足切りや速算表が無く、
-        支払った掛金の全額がそのまま所得税・住民税共通の控除額になる。iDeCoの掛金は
-        運営管理機関から送付される年間の払込証明書(またはねんきん定期便に準じた通知)の
-        金額で確認すること。「この試算結果を{year}年分の所得控除として登録する」ボタンで
-        登録すると、`/tax-estimate`の「給与所得等の課税所得金額」の初期値にこの控除額が
-        自動反映される(登録後も入力欄は手入力で上書き可能)。
-      </p>
-    </div>
+    <Suspense fallback={<SmallBusinessMutualAidDeductionPageSkeleton />}>
+      <SmallBusinessMutualAidDeductionPageContent />
+    </Suspense>
   );
 }
