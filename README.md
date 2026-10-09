@@ -7628,7 +7628,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `npm run build:standalone`は、失敗するページが`/import`のみに変わったことを
   確認した(`import`は7-4で対応予定のため想定通りで、新たなリグレッションは無い)。
   これで7-3(`import`を除く全36ページへのパターン適用)が完了した。
-- [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
+- [x] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
 
@@ -7726,29 +7726,66 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   変わらないことを確認した(新たなリグレッションは無い)。残るステップ(3)
   (`page.tsx`のSuspense化・`ImportPageContent.tsx`への移行)は次回以降の
   ブラッシュアップで継続する。
-- [ ] 7-5(フェーズ7完了). `npm run build:standalone`が全ページで
+
+  **進捗(2026-10-09、3回目・7-4完了):** 上記ステップ(3)を実施し、7-4の
+  3ステップが全て完了した。`page.tsx`(2900行)の本体を`src/app/import/
+  ImportPageContent.tsx`(`"use client"`)にそのまま移し、他の37ページと
+  同じ`useSearchParams()`+`useEffect`(+`startTransition`)で
+  `getImportPageData(year)`(1〜2回目で実装済み)を呼ぶ構成に変更した。
+  `page.tsx`自体は`<Suspense>`境界を提供するだけの薄いServer Componentに
+  なった。元のコードがDecimal/Dateのメソッドを直接呼んでいた箇所は、
+  (a) 20種類の生コレクション・`yearReport`由来の値(`getImportPageData`の
+  戻り値である`ImportPageData`。既にnumber/stringに変換済み)と、
+  (b) `reconcileAssetBalances`・`reconcileAssetSymbolBalances`・
+  `reconcileBrokerAnnualReports`(DBに依存しない純粋関数。渡した値の型を
+  問わず内部で`new Decimal()`してDecimalを返す)の計算結果、の2系統がある
+  ことを確認し、(a)のみ書き換えが必要と判断した。具体的には
+  `yearReport.cryptoMargin.totalRealizedGainJpy.isZero()`等9箇所を
+  `ImportYearReportData`のフラットなフィールド名(`cryptoMarginTotalRealizedGainJpy`等)
+  を使った数値比較(`!== 0`・`> 0`)に、`dateInputValue()`をDateではなく
+  ISO8601文字列を受け取って`.slice(0, 10)`するだけの実装に変更した。
+  (b)の計算結果(`r.quantityCheck.snapshotQuantity?.toString()`・
+  `rec.proceedsDiffJpy.abs().greaterThan(1)`等)はDecimalのままで問題無いため
+  変更していない。`taxYear.cryptoCostMethod`は`ImportPageData.cryptoCostMethod`
+  に、`params.imported`等6個のクエリ値は`searchParams.get(...)`に置き換えた
+  (`!== undefined`判定は`!== null`に対応する変更)。
+  `npm install`(このクラウド開発環境では`node_modules`が未インストールの
+  状態から開始したため)・`cp .env.example .env && npx prisma db push`の後、
+  `npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係)・`npm run build`(自宅サーバー版。`/import`が従来の
+  `ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。
+  `npm run build:standalone`は、**`/import`を含め失敗するページが0件になった
+  (全76ページ成功。`login`はフェーズ4の決定により対象外のため76ページ中に
+  含まれない)ことを確認した。** これによりフェーズ7(`searchParams`問題の
+  解消)が完了し、次の7-5(最終検証)もこの時点で満たされていることを確認した。
+- [x] 7-5(フェーズ7完了). `npm run build:standalone`が全ページで
       成功することを確認する(最終検証)。
+
+  **実施(2026-10-09、7-4の3回目と同時に確認):** 上記7-4の3回目の検証で
+  `npm run build:standalone`を実行し、対象76ページ(`login`除く)全てが
+  `○`(静的)として成功することを確認した。失敗ページは0件。フェーズ0〜7の
+  チェックリスト項目が全て完了済み(`[x]`)になった。
 
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
-  完了したらチェックを付けて次回に引き継ぐ。**フェーズ5(5-3-4、2026-10-09)が
-  完了し、フェーズ0〜5のチェックリスト項目は全て完了済み(`[x]`)。
-  フェーズ7-1(方針決定)・7-2(`basic-deduction`でのPoC実装、いずれも
-  2026-10-09)・7-3(7-2のパターンを`import`を除く全36ページに適用、
-  2026-10-09完了)も完了済み。7-3で判明した通り`login`は既にフェーズ4の決定で
-  スタンドアロン版のビルド対象から退避済みのため、実際に対応が必要だったのは
-  `/`(ダッシュボード)・`tax-estimate`を含む36ページだった。** フェーズ7-4
-  (`src/app/import/page.tsx`、42個のアクションを抱える最大のページへの対応)は
-  規模が大きいため3ステップに分割して着手しており、1回目(2026-10-09、
-  生コレクションのデータ取得層`importPageData.ts`/`.standalone.ts`の追加)・
-  2回目(2026-10-09、`yearReport`を含むデータ取得層の完成)が完了した。
-  次回は7-4の3回目(`page.tsx`を`<Suspense>`で囲むだけの薄いServer Componentに
-  変更し、2900行のJSX本体を`ImportPageContent.tsx`に移す)から続ける。
-  残るフェーズ6(実機ビルド・動作確認)はこのクラウド
-  開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
-  チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
-  ビルド手順を追記する節)。
+  完了したらチェックを付けて次回に引き継ぐ。**フェーズ7(`searchParams`問題の
+  解消)が2026-10-09に完了し、フェーズ0〜7のチェックリスト項目が全て
+  完了済み(`[x]`)になった。** フェーズ7-4(`src/app/import/page.tsx`、
+  42個のアクションを抱える最大のページへの対応)は規模が大きいため3ステップに
+  分割し、1回目(生コレクションのデータ取得層の追加)・2回目(`yearReport`を
+  含むデータ取得層の完成)・3回目(`page.tsx`のSuspense化・
+  `ImportPageContent.tsx`への移行)の順に完了させた。7-4の3回目の検証時に
+  `npm run build:standalone`が対象76ページ(`login`除く)全てで成功することを
+  確認できたため、7-5(最終検証)もこの時点で満たされ、フェーズ7全体が完了した。
+  **この最優先事項(スタンドアロン(Android)版への移行)のうち、自動化セッションで
+  対応できる作業はこれで全て完了した。** 残るフェーズ6(実機ビルド・動作確認)は
+  このクラウド開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは
+  検証できず、チェックリスト項目も無い(ユーザー自身のAndroid Studio環境または
+  CI経由でのビルド手順を追記する節)。次回のブラッシュアップは、ユーザーが
+  フェーズ6(実機ビルド)を実施した結果の反映、または末尾の「ロードマップ」
+  (既存の税制対応機能の追加)から着手する。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
