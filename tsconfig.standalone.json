@@ -46,6 +46,15 @@
       "@/lib/casualtyLossDeductionPageData": [
         "./src/lib/casualtyLossDeductionPageData.standalone.ts"
       ],
+      "@/lib/energySavingRenovationDeductionPageData": [
+        "./src/lib/energySavingRenovationDeductionPageData.standalone.ts"
+      ],
+      "@/lib/earthquakeRenovationDeductionPageData": [
+        "./src/lib/earthquakeRenovationDeductionPageData.standalone.ts"
+      ],
+      "@/lib/durabilityImprovementRenovationDeductionPageData": [
+        "./src/lib/durabilityImprovementRenovationDeductionPageData.standalone.ts"
+      ],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"
