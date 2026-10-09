@@ -312,6 +312,24 @@ const unrealizedGainPageDataStandaloneAliasForWebpack = path.resolve(
   "src/lib/unrealizedGainPageData.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/homePageData`(ダッシュボード、`src/app/page.tsx`)の
+// 実装を、上記と同様にブラウザ上で直接呼び出すプレーンな非同期関数に差し替える
+// (フェーズ7-3継続12回目。7-2のPoCで確立したパターンの適用)。
+const homePageDataStandaloneAliasForTurbopack = "./src/lib/homePageData.standalone.ts";
+const homePageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/homePageData.standalone.ts",
+);
+
+// スタンドアロン版では`@/lib/taxEstimatePageData`の実装を、上記と同様にブラウザ上で
+// 直接呼び出すプレーンな非同期関数に差し替える(フェーズ7-3継続12回目)。
+const taxEstimatePageDataStandaloneAliasForTurbopack =
+  "./src/lib/taxEstimatePageData.standalone.ts";
+const taxEstimatePageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/taxEstimatePageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -1280,6 +1298,8 @@ const nextConfig: NextConfig = {
           "@/lib/medicalExpenseDeductionPageData":
             medicalExpenseDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/unrealizedGainPageData": unrealizedGainPageDataStandaloneAliasForTurbopack,
+          "@/lib/homePageData": homePageDataStandaloneAliasForTurbopack,
+          "@/lib/taxEstimatePageData": taxEstimatePageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1497,6 +1517,8 @@ const nextConfig: NextConfig = {
         "@/lib/medicalExpenseDeductionPageData":
           medicalExpenseDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/unrealizedGainPageData": unrealizedGainPageDataStandaloneAliasForWebpack,
+        "@/lib/homePageData": homePageDataStandaloneAliasForWebpack,
+        "@/lib/taxEstimatePageData": taxEstimatePageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,

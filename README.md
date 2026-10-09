@@ -7286,7 +7286,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   この試算結果の登録・削除(`saveIncomeDeduction`/`deleteIncomeDeduction`、
   5-1-3dで確立済みのServer Action経由)が今回の変更後も正しく動作することも
   同じPlaywright環境で確認した。
-- [ ] 7-3. 7-2で確立したパターンを、残り36ページ(`src/app/import/`を除く)に
+- [x] 7-3. 7-2で確立したパターンを、残り36ページ(`src/app/import/`を除く)に
       5-1-3dと同様1コミットで数ページずつ適用する。
 
   **進捗(2026-10-09、1回目):** `disability-deduction`・`social-insurance-deduction`・
@@ -7587,6 +7587,47 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   変わらないことを`git stash`で確認した(新たなリグレッションは無い)。残り3ページ
   (`import`を除く。`/`・`login`・`tax-estimate`)は次回以降のブラッシュアップで
   継続する。
+
+  **進捗(2026-10-09、12回目):** `/`(ダッシュボード、`src/app/page.tsx`)・
+  `/tax-estimate`の2ページに同じパターンを適用し、`import`を除く36ページ全ての
+  7-3対応が完了した。着手前に`npm run build:standalone`で実際の失敗状況を確認した
+  ところ、`login`は既にフェーズ4の決定(README該当箇所参照)により
+  `scripts/build-standalone.mjs`が`src/app/login`ディレクトリごとビルド対象から
+  退避する対象になっており、スタンドアロン版のルートに含まれないため今回の
+  対応は不要だった(11回目時点の「残り3ページ」表記は誤りで、実際に要対応だったのは
+  `/`・`tax-estimate`の2ページのみ)。
+  `/`(ダッシュボード)はこれまでで最も複雑な構成で、`buildYearReport`・
+  `buildTaxFilingSummary`の戻り値(NISA年間投資枠・NISA生涯投資枠・暗号資産/株式等/
+  先物取引の銘柄別内訳・マネーフォワード資産残高突合等、Decimalを含む多数のネスト
+  した値)を`homePageData.ts`側で全てnumber/string(数量のような端数を含む値は
+  `.toString()`のまま、金額は`.toNumber()`)に変換し、`HomePageContent.tsx`側では
+  `.greaterThan(0)`/`.isZero()`を`> 0`/`=== 0`の数値比較に置き換えるだけで元の
+  表示分岐をそのまま再現した。また`LogoutButton`(`@/lib/authUi`)は内部で
+  `next/headers`に依存する`@/lib/auth/session`をimportしているため、
+  `"use client"`化した`HomePageContent`内から直接importすると自宅サーバー版の
+  `npm run build`が
+  `You're importing a module that depends on "next/headers"...`で失敗することが
+  分かった(他の移行済みページはログアウトボタンを持たないため今回初めて遭遇した
+  問題)。Next.js公式の「Server ComponentをClient Componentの子として渡す」
+  パターン(`page.tsx`側で`<LogoutButton />`をレンダリングし、`logoutButton`
+  propとして`HomePageContent`に渡す)で解決した。`/tax-estimate`は23個の
+  `getXxxRecord`/`buildYearReport`等の戻り値を1つの`TaxEstimatePageData`に
+  まとめる構成だが、Server Action(登録・削除)を持たず`TotalTaxEstimateForm`
+  (既存の`"use client"`コンポーネント)に初期値を渡すだけのため、9・10回目の
+  複数データソース合算パターンの延長で機械的に対応できた。
+  両ページとも4点構成(`<page>PageData.types.ts`/`<page>PageData.ts`
+  (`"use server"`)/`<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+
+  `<Page>PageSkeleton`)を追加し、`page.tsx`を`<Suspense>`で囲むだけの薄い
+  Server Componentに変更、`next.config.ts`のresolveAlias(Turbopack・webpack
+  両方)・`tsconfig.standalone.json`の`paths`にPageData用エイリアスを追加した。
+  `npm install`(このクラウド開発環境では`node_modules`が未インストールの状態から
+  開始したため)・`cp .env.example .env && npx prisma db push`の後、`npm run test`
+  (全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方)・`npm run build`(自宅サーバー版。対象2ページが
+  従来の`ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。
+  `npm run build:standalone`は、失敗するページが`/import`のみに変わったことを
+  確認した(`import`は7-4で対応予定のため想定通りで、新たなリグレッションは無い)。
+  これで7-3(`import`を除く全36ページへのパターン適用)が完了した。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7599,24 +7640,12 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   完了したらチェックを付けて次回に引き継ぐ。**フェーズ5(5-3-4、2026-10-09)が
   完了し、フェーズ0〜5のチェックリスト項目は全て完了済み(`[x]`)。
   フェーズ7-1(方針決定)・7-2(`basic-deduction`でのPoC実装、いずれも
-  2026-10-09)も完了済み。フェーズ7-3(7-2のパターンを残り36ページに適用)は
-  着手済みで、`disability-deduction`・`social-insurance-deduction`・
-  `earthquake-insurance-deduction`・`life-insurance-deduction`・
-  `specific-expense-deduction`・`income-amount-adjustment-deduction`・
-  `donation-deduction`・`widow-single-parent-deduction`・
-  `small-business-mutual-aid-deduction`・`mortgage-deduction`・
-  `donation-tax-credit`・`resident-tax-non-taxable`・
-  `angel-tax-loss-carryforward`・`barrier-free-renovation-deduction`・
-  `casualty-loss-deduction`・`energy-saving-renovation-deduction`・
-  `earthquake-renovation-deduction`・`durability-improvement-renovation-deduction`・
-  `child-rearing-renovation-deduction`・`multi-household-renovation-deduction`・
-  `resident-tax-adjustment-deduction`・`interest-income`・
-  `crypto-income-classification`・`dividend-simulation`・`employment-income`・
-  `dependent-deduction`・`distribution-adjusted-foreign-tax-credit`・
-  `home-sale-loss-deduction`・`medical-expense-deduction`・`unrealized-gain`の
-  30ページが完了(2026-10-09)。** 次回はフェーズ7-3の続き(`import`を除く残り
-  3ページ、`/`・`login`・`tax-estimate`)から着手する。残るフェーズ6
-  (実機ビルド・動作確認)はこのクラウド
+  2026-10-09)・7-3(7-2のパターンを`import`を除く全36ページに適用、
+  2026-10-09完了)も完了済み。7-3で判明した通り`login`は既にフェーズ4の決定で
+  スタンドアロン版のビルド対象から退避済みのため、実際に対応が必要だったのは
+  `/`(ダッシュボード)・`tax-estimate`を含む36ページだった。** 次回はフェーズ7-4
+  (`src/app/import/page.tsx`、42個のアクションを抱える最大のページへの対応)
+  から着手する。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
   ビルド手順を追記する節)。
