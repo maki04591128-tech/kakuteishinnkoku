@@ -219,6 +219,29 @@ const residentTaxAdjustmentDeductionPageDataStandaloneAliasForWebpack = path.res
   "src/lib/residentTaxAdjustmentDeductionPageData.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/interestIncomePageData`・
+// `@/lib/cryptoIncomeClassificationPageData`・`@/lib/dividendSimulationPageData`の
+// 実装を、上記と同様にブラウザ上で直接呼び出すプレーンな非同期関数に差し替える
+// (フェーズ7-3継続8回目。7-2のPoCで確立したパターンの適用)。
+const interestIncomePageDataStandaloneAliasForTurbopack =
+  "./src/lib/interestIncomePageData.standalone.ts";
+const interestIncomePageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/interestIncomePageData.standalone.ts",
+);
+const cryptoIncomeClassificationPageDataStandaloneAliasForTurbopack =
+  "./src/lib/cryptoIncomeClassificationPageData.standalone.ts";
+const cryptoIncomeClassificationPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/cryptoIncomeClassificationPageData.standalone.ts",
+);
+const dividendSimulationPageDataStandaloneAliasForTurbopack =
+  "./src/lib/dividendSimulationPageData.standalone.ts";
+const dividendSimulationPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/dividendSimulationPageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -1167,6 +1190,11 @@ const nextConfig: NextConfig = {
             multiHouseholdRenovationDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/residentTaxAdjustmentDeductionPageData":
             residentTaxAdjustmentDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/interestIncomePageData": interestIncomePageDataStandaloneAliasForTurbopack,
+          "@/lib/cryptoIncomeClassificationPageData":
+            cryptoIncomeClassificationPageDataStandaloneAliasForTurbopack,
+          "@/lib/dividendSimulationPageData":
+            dividendSimulationPageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1366,6 +1394,10 @@ const nextConfig: NextConfig = {
           multiHouseholdRenovationDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/residentTaxAdjustmentDeductionPageData":
           residentTaxAdjustmentDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/interestIncomePageData": interestIncomePageDataStandaloneAliasForWebpack,
+        "@/lib/cryptoIncomeClassificationPageData":
+          cryptoIncomeClassificationPageDataStandaloneAliasForWebpack,
+        "@/lib/dividendSimulationPageData": dividendSimulationPageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,

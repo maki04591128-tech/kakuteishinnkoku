@@ -7453,6 +7453,31 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   失敗するページが`/`(ダッシュボード)・`/employment-income`(6回目確認時と同じ)から
   変わらないことを`git stash`で確認した(新たなリグレッションは無い)。残り15ページ
   (`import`を除く)は次回以降のブラッシュアップで継続する。
+
+  **進捗(2026-10-09、8回目):** `interest-income`・`crypto-income-classification`・
+  `dividend-simulation`の3ページに同じパターンを適用した。この3ページは1〜7回目の
+  各種控除ページと異なり、`saveXxx`/`deleteXxx`等のServer Action(登録・削除)を
+  一切持たない「`buildYearReport(year)`の結果から試算フォームの初期値を導出するだけ」の
+  単体シミュレーター画面(入力内容はその場で試算するだけでDBへの書き込みは発生しない)
+  だったため、`Actions`用エイリアスの追加が不要で`PageData`用エイリアスのみで済んだ
+  (このパターンの3ページ移行としては最も単純な構成)。各ページの`report && report.xxx.greaterThan(0)`
+  という表示文言の分岐も、`<page>PageData`側で既に`Decimal`を`Number()`化した値
+  (`defaultTotalRevenueJpy`等)を使っているため、`<Page>PageContent.tsx`側では
+  単純な数値比較(`> 0`)に置き換えるだけで同じ分岐を再現できた。各ページについて
+  1〜7回目と同じ4点構成(`<page>PageData.types.ts`/`<page>PageData.ts`(`"use server"`)/
+  `<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+`<Page>PageSkeleton`)を追加し、
+  `page.tsx`を`<Suspense>`で囲むだけの薄いServer Componentに変更、`next.config.ts`の
+  resolveAlias(Turbopack・webpack両方)・`tsconfig.standalone.json`の`paths`に
+  PageData用エイリアスを追加した。`npm install`(このクラウド開発環境では
+  `node_modules`が未インストールの状態から開始したため)・
+  `cp .env.example .env && npx prisma db push`の後、`npm run test`(全222ファイル1779件)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係なことを確認済み)・`npm run build`
+  (自宅サーバー版。対象3ページが従来の`ƒ`(動的)から`○`(静的)に変わったことを確認)が
+  成功した。`npm run build:standalone`は、失敗するページが`/`(ダッシュボード)・
+  `/employment-income`(7回目確認時と同じ)から変わらないことを`git stash`で確認した
+  (新たなリグレッションは無い)。残り12ページ(`import`を除く)は次回以降の
+  ブラッシュアップで継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7476,8 +7501,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `casualty-loss-deduction`・`energy-saving-renovation-deduction`・
   `earthquake-renovation-deduction`・`durability-improvement-renovation-deduction`・
   `child-rearing-renovation-deduction`・`multi-household-renovation-deduction`・
-  `resident-tax-adjustment-deduction`の21ページが完了(2026-10-09)。** 次回は
-  フェーズ7-3の続き(`import`を除く残り15ページ)から着手する。残るフェーズ6
+  `resident-tax-adjustment-deduction`・`interest-income`・
+  `crypto-income-classification`・`dividend-simulation`の24ページが完了
+  (2026-10-09)。** 次回はフェーズ7-3の続き(`import`を除く残り12ページ)から
+  着手する。残るフェーズ6
   (実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
