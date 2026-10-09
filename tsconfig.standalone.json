@@ -16,6 +16,15 @@
       "@/lib/earthquakeInsuranceDeductionPageData": [
         "./src/lib/earthquakeInsuranceDeductionPageData.standalone.ts"
       ],
+      "@/lib/lifeInsuranceDeductionPageData": [
+        "./src/lib/lifeInsuranceDeductionPageData.standalone.ts"
+      ],
+      "@/lib/specificExpenseDeductionPageData": [
+        "./src/lib/specificExpenseDeductionPageData.standalone.ts"
+      ],
+      "@/lib/incomeAmountAdjustmentDeductionPageData": [
+        "./src/lib/incomeAmountAdjustmentDeductionPageData.standalone.ts"
+      ],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"
