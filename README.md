@@ -7062,6 +7062,32 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
   (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
 
+  **進捗18(2026-10-09):** 続けて`OpeningBalanceByInstitution`・
+  `ResidentTaxAdjustmentDeductionRecord`の2モデルにも同じパターンを適用した
+  (37/38ファイル完了)。`OpeningBalanceByInstitution`は
+  `findByTaxYearId`/`upsert`/`delete`の3メソッド構成、
+  `ResidentTaxAdjustmentDeductionRecord`は`findByTaxYearId`/`upsert`/
+  `deleteByTaxYearId`のみのシンプルな構造(進捗1以降のモデル群と同じ構成)だが、
+  どちらも`createClientOpeningBalanceByInstitutionRepository`/
+  `createClientResidentTaxAdjustmentDeductionRecordRepository`(フェーズ2で実装済み)に
+  各メソッドをそのまま委譲するだけの`.standalone.ts`の骨格は変わらず、同じ
+  パターンを適用できた(`OpeningBalanceByInstitution`のDecimal列`quantity`、
+  `ResidentTaxAdjustmentDeductionRecord`のDecimal列`adjustmentDeductionJpy`も
+  `createClientXxxRepository`側で`decimalCodec.ts`使用済みのため`standalone.ts`側に
+  追加対応は不要)。`OpeningBalanceByInstitution`の`.standalone.test.ts`は既存の
+  「未結線」エラー検証テストを5-3-2と同様のモック化テストに置き換え、
+  `ResidentTaxAdjustmentDeductionRecord`の`.standalone.test.ts`は新規作成した。
+  `npm run test`(全221ファイル1776件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版)
+  が成功し、`npm run build:standalone`も従来と同じ(フェーズ5-1-3dから既知の)
+  `searchParams`関連エラーでのみ失敗すること(新たなリグレッションが無いこと)を
+  確認した。
+
+  **残り1ファイル(次回、同じパターンを適用すれば5-3-3は完了する。現状は
+  「未結線」エラーを投げるプレースホルダーのまま):** `StockMarginTrade`
+  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
       では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
