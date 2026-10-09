@@ -7147,29 +7147,108 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
 コード・設定一式を整えた上で、ユーザー自身のAndroid Studio環境またはCI経由での
 ビルド手順をこのセクションに追記する。
 
+#### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
+
+フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
+`searchParams` propを使っており`output: "export"`の静的書き出しと非対応)
+に着手する。
+
+- [x] 7-1. 方針決定
+
+  **現状確認(2026-10-09、`npm run build:standalone`を実際に実行して確認):**
+  `node_modules`が未インストールの状態から`npm install`後に
+  `npm run build:standalone`を実行すると、型チェック・コンパイルは成功するが
+  静的書き出し(prerender)段階で次のエラーで失敗することを一次情報として
+  確認した(1ページ目のエラーで即終了するため全件は未確認だが、
+  `grep -rl "searchParams" src/app --include="*.tsx"`で38ファイルが該当)。
+
+  ```
+  Error occurred prerendering page "/employment-income".
+  Error: Route /employment-income with `dynamic = "error"` couldn't be
+  rendered statically because it used `await searchParams`, `searchParams.then`,
+  or similar.
+  ```
+
+  `node_modules/next/dist/docs/01-app/02-guides/static-exports.md`
+  (このリポジトリに同梱されたNext.js 16自体のドキュメント。AGENTS.mdの指示に
+  従い一次情報として確認)の「Unsupported Features」に`Server Actions`が
+  明記されている一方、`searchParams`を使うServer Componentの動的レンダリング
+  自体も「Unsupported Features」の`dynamic = 'error'`相当として扱われており、
+  実際に上記の通り再現した。同ドキュメントの「Client Components」節には
+  クライアント側データ取得(SWR等)の例が示されており、`output: "export"`では
+  ページを`"use client"`化してクライアント側でデータ取得する構成が前提になって
+  いることを確認した。
+
+  **決定: 影響する38ページ全てを`"use client"`化し、`useSearchParams()`で
+  `year`等のクエリ値を読み取り、データ取得は`useEffect`(+`startTransition`)で
+  非同期に行う構成に統一する。** データ取得関数自体は、既存のフェーズ5-1-3d
+  (`saveXxx`/`deleteXxx`等)・5-1-3b(リポジトリ実装)で確立済みの
+  「ビルドターゲットごとに実装ファイルを`next.config.ts`の`resolveAlias`で
+  差し替える」パターンをそのまま読み取り(GET)側にも適用する。具体的には
+  ページごとに`src/lib/<page>PageData.ts`(既定=自宅サーバー版)と
+  `src/lib/<page>PageData.standalone.ts`(スタンドアロン版)の対を新設する。
+
+  - 自宅サーバー版(`<page>PageData.ts`): ファイル先頭に`"use server"`を
+    付けたServer Function(Server Action)として実装し、内部で既存の
+    `buildYearReport`・`listTaxYears`等(5-1で導入済みのリポジトリ抽象を
+    経由し、Prisma実装に解決される)をそのまま呼ぶ。Client Componentから
+    importして直接(`<form action>`ではなく)呼び出すのは、
+    `node_modules/next/dist/docs/01-app/02-guides/server-actions.md`に
+    「invoke it from a form, or from an event handler or `useEffect`
+    wrapped in `startTransition`」と明記されている公式にサポートされた
+    呼び出し方であり、既存の5-1-3dの`<form action={saveXxx}>`呼び出し
+    (フォーム経由)とあわせて同じ`"use server"`関数を2系統の方法で
+    呼ぶことになるが、どちらもNext.js公式にサポートされた呼び出し方である。
+  - スタンドアロン版(`<page>PageData.standalone.ts`): `"use server"`を
+    付けない素のasync関数として実装し、同じ`buildYearReport`等を呼ぶ
+    (5-1-3bのエイリアス機構により、この関数内で呼ぶリポジトリ実装は
+    既にクライアントDB(wa-sqlite/OPFS)側に解決されているため、
+    こちらを変更する必要は無い)。ブラウザ上で直接実行されるだけで
+    ネットワーク越しのRPCにはならない。
+
+  この方式を選んだ理由は、(a) 既に実証済みの資産DB(5-1)・既に実証済みの
+  変更系アクション(5-1-3d)という2つの既存パターンの延長線上にあり新規の
+  概念を持ち込まない、(b) 今まで通り`page.tsx`本体は自宅サーバー版・
+  スタンドアロン版で1ファイルを共有でき(違いはimportする
+  `<page>PageData`の解決先のみ)、5-1-3bが導入したビルドターゲット分岐の
+  設計方針を壊さないため。
+
+  **既知のリスク・次ステップで検証すること:** (1) 自宅サーバー版でも
+  `page.tsx`自体を`"use client"`化することで、`searchParams`に依存した
+  初期HTML(SSR)が失われ、初回表示が「空→データ取得後に表示」という
+  一瞬のローディング状態を経るようになる(既存の`"use client"`な
+  フォームコンポーネント群と同様のUXにはなるが、ダッシュボード
+  (`src/app/page.tsx`、928行)のような表示量が多いページでは
+  ローディング状態の見た目を7-2のPoCで確認する必要がある)。
+  (2) `src/app/import/page.tsx`(2900行、42個のServer Action importを
+  抱える最大のページ)は他の37ページと同じ対応で済むか、規模が大きい分
+  個別の検討・分割が必要かを着手時に確認する。
+
+- [ ] 7-2. 7-1で決定した構成を1ページ(`src/app/basic-deduction/`。
+      searchParamsの使い方(`year`のみ)・データ取得(`getIncomeDeductionEntries`
+      1件のみ)が最も単純なページ)にPoCとして実装し、自宅サーバー版
+      (`npm run build`・`npm run dev`)・スタンドアロン版
+      (`npm run build:standalone`)の両方でビルドが成功し、`npm run test`・
+      `npx tsc --noEmit`・`npm run lint`が通ることを確認する。7-1の
+      「既知のリスク」で挙げたローディング状態の見た目もこのPoCで確認する。
+- [ ] 7-3. 7-2で確立したパターンを、残り36ページ(`src/app/import/`を除く)に
+      5-1-3dと同様1コミットで数ページずつ適用する。
+- [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
+      7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
+      確認した方針に沿って必要なら複数ステップに分割する。
+- [ ] 7-5(フェーズ7完了). `npm run build:standalone`が全ページで
+      成功することを確認する(最終検証)。
+
 ### 進め方の指針
 
 - 各ブラッシュアップは上記チェックリストの最初の未着手項目から1つずつ着手し、
   完了したらチェックを付けて次回に引き継ぐ。**フェーズ5(5-3-4、2026-10-09)が
-  完了し、フェーズ0〜5のチェックリスト項目は全て完了済み(`[x]`)。** 次回は
-  5-3-4の実装メモに記載した「5-3-2〜5-3-4がすべて完了した後」の残課題である
-  `searchParams`問題(直後の指針を参照)の方針検討(フェーズ7として先に
-  チェックリスト化すること)から着手する。残るフェーズ6(実機ビルド・
-  動作確認)はこのクラウド開発環境にAndroid SDK・エミュレータが無いため
-  自動化セッションでは検証できず、チェックリスト項目も無い(ユーザー自身の
-  Android Studio環境またはCI経由でのビルド手順を追記する節)。
-- 5-3-2〜5-3-4がすべて完了した後は、`npm run build:standalone`が失敗する
-  既知の残課題である`searchParams`問題(フェーズ5-1-3dの残課題。多数の
-  ページが`searchParams` propを使っており`output: "export"`の静的書き出しと
-  非対応なため、各ページを`"use client"`化して`useSearchParams()`や
-  クライアント側の`URLSearchParams`読み取りに置き換える等の対応が必要)の
-  解消に着手する。この際、データ取得も`await`によるServer Component側での
-  実行からクライアント側での実行に置き換える必要があり、ページごとに同じ
-  `page.tsx`を自宅サーバー版・スタンドアロン版の両方で使っている現状の構成
-  (リポジトリ実装のみをビルドターゲットで切り替える5-1-3bの方式)が
-  そのまま使えるかどうかの検討(アーキテクチャ方針の決定)がまず必要になる
-  見込み。着手する際はその方針検討をフェーズ7として先にチェックリスト化する
-  こと。
+  完了し、フェーズ0〜5のチェックリスト項目は全て完了済み(`[x]`)。
+  フェーズ7-1(方針決定、2026-10-09)も完了済み。** 次回はフェーズ7-2
+  (PoC実装)から着手する。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
+  開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
+  チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
+  ビルド手順を追記する節)。
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
