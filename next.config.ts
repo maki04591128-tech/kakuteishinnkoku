@@ -330,6 +330,16 @@ const taxEstimatePageDataStandaloneAliasForWebpack = path.resolve(
   "src/lib/taxEstimatePageData.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/importPageData`の実装を、上記と同様にブラウザ上で
+// 直接呼び出すプレーンな非同期関数に差し替える(フェーズ7-4・1回目。`src/app/import/page.tsx`
+// 自体はまだこのPageDataを使わないが、他のPageData追加と同じタイミングでエイリアスも
+// 登録しておく)。
+const importPageDataStandaloneAliasForTurbopack = "./src/lib/importPageData.standalone.ts";
+const importPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/importPageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -1300,6 +1310,7 @@ const nextConfig: NextConfig = {
           "@/lib/unrealizedGainPageData": unrealizedGainPageDataStandaloneAliasForTurbopack,
           "@/lib/homePageData": homePageDataStandaloneAliasForTurbopack,
           "@/lib/taxEstimatePageData": taxEstimatePageDataStandaloneAliasForTurbopack,
+          "@/lib/importPageData": importPageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1519,6 +1530,7 @@ const nextConfig: NextConfig = {
         "@/lib/unrealizedGainPageData": unrealizedGainPageDataStandaloneAliasForWebpack,
         "@/lib/homePageData": homePageDataStandaloneAliasForWebpack,
         "@/lib/taxEstimatePageData": taxEstimatePageDataStandaloneAliasForWebpack,
+        "@/lib/importPageData": importPageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,
