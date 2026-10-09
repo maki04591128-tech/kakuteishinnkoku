@@ -71,6 +71,15 @@
       "@/lib/dividendSimulationPageData": [
         "./src/lib/dividendSimulationPageData.standalone.ts"
       ],
+      "@/lib/employmentIncomePageData": [
+        "./src/lib/employmentIncomePageData.standalone.ts"
+      ],
+      "@/lib/dependentDeductionPageData": [
+        "./src/lib/dependentDeductionPageData.standalone.ts"
+      ],
+      "@/lib/distributionAdjustedForeignTaxCreditPageData": [
+        "./src/lib/distributionAdjustedForeignTaxCreditPageData.standalone.ts"
+      ],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"

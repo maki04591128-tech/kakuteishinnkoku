@@ -7478,6 +7478,41 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `/employment-income`(7回目確認時と同じ)から変わらないことを`git stash`で確認した
   (新たなリグレッションは無い)。残り12ページ(`import`を除く)は次回以降の
   ブラッシュアップで継続する。
+
+  **進捗(2026-10-09、9回目):** `employment-income`・`dependent-deduction`・
+  `distribution-adjusted-foreign-tax-credit`の3ページに同じパターンを適用した。
+  `employment-income`は8回目までの各種試算画面と同形(`year`のみ・
+  `getEmploymentIncomeRecord`で1件取得。`employmentIncomeSaved`/
+  `employmentIncomeDeleted`クエリ値は`<Page>PageContent.tsx`側で
+  `useSearchParams()`から直接読み取る)。`dependent-deduction`は
+  `buildYearReport`・`buildTaxFilingSummary`を合算して納税者本人の合計所得金額の
+  初期値を算出し、`getIncomeDeductionEntries`から配偶者控除・扶養控除の2種類の
+  登録済み控除額を取得する構成(複数のデータソースを`<page>PageData`1件に
+  まとめる初めてのケースだが、各取得処理自体は既存コードをそのまま移しただけ)。
+  `distribution-adjusted-foreign-tax-credit`は`buildYearReport`と
+  `getDistributionAdjustedForeignTaxCreditRecord`を`Promise.all`で並行取得する
+  構成(5回目の`angel-tax-loss-carryforward`等と同種のパターンだが、繰越控除の
+  一覧ではなく単一レコード+レポート集計値の組み合わせ)。いずれも`Actions`用
+  エイリアス(`employmentIncomeActions`・`incomeDeductionActions`・
+  `distributionAdjustedForeignTaxCreditActions`)はフェーズ5-1-3dで既に
+  追加済みのため今回の追加は不要で、`PageData`用エイリアスのみ追加した。
+  各ページについて1〜8回目と同じ4点構成(`<page>PageData.types.ts`/
+  `<page>PageData.ts`(`"use server"`)/`<page>PageData.standalone.ts`/
+  `<Page>PageContent.tsx`+`<Page>PageSkeleton`)を追加し、`page.tsx`を
+  `<Suspense>`で囲むだけの薄いServer Componentに変更、`next.config.ts`の
+  resolveAlias(Turbopack・webpack両方)・`tsconfig.standalone.json`の
+  `paths`にPageData用エイリアスを追加した。`npm install`(このクラウド
+  開発環境では`node_modules`が未インストールの状態から開始したため)・
+  `cp .env.example .env && npx prisma db push`の後、`npm run test`
+  (全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と
+  無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版。
+  対象3ページが従来の`ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。
+  `npm run build:standalone`は、失敗するページが`/`(ダッシュボード)・
+  `/employment-income`(8回目確認時)から`/`のみに変わったことを確認し、新たな
+  リグレッションが無いこと・対象3ページ(`employment-income`を含む)がエラーの
+  原因から外れたことの両方を`git stash`で確認できた。残り9ページ(`import`を
+  除く)は次回以降のブラッシュアップで継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7502,8 +7537,9 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `earthquake-renovation-deduction`・`durability-improvement-renovation-deduction`・
   `child-rearing-renovation-deduction`・`multi-household-renovation-deduction`・
   `resident-tax-adjustment-deduction`・`interest-income`・
-  `crypto-income-classification`・`dividend-simulation`の24ページが完了
-  (2026-10-09)。** 次回はフェーズ7-3の続き(`import`を除く残り12ページ)から
+  `crypto-income-classification`・`dividend-simulation`・`employment-income`・
+  `dependent-deduction`・`distribution-adjusted-foreign-tax-credit`の27ページが
+  完了(2026-10-09)。** 次回はフェーズ7-3の続き(`import`を除く残り9ページ)から
   着手する。残るフェーズ6
   (実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
