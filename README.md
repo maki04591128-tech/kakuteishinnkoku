@@ -7009,6 +7009,35 @@ Java・Gradleは存在する)。そのため**フェーズ5(Capacitor導入)以�
   `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
   (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
 
+  **進捗16(2026-10-09):** 続けて`MarketPrice`・`MortgageDeductionRecord`の
+  2モデルにも同じパターンを適用した(33/38ファイル完了)。`MarketPrice`は
+  `findMany`/`upsert`/`delete`の3メソッド構成(`taxYearId`を持たず、進捗5の
+  `AssetSymbolMapping`と同じ構成)、`MortgageDeductionRecord`は
+  `findByTaxYearId`/`upsert`/`deleteByTaxYearId`のみのシンプルな構造
+  (進捗1以降のモデル群と同じ構成)だが、どちらも
+  `createClientMarketPriceRepository`/
+  `createClientMortgageDeductionRecordRepository`(フェーズ2で実装済み)に
+  各メソッドをそのまま委譲するだけの`.standalone.ts`の骨格は変わらず、同じ
+  パターンを適用できた(`MarketPrice`のDecimal列`priceJpy`、
+  `MortgageDeductionRecord`のDecimal列`nationalTaxCreditJpy`/
+  `residentTaxCreditJpy`も`createClientXxxRepository`側で`decimalCodec.ts`
+  使用済みのため`standalone.ts`側に追加対応は不要)。両モデルの
+  `.standalone.test.ts`は新規作成し、5-3-2と同様`openClientDb`/
+  `applyClientDbSchema`をモック化する内容とした。`npm run test`(全219ファイル
+  1769件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーは`.next/types`
+  生成後(`npm run build`実行後)に再現しないことを確認済み)・`npm run build`
+  (自宅サーバー版)が成功し、`npm run build:standalone`も従来と同じ
+  (フェーズ5-1-3dから既知の)`searchParams`関連エラーでのみ失敗すること
+  (新たなリグレッションが無いこと)を確認した。
+
+  **残り5ファイル(次回以降、同じパターンを適用。いずれも現状は「未結線」
+  エラーを投げるプレースホルダーのまま):**
+  `NisaLifetimeQuota`・
+  `OpeningBalance`・`OpeningBalanceByInstitution`・
+  `ResidentTaxAdjustmentDeductionRecord`・`StockMarginTrade`
+  (`src/lib/repositories/`配下の`defaultXxxRepository.standalone.ts`一覧を参照)。
+
 - [ ] 5-3-4. 実際のブラウザ(Capacitor WebView相当のChromium)でOPFSの
       永続化・Worker起動が想定通り動作するかを検証する(このクラウド開発環境
       では検証不可。フェーズ6のAndroid実機ビルドと合わせてユーザー側で確認する
