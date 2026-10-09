@@ -32,6 +32,11 @@
       "@/lib/smallBusinessMutualAidDeductionPageData": [
         "./src/lib/smallBusinessMutualAidDeductionPageData.standalone.ts"
       ],
+      "@/lib/mortgageDeductionPageData": ["./src/lib/mortgageDeductionPageData.standalone.ts"],
+      "@/lib/donationTaxCreditPageData": ["./src/lib/donationTaxCreditPageData.standalone.ts"],
+      "@/lib/residentTaxNonTaxablePageData": [
+        "./src/lib/residentTaxNonTaxablePageData.standalone.ts"
+      ],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"
