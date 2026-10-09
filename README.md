@@ -7551,6 +7551,42 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (`import`を除く。`/`・`home-sale-loss-deduction`・`login`・
   `medical-expense-deduction`・`tax-estimate`・`unrealized-gain`)は次回以降の
   ブラッシュアップで継続する。
+
+  **進捗(2026-10-09、11回目):** `home-sale-loss-deduction`・
+  `medical-expense-deduction`・`unrealized-gain`の3ページに同じパターンを
+  適用した。`home-sale-loss-deduction`は10回目の`home-replacement-loss-deduction`
+  と同形(`year`のみ・`findIncomeDeductionEntry`による単一の登録済み控除額+
+  `homeSaleLossCarryforwardRepository.findByTaxYearId`による繰越一覧。
+  `lossCarried`クエリ値は`<Page>PageContent.tsx`側で`useSearchParams()`から
+  直接読み取る。相互リンク先の`home-replacement-loss-deduction`は既に
+  `?year=`付きでこちらへリンクしていたため、逆方向のリンクにも`?year=${year}`を
+  追加して対称にした)。`medical-expense-deduction`は8回目の
+  `interest-income`等と同様`saveXxx`/`deleteXxx`を持たない単体シミュレーターでは
+  なく、`incomeDeductionActions`(登録・削除)を伴うが、`buildYearReport`・
+  `buildTaxFilingSummary`・`getIncomeDeductionEntries`から医療費控除・
+  セルフメディケーション税制の2種類の登録済み控除額を取得する構成(9回目の
+  `dependent-deduction`と同種の複数データソース合算)。`unrealized-gain`は
+  `saveXxx`/`deleteXxx`等のServer Actionを一切持たない単体シミュレーター画面
+  (8回目の`interest-income`等と同形)で、`buildYearReport`と
+  `marketPriceRepository.findMany()`を`Promise.all`で並行取得する構成
+  (`Actions`用エイリアスの追加が不要な最も単純な構成)。各ページについて
+  1〜10回目と同じ4点構成(`<page>PageData.types.ts`/`<page>PageData.ts`
+  (`"use server"`)/`<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+
+  `<Page>PageSkeleton`)を追加し、`page.tsx`を`<Suspense>`で囲むだけの薄い
+  Server Componentに変更、`next.config.ts`のresolveAlias(Turbopack・webpack
+  両方)・`tsconfig.standalone.json`の`paths`にPageData用エイリアスを追加した
+  (3ページとも`Actions`用エイリアス(`homeSaleLossCarryforwardActions`・
+  `incomeDeductionActions`)はフェーズ5-1-3dで既に追加済みのため今回の追加は
+  不要だった)。`npm install`(このクラウド開発環境では`node_modules`が
+  未インストールの状態から開始したため)・`cp .env.example .env && npx prisma db push`
+  の後、`npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版。
+  対象3ページが従来の`ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。
+  `npm run build:standalone`は、失敗するページが`/`(ダッシュボード)のみで
+  変わらないことを`git stash`で確認した(新たなリグレッションは無い)。残り3ページ
+  (`import`を除く。`/`・`login`・`tax-estimate`)は次回以降のブラッシュアップで
+  継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7576,9 +7612,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `child-rearing-renovation-deduction`・`multi-household-renovation-deduction`・
   `resident-tax-adjustment-deduction`・`interest-income`・
   `crypto-income-classification`・`dividend-simulation`・`employment-income`・
-  `dependent-deduction`・`distribution-adjusted-foreign-tax-credit`の27ページが
-  完了(2026-10-09)。** 次回はフェーズ7-3の続き(`import`を除く残り9ページ)から
-  着手する。残るフェーズ6
+  `dependent-deduction`・`distribution-adjusted-foreign-tax-credit`・
+  `home-sale-loss-deduction`・`medical-expense-deduction`・`unrealized-gain`の
+  30ページが完了(2026-10-09)。** 次回はフェーズ7-3の続き(`import`を除く残り
+  3ページ、`/`・`login`・`tax-estimate`)から着手する。残るフェーズ6
   (実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での

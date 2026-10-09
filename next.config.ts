@@ -289,6 +289,29 @@ const homeReplacementLossDeductionPageDataStandaloneAliasForWebpack = path.resol
   "src/lib/homeReplacementLossDeductionPageData.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/homeSaleLossDeductionPageData`・
+// `@/lib/medicalExpenseDeductionPageData`・`@/lib/unrealizedGainPageData`の
+// 実装を、上記と同様にブラウザ上で直接呼び出すプレーンな非同期関数に差し替える
+// (フェーズ7-3継続11回目。7-2のPoCで確立したパターンの適用)。
+const homeSaleLossDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/homeSaleLossDeductionPageData.standalone.ts";
+const homeSaleLossDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/homeSaleLossDeductionPageData.standalone.ts",
+);
+const medicalExpenseDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/medicalExpenseDeductionPageData.standalone.ts";
+const medicalExpenseDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/medicalExpenseDeductionPageData.standalone.ts",
+);
+const unrealizedGainPageDataStandaloneAliasForTurbopack =
+  "./src/lib/unrealizedGainPageData.standalone.ts";
+const unrealizedGainPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/unrealizedGainPageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -1252,6 +1275,11 @@ const nextConfig: NextConfig = {
           "@/lib/foreignTaxCreditPageData": foreignTaxCreditPageDataStandaloneAliasForTurbopack,
           "@/lib/homeReplacementLossDeductionPageData":
             homeReplacementLossDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/homeSaleLossDeductionPageData":
+            homeSaleLossDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/medicalExpenseDeductionPageData":
+            medicalExpenseDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/unrealizedGainPageData": unrealizedGainPageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1464,6 +1492,11 @@ const nextConfig: NextConfig = {
         "@/lib/foreignTaxCreditPageData": foreignTaxCreditPageDataStandaloneAliasForWebpack,
         "@/lib/homeReplacementLossDeductionPageData":
           homeReplacementLossDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/homeSaleLossDeductionPageData":
+          homeSaleLossDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/medicalExpenseDeductionPageData":
+          medicalExpenseDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/unrealizedGainPageData": unrealizedGainPageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,
