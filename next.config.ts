@@ -52,6 +52,30 @@ const basicDeductionPageDataStandaloneAliasForWebpack = path.resolve(
   "src/lib/basicDeductionPageData.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/disabilityDeductionPageData`・
+// `@/lib/socialInsuranceDeductionPageData`・
+// `@/lib/earthquakeInsuranceDeductionPageData`の実装を、`basicDeductionPageData`
+// と同様にブラウザ上で直接呼び出すプレーンな非同期関数に差し替える
+// (フェーズ7-3。7-2のPoCで確立したパターンの適用)。
+const disabilityDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/disabilityDeductionPageData.standalone.ts";
+const disabilityDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/disabilityDeductionPageData.standalone.ts",
+);
+const socialInsuranceDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/socialInsuranceDeductionPageData.standalone.ts";
+const socialInsuranceDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/socialInsuranceDeductionPageData.standalone.ts",
+);
+const earthquakeInsuranceDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/earthquakeInsuranceDeductionPageData.standalone.ts";
+const earthquakeInsuranceDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/earthquakeInsuranceDeductionPageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -960,6 +984,12 @@ const nextConfig: NextConfig = {
           "@/lib/exportUi": exportUiStandaloneAliasForTurbopack,
           "@/lib/incomeDeductionActions": incomeDeductionActionsStandaloneAliasForTurbopack,
           "@/lib/basicDeductionPageData": basicDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/disabilityDeductionPageData":
+            disabilityDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/socialInsuranceDeductionPageData":
+            socialInsuranceDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/earthquakeInsuranceDeductionPageData":
+            earthquakeInsuranceDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1120,6 +1150,12 @@ const nextConfig: NextConfig = {
         "@/lib/exportUi": exportUiStandaloneAliasForWebpack,
         "@/lib/incomeDeductionActions": incomeDeductionActionsStandaloneAliasForWebpack,
         "@/lib/basicDeductionPageData": basicDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/disabilityDeductionPageData":
+          disabilityDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/socialInsuranceDeductionPageData":
+          socialInsuranceDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/earthquakeInsuranceDeductionPageData":
+          earthquakeInsuranceDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,

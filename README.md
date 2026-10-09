@@ -7288,6 +7288,25 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   同じPlaywright環境で確認した。
 - [ ] 7-3. 7-2で確立したパターンを、残り36ページ(`src/app/import/`を除く)に
       5-1-3dと同様1コミットで数ページずつ適用する。
+
+  **進捗(2026-10-09、1回目):** `disability-deduction`・`social-insurance-deduction`・
+  `earthquake-insurance-deduction`の3ページ(いずれも`searchParams`から`year`のみを
+  読み取り、`getIncomeDeductionEntries`で登録済み控除額を1件取得するだけの、
+  7-2の`basic-deduction`と同形の最小構成)に7-2のパターンをそのまま適用した。
+  各ページについて、7-2と同じ4点構成
+  (`<page>PageData.types.ts`/`<page>PageData.ts`(`"use server"`)/
+  `<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+`<Page>PageSkeleton`)
+  を追加し、`page.tsx`を`<Suspense>`で囲むだけの薄いServer Componentに変更、
+  `next.config.ts`のresolveAlias(Turbopack・webpack両方)・
+  `tsconfig.standalone.json`の`paths`にエイリアスを追加した。`npm run test`
+  (全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と
+  無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版。
+  対象3ページが従来の`ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。
+  `npm run build:standalone`は、変更前から存在する`/`(ダッシュボード、
+  未移行の36ページの1つ)の`searchParams`エラーで失敗する状態が変わらない
+  ことを`git stash`で確認した(新たなリグレッションは無い)。
+  残り33ページ(`import`を除く)は次回以降のブラッシュアップで継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7300,8 +7319,11 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   完了したらチェックを付けて次回に引き継ぐ。**フェーズ5(5-3-4、2026-10-09)が
   完了し、フェーズ0〜5のチェックリスト項目は全て完了済み(`[x]`)。
   フェーズ7-1(方針決定)・7-2(`basic-deduction`でのPoC実装、いずれも
-  2026-10-09)も完了済み。** 次回はフェーズ7-3(7-2のパターンを残り36ページに
-  適用)から着手する。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
+  2026-10-09)も完了済み。フェーズ7-3(7-2のパターンを残り36ページに適用)は
+  着手済みで、`disability-deduction`・`social-insurance-deduction`・
+  `earthquake-insurance-deduction`の3ページが完了(2026-10-09)。** 次回は
+  フェーズ7-3の続き(`import`を除く残り33ページ)から着手する。残るフェーズ6
+  (実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
   ビルド手順を追記する節)。
