@@ -64,6 +64,13 @@
       "@/lib/residentTaxAdjustmentDeductionPageData": [
         "./src/lib/residentTaxAdjustmentDeductionPageData.standalone.ts"
       ],
+      "@/lib/interestIncomePageData": ["./src/lib/interestIncomePageData.standalone.ts"],
+      "@/lib/cryptoIncomeClassificationPageData": [
+        "./src/lib/cryptoIncomeClassificationPageData.standalone.ts"
+      ],
+      "@/lib/dividendSimulationPageData": [
+        "./src/lib/dividendSimulationPageData.standalone.ts"
+      ],
       "@/lib/employmentIncomeActions": ["./src/lib/employmentIncomeActions.standalone.ts"],
       "@/lib/barrierFreeRenovationDeductionActions": [
         "./src/lib/barrierFreeRenovationDeductionActions.standalone.ts"
