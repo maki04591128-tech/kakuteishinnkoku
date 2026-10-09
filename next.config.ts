@@ -100,6 +100,30 @@ const incomeAmountAdjustmentDeductionPageDataStandaloneAliasForWebpack = path.re
   "src/lib/incomeAmountAdjustmentDeductionPageData.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/donationDeductionPageData`・
+// `@/lib/widowSingleParentDeductionPageData`・
+// `@/lib/smallBusinessMutualAidDeductionPageData`の実装を、上記と同様に
+// ブラウザ上で直接呼び出すプレーンな非同期関数に差し替える
+// (フェーズ7-3継続。7-2のPoCで確立したパターンの適用)。
+const donationDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/donationDeductionPageData.standalone.ts";
+const donationDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/donationDeductionPageData.standalone.ts",
+);
+const widowSingleParentDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/widowSingleParentDeductionPageData.standalone.ts";
+const widowSingleParentDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/widowSingleParentDeductionPageData.standalone.ts",
+);
+const smallBusinessMutualAidDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/smallBusinessMutualAidDeductionPageData.standalone.ts";
+const smallBusinessMutualAidDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/smallBusinessMutualAidDeductionPageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -1020,6 +1044,11 @@ const nextConfig: NextConfig = {
             specificExpenseDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/incomeAmountAdjustmentDeductionPageData":
             incomeAmountAdjustmentDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/donationDeductionPageData": donationDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/widowSingleParentDeductionPageData":
+            widowSingleParentDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/smallBusinessMutualAidDeductionPageData":
+            smallBusinessMutualAidDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1192,6 +1221,11 @@ const nextConfig: NextConfig = {
           specificExpenseDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/incomeAmountAdjustmentDeductionPageData":
           incomeAmountAdjustmentDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/donationDeductionPageData": donationDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/widowSingleParentDeductionPageData":
+          widowSingleParentDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/smallBusinessMutualAidDeductionPageData":
+          smallBusinessMutualAidDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,
