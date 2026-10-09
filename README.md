@@ -7696,6 +7696,36 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   変わらないことを確認した(`page.tsx`自体はまだ変更していないため想定通りで、
   新たに追加したファイル自体はコンパイル・型チェックに成功しており
   新たなリグレッションは無い)。
+
+  **進捗(2026-10-09、2回目):** 上記ステップ(2)を実施した。`page.tsx`
+  163行目の`Promise.all`に含まれる`buildYearReport(year)`(`yearReport`)の
+  変換を追加した。`page.tsx`が実際に参照しているのは戻り値のうち
+  `cryptoMargin`/`cryptoCredit`/`stockMargin`/`futures`の各
+  `totalRealizedGainJpy`、`lossCarryforward`/`futuresLossCarryforward`
+  (`grossRealizedGainJpy`・`totalUsedJpy`・`taxableGainJpy`・`newLossJpy`・
+  `expiredByOriginYear`)、`nisaLifetimeQuota`
+  (`totalClosingUsedJpy`・`lifetimeLimitJpy`・`exceededOverallJpy`・
+  `exceededGrowthJpy`)のみ(`assetBalanceReconciliation`等の他のフィールドは
+  `page.tsx`で未使用のため変換対象に含めない)と確認し、この範囲のみを
+  `ImportYearReportData`型・`toImportYearReportData`関数(1回目と同じ理由で
+  `importPageData.types.ts`に集約)として実装した。`lossCarryforward`/
+  `futuresLossCarryforward`の変換は共通の`ImportLossCarryforwardData`型・
+  `toImportLossCarryforwardData`関数に統合した(`src/lib/homePageData.ts`の
+  `toLossCarryforwardData`と似た変換だが、importページは
+  `grossRealizedGainJpy`も表示するため含めている点が異なる)。`buildYearReport`
+  の戻り値は型定義上`| null`だが(実際には`taxYear`が存在しない場合も
+  デフォルト値のオブジェクトを返すため`null`にはならない)、`getImportPageData`
+  側は`yearReport ? toImportYearReportData(yearReport) : null`で安全に扱い、
+  `ImportPageData.yearReport`も`ImportYearReportData | null`とした
+  (`page.tsx`側の既存の`{yearReport && (...)}`による分岐と対応させる)。
+  `npm run test`(全222ファイル1779件、既存のテストに変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係)・`npm run build`(自宅サーバー版。
+  `/import`は`page.tsx`自体をまだ変更していないため従来通り`ƒ`(動的)のまま)が
+  成功した。`npm run build:standalone`は、失敗するページが`/import`のみで
+  変わらないことを確認した(新たなリグレッションは無い)。残るステップ(3)
+  (`page.tsx`のSuspense化・`ImportPageContent.tsx`への移行)は次回以降の
+  ブラッシュアップで継続する。
 - [ ] 7-5(フェーズ7完了). `npm run build:standalone`が全ページで
       成功することを確認する(最終検証)。
 
@@ -7711,9 +7741,11 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `/`(ダッシュボード)・`tax-estimate`を含む36ページだった。** フェーズ7-4
   (`src/app/import/page.tsx`、42個のアクションを抱える最大のページへの対応)は
   規模が大きいため3ステップに分割して着手しており、1回目(2026-10-09、
-  生コレクションのデータ取得層`importPageData.ts`/`.standalone.ts`の追加)が
-  完了した。次回は7-4の2回目(`yearReport`を含むデータ取得層の完成)から
-  続ける。残るフェーズ6(実機ビルド・動作確認)はこのクラウド
+  生コレクションのデータ取得層`importPageData.ts`/`.standalone.ts`の追加)・
+  2回目(2026-10-09、`yearReport`を含むデータ取得層の完成)が完了した。
+  次回は7-4の3回目(`page.tsx`を`<Suspense>`で囲むだけの薄いServer Componentに
+  変更し、2900行のJSX本体を`ImportPageContent.tsx`に移す)から続ける。
+  残るフェーズ6(実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での
   ビルド手順を追記する節)。

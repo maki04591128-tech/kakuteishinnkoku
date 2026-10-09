@@ -16,9 +16,9 @@
 // number化、数量(quantity)のDecimalは桁数が多くなりうるため`.toString()`で
 // 文字列化、DateはすべてISO 8601文字列(`.toISOString()`)に変換する。
 //
-// これは7-4の1回目(データ取得層のみ)の範囲であり、`src/app/import/page.tsx`
-// 自体はまだ変更していない(`yearReport`(`buildYearReport`の戻り値)の変換・
-// `page.tsx`のSuspense化・`ImportPageContent.tsx`への移行は次回以降)。
+// 7-4の2回目で、`yearReport`(`buildYearReport`の戻り値)の変換も同じ理由
+// (`.ts`/`.standalone.ts`の両方から同一の変換ロジックを呼ぶ)でこのファイルに
+// 追加した。`page.tsx`のSuspense化・`ImportPageContent.tsx`への移行は次回以降。
 import type {
   AssetSymbolMapping,
   CryptoCostMethod,
@@ -41,6 +41,11 @@ import type {
   NisaLifetimeQuota,
 } from "@prisma/client";
 import type { ImportBatchWithSnapshots } from "@/lib/repositories/assetBalanceSnapshotRepository";
+import type { buildYearReport } from "@/lib/reporting";
+import type { LossCarryforwardResult } from "@/lib/investment/lossCarryforward";
+
+/** `src/app/import/page.tsx`が参照する`buildYearReport`の戻り値(非null)の型 */
+type YearReport = NonNullable<Awaited<ReturnType<typeof buildYearReport>>>;
 
 /** 発生年ごとの繰越残高(InvestmentLossCarryforward等7モデルで構造が共通) */
 export interface ImportOriginYearCarryforwardData {
@@ -268,6 +273,7 @@ export interface ImportPageData {
   assetSymbolMappings: ImportAssetSymbolMappingData[];
   marketPrices: ImportMarketPriceData[];
   nisaLifetimeQuotas: ImportNisaLifetimeQuotaData[];
+  yearReport: ImportYearReportData | null;
 }
 
 type OriginYearCarryforwardRow = {
@@ -524,5 +530,70 @@ export function toImportNisaLifetimeQuotaData(
     soldCostBasisJpy: row.soldCostBasisJpy.toNumber(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * 譲渡損失の繰越控除(`lossCarryforward`/`futuresLossCarryforward`)の表示に
+ * 必要な部分のみを変換する(`src/lib/homePageData.ts`の`toLossCarryforwardData`と
+ * 同じ変換方針だが、importページは`grossRealizedGainJpy`も表示するため含める)。
+ */
+export interface ImportLossCarryforwardData {
+  grossRealizedGainJpy: number;
+  totalUsedJpy: number;
+  taxableGainJpy: number;
+  newLossJpy: number;
+  expiredByOriginYear: { originYear: number; expiredAmountJpy: number }[];
+}
+
+export function toImportLossCarryforwardData(
+  result: LossCarryforwardResult,
+): ImportLossCarryforwardData {
+  return {
+    grossRealizedGainJpy: result.grossRealizedGainJpy.toNumber(),
+    totalUsedJpy: result.totalUsedJpy.toNumber(),
+    taxableGainJpy: result.taxableGainJpy.toNumber(),
+    newLossJpy: result.newLossJpy.toNumber(),
+    expiredByOriginYear: result.expiredByOriginYear.map((e) => ({
+      originYear: e.originYear,
+      expiredAmountJpy: e.expiredAmountJpy.toNumber(),
+    })),
+  };
+}
+
+/**
+ * `buildYearReport`の戻り値のうち、`page.tsx`が実際に参照している部分のみを
+ * 変換する(`assetBalanceReconciliation`等、`page.tsx`が使っていないフィールドは
+ * 含めない)。
+ */
+export interface ImportYearReportData {
+  cryptoMarginTotalRealizedGainJpy: number;
+  cryptoCreditTotalRealizedGainJpy: number;
+  stockMarginTotalRealizedGainJpy: number;
+  futuresTotalRealizedGainJpy: number;
+  lossCarryforward: ImportLossCarryforwardData;
+  futuresLossCarryforward: ImportLossCarryforwardData;
+  nisaLifetimeQuota: {
+    totalClosingUsedJpy: number;
+    lifetimeLimitJpy: number;
+    exceededOverallJpy: number;
+    exceededGrowthJpy: number;
+  };
+}
+
+export function toImportYearReportData(report: YearReport): ImportYearReportData {
+  return {
+    cryptoMarginTotalRealizedGainJpy: report.cryptoMargin.totalRealizedGainJpy.toNumber(),
+    cryptoCreditTotalRealizedGainJpy: report.cryptoCredit.totalRealizedGainJpy.toNumber(),
+    stockMarginTotalRealizedGainJpy: report.stockMargin.totalRealizedGainJpy.toNumber(),
+    futuresTotalRealizedGainJpy: report.futures.totalRealizedGainJpy.toNumber(),
+    lossCarryforward: toImportLossCarryforwardData(report.lossCarryforward),
+    futuresLossCarryforward: toImportLossCarryforwardData(report.futuresLossCarryforward),
+    nisaLifetimeQuota: {
+      totalClosingUsedJpy: report.nisaLifetimeQuota.totalClosingUsedJpy.toNumber(),
+      lifetimeLimitJpy: report.nisaLifetimeQuota.lifetimeLimitJpy.toNumber(),
+      exceededOverallJpy: report.nisaLifetimeQuota.exceededOverallJpy.toNumber(),
+      exceededGrowthJpy: report.nisaLifetimeQuota.exceededGrowthJpy.toNumber(),
+    },
   };
 }

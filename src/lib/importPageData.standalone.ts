@@ -1,13 +1,15 @@
 // スタンドアロン版ビルド用の`@/lib/importPageData`差し替え実装
-// (next.config.tsのresolveAlias経由。フェーズ7-4・1回目)。
+// (next.config.tsのresolveAlias経由。フェーズ7-4・2回目で`yearReport`対応を追加)。
 //
 // 呼び出し元(将来追加する`ImportPageContent.tsx`、`"use client"`コンポーネント)から
 // 見た関数シグネチャを変えずに、同じリポジトリ(`@/lib/repositories/defaultXxxRepository`。
 // ビルドターゲットに応じてPrisma実装/クライアントDB実装に自動で切り替わる)を呼ぶ実装
 // に差し替える。`"use server"`を付けないプレーンな非同期関数のため、
 // `importPageData.ts`と異なりブラウザ上で直接実行されるだけでネットワーク越しの
-// RPCにはならない。
+// RPCにはならない。`buildYearReport`自体もリポジトリ抽象経由のため、この
+// ファイルを差し替えるだけでクライアントDB実装に自動で解決される。
 import { getOrCreateTaxYear } from "@/lib/taxYear";
+import { buildYearReport } from "@/lib/reporting";
 import { cryptoTradeRepository } from "@/lib/repositories/defaultCryptoTradeRepository";
 import { cryptoMarginTradeRepository } from "@/lib/repositories/defaultCryptoMarginTradeRepository";
 import { cryptoCreditTradeRepository } from "@/lib/repositories/defaultCryptoCreditTradeRepository";
@@ -44,6 +46,7 @@ import {
   toImportAssetSymbolMappingData,
   toImportMarketPriceData,
   toImportNisaLifetimeQuotaData,
+  toImportYearReportData,
 } from "@/lib/importPageData.types";
 
 export async function getImportPageData(year: number): Promise<ImportPageData> {
@@ -70,6 +73,7 @@ export async function getImportPageData(year: number): Promise<ImportPageData> {
     assetSymbolMappings,
     marketPrices,
     nisaLifetimeQuotas,
+    yearReport,
   ] = await Promise.all([
     cryptoTradeRepository
       .findByTaxYearId(taxYear.id)
@@ -142,6 +146,7 @@ export async function getImportPageData(year: number): Promise<ImportPageData> {
     nisaLifetimeQuotaRepository
       .findByTaxYearId(taxYear.id)
       .then((quotas) => [...quotas].sort((a, b) => a.nisaType.localeCompare(b.nisaType))),
+    buildYearReport(year),
   ]);
 
   return {
@@ -183,5 +188,6 @@ export async function getImportPageData(year: number): Promise<ImportPageData> {
     assetSymbolMappings: assetSymbolMappings.map(toImportAssetSymbolMappingData),
     marketPrices: marketPrices.map(toImportMarketPriceData),
     nisaLifetimeQuotas: nisaLifetimeQuotas.map(toImportNisaLifetimeQuotaData),
+    yearReport: yearReport ? toImportYearReportData(yearReport) : null,
   };
 }
