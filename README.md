@@ -7402,6 +7402,31 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   複数ワーカーで並行してページを処理するため、失敗ページの変化はアルファベット順
   通りとは限らない)。残り21ページ(`import`を除く)は次回以降のブラッシュアップで
   継続する。
+
+  **進捗(2026-10-09、6回目):** `energy-saving-renovation-deduction`・
+  `earthquake-renovation-deduction`・`durability-improvement-renovation-deduction`の
+  3ページ(いずれも`searchParams`から`year`のみを読み取り、各改修工事の税額控除
+  レコードを`getXxxRenovationDeductionRecord`で1件取得するだけの、5回目の
+  `barrier-free-renovation-deduction`と同形の最小構成。`saved`/`deleted`クエリ値を
+  表示するメッセージもDBに依存しない純粋なURL表示フラグとして5回目と同様に
+  `<Page>PageContent.tsx`側で`useSearchParams()`から直接読み取る設計にした)に同じ
+  パターンを適用した。各ページについて1〜5回目と同じ4点構成
+  (`<page>PageData.types.ts`/`<page>PageData.ts`(`"use server"`)/
+  `<page>PageData.standalone.ts`/`<Page>PageContent.tsx`+`<Page>PageSkeleton`)を
+  追加し、`page.tsx`を`<Suspense>`で囲むだけの薄いServer Componentに変更、
+  `next.config.ts`のresolveAlias(Turbopack・webpack両方)・
+  `tsconfig.standalone.json`の`paths`にPageData用エイリアスを追加した
+  (3ページとも`Actions`用エイリアスはフェーズ5-1-3dで既に追加済みのため今回の
+  追加は不要だった)。`npm install`(このクラウド開発環境では`node_modules`が
+  未インストールの状態から開始したため)・`cp .env.example .env && npx prisma db push`
+  の後、`npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と
+  無関係なことを`git stash`で確認済み)・`npm run build`(自宅サーバー版。対象3ページが
+  従来の`ƒ`(動的)から`○`(静的)に変わったことを確認)が成功した。
+  `npm run build:standalone`は、失敗するページが`/employment-income`(5回目確認時と
+  同じ)から変わらず(今回は`/`(ダッシュボード)・`/employment-income`の2ページが
+  失敗)、新たなリグレッションが無いことを確認した。残り18ページ(`import`を除く)は
+  次回以降のブラッシュアップで継続する。
 - [ ] 7-4. `src/app/import/page.tsx`(42個のアクションを抱える最大のページ)に
       7-2のパターンを適用する。規模が大きいため、7-1の「既知のリスク」で
       確認した方針に沿って必要なら複数ステップに分割する。
@@ -7422,9 +7447,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `small-business-mutual-aid-deduction`・`mortgage-deduction`・
   `donation-tax-credit`・`resident-tax-non-taxable`・
   `angel-tax-loss-carryforward`・`barrier-free-renovation-deduction`・
-  `casualty-loss-deduction`の
-  15ページが完了(2026-10-09)。** 次回は
-  フェーズ7-3の続き(`import`を除く残り21ページ)から着手する。残るフェーズ6
+  `casualty-loss-deduction`・`energy-saving-renovation-deduction`・
+  `earthquake-renovation-deduction`・`durability-improvement-renovation-deduction`の
+  18ページが完了(2026-10-09)。** 次回は
+  フェーズ7-3の続き(`import`を除く残り18ページ)から着手する。残るフェーズ6
   (実機ビルド・動作確認)はこのクラウド
   開発環境にAndroid SDK・エミュレータが無いため自動化セッションでは検証できず、
   チェックリスト項目も無い(ユーザー自身のAndroid Studio環境またはCI経由での

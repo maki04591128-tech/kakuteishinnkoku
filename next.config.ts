@@ -171,6 +171,30 @@ const casualtyLossDeductionPageDataStandaloneAliasForWebpack = path.resolve(
   "src/lib/casualtyLossDeductionPageData.standalone.ts",
 );
 
+// スタンドアロン版では`@/lib/energySavingRenovationDeductionPageData`・
+// `@/lib/earthquakeRenovationDeductionPageData`・
+// `@/lib/durabilityImprovementRenovationDeductionPageData`の実装を、上記と同様に
+// ブラウザ上で直接呼び出すプレーンな非同期関数に差し替える(フェーズ7-3継続6回目。
+// 7-2のPoCで確立したパターンの適用)。
+const energySavingRenovationDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/energySavingRenovationDeductionPageData.standalone.ts";
+const energySavingRenovationDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/energySavingRenovationDeductionPageData.standalone.ts",
+);
+const earthquakeRenovationDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/earthquakeRenovationDeductionPageData.standalone.ts";
+const earthquakeRenovationDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/earthquakeRenovationDeductionPageData.standalone.ts",
+);
+const durabilityImprovementRenovationDeductionPageDataStandaloneAliasForTurbopack =
+  "./src/lib/durabilityImprovementRenovationDeductionPageData.standalone.ts";
+const durabilityImprovementRenovationDeductionPageDataStandaloneAliasForWebpack = path.resolve(
+  process.cwd(),
+  "src/lib/durabilityImprovementRenovationDeductionPageData.standalone.ts",
+);
+
 // スタンドアロン版では`@/lib/employmentIncomeActions`の実装を、`src/app/actions.ts`
 // (`"use server"`、`output: "export"`非対応)の`saveEmploymentIncomeRecord`/
 // `deleteEmploymentIncomeRecord`をそのまま再エクスポートする代わりに、フェーズ3で
@@ -1107,6 +1131,12 @@ const nextConfig: NextConfig = {
             barrierFreeRenovationDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/casualtyLossDeductionPageData":
             casualtyLossDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/energySavingRenovationDeductionPageData":
+            energySavingRenovationDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/earthquakeRenovationDeductionPageData":
+            earthquakeRenovationDeductionPageDataStandaloneAliasForTurbopack,
+          "@/lib/durabilityImprovementRenovationDeductionPageData":
+            durabilityImprovementRenovationDeductionPageDataStandaloneAliasForTurbopack,
           "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForTurbopack,
           "@/lib/barrierFreeRenovationDeductionActions":
             barrierFreeRenovationDeductionActionsStandaloneAliasForTurbopack,
@@ -1294,6 +1324,12 @@ const nextConfig: NextConfig = {
           barrierFreeRenovationDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/casualtyLossDeductionPageData":
           casualtyLossDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/energySavingRenovationDeductionPageData":
+          energySavingRenovationDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/earthquakeRenovationDeductionPageData":
+          earthquakeRenovationDeductionPageDataStandaloneAliasForWebpack,
+        "@/lib/durabilityImprovementRenovationDeductionPageData":
+          durabilityImprovementRenovationDeductionPageDataStandaloneAliasForWebpack,
         "@/lib/employmentIncomeActions": employmentIncomeActionsStandaloneAliasForWebpack,
         "@/lib/barrierFreeRenovationDeductionActions":
           barrierFreeRenovationDeductionActionsStandaloneAliasForWebpack,
