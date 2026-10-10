@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { DurabilityImprovementRenovationDeductionForm } from "./DurabilityImprovementRenovationDeductionForm";
 import { getDurabilityImprovementRenovationDeductionPageData } from "@/lib/durabilityImprovementRenovationDeductionPageData";
-import type { DurabilityImprovementRenovationDeductionPageData } from "@/lib/durabilityImprovementRenovationDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function DurabilityImprovementRenovationDeductionPageContent() {
   const searchParams = useSearchParams();
@@ -13,17 +13,14 @@ export function DurabilityImprovementRenovationDeductionPageContent() {
   const saved = searchParams.get("saved") !== null;
   const deleted = searchParams.get("deleted") !== null;
 
-  const [data, setData] = useState<DurabilityImprovementRenovationDeductionPageData | null>(
-    null,
+  const { data, error, isPending } = useAsyncPageData(
+    () => getDurabilityImprovementRenovationDeductionPageData(yearParam),
+    [yearParam],
   );
-  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getDurabilityImprovementRenovationDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <DurabilityImprovementRenovationDeductionPageSkeleton />;

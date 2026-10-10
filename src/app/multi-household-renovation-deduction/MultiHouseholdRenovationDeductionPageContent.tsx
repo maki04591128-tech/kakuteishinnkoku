@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { MultiHouseholdRenovationDeductionForm } from "./MultiHouseholdRenovationDeductionForm";
 import { getMultiHouseholdRenovationDeductionPageData } from "@/lib/multiHouseholdRenovationDeductionPageData";
-import type { MultiHouseholdRenovationDeductionPageData } from "@/lib/multiHouseholdRenovationDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function MultiHouseholdRenovationDeductionPageContent() {
   const searchParams = useSearchParams();
@@ -13,15 +13,14 @@ export function MultiHouseholdRenovationDeductionPageContent() {
   const saved = searchParams.get("saved") !== null;
   const deleted = searchParams.get("deleted") !== null;
 
-  const [data, setData] = useState<MultiHouseholdRenovationDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getMultiHouseholdRenovationDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getMultiHouseholdRenovationDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <MultiHouseholdRenovationDeductionPageSkeleton />;

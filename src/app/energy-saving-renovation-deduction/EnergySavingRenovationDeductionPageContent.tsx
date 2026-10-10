@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { EnergySavingRenovationDeductionForm } from "./EnergySavingRenovationDeductionForm";
 import { getEnergySavingRenovationDeductionPageData } from "@/lib/energySavingRenovationDeductionPageData";
-import type { EnergySavingRenovationDeductionPageData } from "@/lib/energySavingRenovationDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function EnergySavingRenovationDeductionPageContent() {
   const searchParams = useSearchParams();
@@ -13,15 +13,14 @@ export function EnergySavingRenovationDeductionPageContent() {
   const saved = searchParams.get("saved") !== null;
   const deleted = searchParams.get("deleted") !== null;
 
-  const [data, setData] = useState<EnergySavingRenovationDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getEnergySavingRenovationDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getEnergySavingRenovationDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <EnergySavingRenovationDeductionPageSkeleton />;

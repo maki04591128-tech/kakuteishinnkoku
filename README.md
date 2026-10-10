@@ -7608,6 +7608,31 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (全76ページ成功)が成功した。残り22ファイルへの展開は次回以降の
   ブラッシュアップに残す。
 
+  **進捗(2026-10-10、6回目):** 残り22ファイルのうち5ファイル
+  (`ChildRearingRenovationDeductionPageContent.tsx`・
+  `MultiHouseholdRenovationDeductionPageContent.tsx`・
+  `EnergySavingRenovationDeductionPageContent.tsx`・
+  `EarthquakeRenovationDeductionPageContent.tsx`・
+  `DurabilityImprovementRenovationDeductionPageContent.tsx`)を同じパターンで
+  `useAsyncPageData`への呼び出しに置き換えた(独自の
+  `useState`/`useEffect`/`useTransition`を削除し、取得失敗時は
+  `<ClientDbErrorNotice />`を表示)。表示内容・フォーム自体は変更していない。
+  いずれもpageデータの型(`*PageData.types`)をimportしていたのが`useState`の
+  型注釈のためだけだったため、置き換えに合わせて不要になったimportも削除した。
+  `npm install`(このクラウド開発環境では`node_modules`が未インストールの
+  状態から開始したため)・`cp .env.example .env && npx prisma db push`の後、
+  `npm run test`(全222ファイル1781件、変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係なことを`git stash`で確認済み)・
+  `npm run build`(自宅サーバー版)・`npm run build:standalone`
+  (全76ページ成功)が成功した。なお`build:standalone`を直後にもう一度
+  実行すると、前回出力の`out/_next/static/media/sqlite.worker.*.ts`
+  (公開アセットとしてそのままコピーされたWeb Worker用TSソース)を
+  `tsconfig.json`の`**/*.ts`が拾って型チェックエラーになることを確認した
+  (`out/`は`.gitignore`対象で、`out/`を削除してクリーンな状態からビルドすれば
+  再現しない。本変更とは無関係なビルド成果物の再利用時の既知の挙動のため、
+  対応は見送る)。残り17ファイルへの展開は次回以降のブラッシュアップに残す。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8303,7 +8328,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `ResidentTaxNonTaxablePageContent.tsx`の3ファイルを同じパターンで
   置き換えた。
   **次回のブラッシュアップは、6-13で新設した`useAsyncPageData`への置き換えを
-  残り22ファイル(`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
+  残り17ファイル(`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
   取得しているもの。6-13の実装内容に37ファイルの構造の共通性を記載)へ
   機械的に展開する対応(1回のブラッシュアップで数ファイルずつ)、ユーザーが
   実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映

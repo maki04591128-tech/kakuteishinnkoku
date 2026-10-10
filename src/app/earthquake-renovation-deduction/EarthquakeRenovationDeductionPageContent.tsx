@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { EarthquakeRenovationDeductionForm } from "./EarthquakeRenovationDeductionForm";
 import { getEarthquakeRenovationDeductionPageData } from "@/lib/earthquakeRenovationDeductionPageData";
-import type { EarthquakeRenovationDeductionPageData } from "@/lib/earthquakeRenovationDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function EarthquakeRenovationDeductionPageContent() {
   const searchParams = useSearchParams();
@@ -13,15 +13,14 @@ export function EarthquakeRenovationDeductionPageContent() {
   const saved = searchParams.get("saved") !== null;
   const deleted = searchParams.get("deleted") !== null;
 
-  const [data, setData] = useState<EarthquakeRenovationDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getEarthquakeRenovationDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getEarthquakeRenovationDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <EarthquakeRenovationDeductionPageSkeleton />;
