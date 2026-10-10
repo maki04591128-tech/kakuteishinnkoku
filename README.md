@@ -7403,6 +7403,31 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `npm run build:standalone`が成功したことを確認した。実機・エミュレータ・
   `gradlew`自体の実行確認はフェーズ6の制約通りこのセッションでは行えない。
 
+- [x] 6-10. 未使用の`google-services`(Firebase Push通知)関連の
+      テンプレートボイラープレートを削除する。
+
+  **実施内容(2026-10-10):** `android/build.gradle`の
+  `classpath 'com.google.gms:google-services:4.4.4'`と、
+  `android/app/build.gradle`末尾の`google-services.json`の有無を
+  確認して存在すれば`com.google.gms.google-services`プラグインを
+  適用する`try`ブロック(無ければ`"Push Notifications won't work"`と
+  ログ出力するだけ)を削除した。`npx cap add android`実行時の
+  Capacitorテンプレートの既定のまま残っていたもので、`google-services.json`
+  はリポジトリに存在せず、`package.json`にも`@capacitor/push-notifications`
+  等のFirebase関連プラグインの依存は無い(`grep`で確認済み)ため、
+  常に素通りするだけの死んだコードだった。6-3(不要な`INTERNET`権限の削除)・
+  6-8(未使用の`FileProvider`の削除)・6-9(未使用テンプレートテストの削除)と
+  同様「本アプリでは使われていないテンプレートの残骸」であり、Push通知は
+  Firebase Cloud Messaging(サーバー/クラウド経由の配信)前提の機能で
+  「サーバー無し・オフライン」という本移行の設計意図とも相容れないため削除対象と
+  判断した。Android側ファイルの削除のみでNext.js側のコードは変更していないため、
+  `npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみ)が
+  成功したことを確認した。`gradlew`自体の実行確認(ビルド構成の変更が
+  実際にAPKビルドを壊さないことの確認)はフェーズ6の制約通りこのセッションでは
+  行えず、`.github/workflows/android-build.yml`のCIでのビルド成功
+  (`gradlew assembleDebug`)をもって確認とする。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8066,7 +8091,9 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   さらに「6-9. パッケージ名が不整合な未使用のテンプレートテストファイルの
   削除」(2026-10-10)を完了させた(`com.getcapacitor.myapp`パッケージのまま
   残っていたCapacitorテンプレートのサンプルテスト2ファイルを削除。詳細は
-  6-9の実装内容を参照)。
+  6-9の実装内容を参照)。さらに「6-10. 未使用の`google-services`
+  (Firebase Push通知)関連のテンプレートボイラープレートの削除」
+  (2026-10-10)を完了させた(詳細は6-10の実装内容を参照)。
   **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
   インストールして動作確認した結果の反映(フェーズ6完了。署名付きAPKが
   必要な場合は`android/keystore.properties.example`を参照)、または
