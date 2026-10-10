@@ -7191,6 +7191,29 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   実機(またはエミュレータ)でのインストール・動作確認のみで、これは
   依然としてユーザー自身の環境でのみ可能(フェーズ6の制約通り)。
 
+- [x] 6-3. `android/app/src/main/AndroidManifest.xml`の不要な
+      `INTERNET`権限を削除する。
+
+  **実施内容(2026-10-10):** 「サーバー無し・オフラインでスマートフォン
+  単体動作」という本移行の目的に対し、`npx cap add android`が生成した
+  テンプレートのまま`<uses-permission android:name="android.permission.INTERNET" />`
+  が残っていた。`package.json`の依存関係を確認したところ、`@capacitor/core`・
+  `@capacitor/android`・`@capacitor/cli`のみでネットワークアクセスを要する
+  Capacitorプラグイン(HTTP通信・プッシュ通知等)は一切導入されておらず、
+  WebViewが読み込むWeb資産もビルド時に`android/app/src/main/assets/public`
+  へ同梱される静的ファイル(`file://`相当のローカルスキーム)のみである
+  ことを確認した(`capacitor.config.ts`にも`server.url`等の外部URL設定は
+  無い)。Android WebViewはローカルスキームの読み込みに`INTERNET`権限を
+  必要としないため、この権限はアプリの実際の動作に不要と判断し削除した。
+  インストール時にユーザーへ「ネットワーク通信」の権限を要求してしまう
+  状態は「サーバー無し・オフライン」という設計意図と矛盾するため、削除する
+  ことでアプリの実態とAndroidの権限宣言を一致させた。このクラウド開発環境に
+  Android SDKが無く`gradlew assembleDebug`は実行できないため、ビルドへの
+  影響無し(マニフェストの権限宣言のみの変更で、Java/Kotlinコードや
+  リソース参照は無い)はこのセッションでは静的な確認のみとし、最終的な
+  ビルド成功確認は既存のGitHub Actionsワークフロー
+  (`.github/workflows/android-build.yml`)に委ねる。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
