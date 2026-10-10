@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { DraftCsvExportLink } from "@/lib/exportUi";
 import { setCryptoCostMethod } from "@/lib/cryptoCostMethodActions";
 import { getHomePageData } from "@/lib/homePageData";
-import type { HomePageData } from "@/lib/homePageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 const CRYPTO_COST_METHOD_LABEL: Record<string, string> = {
   AVERAGE: "総平均法",
@@ -21,15 +22,14 @@ export function HomePageContent({ logoutButton }: { logoutButton: ReactNode }) {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
 
-  const [data, setData] = useState<HomePageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getHomePageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getHomePageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <HomePageSkeleton />;
