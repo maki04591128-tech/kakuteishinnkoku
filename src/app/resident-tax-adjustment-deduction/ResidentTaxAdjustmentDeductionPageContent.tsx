@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { ResidentTaxAdjustmentDeductionForm } from "./ResidentTaxAdjustmentDeductionForm";
 import { getResidentTaxAdjustmentDeductionPageData } from "@/lib/residentTaxAdjustmentDeductionPageData";
-import type { ResidentTaxAdjustmentDeductionPageData } from "@/lib/residentTaxAdjustmentDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function ResidentTaxAdjustmentDeductionPageContent() {
   const searchParams = useSearchParams();
@@ -13,15 +13,14 @@ export function ResidentTaxAdjustmentDeductionPageContent() {
   const residentTaxAdjustmentDeductionSaved =
     searchParams.get("residentTaxAdjustmentDeductionSaved") !== null;
 
-  const [data, setData] = useState<ResidentTaxAdjustmentDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getResidentTaxAdjustmentDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getResidentTaxAdjustmentDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <ResidentTaxAdjustmentDeductionPageSkeleton />;

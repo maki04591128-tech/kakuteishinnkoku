@@ -1,26 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { HomeSaleLossDeductionForm } from "./HomeSaleLossDeductionForm";
 import { getHomeSaleLossDeductionPageData } from "@/lib/homeSaleLossDeductionPageData";
-import type { HomeSaleLossDeductionPageData } from "@/lib/homeSaleLossDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function HomeSaleLossDeductionPageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
   const lossCarried = searchParams.get("lossCarried");
 
-  const [data, setData] = useState<HomeSaleLossDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getHomeSaleLossDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getHomeSaleLossDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <HomeSaleLossDeductionPageSkeleton />;
