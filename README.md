@@ -7652,6 +7652,31 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   残り12ファイル(`HomePageContent.tsx`・`ImportPageContent.tsx`の2大規模ファイルを
   含む)への展開は次回以降のブラッシュアップに残す。
 
+  **進捗(2026-10-10、8回目):** 残り12ファイルのうち5ファイル
+  (`CertifiedHousingConstructionCreditPageContent.tsx`・
+  `CryptoIncomeClassificationPageContent.tsx`・
+  `DistributionAdjustedForeignTaxCreditPageContent.tsx`・
+  `DividendSimulationPageContent.tsx`・`DonationTaxCreditPageContent.tsx`)を
+  同じパターンで`useAsyncPageData`への呼び出しに置き換えた(独自の
+  `useState`/`useEffect`/`useTransition`を削除し、取得失敗時は
+  `<ClientDbErrorNotice />`を表示)。表示内容・フォーム自体は変更していない。
+  いずれもpageデータの型(`*PageData.types`)をimportしていたのが`useState`の
+  型注釈のためだけだったため、置き換えに合わせて不要になったimportも削除した。
+  `npm install`(このクラウド開発環境では`node_modules`が未インストールの
+  状態から開始したため)・`cp .env.example .env && npx prisma db push`の後、
+  `npm run test`(全222ファイル1781件、変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係なことを`git stash`で確認済み)・
+  `npm run build`(自宅サーバー版)・`npm run build:standalone`
+  (`out/`を削除したクリーンな状態から実行し全76ページ成功)が成功した。
+  残り7ファイル(`ForeignTaxCreditPageContent.tsx`・
+  `HomeReplacementLossDeductionPageContent.tsx`・
+  `HomeSaleLossDeductionPageContent.tsx`・
+  `ResidentTaxAdjustmentDeductionPageContent.tsx`・
+  `TaxEstimatePageContent.tsx`と`HomePageContent.tsx`・
+  `ImportPageContent.tsx`の2大規模ファイル)への展開は次回以降の
+  ブラッシュアップに残す。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
