@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { EmploymentIncomeForm } from "./EmploymentIncomeForm";
 import { getEmploymentIncomePageData } from "@/lib/employmentIncomePageData";
-import type { EmploymentIncomePageData } from "@/lib/employmentIncomePageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function EmploymentIncomePageContent() {
   const searchParams = useSearchParams();
@@ -13,15 +13,14 @@ export function EmploymentIncomePageContent() {
   const employmentIncomeSaved = searchParams.get("employmentIncomeSaved") !== null;
   const employmentIncomeDeleted = searchParams.get("employmentIncomeDeleted") !== null;
 
-  const [data, setData] = useState<EmploymentIncomePageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getEmploymentIncomePageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getEmploymentIncomePageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <EmploymentIncomePageSkeleton />;
