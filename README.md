@@ -7498,6 +7498,44 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   確認済み)・`npm run build`(自宅サーバー版)・`npm run build:standalone`
   (全76ページ成功)が成功した。
 
+- [x] 6-13. 6-12で追加したclientDb初期化エラー(`assertClientDbEnvironmentSupported`)を、
+      PageContent層("use client"コンポーネント)で捕捉し画面に表示する(1ファイルで
+      先行実施)。
+
+  **実施内容(2026-10-10):** 6-12の時点では`openClientDb`が投げる例外を
+  どこもcatchしておらず、`<page>PageData.standalone.ts`→`PageContent.tsx`の
+  `useEffect`内`startTransition(async () => {...})`を素通りして未処理の
+  Promise rejectionになり、`data`が`null`のまま「読み込み中…」のスケルトン
+  表示で画面が停止して見える状態だった(React Error Boundary(`error.tsx`)は
+  レンダー関数内で同期的にthrowされたエラーのみを対象とするため非同期
+  `await`のrejectは捕捉できず、各`PageContent.tsx`側での明示的な`try/catch`が
+  必要と判断した)。影響するのは`page.tsx`74ファイルのうちclientDb経由で
+  データ取得している37ファイル(`startTransition(async () => {...})`
+  パターンを持つもの。残りは静的な計算フォーム等でclientDb初期化に依存しない
+  ため対象外)で、全ファイルが`useState<T|null>(null)` +
+  `useTransition` + `useEffect`→`startTransition(async...)` +
+  `if (!data) return <Skeleton/>`という同一の構造を持つことを確認した。
+
+  この均一性を踏まえ、`src/lib/useAsyncPageData.ts`に共通hook
+  `useAsyncPageData<T>(fetchData, deps)`を新設し、`{ data, error, isPending }`を
+  返す形で`useState`+`useTransition`+`try/catch`をカプセル化した(`deps`は
+  呼び出し元が明示的に渡すため、hook内の`useEffect`には
+  `react-hooks/exhaustive-deps`の無効化コメントを1箇所だけ付けた)。また
+  `src/components/`を新設し`ClientDbErrorNotice.tsx`
+  (`error.message`をそのまま表示する共通のエラー表示UI)を追加した。
+  まず`src/app/employment-income/EmploymentIncomePageContent.tsx`の
+  独自`useState`/`useEffect`/`useTransition`をこの共通hookの呼び出しに
+  置き換え、取得失敗時に`<ClientDbErrorNotice />`を表示するようにした
+  (フォーム・表示内容自体は変更していない)。残り36ファイルへの展開は
+  機械的な置き換えのため次回以降のブラッシュアップに残す。`npm run test`
+  (全222ファイル1781件、変更無し。このhook・コンポーネントはUI層のため
+  既存のVitest(Node環境・`*.test.ts`のみ対象)の対象外で、本リポジトリの
+  他の`PageContent.tsx`も同様にテスト未対象のため今回も追加していない)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の
+  両方。既知の`LayoutProps`エラーのみで本変更と無関係なことを`git stash`で
+  確認済み)・`npm run build`(自宅サーバー版)・`npm run build:standalone`
+  (全76ページ成功)が成功した。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8171,13 +8209,19 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (`openClientDb`呼び出し前に実行環境をチェックし、低レベルなJSエラーの
   代わりにWebView更新を促す具体的なメッセージで失敗するようにした。詳細は
   6-12の実装内容を参照。この判定結果を実際に画面へ表示するPageContent層の
-  対応は未着手のまま次回以降の候補として残っている)。
-  **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
-  インストールして動作確認した結果の反映(フェーズ6完了。署名付きAPKが
-  必要な場合は`android/keystore.properties.example`を参照。6-11の
-  ソフトキーボード表示時の見た目も実機確認項目に含める)、6-12で追加した
-  環境チェックのエラーメッセージを実際にPageContent層(各ページの
-  `"use client"`コンポーネント)で捕捉し画面に表示する対応、または
+  対応は未着手のまま次回以降の候補として残っている)。さらに
+  「6-13. 6-12のclientDb初期化エラーをPageContent層で捕捉し画面に表示する」
+  (2026-10-10)に着手し、共通hook`src/lib/useAsyncPageData.ts`と共通エラー
+  表示コンポーネント`src/components/ClientDbErrorNotice.tsx`を新設した上で、
+  対象37ファイルのうち`EmploymentIncomePageContent.tsx`の1ファイルのみ
+  先行して置き換えた(詳細は6-13の実装内容を参照)。
+  **次回のブラッシュアップは、6-13で新設した`useAsyncPageData`への置き換えを
+  残り36ファイル(`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
+  取得しているもの。6-13の実装内容に37ファイルの構造の共通性を記載)へ
+  機械的に展開する対応(1回のブラッシュアップで数ファイルずつ)、ユーザーが
+  実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映
+  (フェーズ6完了。署名付きAPKが必要な場合は`android/keystore.properties.example`
+  を参照。6-11のソフトキーボード表示時の見た目も実機確認項目に含める)、
   マニフェスト・ビルド設定の他の見直し項目、あるいは末尾の「ロードマップ」
   (既存の税制対応機能の追加)から着手する。**
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
