@@ -7239,6 +7239,43 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   両方。既知の`LayoutProps`エラーのみで本変更と無関係)が成功した
   (Android側のみの変更のためNext.jsのビルド自体への影響は無い)。
 
+- [x] 6-5. リリースAPK用の署名設定(`signingConfig`)を追加する。
+
+  **実施内容(2026-10-10):** `npx cap add android`が生成したテンプレートの
+  `android/app/build.gradle`では`release`ビルドタイプに`signingConfig`の
+  指定が無く、Android Gradle Pluginの既定動作により`gradlew assembleRelease`
+  を実行しても未署名のAPKしか得られない状態だった(Android公式ドキュメント
+  「アプリを手動でビルドする」に、署名無しのリリースAPKはそのままでは
+  端末にインストールできないと明記されている一次情報を確認済み)。実機で
+  動作確認する(フェーズ6の残課題)には署名済みAPKが必要になるため対応した。
+
+  秘密情報(キーストアのパスワード等)をリポジトリにコミットしない形で
+  実装する必要があったため、Android公式ドキュメントが示す
+  `keystore.properties`方式(Gitリポジトリ外のプロパティファイルに
+  署名情報を書き、`.gitignore`で除外する)を採用した。CI
+  (GitHub Actions)では各セッション・各実行環境ごとにファイルを配置するのは
+  煩雑なため、`keystore.properties`が無い場合は環境変数
+  (`RELEASE_KEYSTORE_PATH`・`RELEASE_KEYSTORE_PASSWORD`・
+  `RELEASE_KEY_ALIAS`・`RELEASE_KEY_PASSWORD`)にフォールバックする
+  実装を`android/app/build.gradle`に追加した。どちらも未設定の場合は
+  `signingConfig`を単に設定しない(従来通り未署名)ため、既存の
+  `.github/workflows/android-build.yml`(`assembleDebug`のみ実行、
+  デバッグ署名は別経路で自動的に付与されるため無関係)への影響は無い。
+
+  テンプレートとして`android/keystore.properties.example`(ダミー値のみ、
+  コミット対象)を追加し、実際のキーストアを用意する際の手順を
+  コメントで説明した。`android/.gitignore`では、元々コメントアウトされて
+  いた`*.jks`・`*.keystore`の除外を有効化し、新たに`keystore.properties`
+  も除外対象に加えた(このクラウド開発環境にAndroid SDKが無く実際の
+  キーストア生成・`gradlew assembleRelease`の実行はできないため、
+  このセッションでは`android/app/build.gradle`の構文確認
+  (波括弧・丸括弧の対応確認)のみ行い、実際の署名付きビルドの成否確認は
+  ユーザー側のAndroid StudioまたはCI委ねる)。`npm run test`
+  (全222ファイル1779件、既存のテストに変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係)が成功した(Android側のみの
+  変更のためNext.jsのビルド自体への影響は無い)。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -7886,9 +7923,13 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (2026-10-10)・「6-4. `allowBackup`を`false`に変更」(2026-10-10)を追加し、
   いずれも「サーバー無し・オフライン」という本移行の設計意図とAndroidの
   マニフェスト設定(権限宣言・バックアップ設定)を一致させる対応として完了した。
+  さらに「6-5. リリースAPK用の署名設定(`signingConfig`)の追加」
+  (2026-10-10)を完了させた(`keystore.properties`または環境変数から
+  署名情報を読み込み、無ければ未署名のまま、という既存の挙動を壊さない形)。
   **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
-  インストールして動作確認した結果の反映(フェーズ6完了)、またはマニフェスト・
-  ビルド設定の他の見直し項目(署名設定・デフォルトのまま残っているアプリ
+  インストールして動作確認した結果の反映(フェーズ6完了。署名付きAPKが
+  必要な場合は`android/keystore.properties.example`を参照)、またはマニフェスト・
+  ビルド設定の他の見直し項目(デフォルトのまま残っているアプリ
   アイコン/スプラッシュ画像(Capacitorテンプレートの既定画像)等)、
   あるいは末尾の「ロードマップ」(既存の税制対応機能の追加)から着手する。**
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
