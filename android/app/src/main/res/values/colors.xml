@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- アプリアイコン・スプラッシュ画面(6-6/6-7)と同じブランドカラー。
+         colors.xmlが無い間はcapacitor-androidライブラリ側のテンプレート既定色
+         (#3F51B5等、本アプリとは無関係な配色)がAppThemeに使われていたため、
+         ここでアプリ自身の値を定義して上書きする。 -->
+    <color name="colorPrimary">#1565C0</color>
+    <color name="colorPrimaryDark">#0D47A1</color>
+    <color name="colorAccent">#C62828</color>
+</resources>

@@ -7767,6 +7767,36 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   このセッションでは不可。PR上のCI(`android-build.yml`の
   `gradlew assembleDebug`)で検証する)。
 
+- [x] 6-16. `AppTheme`の配色(`colorPrimary`等)が、6-6/6-7で決めたアプリ
+      ブランドカラー(`#1565C0`)と不一致なまま残っていた問題の修正。
+
+  **実装内容(2026-10-10):** `android/app/src/main/res/values/styles.xml`の
+  `AppTheme`が`colorPrimary`/`colorPrimaryDark`/`colorAccent`を
+  `@color/colorPrimary`等として参照しているが、アプリ側に`colors.xml`が
+  一度も存在しなかったため(`npx cap add android`実行時のテンプレートにも
+  含まれていなかったことを`git log --follow`で確認)、
+  `node_modules/@capacitor/android/capacitor/src/main/res/values/colors.xml`
+  (`capacitor-android`ライブラリが`tools:ignore="UnusedResources"`付きで
+  提供するフォールバック値、`#3F51B5`/`#303F9F`/`#FF4081`)がそのまま
+  使われていた。これはIonic/Androidロゴ風の配色であり、6-6で書類+認印
+  モチーフ・背景色`#1565C0`に差し替えたアプリアイコン、6-7で同じ配色に
+  差し替えたスプラッシュ画面とは無関係な色がAppTheme(=起動後の
+  ステータスバー等のチント色)に残っていたことになる。
+
+  `android/app/src/main/res/values/colors.xml`を新設し、アプリ自身の値
+  (アプリモジュールの定義はライブラリ側の同名リソースより優先される)として
+  `colorPrimary`を背景色と同じ`#1565C0`、`colorPrimaryDark`を一段階暗い
+  `#0D47A1`、`colorAccent`を認印と同じ`#C62828`に設定した。
+
+  `npm run test`(全222ファイル1781件、変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係)・`npm run build:standalone`
+  (全76ページ成功)・`npx cap sync android`が成功した(本変更はAndroidの
+  リソース定義のみでTS/JSに影響しないため、これらのコマンドの結果は
+  不変であることの確認。実際の配色の見た目・aapt2によるリンクの検証は
+  このクラウド開発環境にAndroid SDKが無いためこのセッションでは不可。
+  PR上のCI(`android-build.yml`の`gradlew assembleDebug`)で検証する)。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8489,7 +8519,11 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   「6-15. 未使用のテンプレート由来テーマ`AppTheme.NoActionBar`の削除」
   (2026-10-10)を完了させた(6-3・6-8・6-9・6-10と同種の、実際には
   使われていないCapacitorテンプレート由来定義の削除。詳細は6-15の
-  実装内容を参照)。
+  実装内容を参照)。さらに
+  「6-16. `AppTheme`の配色がアプリブランドカラーと不一致だった問題の修正」
+  (2026-10-10)を完了させた(`colors.xml`が無く6-6/6-7のブランドカラーと
+  無関係なcapacitor-androidライブラリ既定色がステータスバー等に
+  残っていた問題。詳細は6-16の実装内容を参照)。
   **次回のブラッシュアップは、ユーザーが
   実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映
   (フェーズ6完了。署名付きAPKが必要な場合は`android/keystore.properties.example`
