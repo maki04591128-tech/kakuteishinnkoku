@@ -1,25 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { ResidentTaxNonTaxableForm } from "./ResidentTaxNonTaxableForm";
 import { getResidentTaxNonTaxablePageData } from "@/lib/residentTaxNonTaxablePageData";
-import type { ResidentTaxNonTaxablePageData } from "@/lib/residentTaxNonTaxablePageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function ResidentTaxNonTaxablePageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
 
-  const [data, setData] = useState<ResidentTaxNonTaxablePageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getResidentTaxNonTaxablePageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getResidentTaxNonTaxablePageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <ResidentTaxNonTaxablePageSkeleton />;
