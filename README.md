@@ -7454,6 +7454,50 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   成功した。実際のソフトキーボード表示時の見た目の確認はフェーズ6の制約通り
   このセッションでは行えないため、次回以降の実機確認時の確認項目に加える。
 
+- [x] 6-12. クライアントサイドDB(`openClientDb`、フェーズ5-3)が、
+      OPFS/Web Workerに対応していない古いWebViewで実行された場合に、
+      原因の分かりにくい低レベルなエラーではなく、ユーザーに原因と対処が
+      伝わるメッセージで失敗するようにする。
+
+  **実施内容(2026-10-10):** 本アプリのクライアントサイドDBは
+  フェーズ0の決定通りOPFSベースのVFS(`AccessHandlePoolVFS`)・
+  Web Worker(`createSyncAccessHandle()`がWorkerコンテキスト限定のため)に
+  依存しているが(フェーズ5-3)、`src/lib/clientDb/sqlite.browser.ts`の
+  `openClientDb`はこれらのAPIが存在するかを確認せずに`new Worker(...)`を
+  呼んでいた。フェーズ0の比較調査時点で「OPFS自体はMDNベースラインで
+  主要ブラウザ対応済みだが`createSyncAccessHandle()`はWorker限定」という
+  制約が分かっていた一方、Android端末のWebView(Chromiumベース、Google
+  Playストア経由で自動更新される)が何らかの理由(オフライン専用端末で
+  長期間更新されていない等)で古いままの場合、`navigator.storage.getDirectory`
+  自体が存在せず、Worker内の`AccessHandlePoolVFS`初期化(またはWorker
+  自体の生成)が`... is not a function`/`Worker is not defined`のような
+  低レベルなJSエラーで失敗する。このエラーは全76ページのデータ取得
+  (フェーズ7で確立した`<page>PageData.standalone.ts`経由)の起点で発生し、
+  ユーザー向けのエラー表示が無いため、原因不明のまま「読み込み中…」の
+  まま止まって見える状態だった。
+
+  `openClientDb`の先頭に`assertClientDbEnvironmentSupported()`を追加し、
+  `typeof Worker !== "undefined"`・`typeof navigator.storage?.getDirectory
+  === "function"`を確認した上で、いずれか欠けている場合は
+  「このAndroid端末のWebView(ブラウザ機能)が古く、本アプリの動作に必要な
+  機能(Web Worker・OPFS)に対応していません。Google Playストアから
+  「Android System WebView」アプリを最新版に更新してください。」という
+  具体的な対処を含むエラーで即座に失敗するようにした(Workerを起動する前に
+  判定するため、不完全な状態のWorkerが残らない)。`src/lib/clientDb/
+  sqlite.browser.test.ts`に、`Worker`グローバル未定義・
+  `navigator.storage.getDirectory`未定義それぞれのケースでこのメッセージを
+  含むエラーで拒否されること・Workerが実際には起動されないことを検証する
+  テストを追加した(既存のテストは`navigator.storage.getDirectory`が存在する
+  状態を模すスタブを`beforeEach`に追加した上で、全て変更無しに成功することを
+  確認済み)。このチェック自体はPageData層・UI層のエラー表示機構(React
+  Error Boundary等)とはまだ連携していないため、実際に画面上へこの
+  メッセージを表示するにはPageContent層側の対応が別途必要(次回以降の
+  見直し候補として残す)。`npm run test`(全222ファイル1781件、新規2件追加)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の
+  両方。既知の`LayoutProps`エラーのみで本変更と無関係なことを`git stash`で
+  確認済み)・`npm run build`(自宅サーバー版)・`npm run build:standalone`
+  (全76ページ成功)が成功した。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8122,11 +8166,18 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (2026-10-10)を完了させた(詳細は6-10の実装内容を参照)。さらに
   「6-11. `windowSoftInputMode="adjustResize"`の追加」(2026-10-10)を
   完了させた(ソフトキーボード表示時に入力欄が隠れないようにする対応。
-  詳細は6-11の実装内容を参照)。
+  詳細は6-11の実装内容を参照)。さらに「6-12. OPFS/Web Worker未対応の古い
+  WebViewで分かりやすいエラーにする」(2026-10-10)を完了させた
+  (`openClientDb`呼び出し前に実行環境をチェックし、低レベルなJSエラーの
+  代わりにWebView更新を促す具体的なメッセージで失敗するようにした。詳細は
+  6-12の実装内容を参照。この判定結果を実際に画面へ表示するPageContent層の
+  対応は未着手のまま次回以降の候補として残っている)。
   **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
   インストールして動作確認した結果の反映(フェーズ6完了。署名付きAPKが
   必要な場合は`android/keystore.properties.example`を参照。6-11の
-  ソフトキーボード表示時の見た目も実機確認項目に含める)、または
+  ソフトキーボード表示時の見た目も実機確認項目に含める)、6-12で追加した
+  環境チェックのエラーメッセージを実際にPageContent層(各ページの
+  `"use client"`コンポーネント)で捕捉し画面に表示する対応、または
   マニフェスト・ビルド設定の他の見直し項目、あるいは末尾の「ロードマップ」
   (既存の税制対応機能の追加)から着手する。**
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト

@@ -18,7 +18,32 @@ import type { ClientDbWorkerRequest, ClientDbWorkerResponse } from "./workerProt
 
 let nextRequestId = 1;
 
+const UNSUPPORTED_ENVIRONMENT_MESSAGE =
+  "このAndroid端末のWebView(ブラウザ機能)が古く、本アプリの動作に必要な機能" +
+  "(Web Worker・OPFS)に対応していません。Google Playストアから" +
+  "「Android System WebView」アプリを最新版に更新してください。";
+
+/**
+ * `AccessHandlePoolVFS`(OPFS)・Web Workerに依存する`openClientDb`を呼ぶ前の
+ * 実行環境チェック(フェーズ6-12)。未対応の古いWebViewでは、対応していない
+ * まま`new Worker()`やWorker内の`navigator.storage.getDirectory()`呼び出しで
+ * 原因の分かりにくい低レベルなエラー(`Worker is not defined`等)になるため、
+ * ここで早期に検出しユーザーに原因と対処(WebView更新)が伝わるメッセージに
+ * 変換する。
+ */
+function assertClientDbEnvironmentSupported(): void {
+  const hasWorker = typeof Worker !== "undefined";
+  const hasOpfs =
+    typeof navigator !== "undefined" &&
+    typeof navigator.storage?.getDirectory === "function";
+  if (!hasWorker || !hasOpfs) {
+    throw new Error(UNSUPPORTED_ENVIRONMENT_MESSAGE);
+  }
+}
+
 export async function openClientDb(name: string): Promise<ClientDb> {
+  assertClientDbEnvironmentSupported();
+
   const worker = new Worker(new URL("./sqlite.worker.ts", import.meta.url), {
     type: "module",
   });

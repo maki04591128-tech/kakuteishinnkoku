@@ -51,6 +51,9 @@ class FakeWorker {
 beforeEach(() => {
   FakeWorker.instances = [];
   vi.stubGlobal("Worker", FakeWorker as unknown as typeof Worker);
+  // OPFS対応ブラウザを模すため、navigator.storage.getDirectoryが存在する状態を既定にする
+  // (実際にOPFSを使うのはWorker側(sqlite.worker.ts)の責務で、ここでは存在確認のみ)。
+  vi.stubGlobal("navigator", { storage: { getDirectory: vi.fn() } });
 });
 
 afterEach(() => {
@@ -126,5 +129,21 @@ describe("openClientDb(sqlite.browser.ts、Workerをモック化)", () => {
     worker.respond({ id: closeRequest.id, ok: true });
     await closePromise;
     expect(worker.terminated).toBe(true);
+  });
+
+  it("Workerに対応していない環境では分かりやすいエラーで拒否し、Workerを起動しない", async () => {
+    vi.stubGlobal("Worker", undefined);
+    await expect(openClientDb("test.db")).rejects.toThrow(
+      "Android System WebView",
+    );
+    expect(FakeWorker.instances).toHaveLength(0);
+  });
+
+  it("OPFS(navigator.storage.getDirectory)に対応していない環境では分かりやすいエラーで拒否する", async () => {
+    vi.stubGlobal("navigator", {});
+    await expect(openClientDb("test.db")).rejects.toThrow(
+      "Android System WebView",
+    );
+    expect(FakeWorker.instances).toHaveLength(0);
   });
 });
