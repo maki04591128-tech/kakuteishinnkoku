@@ -1,25 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { SpecificExpenseDeductionForm } from "./SpecificExpenseDeductionForm";
 import { getSpecificExpenseDeductionPageData } from "@/lib/specificExpenseDeductionPageData";
-import type { SpecificExpenseDeductionPageData } from "@/lib/specificExpenseDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function SpecificExpenseDeductionPageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
 
-  const [data, setData] = useState<SpecificExpenseDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getSpecificExpenseDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getSpecificExpenseDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <SpecificExpenseDeductionPageSkeleton />;

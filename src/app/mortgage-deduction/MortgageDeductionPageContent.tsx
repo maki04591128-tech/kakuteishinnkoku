@@ -1,25 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { MortgageDeductionForm } from "./MortgageDeductionForm";
 import { getMortgageDeductionPageData } from "@/lib/mortgageDeductionPageData";
-import type { MortgageDeductionPageData } from "@/lib/mortgageDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function MortgageDeductionPageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
 
-  const [data, setData] = useState<MortgageDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getMortgageDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getMortgageDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <MortgageDeductionPageSkeleton />;
