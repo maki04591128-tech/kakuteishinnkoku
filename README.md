@@ -7376,6 +7376,33 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   セッションでは行えず、`.github/workflows/android-build.yml`のCIでの
   ビルド成功(`gradlew assembleDebug`)をもって確認とする。
 
+- [x] 6-9. パッケージ名が不整合な未使用のテンプレートテストファイルを削除する。
+
+  **実施内容(2026-10-10):** `android/app/src/test/java/com/getcapacitor/myapp/
+  ExampleUnitTest.java`・`android/app/src/androidTest/java/com/getcapacitor/myapp/
+  ExampleInstrumentedTest.java`が、`npx cap add android`実行時の
+  Capacitorテンプレートの既定のまま残っていた。本アプリの実際の
+  `applicationId`/`namespace`は`android/app/build.gradle`で
+  `com.kakuteishinnkoku.app`だが、この2ファイルは旧パッケージ名
+  `com.getcapacitor.myapp`のままで、`ExampleInstrumentedTest`はさらに
+  `assertEquals("com.getcapacitor.app", appContext.getPackageName())`と
+  実在しないパッケージ名をアサートしており、実行すれば必ず失敗する
+  (`.github/workflows/android-build.yml`は`gradlew assembleDebug`のみで
+  テストタスクを実行しないため、このCIでは現状表面化しない)。
+  いずれも本アプリの動作とは無関係なCapacitorテンプレートのサンプルコードで、
+  6-3(不要な`INTERNET`権限の削除)・6-8(未使用の`FileProvider`の削除)と
+  同様「実際には使われておらず、かつ本アプリの実態(パッケージ名)と
+  食い違っているテンプレートの残骸」と判断し、両ファイル
+  (`android/app/src/test/`・`android/app/src/androidTest/`配下)を削除した。
+  `build.gradle`の`testImplementation`/`androidTestImplementation`
+  (JUnit/Espresso)の依存定義自体は、将来実際のテストを追加する際の
+  一般的なテスト基盤として残した(特定のファイルに紐づくものではないため)。
+  Android側ファイルの削除のみでNext.js側のコードは変更していないため、
+  `npm run test`・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方)・`npm run build`・
+  `npm run build:standalone`が成功したことを確認した。実機・エミュレータ・
+  `gradlew`自体の実行確認はフェーズ6の制約通りこのセッションでは行えない。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8036,6 +8063,10 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   未導入で、CSV出力も`Blob`+`<a download>`のみのため、6-3と同様
   「実際には使われていないテンプレート由来のコンポーネント」として
   `AndroidManifest.xml`の`<provider>`定義・`file_paths.xml`を削除した)。
+  さらに「6-9. パッケージ名が不整合な未使用のテンプレートテストファイルの
+  削除」(2026-10-10)を完了させた(`com.getcapacitor.myapp`パッケージのまま
+  残っていたCapacitorテンプレートのサンプルテスト2ファイルを削除。詳細は
+  6-9の実装内容を参照)。
   **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
   インストールして動作確認した結果の反映(フェーズ6完了。署名付きAPKが
   必要な場合は`android/keystore.properties.example`を参照)、または
