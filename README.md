@@ -7428,6 +7428,32 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   行えず、`.github/workflows/android-build.yml`のCIでのビルド成功
   (`gradlew assembleDebug`)をもって確認とする。
 
+- [x] 6-11. `MainActivity`に`android:windowSoftInputMode="adjustResize"`を
+      追加し、ソフトキーボード表示時に入力欄が隠れないようにする。
+
+  **実施内容(2026-10-10):** `android/app/src/main/AndroidManifest.xml`の
+  `MainActivity`に`windowSoftInputMode`の指定が無く、未指定時のデフォルト値
+  (`SOFT_INPUT_ADJUST_UNSPECIFIED`)はシステム判断に委ねられ、WebViewベースの
+  アプリでは画面がリサイズされず(`ADJUST_PAN`相当の挙動になり)ソフトキーボード
+  が入力欄を覆ってしまう場合があることが、Android/Cordova/Capacitorコミュニティで
+  広く知られた既知の問題。本アプリは76ページ中ほぼ全てが`<input>`を持つ
+  試算・登録フォームであり(「現状分析」参照)、フォーム下部の入力欄がキーボードに
+  隠れると入力自体ができなくなる実害がある。`@capacitor/android`本体
+  (`node_modules/@capacitor/android/capacitor/src/main/java/com/getcapacitor/`)を
+  `grep`で確認したところ`windowSoftInputMode`・`WindowInsetsCompat`によるIME
+  (キーボード)インセット処理は一切実装されておらず、この設定はネイティブの
+  マニフェスト側で明示する必要があると判断した。`adjustResize`はウィンドウの
+  可視領域をキーボード分縮小する最も一般的な対処で、Capacitorテンプレートの
+  既定(`npx cap add android`で生成される雛形。`node_modules/@capacitor/cli/
+  assets/android-template.tar.gz`を展開して確認)には含まれていないが、
+  既存コード・ビルド構成を変更しないマニフェスト属性1行の追加のみのため
+  リスクは小さいと判断した。`npm run test`(全222ファイル1779件)・
+  `npm run lint`・`npx tsc --noEmit`(標準・`tsconfig.standalone.json`の
+  両方。既知の`LayoutProps`エラーのみ)・`npm run build`(自宅サーバー版)・
+  `npm run build:standalone`(全76ページ成功)・`npx cap sync android`が
+  成功した。実際のソフトキーボード表示時の見た目の確認はフェーズ6の制約通り
+  このセッションでは行えないため、次回以降の実機確認時の確認項目に加える。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8093,10 +8119,14 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   残っていたCapacitorテンプレートのサンプルテスト2ファイルを削除。詳細は
   6-9の実装内容を参照)。さらに「6-10. 未使用の`google-services`
   (Firebase Push通知)関連のテンプレートボイラープレートの削除」
-  (2026-10-10)を完了させた(詳細は6-10の実装内容を参照)。
+  (2026-10-10)を完了させた(詳細は6-10の実装内容を参照)。さらに
+  「6-11. `windowSoftInputMode="adjustResize"`の追加」(2026-10-10)を
+  完了させた(ソフトキーボード表示時に入力欄が隠れないようにする対応。
+  詳細は6-11の実装内容を参照)。
   **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
   インストールして動作確認した結果の反映(フェーズ6完了。署名付きAPKが
-  必要な場合は`android/keystore.properties.example`を参照)、または
+  必要な場合は`android/keystore.properties.example`を参照。6-11の
+  ソフトキーボード表示時の見た目も実機確認項目に含める)、または
   マニフェスト・ビルド設定の他の見直し項目、あるいは末尾の「ロードマップ」
   (既存の税制対応機能の追加)から着手する。**
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
