@@ -7742,6 +7742,31 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   成功した(本変更はAndroidのネイティブ設定のみでTS/JSに影響しないため、
   これらのコマンドの結果は不変であることの確認)。
 
+- [x] 6-15. 未使用のテンプレート由来テーマ`AppTheme.NoActionBar`の削除
+
+  **実装内容(2026-10-10):** `android/app/src/main/res/values/styles.xml`に
+  Capacitorテンプレート由来の`AppTheme.NoActionBar`
+  (`Theme.AppCompat.DayNight.NoActionBar`を継承)が定義されていたが、
+  `grep -rn "AppTheme.NoActionBar" .`でリポジトリ全体を検索しても
+  `AndroidManifest.xml`・他のスタイル定義・コード上のどこからも参照されて
+  いないことを確認した(`AppTheme.NoActionBarLaunch`はスプラッシュ画面用の
+  別スタイルで`Theme.SplashScreen`を直接継承しており、この
+  `AppTheme.NoActionBar`を親にしていない)。実際に使われているテーマは
+  `AppTheme`(`<application>`タグ)と`AppTheme.NoActionBarLaunch`
+  (`MainActivity`の起動時テーマ)の2つのみのため、6-3(未使用の
+  `INTERNET`権限)・6-8(未使用の`FileProvider`)・6-9(未使用のテンプレート
+  テストファイル)・6-10(未使用の`google-services`ボイラープレート)と同種の
+  「実際には使われていないテンプレート由来の定義」として削除した。
+  `npm run test`(全222ファイル1781件、変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係)・`npm run build`
+  (自宅サーバー版)・`npm run build:standalone`(全76ページ成功)が
+  成功した(本変更はAndroidのリソース定義のみでTS/JSに影響しないため、
+  これらのコマンドの結果は不変であることの確認。Androidリソースの
+  リンク(aapt2)自体の検証はこのクラウド開発環境にAndroid SDKが無いため
+  このセッションでは不可。PR上のCI(`android-build.yml`の
+  `gradlew assembleDebug`)で検証する)。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8415,7 +8440,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (`openClientDb`呼び出し前に実行環境をチェックし、低レベルなJSエラーの
   代わりにWebView更新を促す具体的なメッセージで失敗するようにした。詳細は
   6-12の実装内容を参照。この判定結果を実際に画面へ表示するPageContent層の
-  対応は、後述の6-13で対応した)。さらに
+  対応は、6-13で対応した)。さらに
   「6-13. 6-12のclientDb初期化エラーをPageContent層で捕捉し画面に表示する」
   (2026-10-10)に着手し、共通hook`src/lib/useAsyncPageData.ts`と共通エラー
   表示コンポーネント`src/components/ClientDbErrorNotice.tsx`を新設した上で、
@@ -8460,7 +8485,11 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   clientDb経由でデータ取得する37ファイル全てが共通hookへの置き換えを完了し、
   6-13が完了した。その後、targetSdkVersion 36(Android 16)に合わせて
   「6-14. `enableOnBackInvokedCallback`の有効化」(2026-10-10)を完了させた
-  (詳細は6-14の実装内容を参照)。
+  (詳細は6-14の実装内容を参照)。さらに
+  「6-15. 未使用のテンプレート由来テーマ`AppTheme.NoActionBar`の削除」
+  (2026-10-10)を完了させた(6-3・6-8・6-9・6-10と同種の、実際には
+  使われていないCapacitorテンプレート由来定義の削除。詳細は6-15の
+  実装内容を参照)。
   **次回のブラッシュアップは、ユーザーが
   実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映
   (フェーズ6完了。署名付きAPKが必要な場合は`android/keystore.properties.example`
