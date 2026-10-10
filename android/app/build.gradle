@@ -1,5 +1,19 @@
 apply plugin: 'com.android.application'
 
+// リリース署名設定(keystore.properties、無ければ環境変数、どちらも無ければ未署名のまま)。
+// keystore.properties はリポジトリにコミットしない(android/.gitignoreで除外)。
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
+def releaseStoreFile = keystoreProperties['storeFile'] ?: System.getenv('RELEASE_KEYSTORE_PATH')
+def releaseStorePassword = keystoreProperties['storePassword'] ?: System.getenv('RELEASE_KEYSTORE_PASSWORD')
+def releaseKeyAlias = keystoreProperties['keyAlias'] ?: System.getenv('RELEASE_KEY_ALIAS')
+def releaseKeyPassword = keystoreProperties['keyPassword'] ?: System.getenv('RELEASE_KEY_PASSWORD')
+def hasReleaseSigningConfig = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
     namespace = "com.kakuteishinnkoku.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +30,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigningConfig) {
+            release {
+                storeFile rootProject.file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigningConfig) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
