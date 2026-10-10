@@ -7677,6 +7677,26 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `ImportPageContent.tsx`の2大規模ファイル)への展開は次回以降の
   ブラッシュアップに残す。
 
+  **進捗(2026-10-10、9回目):** 残り7ファイルのうち5ファイル
+  (`ForeignTaxCreditPageContent.tsx`・
+  `HomeReplacementLossDeductionPageContent.tsx`・
+  `HomeSaleLossDeductionPageContent.tsx`・
+  `ResidentTaxAdjustmentDeductionPageContent.tsx`・
+  `TaxEstimatePageContent.tsx`)を同じパターンで`useAsyncPageData`への
+  呼び出しに置き換えた(独自の`useState`/`useEffect`/`useTransition`を削除し、
+  取得失敗時は`<ClientDbErrorNotice />`を表示)。表示内容・フォーム自体は
+  変更していない。いずれもpageデータの型(`*PageData.types`)をimportしていたのが
+  `useState`の型注釈のためだけだったため、置き換えに合わせて不要になった
+  importも削除した。`npm install`(このクラウド開発環境では`node_modules`が
+  未インストールの状態から開始したため)・`cp .env.example .env && npx prisma db push`
+  の後、`npm run test`(全222ファイル1781件、変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係なことを`git stash`で確認済み)・
+  `npm run build`(自宅サーバー版)・`npm run build:standalone`
+  (`out/`を削除したクリーンな状態から実行し全76ページ成功)が成功した。
+  残り2ファイル(`HomePageContent.tsx`・`ImportPageContent.tsx`の2大規模
+  ファイル)への展開は次回以降のブラッシュアップに残す。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8379,12 +8399,23 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `IncomeAmountAdjustmentDeductionPageContent.tsx`・
   `InterestIncomePageContent.tsx`・`MortgageDeductionPageContent.tsx`・
   `SpecificExpenseDeductionPageContent.tsx`・`UnrealizedGainPageContent.tsx`の
-  5ファイルを同じパターンで置き換えた。
+  5ファイルを同じパターンで置き換えた。続けて8回目として
+  `CertifiedHousingConstructionCreditPageContent.tsx`・
+  `CryptoIncomeClassificationPageContent.tsx`・
+  `DistributionAdjustedForeignTaxCreditPageContent.tsx`・
+  `DividendSimulationPageContent.tsx`・`DonationTaxCreditPageContent.tsx`の
+  5ファイルを同じパターンで置き換えた。続けて9回目として
+  `ForeignTaxCreditPageContent.tsx`・
+  `HomeReplacementLossDeductionPageContent.tsx`・
+  `HomeSaleLossDeductionPageContent.tsx`・
+  `ResidentTaxAdjustmentDeductionPageContent.tsx`・
+  `TaxEstimatePageContent.tsx`の5ファイルを同じパターンで置き換えた。
   **次回のブラッシュアップは、6-13で新設した`useAsyncPageData`への置き換えを
-  残り12ファイル(`HomePageContent.tsx`・`ImportPageContent.tsx`の2大規模
-  ファイルを含む。`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
-  取得しているもの。6-13の実装内容に37ファイルの構造の共通性を記載)へ
-  機械的に展開する対応(1回のブラッシュアップで数ファイルずつ)、ユーザーが
+  残り2ファイル(`HomePageContent.tsx`・`ImportPageContent.tsx`の2大規模
+  ファイル。`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
+  取得しているもの37ファイルのうち最後の2つ。6-13の実装内容に37ファイルの
+  構造の共通性を記載)へ展開する対応(大規模ファイルのため数ステップに
+  分割する想定)、ユーザーが
   実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映
   (フェーズ6完了。署名付きAPKが必要な場合は`android/keystore.properties.example`
   を参照。6-11のソフトキーボード表示時の見た目も実機確認項目に含める)、

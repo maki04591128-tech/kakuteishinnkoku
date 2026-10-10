@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { ForeignTaxCreditForm } from "./ForeignTaxCreditForm";
 import { getForeignTaxCreditPageData } from "@/lib/foreignTaxCreditPageData";
-import type { ForeignTaxCreditPageData } from "@/lib/foreignTaxCreditPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function ForeignTaxCreditPageContent() {
   const searchParams = useSearchParams();
@@ -14,15 +14,14 @@ export function ForeignTaxCreditPageContent() {
   const spareLimitCarried = searchParams.get("spareLimitCarried");
   const foreignTaxCreditSaved = searchParams.get("foreignTaxCreditSaved") !== null;
 
-  const [data, setData] = useState<ForeignTaxCreditPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getForeignTaxCreditPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getForeignTaxCreditPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <ForeignTaxCreditPageSkeleton />;
