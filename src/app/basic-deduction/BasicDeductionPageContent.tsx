@@ -1,25 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { BasicDeductionForm } from "./BasicDeductionForm";
 import { getBasicDeductionPageData } from "@/lib/basicDeductionPageData";
-import type { BasicDeductionPageData } from "@/lib/basicDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function BasicDeductionPageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
 
-  const [data, setData] = useState<BasicDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getBasicDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getBasicDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <BasicDeductionPageSkeleton />;

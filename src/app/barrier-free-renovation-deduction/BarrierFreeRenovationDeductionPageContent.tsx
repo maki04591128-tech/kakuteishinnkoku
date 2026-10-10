@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarrierFreeRenovationDeductionForm } from "./BarrierFreeRenovationDeductionForm";
 import { getBarrierFreeRenovationDeductionPageData } from "@/lib/barrierFreeRenovationDeductionPageData";
-import type { BarrierFreeRenovationDeductionPageData } from "@/lib/barrierFreeRenovationDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function BarrierFreeRenovationDeductionPageContent() {
   const searchParams = useSearchParams();
@@ -13,15 +13,14 @@ export function BarrierFreeRenovationDeductionPageContent() {
   const saved = searchParams.get("saved") !== null;
   const deleted = searchParams.get("deleted") !== null;
 
-  const [data, setData] = useState<BarrierFreeRenovationDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getBarrierFreeRenovationDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getBarrierFreeRenovationDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <BarrierFreeRenovationDeductionPageSkeleton />;

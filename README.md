@@ -7536,6 +7536,23 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   確認済み)・`npm run build`(自宅サーバー版)・`npm run build:standalone`
   (全76ページ成功)が成功した。
 
+  **進捗(2026-10-10、2回目):** 残り36ファイルのうち4ファイル
+  (`AngelTaxLossCarryforwardPageContent.tsx`・
+  `BarrierFreeRenovationDeductionPageContent.tsx`・
+  `BasicDeductionPageContent.tsx`・`CasualtyLossDeductionPageContent.tsx`)を
+  機械的に`useAsyncPageData`への呼び出しに置き換えた(独自の
+  `useState`/`useEffect`/`useTransition`を削除し、取得失敗時は
+  `<ClientDbErrorNotice />`を表示)。表示内容・フォーム自体は変更していない。
+  このうち`BarrierFreeRenovationDeductionPageContent.tsx`・
+  `BasicDeductionPageContent.tsx`はpageデータの型(`*PageData`)をimportして
+  いたのが`useState`の型注釈のためだけだったため、置き換えに合わせて
+  不要になったimportも削除した。`npm run test`(全222ファイル1781件、
+  変更無し)・`npm run lint`・`npx tsc --noEmit`(標準・
+  `tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで本変更と
+  無関係)・`npm run build`(自宅サーバー版)・`npm run build:standalone`
+  (全76ページ成功)が成功した。残り32ファイルへの展開は次回以降の
+  ブラッシュアップに残す。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8214,9 +8231,13 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (2026-10-10)に着手し、共通hook`src/lib/useAsyncPageData.ts`と共通エラー
   表示コンポーネント`src/components/ClientDbErrorNotice.tsx`を新設した上で、
   対象37ファイルのうち`EmploymentIncomePageContent.tsx`の1ファイルのみ
-  先行して置き換えた(詳細は6-13の実装内容を参照)。
+  先行して置き換えた(詳細は6-13の実装内容を参照)。続けて2026-10-10に
+  2回目として`AngelTaxLossCarryforwardPageContent.tsx`・
+  `BarrierFreeRenovationDeductionPageContent.tsx`・
+  `BasicDeductionPageContent.tsx`・`CasualtyLossDeductionPageContent.tsx`の
+  4ファイルを同じパターンで置き換えた。
   **次回のブラッシュアップは、6-13で新設した`useAsyncPageData`への置き換えを
-  残り36ファイル(`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
+  残り32ファイル(`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
   取得しているもの。6-13の実装内容に37ファイルの構造の共通性を記載)へ
   機械的に展開する対応(1回のブラッシュアップで数ファイルずつ)、ユーザーが
   実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映
