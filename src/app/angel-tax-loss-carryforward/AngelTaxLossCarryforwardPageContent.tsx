@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   deleteAngelTaxLossCarryforward,
@@ -9,7 +8,8 @@ import {
 } from "@/lib/angelTaxLossCarryforwardActions";
 import { AngelTaxLossCarryforwardForm } from "./AngelTaxLossCarryforwardForm";
 import { getAngelTaxLossCarryforwardPageData } from "@/lib/angelTaxLossCarryforwardPageData";
-import type { AngelTaxLossCarryforwardPageData } from "@/lib/angelTaxLossCarryforwardPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 function yen(value: { toString(): string }): string {
   const n = Number(value.toString());
@@ -20,15 +20,14 @@ export function AngelTaxLossCarryforwardPageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
 
-  const [data, setData] = useState<AngelTaxLossCarryforwardPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getAngelTaxLossCarryforwardPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getAngelTaxLossCarryforwardPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <AngelTaxLossCarryforwardPageSkeleton />;

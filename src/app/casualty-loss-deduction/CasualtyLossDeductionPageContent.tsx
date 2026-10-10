@@ -1,26 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { CasualtyLossDeductionForm } from "./CasualtyLossDeductionForm";
 import { getCasualtyLossDeductionPageData } from "@/lib/casualtyLossDeductionPageData";
-import type { CasualtyLossDeductionPageData } from "@/lib/casualtyLossDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function CasualtyLossDeductionPageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
   const lossCarried = searchParams.get("lossCarried");
 
-  const [data, setData] = useState<CasualtyLossDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getCasualtyLossDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getCasualtyLossDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <CasualtyLossDeductionPageSkeleton />;
