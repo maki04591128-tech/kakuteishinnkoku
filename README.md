@@ -7346,6 +7346,36 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `.github/workflows/android-build.yml`のCIでのビルド成功
   (`gradlew assembleDebug`)をもって確認とする。
 
+- [x] 6-8. 未使用の`FileProvider`(Capacitorテンプレートの既定で生成された
+      ものの、このアプリでは使われていないコンポーネント)を削除する。
+
+  **実施内容(2026-10-10):** `android/app/src/main/AndroidManifest.xml`に
+  `npx cap add android`実行時のテンプレート既定のまま
+  `androidx.core.content.FileProvider`の`<provider>`定義(ファイル共有用の
+  `authorities`・`file_paths.xml`参照)が残っていた。`package.json`を
+  確認したところ、ファイル共有を要するCapacitorプラグイン
+  (`@capacitor/filesystem`・`@capacitor/share`等)は一切導入されておらず
+  (6-3で確認済みの通り`@capacitor/core`・`@capacitor/android`・
+  `@capacitor/cli`のみ)、`src/`内を`grep`しても`FileProvider`・
+  当該プラグインへの参照は無いことを確認した。CSV出力機能
+  (`src/lib/exportUi.standalone.tsx`)も`Blob`+
+  `<a download>`というブラウザ標準のダウンロード機構のみで実装されており、
+  ネイティブのファイル共有は使っていない。このため`FileProvider`は
+  実際には使われていないテンプレートの残骸と判断し、`<provider>`定義を
+  `AndroidManifest.xml`から削除し、参照先だった
+  `android/app/src/main/res/xml/file_paths.xml`も削除した。不要な
+  コンポーネント定義(他アプリからURI経由でアクセス可能な公開面の一つ)を
+  減らすことは、6-3(不要な`INTERNET`権限の削除)と同様、アプリの実態と
+  Androidの設定を一致させ余分な攻撃対象領域を減らす対応である。
+  マニフェスト・リソースの削除のみでJava/Kotlinコードの変更は無いため、
+  `npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係)・`npm run build`・`npm run build:standalone`・
+  `npx cap sync android`が成功したことを確認した(Next.js側のビルド内容に
+  影響は無い)。実機・エミュレータでの最終確認はフェーズ6の制約通りこの
+  セッションでは行えず、`.github/workflows/android-build.yml`のCIでの
+  ビルド成功(`gradlew assembleDebug`)をもって確認とする。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8001,7 +8031,11 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   簡易アイコンに変更。詳細は6-6の実装内容を参照)。さらに
   「6-7. スプラッシュ画面の差し替え」(2026-10-10)を完了させ、6-6では
   対象外としていた`drawable*/splash.png`も同じデザイン(書類+認印・
-  背景色`#1565C0`)に統一した。
+  背景色`#1565C0`)に統一した。さらに「6-8. 未使用の`FileProvider`の削除」
+  (2026-10-10)を完了させた(ファイル共有を要するCapacitorプラグインが
+  未導入で、CSV出力も`Blob`+`<a download>`のみのため、6-3と同様
+  「実際には使われていないテンプレート由来のコンポーネント」として
+  `AndroidManifest.xml`の`<provider>`定義・`file_paths.xml`を削除した)。
   **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
   インストールして動作確認した結果の反映(フェーズ6完了。署名付きAPKが
   必要な場合は`android/keystore.properties.example`を参照)、または
