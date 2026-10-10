@@ -7314,6 +7314,38 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   スプラッシュ画面(`drawable*/splash.png`)はCapacitorテンプレートの既定画像の
   ままで、今回は対象外(次回以降の見直し候補として残す)。
 
+- [x] 6-7. スプラッシュ画面(`drawable*/splash.png`)を、6-6で決めたアプリ
+      アイコンのデザイン(書類+認印モチーフ・背景色`#1565C0`)に合わせて
+      差し替える。
+
+  **実装内容(2026-10-10):** `android/app/src/main/res/drawable*/splash.png`
+  (`drawable`・`drawable-{land,port}-{m,h,xh,xxh,xxxh}dpi`の計11ファイル)が
+  `npx cap add android`実行時のCapacitorテンプレート既定のまま(白背景に
+  青いCapacitorロゴ)だったことをReadツールで画像を目視して確認した
+  (`android/app/src/main/res/values/styles.xml`の
+  `AppTheme.NoActionBarLaunch`が`@drawable/splash`を起動時の背景として
+  参照しており、Capacitor Splash Screenプラグインは導入されていない
+  (`package.json`に`@capacitor/splash-screen`は無い)ため、この
+  `splash.png`自体を直接差し替える以外の方法は無いと判断した)。
+
+  6-6の`drawable-v24/ic_launcher_foreground.xml`と同じパス(書類+認印)を
+  再利用し、背景色`#1565C0`の上にアイコンを中央配置する構成にした。
+  11ファイルそれぞれ解像度(横長480×320〜1920×1280、縦長320×480〜
+  1280×1920)が異なるため、Chromium(`/opt/pw-browsers/`。6-6と同じ検証
+  環境)で各解像度のHTML(背景色+中央配置したSVG、アイコンサイズは
+  短辺の34%)をレンダリングしてPNGを生成し直した。生成したPNGは
+  Readツールで目視し、縦長・横長どちらも背景色とアイコンのバランスに
+  問題が無いことを確認した。
+
+  `npm run test`(全222ファイル1779件)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係)・`npm run build`・`npm run build:standalone`・
+  `npx cap sync android`が成功した(画像のみの変更のためNext.js側の
+  ビルド内容に影響は無い)。実機・エミュレータでの見た目の最終確認は
+  フェーズ6の制約通りこのセッションでは行えず、
+  `.github/workflows/android-build.yml`のCIでのビルド成功
+  (`gradlew assembleDebug`)をもって確認とする。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -7966,14 +7998,15 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   署名情報を読み込み、無ければ未署名のまま、という既存の挙動を壊さない形)。
   続けて「6-6. アプリアイコンの差し替え」(2026-10-10)を完了させた
   (Capacitorテンプレートの既定アイコンから、書類+認印をモチーフにした
-  簡易アイコンに変更。詳細は6-6の実装内容を参照)。
+  簡易アイコンに変更。詳細は6-6の実装内容を参照)。さらに
+  「6-7. スプラッシュ画面の差し替え」(2026-10-10)を完了させ、6-6では
+  対象外としていた`drawable*/splash.png`も同じデザイン(書類+認印・
+  背景色`#1565C0`)に統一した。
   **次回のブラッシュアップは、ユーザーが実機(またはエミュレータ)でAPKを
   インストールして動作確認した結果の反映(フェーズ6完了。署名付きAPKが
-  必要な場合は`android/keystore.properties.example`を参照)、またはマニフェスト・
-  ビルド設定の他の見直し項目(6-6では対象外としたスプラッシュ画面
-  (`drawable*/splash.png`)がCapacitorテンプレートの既定画像のまま残っている
-  点等)、あるいは末尾の「ロードマップ」(既存の税制対応機能の追加)から
-  着手する。**
+  必要な場合は`android/keystore.properties.example`を参照)、または
+  マニフェスト・ビルド設定の他の見直し項目、あるいは末尾の「ロードマップ」
+  (既存の税制対応機能の追加)から着手する。**
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
