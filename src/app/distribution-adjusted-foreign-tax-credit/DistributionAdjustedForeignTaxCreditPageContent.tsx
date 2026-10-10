@@ -1,26 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { DistributionAdjustedForeignTaxCreditForm } from "./DistributionAdjustedForeignTaxCreditForm";
 import { getDistributionAdjustedForeignTaxCreditPageData } from "@/lib/distributionAdjustedForeignTaxCreditPageData";
-import type { DistributionAdjustedForeignTaxCreditPageData } from "@/lib/distributionAdjustedForeignTaxCreditPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function DistributionAdjustedForeignTaxCreditPageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
   const saved = searchParams.get("saved") !== null;
 
-  const [data, setData] = useState<DistributionAdjustedForeignTaxCreditPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getDistributionAdjustedForeignTaxCreditPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getDistributionAdjustedForeignTaxCreditPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <DistributionAdjustedForeignTaxCreditPageSkeleton />;

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   applyCertifiedHousingConstructionCreditCarryforward,
@@ -9,7 +8,8 @@ import {
 } from "@/lib/certifiedHousingConstructionCreditActions";
 import { CertifiedHousingConstructionCreditForm } from "./CertifiedHousingConstructionCreditForm";
 import { getCertifiedHousingConstructionCreditPageData } from "@/lib/certifiedHousingConstructionCreditPageData";
-import type { CertifiedHousingConstructionCreditPageData } from "@/lib/certifiedHousingConstructionCreditPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function CertifiedHousingConstructionCreditPageContent() {
   const searchParams = useSearchParams();
@@ -20,15 +20,14 @@ export function CertifiedHousingConstructionCreditPageContent() {
   const carryforwardApplied = searchParams.get("carryforwardApplied") !== null;
   const carryforwardDeleted = searchParams.get("carryforwardDeleted") !== null;
 
-  const [data, setData] = useState<CertifiedHousingConstructionCreditPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getCertifiedHousingConstructionCreditPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getCertifiedHousingConstructionCreditPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <CertifiedHousingConstructionCreditPageSkeleton />;
