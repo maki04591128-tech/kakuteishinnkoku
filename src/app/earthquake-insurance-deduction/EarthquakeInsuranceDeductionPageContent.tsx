@@ -1,25 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { EarthquakeInsuranceDeductionForm } from "./EarthquakeInsuranceDeductionForm";
 import { getEarthquakeInsuranceDeductionPageData } from "@/lib/earthquakeInsuranceDeductionPageData";
-import type { EarthquakeInsuranceDeductionPageData } from "@/lib/earthquakeInsuranceDeductionPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 export function EarthquakeInsuranceDeductionPageContent() {
   const searchParams = useSearchParams();
   const yearParam = Number(searchParams.get("year")) || null;
 
-  const [data, setData] = useState<EarthquakeInsuranceDeductionPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getEarthquakeInsuranceDeductionPageData(yearParam),
+    [yearParam],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getEarthquakeInsuranceDeductionPageData(yearParam);
-      setData(result);
-    });
-  }, [yearParam]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <EarthquakeInsuranceDeductionPageSkeleton />;
