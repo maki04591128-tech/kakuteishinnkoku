@@ -7633,6 +7633,25 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   再現しない。本変更とは無関係なビルド成果物の再利用時の既知の挙動のため、
   対応は見送る)。残り17ファイルへの展開は次回以降のブラッシュアップに残す。
 
+  **進捗(2026-10-10、7回目):** 残り17ファイルのうち5ファイル
+  (`IncomeAmountAdjustmentDeductionPageContent.tsx`・
+  `InterestIncomePageContent.tsx`・`MortgageDeductionPageContent.tsx`・
+  `SpecificExpenseDeductionPageContent.tsx`・
+  `UnrealizedGainPageContent.tsx`)を同じパターンで`useAsyncPageData`への
+  呼び出しに置き換えた(独自の`useState`/`useEffect`/`useTransition`を削除し、
+  取得失敗時は`<ClientDbErrorNotice />`を表示)。表示内容・フォーム自体は
+  変更していない。いずれもpageデータの型(`*PageData.types`)をimportしていたのが
+  `useState`の型注釈のためだけだったため、置き換えに合わせて不要になった
+  importも削除した。`npm install`(このクラウド開発環境では`node_modules`が
+  未インストールの状態から開始したため)・`cp .env.example .env && npx prisma db push`
+  の後、`npm run test`(全222ファイル1781件、変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係なことを`git stash`で確認済み)・
+  `npm run build`(自宅サーバー版)・`npm run build:standalone`
+  (`out/`を削除したクリーンな状態から実行し全76ページ成功)が成功した。
+  残り12ファイル(`HomePageContent.tsx`・`ImportPageContent.tsx`の2大規模ファイルを
+  含む)への展開は次回以降のブラッシュアップに残す。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8326,9 +8345,19 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   置き換えた。続けて5回目として`DonationDeductionPageContent.tsx`・
   `SmallBusinessMutualAidDeductionPageContent.tsx`・
   `ResidentTaxNonTaxablePageContent.tsx`の3ファイルを同じパターンで
-  置き換えた。
+  置き換えた。続けて6回目として`ChildRearingRenovationDeductionPageContent.tsx`・
+  `MultiHouseholdRenovationDeductionPageContent.tsx`・
+  `EnergySavingRenovationDeductionPageContent.tsx`・
+  `EarthquakeRenovationDeductionPageContent.tsx`・
+  `DurabilityImprovementRenovationDeductionPageContent.tsx`の5ファイルを
+  同じパターンで置き換えた。続けて7回目として
+  `IncomeAmountAdjustmentDeductionPageContent.tsx`・
+  `InterestIncomePageContent.tsx`・`MortgageDeductionPageContent.tsx`・
+  `SpecificExpenseDeductionPageContent.tsx`・`UnrealizedGainPageContent.tsx`の
+  5ファイルを同じパターンで置き換えた。
   **次回のブラッシュアップは、6-13で新設した`useAsyncPageData`への置き換えを
-  残り17ファイル(`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
+  残り12ファイル(`HomePageContent.tsx`・`ImportPageContent.tsx`の2大規模
+  ファイルを含む。`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
   取得しているもの。6-13の実装内容に37ファイルの構造の共通性を記載)へ
   機械的に展開する対応(1回のブラッシュアップで数ファイルずつ)、ユーザーが
   実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映
