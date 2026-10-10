@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnnualReportTextImportForm } from "@/app/import/AnnualReportTextImportForm";
 import { setCryptoCostMethod } from "@/lib/cryptoCostMethodActions";
@@ -97,7 +96,8 @@ import {
   reconcileAssetSymbolBalances,
 } from "@/lib/moneyforward/assetBalanceReconciliation";
 import { getImportPageData } from "@/lib/importPageData";
-import type { ImportPageData } from "@/lib/importPageData.types";
+import { useAsyncPageData } from "@/lib/useAsyncPageData";
+import { ClientDbErrorNotice } from "@/components/ClientDbErrorNotice";
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   SPECIFIC_WITHHOLDING: "特定口座(源泉徴収あり)",
@@ -137,15 +137,14 @@ export function ImportPageContent() {
   const futuresLossCarried = searchParams.get("futuresLossCarried");
   const nisaLifetimeCarried = searchParams.get("nisaLifetimeCarried");
 
-  const [data, setData] = useState<ImportPageData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data, error, isPending } = useAsyncPageData(
+    () => getImportPageData(year),
+    [year],
+  );
 
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await getImportPageData(year);
-      setData(result);
-    });
-  }, [year]);
+  if (error) {
+    return <ClientDbErrorNotice error={error} />;
+  }
 
   if (!data) {
     return <ImportPageSkeleton />;

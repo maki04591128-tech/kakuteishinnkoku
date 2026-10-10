@@ -7697,6 +7697,25 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   残り2ファイル(`HomePageContent.tsx`・`ImportPageContent.tsx`の2大規模
   ファイル)への展開は次回以降のブラッシュアップに残す。
 
+  **進捗(2026-10-10、10回目)・6-13完了:** 残っていた最後の2ファイル
+  (`HomePageContent.tsx`・`ImportPageContent.tsx`)を同じパターンで
+  `useAsyncPageData`への呼び出しに置き換えた(独自の
+  `useState`/`useEffect`/`useTransition`を削除し、取得失敗時は
+  `<ClientDbErrorNotice />`を表示)。表示内容・フォーム自体は変更していない。
+  いずれも型注釈のためだけに`*PageData`型をimportしていたため、置き換えに
+  合わせて不要になったimportも削除した。`grep`で`src/app`配下の
+  `*PageContent.tsx`に独自の`useState<...PageData>`/`useTransition`が
+  残っていないことを確認し、clientDb経由でデータ取得する37ファイル全てが
+  共通hookへの置き換えを完了したことを確認した。`npm install`
+  (このクラウド開発環境では`node_modules`が未インストールの状態から開始した
+  ため)・`cp .env.example .env && npx prisma db push`の後、`npm run test`
+  (全222ファイル1781件、変更無し)・`npm run lint`・`npx tsc --noEmit`
+  (標準・`tsconfig.standalone.json`の両方。既知の`LayoutProps`エラーのみで
+  本変更と無関係なことを`git stash`で確認済み)・`npm run build`
+  (自宅サーバー版)・`npm run build:standalone`(`out/`を削除したクリーンな
+  状態から実行し全76ページ成功、exit code 0)が成功した。これにより6-13
+  (clientDb初期化エラーのPageContent層での捕捉・表示)は完了した。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
