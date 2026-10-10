@@ -7716,6 +7716,32 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   状態から実行し全76ページ成功、exit code 0)が成功した。これにより6-13
   (clientDb初期化エラーのPageContent層での捕捉・表示)は完了した。
 
+- [x] 6-14. `enableOnBackInvokedCallback`の有効化
+
+  **実装内容(2026-10-10):** `android/variables.gradle`で
+  `targetSdkVersion`を36(Android 16)に設定しているが、
+  `AndroidManifest.xml`の`<application>`タグに
+  `android:enableOnBackInvokedCallback`が未設定だった。Android 13(API 33)
+  以降、この属性を`true`にしない限りOSの予測的戻るジェスチャー
+  (Predictive Back、スワイプ中に戻り先画面がプレビュー表示される)が
+  有効化されず、システムが非推奨警告を出す。本アプリはCapacitorの
+  `BridgeActivity`(内部的にWebView表示中はJS側の`history`に応じて
+  `goBack()`する、戻り先が無い場合はアプリを終了する、という標準的な
+  戻るボタン処理をAndroidX `OnBackPressedDispatcher`経由で行う)を
+  そのまま使っており、この属性を有効にするだけでアプリ側のコードは
+  変更不要なため、`AndroidManifest.xml`の`<application>`タグに
+  `android:enableOnBackInvokedCallback="true"`を追加した。
+  `minSdkVersion`は24だが、API 33未満の端末ではこの属性は単に無視される
+  ため後方互換性への影響はない。このクラウド開発環境にはAndroid SDK/
+  エミュレータが無いため、実機での戻るジェスチャーの見た目の確認は
+  フェーズ6の実機確認に含める(ロールバック時は本行を削除するだけで良い)。
+  `npm run test`(全222ファイル1781件、変更無し)・`npm run lint`・
+  `npx tsc --noEmit`(標準・`tsconfig.standalone.json`の両方。既知の
+  `LayoutProps`エラーのみで本変更と無関係)・`npm run build`
+  (自宅サーバー版)・`npm run build:standalone`(全76ページ成功)が
+  成功した(本変更はAndroidのネイティブ設定のみでTS/JSに影響しないため、
+  これらのコマンドの結果は不変であることの確認)。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8389,7 +8415,7 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   (`openClientDb`呼び出し前に実行環境をチェックし、低レベルなJSエラーの
   代わりにWebView更新を促す具体的なメッセージで失敗するようにした。詳細は
   6-12の実装内容を参照。この判定結果を実際に画面へ表示するPageContent層の
-  対応は未着手のまま次回以降の候補として残っている)。さらに
+  対応は、後述の6-13で対応した)。さらに
   「6-13. 6-12のclientDb初期化エラーをPageContent層で捕捉し画面に表示する」
   (2026-10-10)に着手し、共通hook`src/lib/useAsyncPageData.ts`と共通エラー
   表示コンポーネント`src/components/ClientDbErrorNotice.tsx`を新設した上で、
@@ -8428,18 +8454,19 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   `HomeReplacementLossDeductionPageContent.tsx`・
   `HomeSaleLossDeductionPageContent.tsx`・
   `ResidentTaxAdjustmentDeductionPageContent.tsx`・
-  `TaxEstimatePageContent.tsx`の5ファイルを同じパターンで置き換えた。
-  **次回のブラッシュアップは、6-13で新設した`useAsyncPageData`への置き換えを
-  残り2ファイル(`HomePageContent.tsx`・`ImportPageContent.tsx`の2大規模
-  ファイル。`src/app/**/*PageContent.tsx`のうちclientDb経由でデータ
-  取得しているもの37ファイルのうち最後の2つ。6-13の実装内容に37ファイルの
-  構造の共通性を記載)へ展開する対応(大規模ファイルのため数ステップに
-  分割する想定)、ユーザーが
+  `TaxEstimatePageContent.tsx`の5ファイルを同じパターンで置き換えた。続けて
+  10回目(最終回)として残っていた最後の2ファイル(`HomePageContent.tsx`・
+  `ImportPageContent.tsx`の2大規模ファイル)を同じパターンで置き換え、
+  clientDb経由でデータ取得する37ファイル全てが共通hookへの置き換えを完了し、
+  6-13が完了した。その後、targetSdkVersion 36(Android 16)に合わせて
+  「6-14. `enableOnBackInvokedCallback`の有効化」(2026-10-10)を完了させた
+  (詳細は6-14の実装内容を参照)。
+  **次回のブラッシュアップは、ユーザーが
   実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映
   (フェーズ6完了。署名付きAPKが必要な場合は`android/keystore.properties.example`
-  を参照。6-11のソフトキーボード表示時の見た目も実機確認項目に含める)、
-  マニフェスト・ビルド設定の他の見直し項目、あるいは末尾の「ロードマップ」
-  (既存の税制対応機能の追加)から着手する。**
+  を参照。6-11のソフトキーボード表示時の見た目・6-14の戻るジェスチャーの
+  挙動も実機確認項目に含める)、マニフェスト・ビルド設定の他の見直し項目、
+  あるいは末尾の「ロードマップ」(既存の税制対応機能の追加)から着手する。**
 - フェーズ1・2は「1コミットで1〜2ファイル」程度の粒度に抑え、既存のテスト
   (`npm run test`)・型チェック(`npx tsc --noEmit`)が通ることを都度確認する。
   既存の自宅サーバー版が壊れないことを最優先する(リポジトリパターン導入時点では
