@@ -7797,6 +7797,38 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   このクラウド開発環境にAndroid SDKが無いためこのセッションでは不可。
   PR上のCI(`android-build.yml`の`gradlew assembleDebug`)で検証する)。
 
+- [x] 6-17. `android-build.yml`(APKビルドCI)に`npm run test`/
+      `npx tsc --noEmit`/`npm run lint`の実行を追加し、Androidビルドの
+      前提となる既存テスト・型チェック・lintが継続的に守られるようにする。
+
+  **実装内容(2026-10-10):** それまでの`android-build.yml`は
+  `npm run build:standalone`から`gradlew assembleDebug`までのビルド手順
+  のみを実行し、既存のテスト(`npm run test`)・型チェック
+  (`npx tsc --noEmit`)・lint(`npm run lint`)はこのワークフロー上では
+  一度も実行されていなかった(リポジトリ内の唯一のGitHub Actions
+  ワークフローが`android-build.yml`であり、他にCIが存在しないため)。
+  本移行の進め方の指針(本READMEの「進め方の指針」)で「既存のテスト・
+  型チェックが通ることを都度確認する」としている基準がPR上のCIでは
+  検証されていなかったため、`npm ci`の直後に`Type check`
+  (`npx tsc --noEmit`)・`Lint`(`npm run lint`)・`Unit tests`
+  (`npm run test`)の3ステップを`Build standalone`ステップの前に追加した。
+
+  `npx tsc --noEmit`は`.next/types`(Next.jsのルート型定義、`next dev`や
+  `next build`実行時に生成される)が無い状態で実行すると
+  `src/app/layout.tsx`の`LayoutProps`が解決できずエラーになる
+  (6-16の実装内容で触れた「既知の`LayoutProps`エラー」はこれが原因)。
+  このクラウド開発環境・CI環境ともに`npm ci`直後は`.next`が存在しないため、
+  `Type check`ステップの前に`next typegen`(フルビルドを行わずルートの
+  型定義のみを生成するNext.js CLIコマンド)を実行するステップを追加し、
+  この既知のエラーがCI上で誤って失敗要因にならないようにした。
+
+  このセッションで`npm ci`・`npx next typegen`・`npx tsc --noEmit`
+  (エラー0件)・`npm run lint`(エラー0件)・`npm run test`
+  (全222ファイル1781件成功)を実際に実行して確認した
+  (`npm run build:standalone`・`npx cap sync android`・
+  `gradlew assembleDebug`は本変更で変更していないため再確認は省略。
+  追加した3ステップ自体がPR上のCIで実行されることで動作確認となる)。
+
 #### フェーズ7: `searchParams`問題の解消(ページ層のクライアントサイド化)
 
 フェーズ5-1-3dの残課題だった`searchParams`問題(多数のページが
@@ -8523,7 +8555,11 @@ APKの生成・実機(またはエミュレータ)での動作確認ができな
   「6-16. `AppTheme`の配色がアプリブランドカラーと不一致だった問題の修正」
   (2026-10-10)を完了させた(`colors.xml`が無く6-6/6-7のブランドカラーと
   無関係なcapacitor-androidライブラリ既定色がステータスバー等に
-  残っていた問題。詳細は6-16の実装内容を参照)。
+  残っていた問題。詳細は6-16の実装内容を参照)。さらに
+  「6-17. APKビルドCI(`android-build.yml`)への既存テスト・型チェック・
+  lint実行の追加」(2026-10-10)を完了させた(リポジトリ内の唯一のCIである
+  このワークフローがビルド手順のみでテスト・型チェック・lintを一度も
+  実行していなかったため追加した。詳細は6-17の実装内容を参照)。
   **次回のブラッシュアップは、ユーザーが
   実機(またはエミュレータ)でAPKをインストールして動作確認した結果の反映
   (フェーズ6完了。署名付きAPKが必要な場合は`android/keystore.properties.example`
